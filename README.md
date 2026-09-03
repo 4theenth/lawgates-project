@@ -6,7 +6,7 @@ LawGates is a legal regulation intelligence platform designed to collect, proces
 
 The platform is developed using a Laravel and React-based architecture, with a focus on maintainability, scalability, structured legal data, and AI-assisted development.
 
-<img src="https://drive.google.com/file/d/1LNj08MD8ecM8CxkWjUymXID5EVCCCPrj/view?usp=sharing" width="800" alt="LawGates Demo" />
+<img width="640" height="360" alt="LawGatesTeaser" src="https://github.com/user-attachments/assets/67ff4563-b164-4a9e-8f45-2f8ebaacab86" />
 
 ## Table of Contents
 
