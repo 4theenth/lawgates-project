@@ -220,6 +220,7 @@ Detailed architectural rules are maintained separately in:
 
 The project follows the standard Laravel structure with additional frontend organization.
 
+```
 lawgates-project/
 │
 ├── app/
@@ -264,6 +265,7 @@ lawgates-project/
 ├── composer.json
 ├── package.json
 └── vite.config.ts
+```
 
 The exact internal structure may evolve as the project architecture becomes more mature.
 
@@ -802,7 +804,7 @@ git commit -m "feat: add regulation search feature"
 Commit every 15-30 minutes of focused work, or whenever you complete a self-contained change.
 
 ### Commit Types
-
+```
 | Type | Purpose |
 |------|----------|
 | `feat` | New functionality |
@@ -813,7 +815,7 @@ Commit every 15-30 minutes of focused work, or whenever you complete a self-cont
 | `chore` | Maintenance / tooling |
 | `style` | Formatting or styling |
 | `perf` | Performance improvement |
-
+```
 ---
 
 ## Pull Request Workflow
@@ -1077,14 +1079,14 @@ Current key documents:
 Additional technical documentation may be added under: `docs/`
 
 Possible documentation structure:
-
+```
 docs/
 ├── architecture/
 ├── database/
 ├── api/
 ├── deployment/
 └── development/
-
+```
 The documentation structure should remain simple until there is a clear need for additional documents.
 
 ---
