@@ -1,3 +1,73 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --background: #070c18;
+  --foreground: #ffffff;
+  --card: #0a1c3e;
+  --card-foreground: #ffffff;
+  --popover: #0a1c3e;
+  --popover-foreground: #ffffff;
+  --primary: #0a1c3e;
+  --primary-foreground: #ffffff;
+  --secondary: #d4af37;
+  --secondary-foreground: #0a1c3e;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #1e293b;
+  --accent-foreground: #ffffff;
+  --destructive: #b72121;
+  --border: #1e293b;
+  --input: #1e293b;
+  --ring: #d4af37;
+  --radius: 0.625rem;
+}
+
+/* Menggeser garis grid perlahan ke diagonal */
+@keyframes pan-grid {
+  0% {
+    background-position: 0px 0px;
+  }
+  100% {
+    background-position: 100px 100px;
+  }
+}
+
+/* Mengalirkan gradien cahaya (aurora) ke kanan */
+@keyframes pan-aurora {
+  0% {
+    background-position: 200% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-pan-grid {
+  animation: pan-grid 40s linear infinite;
+}
+
+.animate-pan-aurora {
+  animation: pan-aurora 25s linear infinite;
+}
+
+/* Global Base Styles */
+@layer base {
+  html, body {
+    @apply font-sans bg-[#070C18] text-white antialiased;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+    width: 0px !important;
+    height: 0px !important;
+    background: transparent !important;
+  }
+}
