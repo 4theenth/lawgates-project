@@ -15,7 +15,6 @@ return new class extends Migration
         $table->id();
         $table->string('kode');
         $table->string('nama');
-        $table->integer('urutan_hierarki');
     });
 }
 public function down(): void { Schema::dropIfExists('jenis_peraturan'); }
