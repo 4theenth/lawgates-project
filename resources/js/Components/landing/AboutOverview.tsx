@@ -1,52 +1,200 @@
 import { CountUp } from '../common/CountUp';
+import { Icon } from '@/Components/ui/icon';
 
 export function AboutOverview() {
   return (
-    <section className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-10 flex flex-col items-center text-center">
-      {/* Badge Tag: TENTANG KAMI */}
-      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold tracking-wider mb-6">
-        <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
-        TENTANG KAMI
-      </div>
+    <section className="w-full max-w-[1196px] mx-auto px-6">
+      {/* Dark Navy Banner Container */}
+      <div
+        className="
+          relative
+          flex
+          w-full
+          max-w-[1199px]
+          min-h-[180px]
+          px-[78px]
+          py-[30px]
+          flex-col
+          items-start
+          gap-[10px]
+          bg-pr-900
+          border
+          border-pr-700/60
+          rounded-2xl
+          shadow-2xl
+          overflow-hidden
+        "
+      >
+        {/* Subtle ambient gold radial glow */}
+        <div
+          className="absolute -top-24 -left-24 w-80 h-80 pointer-events-none rounded-full opacity-20 blur-3xl"
+          style={{
+            background:
+              'radial-gradient(circle, var(--color-sec-900) 0%, transparent 70%)',
+          }}
+        />
 
-      {/* Main Mission Statement */}
-      <p className="text-gray-800 text-base sm:text-lg lg:text-[19px] font-normal leading-relaxed max-w-4xl mb-12">
-        LawGates adalah platform pangkalan data hukum terpadu yang merangkum seluruh peraturan perundang-undangan di Indonesia ke dalam satu titik akses pencarian tanpa harus menelusuri puluhan portal instansi pemerintah yang terpisah.
-      </p>
+        {/* Content */}
+        <div className="relative z-10 flex w-full items-start justify-between gap-[10px]">
+          
+          {/* LEFT: Badge + Metrics */}
+          <div className="flex flex-col items-start gap-[10px]">
+            
+            {/* Badge */}
+            <div
+              className="
+                flex
+                px-[8px]
+                py-[2px]
+                justify-center
+                items-center
+                gap-[8px]
+                rounded-[20px]
+                border
+                border-[#E7E8EC]
+                bg-white
+                text-pr-900
+              "
+            >
+              {/* Ellipse 3 */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="6"
+                height="6"
+                viewBox="0 0 6 6"
+                fill="none"
+                className="shrink-0"
+              >
+                <circle
+                  cx="3"
+                  cy="3"
+                  r="3"
+                  fill="#0A1C3E"
+                />
+              </svg>
 
-      {/* 3 Big Metric Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 w-full max-w-3xl border-t border-b border-gray-100 py-8">
-        {/* Metric 1 */}
-        <div className="flex flex-col items-center">
-          <div className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight flex items-baseline">
-            <CountUp end={3957045} />
-            <span className="text-gray-900 ml-0.5">+</span>
+              <span
+                className="
+                  text-pr-900
+                  text-[10px]
+                  font-semibold
+                  leading-[16px]
+                "
+              >
+                TENTANG KAMI
+              </span>
+            </div>
+
+            {/* 3 Metrics */}
+            <div className="flex items-start gap-[40px]">
+              
+              {/* Metric 1 */}
+              <div className="flex flex-col items-start">
+                <div
+                  className="
+                    self-stretch
+                    text-white
+                    text-[24px]
+                    font-semibold
+                    leading-[130%]
+                  "
+                >
+                  <CountUp end={3957045} />
+                  <span>+</span>
+                </div>
+
+                <span
+                  className="
+                    self-stretch
+                    text-neu-100
+                    text-[12px]
+                    font-normal
+                    leading-[18px]
+                  "
+                >
+                  Data Hukum
+                </span>
+              </div>
+
+              {/* Metric 2 */}
+              <div className="flex flex-col items-start">
+                <div
+                  className="
+                    self-stretch
+                    text-white
+                    text-[24px]
+                    font-semibold
+                    leading-[130%]
+                  "
+                >
+                  <CountUp end={1627205} />
+                  <span>+</span>
+                </div>
+
+                <span
+                  className="
+                    self-stretch
+                    text-neu-100
+                    text-[12px]
+                    font-normal
+                    leading-[18px]
+                  "
+                >
+                  Dokumen Hukum
+                </span>
+              </div>
+
+              {/* Metric 3 */}
+              <div className="flex flex-col items-start">
+                <div
+                  className="
+                    self-stretch
+                    text-white
+                    text-[24px]
+                    font-semibold
+                    leading-[130%]
+                  "
+                >
+                  <CountUp end={100000} />
+                  <span>+</span>
+                </div>
+
+                <span
+                  className="
+                    self-stretch
+                    text-neu-100
+                    text-[12px]
+                    font-normal
+                    leading-[18px]
+                  "
+                >
+                  Pelanggan Aktif
+                </span>
+              </div>
+
+            </div>
           </div>
-          <span className="text-xs sm:text-sm font-medium text-gray-500 mt-1">
-            Data Hukum
-          </span>
-        </div>
 
-        {/* Metric 2 */}
-        <div className="flex flex-col items-center">
-          <div className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight flex items-baseline">
-            <CountUp end={1627205} />
-            <span className="text-gray-900 ml-0.5">+</span>
+          {/* RIGHT: Description */}
+          <div className="w-[543px] shrink-0">
+            <p
+              className="
+                w-[543px]
+                text-white
+                text-justify
+                font-inter
+                text-[16px]
+                font-normal
+                leading-[24px]
+              "
+            >
+              LawGates adalah platform pangkalan data hukum terpadu yang
+              merangkum seluruh peraturan perundang-undangan di Indonesia ke
+              dalam satu titik akses pencarian tanpa harus menelusuri puluhan
+              portal instansi pemerintah yang terpisah.
+            </p>
           </div>
-          <span className="text-xs sm:text-sm font-medium text-gray-500 mt-1">
-            Dokumen Hukum
-          </span>
-        </div>
 
-        {/* Metric 3 */}
-        <div className="flex flex-col items-center">
-          <div className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight flex items-baseline">
-            <CountUp end={100000} />
-            <span className="text-gray-900 ml-0.5">+</span>
-          </div>
-          <span className="text-xs sm:text-sm font-medium text-gray-500 mt-1">
-            Pelanggan Aktif
-          </span>
         </div>
       </div>
     </section>
