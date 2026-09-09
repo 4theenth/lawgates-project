@@ -378,13 +378,16 @@ The frontend uses React with Inertia.
 The main frontend structure should follow:
 
 ```
-resources/js/
-├── components/
-├── layouts/
-├── pages/
-├── hooks/
-├── types/
-└── utils/
+resources/
+├── js/
+│   ├── components/
+│   ├── layouts/
+│   ├── pages/
+│   ├── hooks/
+│   ├── types/
+│   └── utils/
+└── css/
+    └── app.css
 ```
 
 ### Responsibilities:
@@ -395,6 +398,7 @@ resources/js/
 - **hooks/** — Reusable React-specific logic
 - **types/** — Shared TypeScript definitions
 - **utils/** — Pure utility functions
+- **css/app.css** — Source of truth for colors, design tokens, and custom utilities
 
 Follow the existing project structure before introducing new directories.
 
@@ -402,7 +406,82 @@ Do not create new architectural directories merely because they are common in ot
 
 ---
 
-## 13. React Page Standards
+## 13. Styling Standards
+
+LawGates uses Tailwind CSS with `app.css` as the centralized source of truth for colors, custom utilities, and design tokens.
+
+### Rules:
+
+1. **All color definitions MUST be defined in app.css**
+2. **Custom CSS utilities MUST be defined in app.css**
+3. **Component-specific styles should use Tailwind classes from app.css definitions**
+4. **Avoid inline style objects unless absolutely necessary**
+5. **Do not use arbitrary values** (e.g., `bg-[#ff0000]`) when a defined token exists
+
+### app.css Structure:
+
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Color definitions and design tokens */
+}
+
+@layer components {
+  /* Reusable component patterns */
+}
+
+@layer utilities {
+  /* Custom utility classes */
+}
+```
+
+### Example:
+
+**Correct:**
+```css
+/* app.css */
+@layer base {
+  :root {
+    --color-primary: #1e40af;
+    --color-secondary: #64748b;
+  }
+}
+```
+
+```jsx
+// Component
+<button className="bg-primary text-white">Submit</button>
+```
+
+**Avoid:**
+```jsx
+// Component with arbitrary color
+<button className="bg-[#1e40af]">Submit</button>
+
+// Inline style
+<button style={{backgroundColor: '#1e40af'}}>Submit</button>
+```
+
+### When to Extend:
+
+- Add new color tokens when a new design requirement emerges
+- Define reusable component patterns in `@layer components`
+- Keep design decisions centralized in app.css
+- Document color purpose with comments when not obvious
+
+### Maintenance:
+
+- Review app.css periodically for unused tokens
+- Remove deprecated color definitions after migration
+- Keep color naming semantic (e.g., `primary`, `danger`) rather than descriptive (e.g., `blue-500`, `red-600`)
+- Ensure design consistency by enforcing app.css as the single source of truth
+
+---
+
+## 14. React Page Standards
 
 Pages represent application screens or route-level views.
 
@@ -421,7 +500,7 @@ If the same UI pattern appears across multiple pages, consider extracting it int
 
 ---
 
-## 14. React Component Standards
+## 15. React Component Standards
 
 Components should have a clear responsibility.
 
@@ -451,7 +530,7 @@ Do not split components merely because a file has reached an arbitrary line coun
 
 ---
 
-## 15. Reusable Component Policy
+## 16. Reusable Component Policy
 
 Before creating a new component, **ALWAYS** check whether an existing component already solves the problem.
 
@@ -491,7 +570,7 @@ Prefer one well-defined reusable component with appropriate variants.
 
 ---
 
-## 16. Avoid Over-Generalized Components
+## 17. Avoid Over-Generalized Components
 
 Reusability does NOT mean every component should support every possible
 use case.
@@ -512,7 +591,7 @@ A component should be reusable because its responsibility is genuinely shared, n
 
 ---
 
-## 17. Hooks
+## 18. Hooks
 
 Custom React hooks should encapsulate reusable React-specific logic.
 
@@ -531,7 +610,7 @@ Pure utility logic that does not depend on React should generally belong in `uti
 
 ---
 
-## 18. TypeScript Standards
+## 19. TypeScript Standards
 
 TypeScript should be used consistently throughout the frontend.
 
@@ -565,7 +644,7 @@ Types should describe actual application data rather than simply silence the Typ
 
 ---
 
-## 19. Naming Conventions
+## 20. Naming Conventions
 
 Use consistent naming throughout the project.
 
@@ -617,7 +696,7 @@ unless the name accurately represents a well-defined responsibility.
 
 ---
 
-## 20. Function Standards
+## 21. Function Standards
 
 Functions should:
 
@@ -644,7 +723,7 @@ When a function performs multiple unrelated responsibilities, consider separatin
 
 ---
 
-## 21. Code Comments and Documentation
+## 22. Code Comments and Documentation
 
 Code should be understandable primarily through:
 
@@ -680,7 +759,7 @@ setIsLoading(true);
 
 ---
 
-## 22. Code Section Documentation
+## 23. Code Section Documentation
 
 Large files should use clear section markers when they improve readability.
 
@@ -710,7 +789,7 @@ Section markers should make the purpose and structure of a large file easier to 
 
 ---
 
-## 23. Error Handling
+## 24. Error Handling
 
 Errors must be handled intentionally.
 
@@ -741,7 +820,7 @@ sensitive infrastructure information.
 
 ---
 
-## 24. Validation
+## 25. Validation
 
 Validation should occur at the appropriate system boundary.
 
@@ -762,7 +841,7 @@ Validation logic should not be unnecessarily duplicated across layers.
 
 ---
 
-## 25. Database Standards
+## 26. Database Standards
 
 LawGates uses PostgreSQL.
 
@@ -788,7 +867,7 @@ Do not modify database structure manually when the change should be represented 
 
 ---
 
-## 26. Database Query Standards
+## 27. Database Query Standards
 
 Database access should be efficient and intentional.
 
@@ -818,7 +897,7 @@ large datasets.
 
 ---
 
-## 27. External Integration Principles
+## 28. External Integration Principles
 
 External integrations should be isolated from unrelated application logic.
 
@@ -845,7 +924,7 @@ Detailed integration specifications should be documented separately when require
 
 ---
 
-## 28. Security Standards
+## 29. Security Standards
 
 Security is mandatory.
 
@@ -877,7 +956,7 @@ Sensitive data should only be exposed when required by the application.
 
 ---
 
-## 29. Dependency Management
+## 30. Dependency Management
 
 Do not add a dependency unless it provides meaningful value.
 
@@ -896,7 +975,7 @@ Dependency changes should be intentional and reviewable.
 
 ---
 
-## 30. Linting
+## 31. Linting
 
 All frontend code should pass the configured linting rules.
 
@@ -918,7 +997,7 @@ Avoid unnecessary use of:
 
 ---
 
-## 31. Type Checking
+## 32. Type Checking
 
 TypeScript code must pass the project's type-checking command.
 
@@ -940,7 +1019,7 @@ as a shortcut for unresolved type problems.
 
 ---
 
-## 32. Build Verification
+## 33. Build Verification
 
 When frontend changes may affect production compilation, run:
 
@@ -955,7 +1034,7 @@ Build failures should not be ignored.
 
 ---
 
-## 33. Testing Standards
+## 34. Testing Standards
 
 Backend tests should be run using:
 
@@ -982,7 +1061,7 @@ Do not introduce a new frontend testing framework solely for a single small feat
 
 ---
 
-## 34. Test Before Pull Request
+## 35. Test Before Pull Request
 
 Before opening a Pull Request, run the checks relevant to the change.
 
@@ -1006,7 +1085,7 @@ Not every change requires every command, but enough verification should be perfo
 
 ---
 
-## 35. Git Standards
+## 36. Git Standards
 
 LawGates uses Git and GitHub for source control.
 
@@ -1026,7 +1105,7 @@ Development should happen through task-specific branches and Pull Requests.
 
 ---
 
-## 36. Branch Strategy
+## 37. Branch Strategy
 
 The standard development flow is:
 
@@ -1062,7 +1141,7 @@ Only the PM or explicitly authorized maintainers should manage releases or merge
 
 ---
 
-## 37. Branch Naming
+## 38. Branch Naming
 
 Use:
 
@@ -1108,7 +1187,7 @@ Use:
 
 ---
 
-## 38. Commit Standards
+## 39. Commit Standards
 
 Commit messages should follow:
 
@@ -1145,7 +1224,7 @@ Commits should represent meaningful changes.
 
 ---
 
-## 39. Pull Request Standards
+## 40. Pull Request Standards
 
 Pull Requests should:
 
@@ -1168,7 +1247,7 @@ Avoid combining unrelated features, refactors, and fixes in the same Pull Reques
 
 ---
 
-## 40. Scope Control
+## 41. Scope Control
 
 Do not unnecessarily expand the scope of a task.
 
@@ -1190,7 +1269,7 @@ The goal is to keep Pull Requests focused and easy to review.
 
 ---
 
-## 41. Refactoring Standards
+## 42. Refactoring Standards
 
 Refactoring should improve code without unnecessarily changing behavior.
 
@@ -1207,7 +1286,7 @@ Do not use a feature task as an excuse to rewrite unrelated parts of the applica
 
 ---
 
-## 42. AI Development Workflow
+## 43. AI Development Workflow
 
 AI coding agents MUST follow a structured workflow before modifying the
 repository.
@@ -1468,7 +1547,7 @@ Never imply that a command passed if it was not actually executed.
 
 ---
 
-## 43. AI Decision and Scope Rules
+## 44. AI Decision and Scope Rules
 
 AI agents should prefer the smallest correct implementation that fits the existing architecture.
 
@@ -1511,7 +1590,7 @@ If a broader architectural change is genuinely required, explain why it is neces
 
 ---
 
-## 44. Definition of Done
+## 45. Definition of Done
 
 A task is considered complete when the following requirements are satisfied.
 
