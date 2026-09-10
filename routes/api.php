@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\PeraturanController; // Tambahkan di atas
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::get('/search', [SearchController::class, 'search']); 
+Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show']); // Tambahkan ini
 
 // =================================================================
 // Route yang butuh Login (Token Sanctum)

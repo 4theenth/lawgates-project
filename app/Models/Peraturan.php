@@ -46,13 +46,14 @@ class Peraturan extends Model
     // Relasi ke tabel jenis_peraturan
     public function jenisPeraturan()
     {
-        return $this->belongsTo(JenisPeraturan::class, 'jenis_peraturan_id');
+        return $this->belongsTo(\App\Models\JenisPeraturan::class, 'jenis_peraturan_id');
     }
 
-    // Relasi ke tabel status_peraturan
+    // Relasi ke tabel status
     public function statusPeraturan()
-    {
-        return $this->belongsTo(StatusPeraturan::class, 'status_id');
-    }
+{
+    // Tetap arahkan ke model Status yang sudah kita buat tadi
+    return $this->belongsTo(\App\Models\Status::class, 'status_id');
+}
 }
 
