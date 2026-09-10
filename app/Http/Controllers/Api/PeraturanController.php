@@ -33,4 +33,25 @@ class PeraturanController extends Controller
             'data'    => $peraturan
         ], 201); // 201 adalah kode HTTP standar untuk "Created"
     }
+
+    public function show($unique_id)
+{
+    // Ubah kata 'status' menjadi 'statusPeraturan'
+    $peraturan = Peraturan::with(['jenisPeraturan', 'statusPeraturan'])
+        ->where('unique_id', $unique_id)
+        ->first();
+
+        // Jika unique_id tidak ditemukan di database
+        if (!$peraturan) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data peraturan tidak ditemukan.'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => $peraturan
+        ], 200);
+    }
 }
