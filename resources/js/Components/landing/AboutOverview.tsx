@@ -1,9 +1,10 @@
 import { CountUp } from '../common/CountUp';
 import { Icon } from '@/Components/ui/icon';
+import { PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 
 export function AboutOverview() {
   return (
-    <section className="w-full max-w-[1196px] mx-auto px-6">
+    <section className={PAGE_CONTAINER}>
       {/* Dark Navy Banner Container */}
       <div
         className="
@@ -12,7 +13,7 @@ export function AboutOverview() {
           w-full
           max-w-[1199px]
           min-h-[180px]
-          px-[78px]
+          px-[55px]
           py-[30px]
           flex-col
           items-start
@@ -35,10 +36,10 @@ export function AboutOverview() {
         />
 
         {/* Content */}
-        <div className="relative z-10 flex w-full items-start justify-between gap-[10px]">
+        <div className="relative z-10 flex w-full items-start justify-between">
           
           {/* LEFT: Badge + Metrics */}
-          <div className="flex flex-col items-start gap-[10px]">
+          <div className="w-[450px] flex flex-col items-start gap-[15px] shrink-0">
             
             {/* Badge */}
             <div
@@ -86,7 +87,7 @@ export function AboutOverview() {
             </div>
 
             {/* 3 Metrics */}
-            <div className="flex items-start gap-[40px]">
+            <div className="flex items-start gap-[17px]">
               
               {/* Metric 1 */}
               <div className="flex flex-col items-start">
@@ -176,13 +177,12 @@ export function AboutOverview() {
           </div>
 
           {/* RIGHT: Description */}
-          <div className="w-[543px] shrink-0">
+          <div className="w-[400px] shrink-0 flex-none">
             <p
               className="
-                w-[543px]
+                w-full
                 text-white
                 text-justify
-                font-inter
                 text-[16px]
                 font-normal
                 leading-[24px]

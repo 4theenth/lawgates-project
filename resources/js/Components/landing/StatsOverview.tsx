@@ -1,6 +1,7 @@
-import { CheckCircle2, AlertCircle, RefreshCw, FileX } from 'lucide-react';
+import { CircleCheckBigIcon, AlertCircle, RefreshCw, FileX, RotateCcwClockIcon} from 'lucide-react';
 import { CountUp } from '../common/CountUp';
 import { Icon } from '@/Components/ui/icon';
+import { PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 
 interface StatItem {
   id: string;
@@ -17,7 +18,7 @@ const statsData: StatItem[] = [
     title: 'HUKUM BERLAKU',
     count: 3769083,
     subtitle: 'Total Hukum Berlaku',
-    icon: <Icon name="circle-check-big" className="w-5[20px] h-[20px] text-suc-900" />,
+    icon: <CircleCheckBigIcon className="w-[20px] h-[20px] text-suc-900" />,
     valueColor: 'text-suc-900',
   },
   {
@@ -48,7 +49,7 @@ const statsData: StatItem[] = [
 
 export function StatsOverview() {
   return (
-    <div className="relative z-20 w-full max-w-[1196px] mx-auto px-6 -mt-[58px]">
+    <div className={`relative z-20 ${PAGE_CONTAINER} -mt-[58px]`}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         {statsData.map((item) => (
           <div
