@@ -11,22 +11,24 @@ return new class extends Migration
      */
     public function up(): void
 {
-    Schema::create('pasal', function (Blueprint $table) {
+    Schema::create('penjelasan_pasal', function (Blueprint $table) {
         $table->id();
         $table->foreignId('peraturan_id')->constrained('peraturan')->cascadeOnDelete();
-        // Tambahkan baris struktur_id di bawah ini
-        $table->foreignId('struktur_id')->nullable()->constrained('struktur_dokumen')->nullOnDelete();
+        $table->foreignId('pasal_id')->constrained('pasal')->cascadeOnDelete();
         
-        $table->string('nomor_pasal');
-        $table->text('isi_pasal')->nullable();
-        $table->integer('urutan');
+        $table->text('isi_penjelasan');
         $table->json('embedding', 1536)->nullable();
         
         $table->timestamps();
         $table->foreignId('updated_by')->nullable()->constrained('admins')->nullOnDelete();
-        $table->index('peraturan_id');
     });
-
 }
-public function down(): void { Schema::dropIfExists('pasal'); }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('penjelasan_pasals');
+    }
 };
