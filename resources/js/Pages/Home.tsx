@@ -25,8 +25,8 @@ export default function Home() {
       {/* 2. Ringkasan Status Hukum — overlaps hero bottom, no Section wrapper */}
       <StatsOverview />
 
-      {/* 3. Section Tentang Kami & 3 Metrik Besar (Dark Banner — full-width) */}
-      <Section fullWidth>
+      {/* 3. Section Tentang Kami & 3 Metrik Besar (Dark Banner) */}
+      <Section>
         <AboutOverview />
       </Section>
 

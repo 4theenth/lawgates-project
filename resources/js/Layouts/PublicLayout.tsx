@@ -18,7 +18,7 @@ import { useScrollPosition } from '../hooks/useScrollPosition';
  * mx-auto        = center on wide screens
  * px-[120px]     = 120px horizontal padding (Figma spec)
  */
-export const PAGE_CONTAINER = 'w-full max-w-[1199px] mx-auto';
+export const PAGE_CONTAINER = 'w-full max-w-[1202px] mx-auto px-4 sm:px-6 xl:px-0';
 
 /**
  * Vertical spacing between every page section — 121px (Figma spec).
@@ -51,7 +51,7 @@ interface SectionProps {
  */
 export function Section({ children, className = '', fullWidth = false }: SectionProps) {
   return (
-    <div style={{ marginTop: SECTION_SPACING }} className={className}>
+    <div style={{ marginTop: SECTION_SPACING }} className={`w-full ${className}`}>
       {fullWidth ? (
         children
       ) : (
@@ -75,12 +75,12 @@ export function PublicLayout({ children }: PublicLayoutProps) {
   const isScrolled = useScrollPosition(40);
 
   return (
-    <div className="min-h-screen bg-white font-sans flex flex-col selection:bg-sec-900 selection:text-white">
+    <div className="min-h-screen bg-white font-sans flex flex-col  selection:bg-sec-900 selection:text-white">
       {/* Public Navbar */}
       <Navbar isScrolled={isScrolled} />
 
       {/* Main Page Content */}
-      <main className="flex-1 w-full">
+      <main className="flex-1 w-full flex flex-col justify-center items-center">
         {children}
       </main>
 
