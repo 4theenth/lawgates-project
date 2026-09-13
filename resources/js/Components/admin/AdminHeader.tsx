@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { Bell, PanelLeft } from 'lucide-react';
-import profileImg from '@/assets/image 9.png';
+import profileImg from '@/assets/profile-avatar.webp';
 
 interface AdminHeaderProps {
   isSidebarCollapsed: boolean;
@@ -47,7 +47,7 @@ export function AdminHeader({
           <Bell className="w-[13px] h-[14.33px] text-gray-700" />
         </button>
 
-        {/* Profile Avatar (Asset image 9.png) */}
+        {/* Profile Avatar */}
         <div className="flex items-center gap-2">
           <div
             className="w-[32px] h-[32px] rounded-full border border-neu-50 shadow-2xs overflow-hidden cursor-pointer bg-cover bg-center bg-no-repeat bg-[#e9e9e9]"
