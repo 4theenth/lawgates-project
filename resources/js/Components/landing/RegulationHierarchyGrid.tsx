@@ -1,6 +1,6 @@
 import { CountUp } from '../common/CountUp';
-import frame218 from '@/assets/Frame 218.png';
-import rectangle1 from '@/assets/Rectangle 1.svg';
+import hierarchyCardBg from '@/assets/regulation-hierarchy-card.webp';
+import hierarchyCardShape from '@/assets/hierarchy-card-shape.svg';
 
 interface HierarchyCardItem {
   id: string;
@@ -124,7 +124,7 @@ export function RegulationHierarchyGrid() {
                 "
               >
                 <img
-                  src={frame218}
+                  src={hierarchyCardBg}
                   alt={item.title}
                   className="
                     absolute
@@ -223,9 +223,9 @@ export function RegulationHierarchyGrid() {
 
               </div>
 
-              {/* RECTANGLE / PAPER SHAPE */}
+              {/* CARD NOTCH / TAB SHAPE */}
               <img
-                src={rectangle1}
+                src={hierarchyCardShape}
                 alt=""
                 className="
                   absolute
