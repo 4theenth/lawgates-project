@@ -8,13 +8,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Peraturan extends Model
 {
-    // Tambahkan SoftDeletes karena ada $table->softDeletes() di migration
     use HasFactory, SoftDeletes;
 
-    // Mendefinisikan nama tabel secara eksplisit
     protected $table = 'peraturan';
 
-    // Semua kolom yang diizinkan untuk diisi
     protected $fillable = [
         'unique_id',
         'jenis_peraturan_id',
@@ -35,25 +32,35 @@ class Peraturan extends Model
         'deleted_by',
     ];
 
-    // Konversi tipe data (Casting) otomatis saat ditarik/disimpan
     protected $casts = [
-        'embedding' => 'array', // Otomatis mengubah JSON PostgreSQL menjadi Array di PHP
+        'embedding' => 'array', 
         'tanggal_penetapan' => 'date',
         'tanggal_pengundangan' => 'date',
         'tanggal_berlaku' => 'date',
     ];
 
-    // Relasi ke tabel jenis_peraturan
     public function jenisPeraturan()
     {
         return $this->belongsTo(\App\Models\JenisPeraturan::class, 'jenis_peraturan_id');
     }
 
-    // Relasi ke tabel status
     public function statusPeraturan()
-{
-    // Tetap arahkan ke model Status yang sudah kita buat tadi
-    return $this->belongsTo(\App\Models\Status::class, 'status_id');
-}
-}
+    {
+        return $this->belongsTo(\App\Models\Status::class, 'status_id');
+    }
 
+    // Tambahan relasi ke tabel pasal
+    public function pasal()
+    {
+        return $this->hasMany(\App\Models\Pasal::class, 'peraturan_id');
+    }
+    
+    public function strukturDokumen()
+    {
+        return $this->hasMany(\App\Models\StrukturDokumen::class, 'peraturan_id');
+    }
+    public function lawRelations()
+    {
+        return $this->hasMany(\App\Models\LawRelation::class, 'from_peraturan_id');
+    }
+}
