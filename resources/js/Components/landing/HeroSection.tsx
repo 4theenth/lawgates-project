@@ -1,5 +1,5 @@
 import { SearchFilterBar } from './SearchFilterBar';
-import ladyJusticeImg from '@/assets/lady-justice.png';
+import ladyJusticeImg from '@/assets/lady-justice.webp';
 import gridSvg from '@/assets/architectural-overlay.webp';
 
 interface HeroSectionProps {

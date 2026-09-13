@@ -1,6 +1,6 @@
 import { CountUp } from '../common/CountUp';
-import frame218 from '@/assets/Frame 218.png';
-import rectangle1 from '@/assets/Rectangle 1.svg';
+import hierarchyCardBg from '@/assets/regulation-hierarchy-card.webp';
+import hierarchyCardShape from '@/assets/hierarchy-card-shape.svg';
 
 interface HierarchyCardItem {
   id: string;
@@ -86,7 +86,7 @@ export function RegulationHierarchyGrid() {
 
       {/* 8 Cards Grid */}
       <div className="w-full overflow-visible">
-        <div className="grid grid-cols-4 gap-x-[30px] gap-y-[28px]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 xl:gap-[30px] gap-y-[28px] justify-items-center">
 
           {hierarchyData.map((item) => (
             <div
@@ -94,15 +94,19 @@ export function RegulationHierarchyGrid() {
               className="
                 group
                 relative
-                w-[278px]
+                w-full
+                max-w-[278px]
                 h-[280px]
-                p-[4px]
+                p-[5px]
                 bg-white
                 border
                 border-[#E9E9E9]
                 rounded-[20px]
                 overflow-hidden
                 shadow-sm
+                hover:shadow-md
+                transition-all
+                duration-300
                 cursor-pointer
               "
             >
@@ -111,9 +115,8 @@ export function RegulationHierarchyGrid() {
               <div
                 className="
                   absolute
-                  left-[5px]
+                  inset-x-[5px]
                   top-[5px]
-                  w-[268px]
                   h-[171px]
                   rounded-[14px]
                   overflow-hidden
@@ -121,7 +124,7 @@ export function RegulationHierarchyGrid() {
                 "
               >
                 <img
-                  src={frame218}
+                  src={hierarchyCardBg}
                   alt={item.title}
                   className="
                     absolute
@@ -161,14 +164,13 @@ export function RegulationHierarchyGrid() {
               <div
                 className="
                   absolute
-                  left-[5px]
+                  inset-x-[5px]
                   top-[171px]
-                  w-[268px]
                   bottom-[5px]
                   z-20
                   bg-[#EEDFAF]
                   rounded-b-[14px]
-                  px-[8px]
+                  px-[10px]
                   py-[10px]
                   flex
                   flex-col
@@ -221,16 +223,16 @@ export function RegulationHierarchyGrid() {
 
               </div>
 
-              {/* RECTANGLE / PAPER SHAPE */}
+              {/* CARD NOTCH / TAB SHAPE */}
               <img
-                src={rectangle1}
+                src={hierarchyCardShape}
                 alt=""
                 className="
                   absolute
-                  left-[5px]
+                  inset-x-[5px]
                   top-[145px]
                   z-10
-                  w-[268px]
+                  w-[calc(100%-10px)]
                   pointer-events-none
                 "
               />
