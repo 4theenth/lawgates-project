@@ -34,17 +34,33 @@ export function HeroSection({ isScrolled, onSearch }: HeroSectionProps) {
         className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none opacity-100"
       />
 
-      {/* ── LADY JUSTICE IMAGE (Figma: width 400, height 400, top 174px, opacity 12%) ── */}
+      {/* ── LADY JUSTICE IMAGE (Anchored to bottom so base cut line is hidden behind "Hukum Berlaku" cards) ── */}
       <img
         src={ladyJusticeImg}
         alt="Lady Justice"
-        className="absolute left-0 top-[174px] w-[400px] h-[400px] object-contain pointer-events-none z-1 select-none opacity-[0.12]"
+        className="
+          absolute
+          left-0
+          bottom-0
+          w-[360px]
+          sm:w-[440px]
+          lg:w-[480px]
+          h-[460px]
+          sm:h-[520px]
+          lg:h-[560px]
+          object-contain
+          object-bottom
+          pointer-events-none
+          z-1
+          select-none
+          opacity-[0.14]
+        "
       />
 
       {/* ── HERO CONTENT (Figma: width 709, height 89, gap 7px) ── */}
-      <div className="relative z-10 text-center w-full max-w-[709px] mx-auto flex flex-col items-center">
-        {/* Main Heading (Figma: Inter Bold 32px, line-height 130%, color #FFFFFF) */}
-        <h1 className="w-full max-w-[709px] text-[32px] font-bold text-white leading-[130%] tracking-tight text-center">
+      <div className="relative z-10 text-center w-full max-w-[850px] mx-auto flex flex-col items-center">
+        {/* Main Heading (1 line on desktop and tablet, no wrap to 2nd line) */}
+        <h1 className="w-full text-[24px] xs:text-[28px] sm:text-[32px] font-bold text-white leading-[130%] tracking-tight text-center md:whitespace-nowrap">
           Jelajahi Hukum <span className="text-sec-900">Indonesia</span> Dengan Law Gates
         </h1>
 
