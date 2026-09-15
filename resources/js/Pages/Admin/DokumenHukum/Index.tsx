@@ -5,7 +5,7 @@ import { Breadcrumb } from '@/Components/admin/Breadcrumb';
 import { StatusTabs } from '@/Components/admin/StatusTabs';
 import { EmptyState } from '@/Components/admin/EmptyState';
 import { Pagination } from '@/Components/admin/Pagination';
-import { DocumentTable, DokumenHukumItem } from '@/Components/admin/DocumentTable';
+import { DocumentTable, DokumenHukumItem, SortColumn, SortDirection } from '@/Components/admin/DocumentTable';
 import { FilterPopover } from '@/Components/admin/FilterPopover';
 import { DocumentModal } from '@/Components/admin/DocumentModal';
 import { EditStatusModal } from '@/Components/admin/EditStatusModal';
@@ -105,8 +105,8 @@ const INITIAL_DOCUMENTS: DokumenHukumItem[] = [
   },
   {
     id: '13',
-    kategori: 'Undang Undang Darurat',
-    judul: 'Undang-undang Darurat Nomor 12 Tahun 1951 Tentang Senjata Api dan Bahan Peledak',
+    kategori: 'UU',
+    judul: 'Undang-undang Nomor 12 Tahun 1951 Tentang Senjata Api dan Bahan Peledak',
     status: 'berlaku',
     tgl_ditetapkan: '04 September 1951',
   },
@@ -188,14 +188,40 @@ const ALL_CATEGORIES = [
 export default function DokumenHukumIndex() {
   const { toast } = useToast();
 
-  // Data dokumen utama
-  const [documents, setDocuments] = useState<DokumenHukumItem[]>(INITIAL_DOCUMENTS);
+  // Data dokumen utama dengan persistensi LocalStorage agar sinkron saat ada data baru dari form koreksi / tambah hukum
+  const [documents, setDocuments] = useState<DokumenHukumItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('lawgates_admin_documents');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        } catch (e) {
+          console.error('Error loading documents:', e);
+        }
+      }
+    }
+    return INITIAL_DOCUMENTS;
+  });
+
+  // Simpan perubahan documents ke localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lawgates_admin_documents', JSON.stringify(documents));
+    }
+  }, [documents]);
 
   // Filter & Search states
   const [activeTab, setActiveTab] = useState<'all' | 'berlaku' | 'tidak_berlaku'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(ALL_CATEGORIES);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Sorting states
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   // Pagination states responsif
   const [currentPage, setCurrentPage] = useState(1);
@@ -237,6 +263,63 @@ export default function DokumenHukumIndex() {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
     setCurrentPage(1);
+  };
+
+  // Handler pengurutan tabel (3-Logic Sort: Klik 1 -> Klik 2 -> Klik 3 Reset Kembali ke Awal)
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      if (column === 'tgl_ditetapkan') {
+        if (sortDirection === 'desc') {
+          // Klik 2: ubah ke terlama
+          setSortDirection('asc');
+        } else {
+          // Klik 3: reset kembali ke urutan default awal
+          setSortColumn(null);
+          setSortDirection('desc');
+        }
+      } else {
+        if (sortDirection === 'asc') {
+          // Klik 2: ubah ke Z-A / tidak berlaku dulu
+          setSortDirection('desc');
+        } else {
+          // Klik 3: reset kembali ke urutan default awal
+          setSortColumn(null);
+          setSortDirection('asc');
+        }
+      }
+    } else {
+      // Klik 1 pada kolom baru
+      setSortColumn(column);
+      setSortDirection(column === 'tgl_ditetapkan' ? 'desc' : 'asc');
+    }
+    setCurrentPage(1);
+  };
+
+  // Helper konversi tanggal bahasa Indonesia ke timestamp
+  const parseIndonesianDate = (dateStr: string): number => {
+    if (!dateStr) return 0;
+    const indoMonths: Record<string, number> = {
+      januari: 0,
+      februari: 1,
+      maret: 2,
+      april: 3,
+      mei: 4,
+      juni: 5,
+      juli: 6,
+      agustus: 7,
+      september: 8,
+      oktober: 9,
+      november: 10,
+      desember: 11,
+    };
+    const parts = dateStr.trim().split(/\s+/);
+    if (parts.length >= 3) {
+      const day = parseInt(parts[0], 10) || 1;
+      const month = indoMonths[parts[1].toLowerCase()] ?? 0;
+      const year = parseInt(parts[2], 10) || 1970;
+      return new Date(year, month, day).getTime();
+    }
+    return new Date(dateStr).getTime() || 0;
   };
 
   // Handler buka modal ubah status dokumen
@@ -293,9 +376,11 @@ export default function DokumenHukumIndex() {
       return false;
     }
 
-    // 2. Filter Kategori dari Popover
-    if (selectedCategories.length < ALL_CATEGORIES.length) {
-      if (selectedCategories.length === 0 || !selectedCategories.includes(doc.kategori)) {
+    // 2. Filter Kategori dari Popover:
+    // Jika ada kategori yang dipilih, hanya tampilkan yang terpilih.
+    // Jika tidak ada filter yang dipilih (kosong []), munculkan semua peraturan.
+    if (selectedCategories.length > 0) {
+      if (!selectedCategories.includes(doc.kategori)) {
         return false;
       }
     }
@@ -314,14 +399,48 @@ export default function DokumenHukumIndex() {
     return true;
   });
 
+  // Urutkan data berdasarkan sortColumn & sortDirection
+  const sortedDocuments = [...filteredDocuments].sort((a, b) => {
+    if (!sortColumn) return 0;
+
+    if (sortColumn === 'kategori') {
+      return sortDirection === 'asc'
+        ? a.kategori.localeCompare(b.kategori, 'id')
+        : b.kategori.localeCompare(a.kategori, 'id');
+    }
+
+    if (sortColumn === 'judul') {
+      return sortDirection === 'asc'
+        ? a.judul.localeCompare(b.judul, 'id')
+        : b.judul.localeCompare(a.judul, 'id');
+    }
+
+    if (sortColumn === 'status') {
+      // 1st click 'asc': berlaku dulu, 2nd click 'desc': tidak_berlaku dulu
+      if (a.status === b.status) return 0;
+      return sortDirection === 'asc'
+        ? a.status === 'berlaku' ? -1 : 1
+        : a.status === 'tidak_berlaku' ? -1 : 1;
+    }
+
+    if (sortColumn === 'tgl_ditetapkan') {
+      const timeA = parseIndonesianDate(a.tgl_ditetapkan);
+      const timeB = parseIndonesianDate(b.tgl_ditetapkan);
+      // 1st click 'desc': terbaru ke terlama, 2nd click 'asc': terlama ke terbaru
+      return sortDirection === 'asc' ? timeA - timeB : timeB - timeA;
+    }
+
+    return 0;
+  });
+
   // Potong data untuk pagination
-  const totalItems = filteredDocuments.length;
+  const totalItems = sortedDocuments.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const paginatedDocuments = filteredDocuments.slice(
+  const paginatedDocuments = sortedDocuments.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
-  const hasData = filteredDocuments.length > 0;
+  const hasData = sortedDocuments.length > 0;
 
   // JIKA SEDANG EDIT DATA DOKUMEN: Tampilkan Layar Penuh Edit Data Hukum Sesuai Tangkapan Layar
   if (editingDoc) {
@@ -429,15 +548,15 @@ export default function DokumenHukumIndex() {
         />
 
         {/* Search Input & Tombol Popover Filter */}
-        <div className="flex items-center gap-2.5">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neu-400" />
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="relative w-64 md:w-72 shrink-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neu-400 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={handleSearchChange}
               placeholder="Cari kategori, judul..."
-              className="w-full sm:w-64 pl-8.5 pr-8 py-1.5 text-[12px] rounded-[10px] border border-neu-50 bg-white placeholder-neu-400 text-neu-900 focus:outline-none focus:border-pr-900 focus:ring-1 focus:ring-pr-900 transition-all shadow-2xs"
+              className="w-full pl-8.5 pr-8 py-1.5 text-[12px] rounded-[10px] border border-neu-50 bg-white placeholder-neu-400 text-neu-900 focus:outline-none focus:border-pr-900 focus:ring-1 focus:ring-pr-900 transition-all shadow-2xs"
             />
             {searchQuery && (
               <button
@@ -479,6 +598,9 @@ export default function DokumenHukumIndex() {
         {hasData ? (
           <DocumentTable
             documents={paginatedDocuments}
+            sortColumn={sortColumn}
+            sortDirection={sortDirection}
+            onSort={handleSort}
             onEdit={(doc) => setEditingDoc(doc)}
             onToggleStatus={handleOpenEditStatus}
             onDelete={(doc) => setDeletingDoc(doc)}

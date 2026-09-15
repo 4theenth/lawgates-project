@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MoreVertical, ArrowUpDown, Pencil, CheckCircle2, Trash2 } from 'lucide-react';
+import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, Pencil, CheckCircle2, Trash2 } from 'lucide-react';
 import { StatusBadge, IconButton } from '@/Components/common';
 
 export interface DokumenHukumItem {
@@ -10,11 +10,17 @@ export interface DokumenHukumItem {
   tgl_ditetapkan: string;
 }
 
+export type SortColumn = 'kategori' | 'judul' | 'status' | 'tgl_ditetapkan';
+export type SortDirection = 'asc' | 'desc';
+
 interface DocumentTableProps {
   documents: DokumenHukumItem[];
   onEdit?: (doc: DokumenHukumItem) => void;
   onToggleStatus?: (doc: DokumenHukumItem) => void;
   onDelete?: (doc: DokumenHukumItem) => void;
+  sortColumn?: SortColumn | null;
+  sortDirection?: SortDirection;
+  onSort?: (column: SortColumn) => void;
 }
 
 export function DocumentTable({
@@ -22,10 +28,25 @@ export function DocumentTable({
   onEdit,
   onToggleStatus,
   onDelete,
+  sortColumn = null,
+  sortDirection = 'asc',
+  onSort,
 }: DocumentTableProps) {
   // State id dokumen yang menu aksinya sedang terbuka
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // Helper render sort icon
+  const renderSortIcon = (column: SortColumn) => {
+    if (sortColumn === column) {
+      return sortDirection === 'asc' ? (
+        <ArrowUp className="w-3 h-3 text-pr-900" />
+      ) : (
+        <ArrowDown className="w-3 h-3 text-pr-900" />
+      );
+    }
+    return <ArrowUpDown className="w-3 h-3 text-neu-400 group-hover:text-neu-600 transition-colors" />;
+  };
 
   // Tutup popup aksi jika klik di luar
   useEffect(() => {
@@ -54,27 +75,39 @@ export function DocumentTable({
           <thead>
             <tr className="bg-neu-50 border-b border-neu-100 text-[12px] font-semibold text-neu-600 uppercase tracking-wider select-none">
               <th className="py-3 px-5 whitespace-nowrap">
-                <div className="inline-flex items-center gap-1 cursor-pointer hover:text-neu-900">
-                  <span>Kategori</span>
-                  <ArrowUpDown className="w-3 h-3 text-neu-400" />
+                <div
+                  onClick={() => onSort?.('kategori')}
+                  className="group inline-flex items-center gap-1 cursor-pointer hover:text-neu-900 transition-colors"
+                >
+                  <span className={sortColumn === 'kategori' ? 'text-pr-900 font-bold' : ''}>Kategori</span>
+                  {renderSortIcon('kategori')}
                 </div>
               </th>
               <th className="py-3 px-5 whitespace-nowrap">
-                <div className="inline-flex items-center gap-1 cursor-pointer hover:text-neu-900">
-                  <span>Judul</span>
-                  <ArrowUpDown className="w-3 h-3 text-neu-400" />
+                <div
+                  onClick={() => onSort?.('judul')}
+                  className="group inline-flex items-center gap-1 cursor-pointer hover:text-neu-900 transition-colors"
+                >
+                  <span className={sortColumn === 'judul' ? 'text-pr-900 font-bold' : ''}>Judul</span>
+                  {renderSortIcon('judul')}
                 </div>
               </th>
               <th className="py-3 px-5 whitespace-nowrap">
-                <div className="inline-flex items-center gap-1 cursor-pointer hover:text-neu-900">
-                  <span>Status Hukum</span>
-                  <ArrowUpDown className="w-3 h-3 text-neu-400" />
+                <div
+                  onClick={() => onSort?.('status')}
+                  className="group inline-flex items-center gap-1 cursor-pointer hover:text-neu-900 transition-colors"
+                >
+                  <span className={sortColumn === 'status' ? 'text-pr-900 font-bold' : ''}>Status Hukum</span>
+                  {renderSortIcon('status')}
                 </div>
               </th>
               <th className="py-3 px-5 whitespace-nowrap">
-                <div className="inline-flex items-center gap-1 cursor-pointer hover:text-neu-900">
-                  <span>Tgl Ditetapkan</span>
-                  <ArrowUpDown className="w-3 h-3 text-neu-400" />
+                <div
+                  onClick={() => onSort?.('tgl_ditetapkan')}
+                  className="group inline-flex items-center gap-1 cursor-pointer hover:text-neu-900 transition-colors"
+                >
+                  <span className={sortColumn === 'tgl_ditetapkan' ? 'text-pr-900 font-bold' : ''}>Tgl Ditetapkan</span>
+                  {renderSortIcon('tgl_ditetapkan')}
                 </div>
               </th>
               <th className="py-3 px-5 text-right whitespace-nowrap">
