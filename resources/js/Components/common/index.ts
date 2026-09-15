@@ -14,3 +14,8 @@ export { default as TextInput } from './TextInput';
 export { StatusBadge } from './StatusBadge';
 export { Badge } from './Badge';
 export { IconButton } from './IconButton';
+export { FormInput, default as FormInputComponent } from './FormInput';
+export { FormTextarea, default as FormTextareaComponent } from './FormTextarea';
+export { FormCheckbox, default as FormCheckboxComponent } from './FormCheckbox';
+export { SocialAuthButton, GoogleLogo } from './SocialAuthButton';
+export { AuthCard, default as AuthCardComponent } from './AuthCard';

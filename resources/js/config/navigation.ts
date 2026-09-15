@@ -106,7 +106,7 @@ export const SIDEBAR_THEME = {
 
   // Item Menu Utama: Status AKTIF
   activeItem: {
-    container: 'text-pr-900 font-semibold bg-gray-50/90 rounded-[10px] border-l-[4px]',
+    container: 'text-pr-900 font-bold bg-gray-50/90 rounded-[10px] border-l-[4px] border-pr-900',
     icon: 'text-pr-900',
     indicator: 'bg-pr-900', // Batang aksen vertikal di tepi kiri
   },

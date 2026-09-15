@@ -1,56 +1,79 @@
-import InputError from '@/Components/common/InputError';
-import PrimaryButton from '@/Components/common/PrimaryButton';
-import TextInput from '@/Components/common/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
+import React, { FormEventHandler } from 'react';
 import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import GuestLayout from '@/Layouts/GuestLayout';
+import { AuthCard, FormInput } from '@/Components/common';
 
-export default function ForgotPassword({ status }: { status?: string }) {
-    const { data, setData, post, processing, errors } = useForm({
+export interface ForgotPasswordProps {
+    status?: string;
+}
+
+export default function ForgotPassword({ status }: ForgotPasswordProps) {
+    const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
         email: '',
     });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
+        const trimmedEmail = data.email.trim();
+        if (!trimmedEmail) {
+            setError('email', 'Email wajib diisi.');
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+            setError('email', 'Email tidak valid');
+            return;
+        }
+
         post(route('password.email'));
     };
 
     return (
         <GuestLayout>
-            <Head title="Forgot Password" />
+            <Head title="Lupa Kata Sandi" />
 
-            <div className="mb-4 text-sm text-gray-600">
-                Forgot your password? No problem. Just let us know your email
-                address and we will email you a password reset link that will
-                allow you to choose a new one.
-            </div>
+            <AuthCard
+                title="Lupa kata sandi"
+                subtitle="Masukkan email yang terdaftar, kami akan kirim link untuk reset kata sandi"
+                footerText="Sudah ingat kata sandi?"
+                footerLinkText="Kembali ke Login"
+                footerLinkHref={route('login')}
+            >
+                {status && (
+                    <div className="mb-4 rounded-xl bg-suc-50 p-3 text-xs sm:text-sm font-medium text-suc-800 border border-suc-200">
+                        {status}
+                    </div>
+                )}
 
-            {status && (
-                <div className="mb-4 text-sm font-medium text-green-600">
-                    {status}
-                </div>
-            )}
+                <form onSubmit={submit} noValidate className="space-y-4">
+                    <FormInput
+                        id="email"
+                        type="email"
+                        name="email"
+                        label="Email"
+                        icon="mail"
+                        placeholder="Masukkan email anda"
+                        value={data.email}
+                        autoComplete="username"
+                        autoFocus
+                        error={errors.email}
+                        onChange={(e) => {
+                            setData('email', e.target.value);
+                            if (errors.email) clearErrors('email');
+                        }}
+                    />
 
-            <form onSubmit={submit}>
-                <TextInput
-                    id="email"
-                    type="email"
-                    name="email"
-                    value={data.email}
-                    className="mt-1 block w-full"
-                    isFocused={true}
-                    onChange={(e) => setData('email', e.target.value)}
-                />
-
-                <InputError message={errors.email} className="mt-2" />
-
-                <div className="mt-4 flex items-center justify-end">
-                    <PrimaryButton className="ms-4" disabled={processing}>
-                        Email Password Reset Link
-                    </PrimaryButton>
-                </div>
-            </form>
+                    <div className="pt-2">
+                        <button
+                            type="submit"
+                            disabled={processing}
+                            className="w-full rounded-xl bg-pr-900 py-3 px-4 text-md font-bold tracking-normal text-white shadow-sm transition-all duration-150 hover:bg-pr-800 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-pr-900/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {processing ? 'Mengirim...' : 'Kirim link reset'}
+                        </button>
+                    </div>
+                </form>
+            </AuthCard>
         </GuestLayout>
     );
 }
