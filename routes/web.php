@@ -15,10 +15,10 @@ Route::get('/dashboard', function () {
 
 Route::prefix('admin')->group(function () {
     Route::get('/', function () {
-        return redirect()->route('admin.dokumen-hukum');
+        return redirect()->route('admin.dashboard');
     });
     Route::get('/dashboard', function () {
-        return redirect()->route('admin.dokumen-hukum');
+        return Inertia::render('Admin/Dashboard');
     })->name('admin.dashboard');
     Route::get('/dokumen-hukum', function () {
         return Inertia::render('Admin/DokumenHukum/Index');
