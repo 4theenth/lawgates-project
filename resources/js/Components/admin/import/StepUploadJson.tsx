@@ -159,12 +159,12 @@ export function StepUploadJson({
               </span>
 
               {isFull ? (
-                <span className="font-sans text-[12px] font-medium text-[#2E7D32]">
+                <span className="font-sans text-[12px] font-medium text-suc-900">
                   Siap di import
                 </span>
               ) : (
                 <div className="text-right">
-                  <span className="font-sans text-[12px] font-medium text-[#E53E3E] block">
+                  <span className="font-sans text-[12px] font-medium text-dan-800 block">
                     Masih ada {remainingSlots} slot file
                   </span>
                   <span className="font-sans text-[11px] text-neu-400 block">
@@ -179,7 +179,7 @@ export function StepUploadJson({
               {files.map((file) => (
                 <div
                   key={file.id}
-                  className="flex items-center justify-between p-3 rounded-[10px] bg-[#F8FAFC] border border-neu-50 hover:bg-gray-100/60 transition-colors"
+                  className="flex items-center justify-between p-3 rounded-[10px] bg-neu-50/40 border border-neu-50 hover:bg-neu-50 transition-colors"
                 >
                   {/* Ikon & Nama File */}
                   <div className="flex items-center gap-3 min-w-0">
@@ -200,7 +200,7 @@ export function StepUploadJson({
                   <button
                     type="button"
                     onClick={() => onRemoveFile(file.id)}
-                    className="text-[#E53E3E] hover:text-red-700 transition-colors p-1 cursor-pointer shrink-0"
+                    className="text-dan-800 hover:text-dan-900 transition-colors p-1 cursor-pointer shrink-0"
                     title="Hapus file ini"
                   >
                     <XCircle className="w-5 h-5" />

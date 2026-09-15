@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MoreVertical, ArrowUpDown, Pencil, CheckCircle2, Trash2 } from 'lucide-react';
-import { StatusBadge } from '@/Components/common';
+import { StatusBadge, IconButton } from '@/Components/common';
 
 export interface DokumenHukumItem {
   id: string;
@@ -52,7 +52,7 @@ export function DocumentTable({
         <table className="w-full text-left border-collapse">
           {/* Table Header */}
           <thead>
-            <tr className="bg-[#f0f1f3] border-b border-neu-100 text-[12px] font-semibold text-neu-600 uppercase tracking-wider select-none">
+            <tr className="bg-neu-50 border-b border-neu-100 text-[12px] font-semibold text-neu-600 uppercase tracking-wider select-none">
               <th className="py-3 px-5 whitespace-nowrap">
                 <div className="inline-flex items-center gap-1 cursor-pointer hover:text-neu-900">
                   <span>Kategori</span>
@@ -119,16 +119,15 @@ export function DocumentTable({
 
                   {/* Aksi Button (Tiga Titik) & Overlay Menu */}
                   <td className="py-3.5 px-5 text-right whitespace-nowrap relative">
-                    <button
-                      type="button"
+                    <IconButton
+                      icon={<MoreVertical className="w-4 h-4 text-neu-600" />}
+                      variant="ghost"
+                      size="sm"
                       onClick={() =>
                         setActiveActionId(isActionOpen ? null : doc.id)
                       }
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 text-neu-600 hover:text-black transition-colors cursor-pointer"
-                      aria-label="Aksi dokumen"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
+                      title="Aksi dokumen"
+                    />
 
                     {/* Popover Aksi (Nimpa / Overlay Sesuai Gambar 3) */}
                     {isActionOpen && (
@@ -175,9 +174,9 @@ export function DocumentTable({
                             setActiveActionId(null);
                             if (onDelete) onDelete(doc);
                           }}
-                          className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-[#E53E3E] hover:bg-red-50 transition-colors cursor-pointer"
+                          className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-dan-800 hover:bg-dan-50 transition-colors cursor-pointer"
                         >
-                          <Trash2 className="w-3.5 h-3.5 text-[#E53E3E]" />
+                          <Trash2 className="w-3.5 h-3.5 text-dan-800" />
                           <span>Hapus</span>
                         </button>
                       </div>
