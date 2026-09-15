@@ -1,10 +1,7 @@
-import InputError from '@/Components/common/InputError';
-import InputLabel from '@/Components/common/InputLabel';
-import PrimaryButton from '@/Components/common/PrimaryButton';
-import TextInput from '@/Components/common/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
+import React, { FormEventHandler } from 'react';
 import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import GuestLayout from '@/Layouts/GuestLayout';
+import { AuthCard, FormInput } from '@/Components/common';
 
 export default function ConfirmPassword() {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -21,36 +18,39 @@ export default function ConfirmPassword() {
 
     return (
         <GuestLayout>
-            <Head title="Confirm Password" />
+            <Head title="Konfirmasi Kata Sandi" />
 
-            <div className="mb-4 text-sm text-gray-600">
-                This is a secure area of the application. Please confirm your
-                password before continuing.
-            </div>
-
-            <form onSubmit={submit}>
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
-
-                    <TextInput
+            <AuthCard
+                title="Konfirmasi Kata Sandi"
+                subtitle="Ini adalah area aplikasi yang aman. Harap konfirmasi kata sandi Anda sebelum melanjutkan."
+            >
+                <form onSubmit={submit} className="space-y-4">
+                    <FormInput
                         id="password"
                         type="password"
                         name="password"
+                        label="Kata Sandi"
+                        icon="shield"
+                        placeholder="•••••••"
                         value={data.password}
-                        className="mt-1 block w-full"
-                        isFocused={true}
+                        autoFocus
+                        required
+                        isPasswordToggle={true}
+                        error={errors.password}
                         onChange={(e) => setData('password', e.target.value)}
                     />
 
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div className="mt-4 flex items-center justify-end">
-                    <PrimaryButton className="ms-4" disabled={processing}>
-                        Confirm
-                    </PrimaryButton>
-                </div>
-            </form>
+                    <div className="pt-2">
+                        <button
+                            type="submit"
+                            disabled={processing}
+                            className="w-full rounded-xl bg-pr-900 py-3 px-4 text-md font-bold tracking-normal text-white shadow-sm transition-all duration-150 hover:bg-pr-800 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-pr-900/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {processing ? 'Memproses...' : 'Konfirmasi'}
+                        </button>
+                    </div>
+                </form>
+            </AuthCard>
         </GuestLayout>
     );
 }
