@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
-import { PublicLayout, Section } from '../Layouts/PublicLayout';
-
+import { PublicLayout, Section } from '@/Layouts/PublicLayout';
+import { Breadcrumb } from '@/Components/admin/Breadcrumb';
+import { EmptyState } from '@/Components/admin/EmptyState';
+import { Badge } from '@/Components/common/Badge';
 export default function Pencarian() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(true);
@@ -73,16 +75,12 @@ export default function Pencarian() {
     fetchData(queryString);
   };
 
-  // Fungsi helper untuk menentukan warna lencana status
-  const getStatusStyle = (statusName: string) => {
+  // Fungsi helper untuk menentukan variant Badge status
+  const getStatusVariant = (statusName: string) => {
     const name = statusName?.toLowerCase() || '';
-    if (name.includes('tidak berlaku') || name.includes('dicabut')) {
-      return 'bg-red-50 text-red-600 border-red-200';
-    }
-    if (name.includes('diubah')) {
-      return 'bg-yellow-50 text-yellow-600 border-yellow-200';
-    }
-    return 'bg-green-50 text-green-600 border-green-200'; // Default Berlaku
+    if (name.includes('tidak berlaku') || name.includes('dicabut')) return 'danger';
+    if (name.includes('diubah')) return 'warning';
+    return 'success'; // Default Berlaku
   };
 
   return (
@@ -94,7 +92,13 @@ export default function Pencarian() {
           
           {/* Breadcrumb & Judul Halaman */}
           <div className="mb-6">
-            <p className="text-xs text-gray-500 mb-2">Beranda &gt; <span className="font-semibold">Pencarian Hukum</span></p>
+            <Breadcrumb 
+              items={[
+                { label: 'Beranda', href: '/' },
+                { label: 'Pencarian Hukum' }
+              ]} 
+              className="mb-4"
+            />
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Pencarian Hukum</h1>
             <p className="text-sm text-gray-500 mt-1">Pencarian lengkap untuk berbagai jenis undang-undang dan peraturan</p>
           </div>
@@ -201,13 +205,13 @@ export default function Pencarian() {
                       
                       {/* Top Badges */}
                       <div className="flex gap-2 items-center mb-4">
-                        <span className={`px-2.5 py-1 text-[11px] font-semibold rounded-md border flex items-center gap-1.5 ${getStatusStyle(item.status_peraturan?.nama_status)}`}>
+                        <Badge variant={getStatusVariant(item.status_peraturan?.nama_status)} className="flex items-center gap-1.5 border border-current">
                           <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
                           {item.status_peraturan?.nama_status ?? 'Tidak diketahui'}
-                        </span>
-                        <span className="px-3 py-1 bg-pr-900 text-white text-[11px] font-bold rounded-full">
+                        </Badge>
+                        <Badge variant="primary" className="font-bold">
                           {item.jenis_peraturan?.nama ?? 'Peraturan'}
-                        </span>
+                        </Badge>
                       </div>
 
                       {/* Judul */}
@@ -242,10 +246,10 @@ export default function Pencarian() {
                   ))}
                 </div>
               ) : (
-                <div className="py-16 text-center border border-dashed border-gray-300 rounded-xl bg-gray-50">
-                  <p className="text-gray-500 font-medium text-lg">Peraturan tidak ditemukan.</p>
-                  <p className="text-gray-400 mt-1 text-sm">Coba gunakan kata kunci yang berbeda atau ubah filter pencarian Anda.</p>
-                </div>
+                <EmptyState 
+                  title="Peraturan tidak ditemukan"
+                  description="Coba gunakan kata kunci yang berbeda atau ubah filter pencarian Anda."
+                />
               )}
             </div>
           </div>

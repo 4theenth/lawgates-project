@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\PeraturanController;
 use App\Models\JenisPeraturan; // Tambahan untuk referensi
 use App\Models\Status;         // Tambahan untuk referensi
+use App\Http\Controllers\Api\UserController;
 
 // Route Publik (Tanpa Login)
 Route::post('/login', [AuthController::class, 'login']);
@@ -46,5 +47,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Route::delete('/peraturan/{id}', [PeraturanController::class, 'destroy']);
         Route::post('/users/create-admin', [AuthController::class, 'createAdmin']);
     });
+
+    Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/users', [UserController::class, 'index']);
+});
 
 });

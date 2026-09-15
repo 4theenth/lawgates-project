@@ -1,28 +1,15 @@
 import React, { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
-import {
-  LayoutGrid,
-  Gavel,
-  FileText,
-  Users,
-  ChevronDown,
-  ChevronRight,
-  LucideIcon,
-} from 'lucide-react';
-
-interface SidebarItem {
-  id: string;
-  label: string;
-  href?: string;
-  icon: LucideIcon;
-  subItems?: { id: string; label: string; href: string }[];
-}
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ADMIN_SIDEBAR_MENUS, SIDEBAR_THEME } from '@/config/navigation';
+import type { SidebarMenuItem } from '@/types/navigation';
 
 interface AdminSidebarProps {
   isCollapsed: boolean;
+  menus?: SidebarMenuItem[];
 }
 
-export function AdminSidebar({ isCollapsed }: AdminSidebarProps) {
+export function AdminSidebar({ isCollapsed, menus = ADMIN_SIDEBAR_MENUS }: AdminSidebarProps) {
   const { url } = usePage();
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({
     users: false,
@@ -35,36 +22,6 @@ export function AdminSidebar({ isCollapsed }: AdminSidebarProps) {
     }));
   };
 
-  const navItems: SidebarItem[] = [
-    {
-      id: 'dashboard',
-      label: 'Dashboard',
-      href: '/admin/dashboard',
-      icon: LayoutGrid,
-    },
-    {
-      id: 'jenis-hukum',
-      label: 'Jenis Hukum',
-      href: '/admin/jenis-hukum',
-      icon: Gavel,
-    },
-    {
-      id: 'dokumen-hukum',
-      label: 'Dokumen Hukum',
-      href: '/admin/dokumen-hukum',
-      icon: FileText,
-    },
-    {
-      id: 'users',
-      label: 'Users',
-      icon: Users,
-      subItems: [
-        { id: 'user-list', label: 'Users', href: '/admin/users' },
-        { id: 'admin-list', label: 'Admin', href: '/admin/users/admin' },
-      ],
-    },
-  ];
-
   const isItemActive = (itemHref?: string) => {
     if (!itemHref) return false;
     return url === itemHref || url.startsWith(`${itemHref}/`);
@@ -72,20 +29,20 @@ export function AdminSidebar({ isCollapsed }: AdminSidebarProps) {
 
   return (
     <aside
-      className={`fixed top-[56px] left-0 bottom-0 z-20 bg-white border-r border-neu-50 transition-all duration-300 flex flex-col pt-[13px] px-[11px] pb-6 gap-[9px] ${
-        isCollapsed ? 'w-[64px]' : 'w-[223px]'
+      className={`shrink-0 h-full bg-white border-r border-neu-50 transition-all duration-300 flex flex-col pt-[13px] px-[10px] pb-6 gap-[9px] overflow-y-auto ${
+        isCollapsed ? 'w-[64px]' : 'w-[195px]'
       }`}
     >
-      {/* Label Kategori 'Menu' */}
-      {!isCollapsed && (
-        <p className="px-[14px] text-[11px] font-medium text-neu-400 tracking-wide">
+      {/* Label Kategori 'Menu' (Pertahankan area kosong saat collapse agar icon tidak berpindah posisi vertikal) */}
+      <div className="h-[18px] flex items-center">
+        <p className={`${SIDEBAR_THEME.categoryLabel} ${isCollapsed ? 'invisible' : 'visible'}`}>
           Menu
         </p>
-      )}
+      </div>
 
       {/* List Menu Navigasi */}
       <nav className="flex flex-col gap-[9px] w-full">
-        {navItems.map((item) => {
+        {menus.map((item) => {
           const Icon = item.icon;
           const hasSub = !!item.subItems?.length;
           const isActive = isItemActive(item.href);
@@ -98,16 +55,15 @@ export function AdminSidebar({ isCollapsed }: AdminSidebarProps) {
                   type="button"
                   onClick={() => toggleSubmenu(item.id)}
                   title={isCollapsed ? item.label : undefined}
-                  className={`w-full flex items-center rounded-[10px] py-[7px] px-[14px] text-[14px] font-normal transition-colors cursor-pointer text-neu-800 hover:bg-gray-50 ${
-                    isCollapsed ? 'justify-center px-0' : 'justify-between'
-                  }`}
+                  className={`${SIDEBAR_THEME.itemBase} ${SIDEBAR_THEME.dropdownParent.container} ${isCollapsed ? 'justify-center px-0' : 'justify-between'
+                    }`}
                 >
                   <div className="flex items-center gap-[12px]">
-                    <Icon className="w-[18px] h-[18px] text-neu-600 shrink-0" />
-                    {!isCollapsed && <span>{item.label}</span>}
+                    <Icon className={`w-[18px] h-[18px] shrink-0 ${SIDEBAR_THEME.dropdownParent.icon}`} />
+                    {!isCollapsed && <span className="text-[12px]">{item.label}</span>}
                   </div>
                   {!isCollapsed && (
-                    <span className="text-neu-400">
+                    <span className={SIDEBAR_THEME.dropdownParent.arrow}>
                       {isSubOpen ? (
                         <ChevronDown className="w-3.5 h-3.5" />
                       ) : (
@@ -126,11 +82,10 @@ export function AdminSidebar({ isCollapsed }: AdminSidebarProps) {
                         <Link
                           key={sub.id}
                           href={sub.href}
-                          className={`block py-[6px] px-[10px] rounded-[8px] text-[13px] transition-colors ${
-                            isSubActive
-                              ? 'text-pr-900 font-semibold bg-gray-50'
-                              : 'text-neu-600 hover:text-black hover:bg-gray-50'
-                          }`}
+                          className={`block py-[6px] px-[10px] rounded-[8px] ${SIDEBAR_THEME.submenuItem.fontSize} transition-colors ${isSubActive
+                            ? SIDEBAR_THEME.submenuItem.active
+                            : SIDEBAR_THEME.submenuItem.inactive
+                            }`}
                         >
                           {sub.label}
                         </Link>
@@ -147,26 +102,25 @@ export function AdminSidebar({ isCollapsed }: AdminSidebarProps) {
               key={item.id}
               href={item.href || '#'}
               title={isCollapsed ? item.label : undefined}
-              className={`relative flex items-center rounded-[10px] py-[7px] px-[14px] text-[14px] transition-all group ${
-                isCollapsed ? 'justify-center px-0' : 'justify-start gap-[12px]'
-              } ${
-                isActive
-                  ? 'text-pr-900 font-semibold bg-gray-50/90'
-                  : 'text-neu-800 font-normal hover:text-black hover:bg-gray-50'
-              }`}
+              className={`relative ${SIDEBAR_THEME.itemBase} group ${isCollapsed ? 'justify-center px-0' : 'justify-start gap-[12px]'
+                } ${isActive
+                  ? SIDEBAR_THEME.activeItem.container
+                  : SIDEBAR_THEME.inactiveItem.container
+                }`}
             >
               {/* Indikator Menu Aktif Sisi Kiri (Aksen bracket / bar sisi kiri sesuai Figma) */}
-              {isActive && (
-                <span className="absolute left-0 top-[6px] bottom-[6px] w-[3.5px] bg-pr-900 rounded-r-full" />
-              )}
+              {/* {isActive && (
+                <span className={`absolute left-0 top-[6px] bottom-[6px] w-[3.5px] rounded-r-full ${SIDEBAR_THEME.activeItem.indicator}`} />
+              )} */}
 
               <Icon
-                className={`w-[18px] h-[18px] shrink-0 transition-colors ${
-                  isActive ? 'text-pr-900' : 'text-neu-600 group-hover:text-black'
-                }`}
+                className={`w-[18px] h-[18px] shrink-0 transition-colors ${isActive
+                  ? SIDEBAR_THEME.activeItem.icon
+                  : SIDEBAR_THEME.inactiveItem.icon
+                  }`}
               />
 
-              {!isCollapsed && <span>{item.label}</span>}
+              {!isCollapsed && <span className="text-[12px]">{item.label}</span>}
             </Link>
           );
         })}

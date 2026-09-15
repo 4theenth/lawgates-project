@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
-import { PublicLayout, Section } from '../Layouts/PublicLayout';
-
+import { PublicLayout, Section } from '@/Layouts/PublicLayout';
+import { Breadcrumb } from '@/Components/admin/Breadcrumb';
+import { Badge } from '@/Components/common/Badge';
 export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
   return (
     <PublicLayout>
@@ -9,6 +10,17 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       <Section>
         <div className="pt-32 pb-16 w-full max-w-7xl mx-auto px-4 min-h-screen text-gray-900">
           
+          {/* Breadcrumb Navigasi */}
+          <div className="mb-6">
+            <Breadcrumb 
+              items={[
+                { label: 'Beranda', href: '/' },
+                { label: 'Pencarian Hukum', href: '/pencarian' },
+                { label: peraturan.judul }
+              ]} 
+            />
+          </div>
+
           {/* Header Metadata */}
           <div className="mb-8 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
             <div className="flex gap-2 text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">
@@ -18,10 +30,10 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
             </div>
             <h1 className="text-2xl lg:text-3xl font-bold mb-4">{peraturan.judul}</h1>
             <div className="flex flex-wrap gap-3 text-sm">
-              <span className="px-3 py-1 bg-green-100 text-green-700 font-semibold rounded-full">
+              <Badge variant={peraturan.status_peraturan?.nama_status?.toLowerCase().includes('tidak') || peraturan.status_peraturan?.nama_status?.toLowerCase().includes('cabut') ? 'danger' : peraturan.status_peraturan?.nama_status?.toLowerCase().includes('ubah') ? 'warning' : 'success'} className="border border-current px-3 py-1 font-semibold">
                 {peraturan.status_peraturan?.nama_status || 'Status Tidak Diketahui'}
-              </span>
-              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full">
+              </Badge>
+              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full font-medium">
                 Ditetapkan: {peraturan.tanggal_penetapan || '-'}
               </span>
               <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full">
@@ -93,9 +105,9 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
           {peraturan.law_relations.map((rel: any, index: number) => (
             <div key={index} className="relative pl-5">
               <div className="absolute w-3 h-3 bg-pr-900 rounded-full -left-[7px] top-1.5 border-2 border-white"></div>
-              <span className="text-[11px] font-bold text-pr-900 uppercase bg-pr-50 px-2 py-0.5 rounded">
+              <Badge variant="primary" className="text-[11px] font-bold uppercase rounded-md px-2 py-0.5">
                 {rel.relation_type?.nama_relasi}
-              </span>
+              </Badge>
               <p className="text-sm text-gray-800 mt-1 font-medium">{rel.to_peraturan?.judul}</p>
             </div>
           ))}

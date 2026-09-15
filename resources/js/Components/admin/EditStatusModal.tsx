@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Modal from '@/Components/common/Modal';
-import { StatusBadge } from '@/Components/common';
+import { StatusBadge, Badge } from '@/Components/common';
 import { ChevronDown, Check } from 'lucide-react';
 import { DokumenHukumItem } from './DocumentTable';
 
@@ -106,11 +106,11 @@ export function EditStatusModal({
                     setSelectedStatus('berlaku');
                     setIsDropdownOpen(false);
                   }}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer text-left"
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-neu-50 transition-colors cursor-pointer text-left"
                 >
-                  <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[12px] font-medium bg-[#EBF7EE] text-[#1E7E34]">
+                  <Badge variant="success" size="md">
                     Berlaku
-                  </span>
+                  </Badge>
                   {selectedStatus === 'berlaku' && (
                     <Check className="w-4 h-4 text-pr-900 stroke-[2.5]" />
                   )}
@@ -123,11 +123,11 @@ export function EditStatusModal({
                     setSelectedStatus('tidak_berlaku');
                     setIsDropdownOpen(false);
                   }}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer text-left"
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-neu-50 transition-colors cursor-pointer text-left"
                 >
-                  <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[12px] font-medium bg-[#FDEEEE] text-[#D32F2F]">
+                  <Badge variant="danger" size="md">
                     Tidak Berlaku
-                  </span>
+                  </Badge>
                   {selectedStatus === 'tidak_berlaku' && (
                     <Check className="w-4 h-4 text-pr-900 stroke-[2.5]" />
                   )}

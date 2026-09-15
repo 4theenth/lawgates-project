@@ -19,6 +19,8 @@ export function FilterPopover({
   categories,
   selectedCategories,
   onToggleCategory,
+  onSelectAll,
+  onClearAll,
 }: FilterPopoverProps) {
   const popoverRef = useRef<HTMLDivElement | null>(null);
 
@@ -50,7 +52,7 @@ export function FilterPopover({
       <button
         type="button"
         onClick={onToggle}
-        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] border transition-colors shadow-2xs cursor-pointer text-[13px] font-medium ${
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] border transition-colors shadow-2xs cursor-pointer text-[12px] font-medium ${
           isOpen || hasSelection
             ? 'border-pr-900 bg-pr-50 text-pr-900'
             : 'border-neu-50 bg-white text-neu-700 hover:bg-gray-50 hover:text-black'
@@ -65,11 +67,39 @@ export function FilterPopover({
         )}
       </button>
 
-      {/* Popover Dropdown (Nimpa Sesuai Gambar 2) */}
+      {/* Popover Dropdown */}
       {isOpen && (
         <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-neu-100 p-4 z-40 animate-in fade-in zoom-in-95 duration-150">
-          <div className="text-[13px] font-semibold text-neu-900 mb-3 select-none">
-            Kategori
+          <div className="flex items-center justify-between mb-3 select-none">
+            <span className="text-[12px] font-semibold text-neu-900">
+              Kategori
+            </span>
+            <div className="flex items-center gap-2">
+              {onClearAll && selectedCategories.length > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClearAll();
+                  }}
+                  className="text-[11px] font-medium text-pr-900 hover:underline cursor-pointer"
+                >
+                  Clear all
+                </button>
+              )}
+              {onSelectAll && selectedCategories.length < categories.length && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectAll();
+                  }}
+                  className="text-[11px] font-medium text-neu-500 hover:text-neu-900 cursor-pointer"
+                >
+                  Pilih semua
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2.5">
@@ -79,7 +109,7 @@ export function FilterPopover({
               return (
                 <label
                   key={cat}
-                  className="flex items-center gap-2.5 cursor-pointer group select-none text-[13px] text-neu-700 hover:text-neu-900"
+                  className="flex items-center gap-2.5 cursor-pointer group select-none text-[12px] text-neu-700 hover:text-neu-900"
                   onClick={(e) => {
                     e.preventDefault();
                     onToggleCategory(cat);

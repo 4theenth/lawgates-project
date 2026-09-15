@@ -1,6 +1,5 @@
 import { CountUp } from '../common/CountUp';
 import hierarchyCardBg from '@/assets/regulation-hierarchy-card.webp';
-import hierarchyCardShape from '@/assets/hierarchy-card-shape.svg';
 
 interface HierarchyCardItem {
   id: string;
@@ -86,7 +85,7 @@ export function RegulationHierarchyGrid() {
 
       {/* 8 Cards Grid */}
       <div className="w-full overflow-visible">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 xl:gap-[30px] gap-y-[28px] justify-items-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 xl:gap-[30px] gap-y-[28px]">
 
           {hierarchyData.map((item) => (
             <div
@@ -95,7 +94,6 @@ export function RegulationHierarchyGrid() {
                 group
                 relative
                 w-full
-                max-w-[278px]
                 h-[280px]
                 p-[5px]
                 bg-white
@@ -224,18 +222,21 @@ export function RegulationHierarchyGrid() {
               </div>
 
               {/* CARD NOTCH / TAB SHAPE */}
-              <img
-                src={hierarchyCardShape}
-                alt=""
-                className="
-                  absolute
-                  inset-x-[5px]
-                  top-[145px]
-                  z-10
-                  w-[calc(100%-10px)]
-                  pointer-events-none
-                "
-              />
+              <div className="absolute left-[5px] top-[145px] z-10 w-[140px] h-[27px] pointer-events-none">
+                <svg
+                  width="140"
+                  height="27"
+                  viewBox="0 0 140 27"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-full h-full"
+                >
+                  <path
+                    d="M0 27V11C0 4.92487 4.92487 0 11 0H105.167C109.856 0 114.029 2.97146 115.562 7.40178L119.438 18.5982C120.971 23.0285 125.144 26 129.833 26H140V27H0Z"
+                    fill="#EEDFAF"
+                  />
+                </svg>
+              </div>
 
             </div>
           ))}

@@ -14,25 +14,21 @@ export default function AdminLayout({ children }: PropsWithChildren<AdminLayoutP
   };
 
   return (
-    <div className="min-h-screen bg-[#FCFEFF] text-neu-900 font-sans antialiased">
-      {/* Top Header - height 56px */}
+    <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#FCFEFF] text-neu-900 font-sans antialiased">
+      {/* Top Header - Fixed height 56px, stays in place */}
       <AdminHeader
         isSidebarCollapsed={isSidebarCollapsed}
         onToggleSidebar={toggleSidebar}
       />
 
       {/* Container Sidebar & Main Content */}
-      <div className="flex">
-        {/* Sidebar Navigasi Kiri - width 223px (expanded) / 64px (collapsed) */}
+      <div className="flex-1 flex min-h-0 w-full overflow-hidden">
+        {/* Sidebar Navigasi Kiri - Stays in place */}
         <AdminSidebar isCollapsed={isSidebarCollapsed} />
 
-        {/* Konten Halaman (Main Body) */}
-        <main
-          className={`flex-1 transition-all duration-300 min-h-[calc(100vh-56px)] ${
-            isSidebarCollapsed ? 'pl-[64px]' : 'pl-[223px]'
-          }`}
-        >
-          <div className="w-full max-w-[1440px] mx-auto p-6 sm:p-8">
+        {/* Konten Halaman (Main Body) - Hanya scroll vertikal, tidak bisa digeser horizontal */}
+        <main className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden transition-all duration-300 bg-[#FCFEFF]">
+          <div className="w-full max-w-[1440px] mx-auto p-4 sm:p-6 lg:p-7 min-w-0">
             {children}
           </div>
         </main>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '@/Components/common/Modal';
+import { IconButton } from '@/Components/common/IconButton';
 import { DokumenHukumItem } from './DocumentTable';
 import { X } from 'lucide-react';
 
@@ -61,13 +62,13 @@ export function DocumentModal({
           <h2 className="text-[16px] font-semibold text-neu-900">
             {isEditing ? 'Edit Data Dokumen Hukum' : 'Tambah Dokumen Hukum Baru'}
           </h2>
-          <button
-            type="button"
+          <IconButton
+            icon={<X className="w-4 h-4 text-neu-400" />}
+            variant="ghost"
+            size="sm"
             onClick={onClose}
-            className="text-neu-400 hover:text-neu-700 transition-colors p-1 rounded-lg"
-          >
-            <X className="w-5 h-5" />
-          </button>
+            title="Tutup"
+          />
         </div>
 
         {/* Form Isi */}

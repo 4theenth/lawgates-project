@@ -9,9 +9,12 @@ export function AboutOverview() {
         flex
         w-full
         min-h-[180px]
-        px-6
+        px-5
+        sm:px-8
         md:px-[78px]
-        py-[30px]
+        py-6
+        sm:py-8
+        md:py-[30px]
         flex-col
         justify-center
         bg-pr-900
@@ -32,10 +35,10 @@ export function AboutOverview() {
       />
 
       {/* Content: Layout sesuai Figma Frame 268 (gap 50px) */}
-      <div className="relative z-10 flex flex-col lg:flex-row w-full items-start lg:items-center gap-[30px] lg:gap-[50px]">
+      <div className="relative z-10 flex flex-col lg:flex-row w-full items-start lg:items-center gap-6 lg:gap-[50px]">
         
         {/* LEFT: Badge + Metrics */}
-        <div className="flex flex-col items-start gap-[15px] shrink-0">
+        <div className="flex flex-col items-start gap-3 sm:gap-[15px] w-full lg:w-auto shrink-0">
             
             {/* Badge */}
             <div
@@ -83,15 +86,17 @@ export function AboutOverview() {
             </div>
 
             {/* 3 Metrics */}
-            <div className="flex items-start gap-[17px]">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-[20px] w-full lg:w-auto">
               
               {/* Metric 1 */}
-              <div className="flex flex-col items-start">
+              <div className="flex flex-col items-start min-w-0">
                 <div
                   className="
                     self-stretch
                     text-white
-                    text-[24px]
+                    text-[18px]
+                    sm:text-[22px]
+                    md:text-[24px]
                     font-semibold
                     leading-[130%]
                   "
@@ -104,9 +109,11 @@ export function AboutOverview() {
                   className="
                     self-stretch
                     text-neu-100
-                    text-[12px]
+                    text-[11px]
+                    sm:text-[12px]
                     font-normal
-                    leading-[18px]
+                    leading-[16px]
+                    sm:leading-[18px]
                   "
                 >
                   Data Hukum
@@ -114,12 +121,14 @@ export function AboutOverview() {
               </div>
 
               {/* Metric 2 */}
-              <div className="flex flex-col items-start">
+              <div className="flex flex-col items-start min-w-0">
                 <div
                   className="
                     self-stretch
                     text-white
-                    text-[24px]
+                    text-[18px]
+                    sm:text-[22px]
+                    md:text-[24px]
                     font-semibold
                     leading-[130%]
                   "
@@ -132,9 +141,11 @@ export function AboutOverview() {
                   className="
                     self-stretch
                     text-neu-100
-                    text-[12px]
+                    text-[11px]
+                    sm:text-[12px]
                     font-normal
-                    leading-[18px]
+                    leading-[16px]
+                    sm:leading-[18px]
                   "
                 >
                   Dokumen Hukum
@@ -142,12 +153,14 @@ export function AboutOverview() {
               </div>
 
               {/* Metric 3 */}
-              <div className="flex flex-col items-start">
+              <div className="flex flex-col items-start min-w-0">
                 <div
                   className="
                     self-stretch
                     text-white
-                    text-[24px]
+                    text-[18px]
+                    sm:text-[22px]
+                    md:text-[24px]
                     font-semibold
                     leading-[130%]
                   "
@@ -160,9 +173,11 @@ export function AboutOverview() {
                   className="
                     self-stretch
                     text-neu-100
-                    text-[12px]
+                    text-[11px]
+                    sm:text-[12px]
                     font-normal
-                    leading-[18px]
+                    leading-[16px]
+                    sm:leading-[18px]
                   "
                 >
                   Pelanggan Aktif
@@ -174,7 +189,7 @@ export function AboutOverview() {
 
         {/* RIGHT: Description (Figma Frame 268) */}
         <div className="flex-1 w-full">
-          <p className="text-white text-left text-[14px] lg:text-[15px] xl:text-[16px] font-normal leading-[24px]">
+          <p className="text-white/95 text-justify text-[13px] sm:text-[14px] lg:text-[15px] xl:text-[16px] font-normal leading-[22px] sm:leading-[25px] [text-align-last:left]">
             LawGates adalah platform pangkalan data hukum terpadu yang
             merangkum seluruh peraturan perundang-undangan di Indonesia ke
             dalam satu titik akses pencarian tanpa harus menelusuri puluhan

@@ -8,6 +8,8 @@ export interface ProcessedFileItem {
   name: string;
   status: FileExtractionStatus;
   progressPercent: number;
+  rawFile?: File;
+  parsedData?: any;
 }
 
 interface StepProcessExtractionProps {
@@ -164,9 +166,9 @@ export function StepProcessExtraction({
           {failedFiles > 0 && ` & ${failedFiles} File gagal`}
         </p>
 
-        {/* Tombol Aksi Transisi */}
-        <div className="w-full mt-6 pt-4 border-t border-neu-50 flex flex-col gap-2">
-          {processingFiles > 0 ? (
+        {/* Status Aksi Transisi */}
+        {processingFiles > 0 ? (
+          <div className="w-full mt-6 pt-4 border-t border-neu-50">
             <button
               type="button"
               onClick={onCancel}
@@ -174,16 +176,13 @@ export function StepProcessExtraction({
             >
               Batalkan Proses
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onFinishOrNext}
-              className="w-full py-2.5 px-4 text-[13px] font-medium bg-pr-900 text-white hover:bg-pr-800 rounded-[10px] transition-colors shadow-2xs cursor-pointer"
-            >
-              Lanjutkan ke Validasi
-            </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="w-full mt-6 pt-4 border-t border-neu-50 flex items-center justify-center gap-2 text-[#2E7D32] text-[12px] font-medium animate-pulse">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Ekstraksi selesai, mengalihkan...</span>
+          </div>
+        )}
       </div>
     </div>
   );
