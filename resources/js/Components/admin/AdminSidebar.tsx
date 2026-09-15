@@ -120,7 +120,11 @@ export function AdminSidebar({ isCollapsed, menus = ADMIN_SIDEBAR_MENUS }: Admin
                   }`}
               />
 
-              {!isCollapsed && <span className="text-[12px]">{item.label}</span>}
+              {!isCollapsed && (
+                <span className={`text-[12px] ${isActive ? 'font-bold text-neu-900' : 'font-normal'}`}>
+                  {item.label}
+                </span>
+              )}
             </Link>
           );
         })}
