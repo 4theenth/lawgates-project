@@ -221,6 +221,38 @@ export default function DokumenHukumCreate() {
 
   // Handler simpan seluruh berkas ke database
   const handleSaveToDatabase = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('lawgates_admin_documents');
+      let currentDocs: any[] = [];
+      if (saved) {
+        try {
+          currentDocs = JSON.parse(saved);
+        } catch (e) {
+          currentDocs = [];
+        }
+      }
+
+      // Konversi berkas tervalidasi ke dalam DokumenHukumItem
+      const newDocs = validatedFiles.map((file, idx) => {
+        const todayStr = new Intl.DateTimeFormat('id-ID', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+        }).format(new Date());
+
+        return {
+          id: String(Date.now() + idx),
+          kategori: file.category || selectedCategory || 'UU',
+          judul: file.title || file.name,
+          status: 'berlaku' as const,
+          tgl_ditetapkan: file.correctionData?.metadata?.tanggalDitetapkan || todayStr,
+        };
+      });
+
+      const updated = [...newDocs, ...currentDocs];
+      localStorage.setItem('lawgates_admin_documents', JSON.stringify(updated));
+    }
+
     setCurrentStep(4);
     setIsSavedSuccess(true);
     toast.success('Data hukum berhasil disimpan ke database!');
