@@ -1,5 +1,6 @@
 import React from 'react';
 import { Scale, Pencil, Trash2 } from 'lucide-react';
+import { IconButton } from '@/Components/common/IconButton';
 
 export interface ValidatedFileItem {
   id: string;
@@ -41,7 +42,7 @@ export function StepValidationCorrection({
         {files.map((file) => (
           <div
             key={file.id}
-            className="flex items-center justify-between p-3.5 rounded-[10px] bg-[#F8FAFC] border border-neu-50 hover:bg-gray-100/70 transition-colors gap-3 w-full min-w-0"
+            className="flex items-center justify-between p-3.5 rounded-[10px] bg-neu-50/40 border border-neu-50 hover:bg-neu-50 transition-colors gap-3 w-full min-w-0"
           >
             {/* Sisi Kiri: Ikon Timbangan Hukum & Nama Berkas */}
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -58,23 +59,22 @@ export function StepValidationCorrection({
 
             {/* Sisi Kanan: Tombol Edit (Pensil) & Tombol Hapus (Tong Sampah Merah) */}
             <div className="flex items-center gap-1.5 shrink-0 ml-2">
-              <button
-                type="button"
+              <IconButton
+                icon={<Pencil className="w-4 h-4 text-neu-500" />}
+                variant="ghost"
+                size="sm"
                 onClick={() => onEditFile(file)}
-                className="p-1.5 text-neu-500 hover:text-neu-800 transition-colors rounded-lg hover:bg-gray-200/50 cursor-pointer"
                 title="Koreksi / Periksa detail data"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
+              />
 
-              <button
-                type="button"
+              <IconButton
+                icon={<Trash2 className="w-4 h-4 text-dan-800" />}
+                variant="ghost"
+                size="sm"
                 onClick={() => onRemoveFile(file.id)}
-                className="p-1.5 text-[#E53E3E] hover:text-red-700 transition-colors rounded-lg hover:bg-red-50 cursor-pointer"
                 title="Hapus berkas ini"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                className="hover:bg-dan-50"
+              />
             </div>
           </div>
         ))}

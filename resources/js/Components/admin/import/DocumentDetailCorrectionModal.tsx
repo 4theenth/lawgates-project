@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '@/Components/common/Modal';
-import { StatusBadge } from '@/Components/common/StatusBadge';
+import { StatusBadge, IconButton } from '@/Components/common';
 import { ValidatedFileItem } from './StepValidationCorrection';
 import { Scale, Eye, Edit3, X, Calendar, FileText, Check } from 'lucide-react';
 
@@ -118,13 +118,13 @@ export function DocumentDetailCorrectionModal({
               </button>
             </div>
 
-            <button
-              type="button"
+            <IconButton
+              icon={<X className="w-4 h-4 text-neu-400" />}
+              variant="ghost"
+              size="sm"
               onClick={onClose}
-              className="p-1.5 text-neu-400 hover:text-neu-700 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+              title="Tutup"
+            />
           </div>
         </div>
 

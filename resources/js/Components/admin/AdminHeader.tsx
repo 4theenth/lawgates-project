@@ -1,7 +1,7 @@
 import React from 'react';
-import { Link, usePage } from '@inertiajs/react';
+import { usePage, Link } from '@inertiajs/react';
 import { Bell, PanelLeft } from 'lucide-react';
-import profileImg from '@/assets/profile-avatar.webp';
+import { IconButton } from '@/Components/common/IconButton';
 
 interface AdminHeaderProps {
   isSidebarCollapsed: boolean;
@@ -12,11 +12,14 @@ export function AdminHeader({
   isSidebarCollapsed,
   onToggleSidebar,
 }: AdminHeaderProps) {
-  const pageProps = usePage().props as { auth?: { user?: { name?: string; email?: string } } };
-  const user = pageProps.auth?.user;
+  const { auth } = usePage().props as any;
+  const user = auth?.user;
+
+  const profileImg =
+    user?.avatar || '/build/assets/profile-avatar-CViXEeDd.webp';
 
   return (
-    <header className="shrink-0 h-[56px] w-full border-b border-neu-50 bg-white px-4 sm:px-6 flex items-center justify-between z-30 transition-all">
+    <header className="h-[56px] min-h-[56px] w-full bg-white border-b border-neu-100 flex items-center justify-between px-6 z-20 shrink-0 select-none">
       {/* Kiri: Brand LawGates & Tombol Panel-Left */}
       <div className="flex items-center gap-4">
         <Link href="/" className="flex items-center">
@@ -26,31 +29,29 @@ export function AdminHeader({
         </Link>
 
         {/* Tombol Toggle Sidebar (Panel Left) */}
-        <button
-          type="button"
+        <IconButton
+          icon={<PanelLeft className="w-[18px] h-[18px]" />}
+          variant="ghost"
+          size="sm"
           onClick={onToggleSidebar}
           title={isSidebarCollapsed ? 'Buka Sidebar' : 'Tutup Sidebar'}
-          className="p-1 rounded-md text-gray-500 hover:text-black hover:bg-gray-100 transition-colors cursor-pointer focus:outline-none"
-        >
-          <PanelLeft className="w-[18px] h-[18px]" />
-        </button>
+        />
       </div>
 
       {/* Kanan: Bell Notifikasi & Profile Avatar */}
       <div className="flex items-center gap-4">
-        {/* Ikon Bell Notifikasi (Frame rounded square putih tanpa fill warna) */}
-        <button
-          type="button"
+        {/* Ikon Bell Notifikasi Reusable */}
+        <IconButton
+          icon={<Bell className="w-[16px] h-[16px] stroke-[1.75]" />}
+          variant="default"
+          size="md"
           title="Notifikasi"
-          className="relative w-[34px] h-[34px] rounded-[10px] bg-white border border-neu-100 flex items-center justify-center text-neu-800 hover:bg-gray-50 hover:text-black transition-colors cursor-pointer shadow-2xs"
-        >
-          <Bell className="w-[16px] h-[16px] text-neu-800 stroke-[1.75]" />
-        </button>
+        />
 
         {/* Profile Avatar */}
         <div className="flex items-center gap-2">
           <div
-            className="w-[32px] h-[32px] rounded-full border border-neu-50 shadow-2xs overflow-hidden cursor-pointer bg-cover bg-center bg-no-repeat bg-[#e9e9e9]"
+            className="w-[32px] h-[32px] rounded-full border border-neu-50 shadow-2xs overflow-hidden cursor-pointer bg-cover bg-center bg-no-repeat bg-neu-50"
             style={{ backgroundImage: `url("${profileImg}")` }}
             title={user?.name || 'User Profile'}
           />
