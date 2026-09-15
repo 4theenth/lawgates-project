@@ -22,22 +22,35 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
     return url === path || url.startsWith(`${path}/`);
   };
 
+  const isHome = url === '/';
+
   return (
     <>
       <header
-        className={`fixed top-0 left-0 w-full h-[66px] z-50 transition-all duration-300 flex items-center justify-center ${
-          isScrolled
-            ? 'bg-bg-900/90 backdrop-blur-md border-b border-pr-800/80 shadow-lg'
-            : 'bg-transparent'
+        className={`fixed top-0 left-0 w-full z-50 flex justify-center transition-all duration-[600ms] ease-in-out ${
+          isScrolled ? 'pt-4 px-4' : 'pt-0 px-0'
         }`}
       >
-        <div className={`${PAGE_CONTAINER} h-[59px] flex items-center justify-between`}>
-          {/* Brand Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <span className="font-['Inter'] text-[18px] font-semibold leading-[28px] text-[#FFFFFF]">
-              LawGates
-            </span>
-          </Link>
+        <div
+          className={`flex items-center justify-center transition-all duration-[600ms] ease-in-out ${
+            isScrolled
+              ? 'bg-[#0A1C3E]/60 backdrop-blur-md border border-white/10 shadow-lg rounded-full h-[60px] w-full max-w-[1000px] px-6 lg:px-8'
+              : `h-[74px] w-full max-w-[3000px] rounded-none border-b border-transparent ${
+                  isHome ? 'bg-transparent' : 'bg-[#0A1C3E] shadow-sm'
+                }`
+          }`}
+        >
+          <div
+            className={`w-full h-full flex items-center justify-between mx-auto transition-all duration-[600ms] ease-in-out ${
+              isScrolled ? 'max-w-[1000px]' : 'max-w-[1202px] px-4 sm:px-6 xl:px-0'
+            }`}
+          >
+            {/* Brand Logo */}
+            <Link href="/" className="flex items-center gap-2">
+              <span className="font-['Inter'] text-[18px] font-semibold leading-[28px] text-[#FFFFFF]">
+                LawGates
+              </span>
+            </Link>
 
           {/* Center Navigation Menu (Desktop: hidden on mobile) */}
           <nav className="hidden md:flex items-center gap-[20px] text-sm font-medium">
@@ -94,6 +107,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
           >
             <Menu className="w-6 h-6" />
           </button>
+          </div>
         </div>
       </header>
 
