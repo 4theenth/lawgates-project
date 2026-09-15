@@ -10,7 +10,13 @@ import { FilterPopover } from '@/Components/admin/FilterPopover';
 import { DocumentModal } from '@/Components/admin/DocumentModal';
 import { EditStatusModal } from '@/Components/admin/EditStatusModal';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
-import { Plus, Search, RotateCcw } from 'lucide-react';
+import {
+  CorrectionDetailView,
+  LegalDocumentCorrectionData,
+  formatStandardId,
+} from '@/Components/admin/import/CorrectionDetailView';
+import { Plus, Search, X } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
 
 const INITIAL_DOCUMENTS: DokumenHukumItem[] = [
   {
@@ -180,20 +186,15 @@ const ALL_CATEGORIES = [
 ];
 
 export default function DokumenHukumIndex() {
+  const { toast } = useToast();
+
   // Data dokumen utama
   const [documents, setDocuments] = useState<DokumenHukumItem[]>(INITIAL_DOCUMENTS);
 
   // Filter & Search states
   const [activeTab, setActiveTab] = useState<'all' | 'berlaku' | 'tidak_berlaku'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([
-    'Peraturan Presiden',
-    'Peraturan Mentri',
-    'Putusan MK',
-    'UUD',
-    'UU',
-    'Peraturan Daerah',
-  ]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(ALL_CATEGORIES);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Pagination states responsif
@@ -207,7 +208,7 @@ export default function DokumenHukumIndex() {
   const [deletingDoc, setDeletingDoc] = useState<DokumenHukumItem | null>(null);
 
   const statusOptions = [
-    { id: 'berlaku' as const, label: 'Belaku' },
+    { id: 'berlaku' as const, label: 'Berlaku' },
     { id: 'tidak_berlaku' as const, label: 'Tidak Berlaku' },
   ];
 
@@ -219,6 +220,7 @@ export default function DokumenHukumIndex() {
   // Handler toggle tab status (Klik tab aktif mematikan filter tab menjadi 'all')
   const handleTabChange = (tab: 'berlaku' | 'tidak_berlaku') => {
     setActiveTab((prev) => (prev === tab ? 'all' : tab));
+    setCurrentPage(1);
   };
 
   // Handler toggle kategori checkbox pada popover filter
@@ -228,6 +230,13 @@ export default function DokumenHukumIndex() {
         ? prev.filter((c) => c !== category)
         : [...prev, category]
     );
+    setCurrentPage(1);
+  };
+
+  // Handler pencarian realtime (reset ke halaman 1 agar hasil selalu terlihat)
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1);
   };
 
   // Handler buka modal ubah status dokumen
@@ -244,6 +253,7 @@ export default function DokumenHukumIndex() {
           : item
       )
     );
+    toast.success('Status dokumen hukum berhasil diperbarui!');
   };
 
   // Handler simpan tambah / edit dokumen
@@ -253,6 +263,7 @@ export default function DokumenHukumIndex() {
       setDocuments((prev) =>
         prev.map((item) => (item.id === data.id ? ({ ...item, ...data } as DokumenHukumItem) : item))
       );
+      toast.success('Data dokumen hukum berhasil diperbarui!');
     } else {
       // Mode Tambah Baru
       const newDoc: DokumenHukumItem = {
@@ -263,6 +274,7 @@ export default function DokumenHukumIndex() {
         tgl_ditetapkan: data.tgl_ditetapkan,
       };
       setDocuments((prev) => [newDoc, ...prev]);
+      toast.success('Data dokumen hukum baru berhasil ditambahkan!');
     }
   };
 
@@ -271,25 +283,7 @@ export default function DokumenHukumIndex() {
     if (!deletingDoc) return;
     setDocuments((prev) => prev.filter((item) => item.id !== deletingDoc.id));
     setDeletingDoc(null);
-  };
-
-  // Reset ke data awal atau kosongkan untuk menguji tampilan empty state
-  const handleResetData = () => {
-    setDocuments(INITIAL_DOCUMENTS);
-    setActiveTab('all');
-    setSearchQuery('');
-    setSelectedCategories([
-      'Peraturan Presiden',
-      'Peraturan Mentri',
-      'Putusan MK',
-      'UUD',
-      'UU',
-      'Peraturan Daerah',
-    ]);
-  };
-
-  const handleClearAllData = () => {
-    setDocuments([]);
+    toast.success('Dokumen hukum berhasil dihapus!');
   };
 
   // Filter logika data
@@ -300,16 +294,19 @@ export default function DokumenHukumIndex() {
     }
 
     // 2. Filter Kategori dari Popover
-    if (!selectedCategories.includes(doc.kategori)) {
-      return false;
+    if (selectedCategories.length < ALL_CATEGORIES.length) {
+      if (selectedCategories.length === 0 || !selectedCategories.includes(doc.kategori)) {
+        return false;
+      }
     }
 
-    // 3. Filter Search Input
+    // 3. Filter Search Input (Cari judul, kategori, atau tanggal)
     if (searchQuery.trim() !== '') {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
       const matchJudul = doc.judul.toLowerCase().includes(q);
       const matchKategori = doc.kategori.toLowerCase().includes(q);
-      if (!matchJudul && !matchKategori) {
+      const matchTgl = doc.tgl_ditetapkan.toLowerCase().includes(q);
+      if (!matchJudul && !matchKategori && !matchTgl) {
         return false;
       }
     }
@@ -317,25 +314,82 @@ export default function DokumenHukumIndex() {
     return true;
   });
 
-  // Perhitungan total halaman secara dinamis & responsif sesuai data yang difilter
-  const totalPages = Math.max(1, Math.ceil(filteredDocuments.length / pageSize));
-
-  // Otomatis reset ke halaman 1 jika filter menyebabkan currentPage melebihi totalPages
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1);
-    }
-  }, [totalPages, currentPage]);
-
-  // Irisan dokumen yang ditampilkan sesuai halaman aktif dan ukuran pageSize
-  const startIndex = (currentPage - 1) * pageSize;
-  const paginatedDocuments = filteredDocuments.slice(startIndex, startIndex + pageSize);
-
+  // Potong data untuk pagination
+  const totalItems = filteredDocuments.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const paginatedDocuments = filteredDocuments.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
   const hasData = filteredDocuments.length > 0;
+
+  // JIKA SEDANG EDIT DATA DOKUMEN: Tampilkan Layar Penuh Edit Data Hukum Sesuai Tangkapan Layar
+  if (editingDoc) {
+    return (
+      <AdminLayout>
+        <Head title={`Edit Data Hukum - ${editingDoc.judul}`} />
+
+        {/* 1. Breadcrumb Navigasi Edit */}
+        <div className="mb-4">
+          <Breadcrumb
+            items={[
+              { label: 'Dashboard', href: '/admin/dashboard' },
+              {
+                label: 'Dokumen Hukum',
+                onClick: () => setEditingDoc(null),
+              },
+              { label: 'Edit Data Hukum' },
+            ]}
+          />
+        </div>
+
+        <CorrectionDetailView
+          mode="edit"
+          file={{
+            id: editingDoc.id,
+            name: `${editingDoc.kategori}_${editingDoc.id}.json`,
+            category: editingDoc.kategori,
+            title: editingDoc.judul,
+            correctionData: (editingDoc as any).correctionData,
+            parsedData: (editingDoc as any).parsedData || {
+              metadata: {
+                standard_id: formatStandardId(`${editingDoc.kategori} ${editingDoc.judul}`),
+                judul: editingDoc.judul,
+                pemrakarsa: (editingDoc as any).pemrakarsa || 'Pemerintah Pusat',
+                tanggal_penetapan: editingDoc.tgl_ditetapkan,
+                tempat_penetapan: (editingDoc as any).tempat_penetapan || 'Jakarta',
+              },
+            },
+          }}
+          onSave={(updatedCorrection: LegalDocumentCorrectionData) => {
+            setDocuments((prev) =>
+              prev.map((d) =>
+                d.id === editingDoc.id
+                  ? {
+                      ...d,
+                      judul: updatedCorrection.judul,
+                      tgl_ditetapkan:
+                        updatedCorrection.metadata.tanggalDitetapkan || d.tgl_ditetapkan,
+                      pemrakarsa: updatedCorrection.metadata.pemrakarsa,
+                      tempat_penetapan: updatedCorrection.metadata.tempatPenetapan,
+                      correctionData: updatedCorrection,
+                    }
+                  : d
+              )
+            );
+            setEditingDoc(null);
+            toast.success('Perubahan data hukum berhasil disimpan!');
+          }}
+          onCancel={() => setEditingDoc(null)}
+          onBack={() => setEditingDoc(null)}
+        />
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
-      <Head title="Daftar Dokumen Hukum" />
+      <Head title="Dokumen Hukum - Admin" />
 
       {/* 1. Breadcrumb Navigasi */}
       <div className="mb-4">
@@ -354,32 +408,10 @@ export default function DokumenHukumIndex() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Tombol Cepat Reset Data (Untuk Pengujian Status Kosong vs Ada Data) */}
-          {documents.length === 0 ? (
-            <button
-              type="button"
-              onClick={handleResetData}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-neu-700 bg-white border border-neu-100 rounded-[10px] hover:bg-gray-50 transition-colors cursor-pointer shadow-2xs"
-              title="Kembalikan data contoh"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-neu-500" />
-              <span>Reset Data Contoh</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleClearAllData}
-              className="inline-flex items-center gap-1.5 px-2.5 py-2 text-[11px] font-normal text-neu-500 hover:text-red-600 hover:bg-red-50 rounded-[10px] transition-colors cursor-pointer"
-              title="Kosongkan data untuk tes Empty State"
-            >
-              <span>Uji Empty State</span>
-            </button>
-          )}
-
           {/* Tombol Tambah Hukum (Membuka Alur Tambah Data / Impor JSON OCR) */}
           <Link
             href="/admin/dokumen-hukum/tambah"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-pr-900 text-white text-[13px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Tambah Hukum</span>
@@ -389,7 +421,7 @@ export default function DokumenHukumIndex() {
 
       {/* 3. Toolbar: Status Filter Tabs & Search / Filter Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        {/* Tab Belaku / Tidak Berlaku */}
+        {/* Tab Berlaku / Tidak Berlaku */}
         <StatusTabs
           tabs={statusOptions}
           activeTab={activeTab}
@@ -399,17 +431,30 @@ export default function DokumenHukumIndex() {
         {/* Search Input & Tombol Popover Filter */}
         <div className="flex items-center gap-2.5">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neu-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neu-400" />
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               placeholder="Cari kategori, judul..."
-              className="w-full sm:w-64 pl-9 pr-3 py-1.5 text-[13px] rounded-[10px] border border-neu-50 bg-white placeholder-neu-400 text-neu-900 focus:outline-none focus:border-pr-900 focus:ring-1 focus:ring-pr-900 transition-all shadow-2xs"
+              className="w-full sm:w-64 pl-8.5 pr-8 py-1.5 text-[12px] rounded-[10px] border border-neu-50 bg-white placeholder-neu-400 text-neu-900 focus:outline-none focus:border-pr-900 focus:ring-1 focus:ring-pr-900 transition-all shadow-2xs"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setCurrentPage(1);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neu-400 hover:text-neu-700 p-0.5 cursor-pointer"
+                title="Hapus pencarian"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          {/* Popover Filter Kategori (Nimpa Sesuai Gambar 2) */}
+          {/* Popover Filter Kategori */}
           <FilterPopover
             isOpen={isFilterOpen}
             onToggle={() => setIsFilterOpen(!isFilterOpen)}
@@ -417,6 +462,14 @@ export default function DokumenHukumIndex() {
             categories={ALL_CATEGORIES}
             selectedCategories={selectedCategories}
             onToggleCategory={handleToggleCategory}
+            onClearAll={() => {
+              setSelectedCategories([]);
+              setCurrentPage(1);
+            }}
+            onSelectAll={() => {
+              setSelectedCategories([...ALL_CATEGORIES]);
+              setCurrentPage(1);
+            }}
           />
         </div>
       </div>
@@ -459,14 +512,6 @@ export default function DokumenHukumIndex() {
         categories={ALL_CATEGORIES}
       />
 
-      {/* Modal Edit Dokumen */}
-      <DocumentModal
-        show={Boolean(editingDoc)}
-        documentData={editingDoc}
-        onClose={() => setEditingDoc(null)}
-        onSave={handleSaveDocument}
-        categories={ALL_CATEGORIES}
-      />
 
       {/* Modal Ubah Status Hukum (Sesuai Gambar dengan backdrop rgba(55,55,55,0.60)) */}
       <EditStatusModal
