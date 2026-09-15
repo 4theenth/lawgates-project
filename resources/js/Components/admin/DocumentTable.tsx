@@ -52,7 +52,7 @@ export function DocumentTable({
         <table className="w-full text-left border-collapse">
           {/* Table Header */}
           <thead>
-            <tr className="bg-[#f0f1f3] border-b border-neu-100 text-[11px] font-semibold text-neu-600 uppercase tracking-wider select-none">
+            <tr className="bg-[#f0f1f3] border-b border-neu-100 text-[12px] font-semibold text-neu-600 uppercase tracking-wider select-none">
               <th className="py-3 px-5 whitespace-nowrap">
                 <div className="inline-flex items-center gap-1 cursor-pointer hover:text-neu-900">
                   <span>Kategori</span>
@@ -84,7 +84,7 @@ export function DocumentTable({
           </thead>
 
           {/* Table Body */}
-          <tbody className="divide-y divide-neu-50 text-[13px] text-neu-800">
+          <tbody className="divide-y divide-neu-50 text-[12px] text-neu-800">
             {documents.map((doc, index) => {
               const isActionOpen = activeActionId === doc.id;
               // Buka ke atas jika baris berada di bagian bawah tabel agar tidak terpotong
@@ -138,7 +138,7 @@ export function DocumentTable({
                           isNearBottom ? 'bottom-10' : 'top-11'
                         } z-30 w-36 bg-white rounded-xl shadow-xl border border-neu-100 py-1.5 text-left animate-in fade-in zoom-in-95 duration-150`}
                       >
-                        <div className="px-3 py-1 text-[11px] font-semibold text-neu-400 uppercase tracking-wider">
+                        <div className="px-3 py-1 text-[12px] font-semibold text-neu-400 uppercase tracking-wider">
                           Aksi
                         </div>
 

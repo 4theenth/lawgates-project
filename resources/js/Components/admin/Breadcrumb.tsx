@@ -5,6 +5,7 @@ import { ChevronRight } from 'lucide-react';
 export interface BreadcrumbItem {
   label: string;
   href?: string;
+  onClick?: () => void;
 }
 
 interface BreadcrumbProps {
@@ -24,7 +25,15 @@ export function Breadcrumb({ items, className = '' }: BreadcrumbProps) {
               {index > 0 && (
                 <ChevronRight className="w-3.5 h-3.5 mx-1 text-gray-400 shrink-0" />
               )}
-              {isLast || !item.href ? (
+              {item.onClick ? (
+                <button
+                  type="button"
+                  onClick={item.onClick}
+                  className="text-gray-500 hover:text-pr-900 transition-colors duration-150 cursor-pointer"
+                >
+                  {item.label}
+                </button>
+              ) : isLast || !item.href ? (
                 <span className={`${isLast ? 'text-gray-900 font-semibold' : 'text-gray-500'}`}>
                   {item.label}
                 </span>

@@ -16,7 +16,7 @@ export function AdminHeader({
   const user = pageProps.auth?.user;
 
   return (
-    <header className="sticky top-0 z-30 h-[56px] w-full border-b border-neu-50 bg-white px-4 sm:px-6 flex items-center justify-between transition-all">
+    <header className="shrink-0 h-[56px] w-full border-b border-neu-50 bg-white px-4 sm:px-6 flex items-center justify-between z-30 transition-all">
       {/* Kiri: Brand LawGates & Tombol Panel-Left */}
       <div className="flex items-center gap-4">
         <Link href="/" className="flex items-center">
@@ -38,13 +38,13 @@ export function AdminHeader({
 
       {/* Kanan: Bell Notifikasi & Profile Avatar */}
       <div className="flex items-center gap-4">
-        {/* Ikon Bell Notifikasi (Ukuran persis Figma: 13px x 14.33px) */}
+        {/* Ikon Bell Notifikasi (Frame rounded square putih tanpa fill warna) */}
         <button
           type="button"
           title="Notifikasi"
-          className="relative p-1.5 rounded-full text-gray-600 hover:text-black hover:bg-gray-100 transition-colors cursor-pointer"
+          className="relative w-[34px] h-[34px] rounded-[10px] bg-white border border-neu-100 flex items-center justify-center text-neu-800 hover:bg-gray-50 hover:text-black transition-colors cursor-pointer shadow-2xs"
         >
-          <Bell className="w-[13px] h-[14.33px] text-gray-700" />
+          <Bell className="w-[16px] h-[16px] text-neu-800 stroke-[1.75]" />
         </button>
 
         {/* Profile Avatar */}
