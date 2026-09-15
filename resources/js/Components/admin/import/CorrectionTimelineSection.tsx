@@ -1,6 +1,7 @@
 import React from 'react';
 import { RotateCcw } from 'lucide-react';
 import { TimelineRelationItem } from './correctionParser';
+import { Badge } from '@/Components/common/Badge';
 
 interface CorrectionTimelineSectionProps {
   riwayatPerubahan: TimelineRelationItem[];
@@ -38,9 +39,9 @@ export function CorrectionTimelineSection({
                     {item.kode}
                   </div>
                   <div>
-                    <span className="inline-block px-3 py-0.5 rounded-full bg-[#E9EEF4] text-[#1E3A8A] text-[11px] font-medium">
+                    <Badge variant="primary">
                       {item.currentStatusLabel || 'Sedang dikoreksi'}
-                    </span>
+                    </Badge>
                   </div>
                 </div>
               </div>
@@ -61,27 +62,27 @@ export function CorrectionTimelineSection({
                 </div>
                 <div className="flex flex-col gap-1.5 items-start">
                   {item.statusBadge && (
-                    <span
-                      className={`inline-block px-3 py-0.5 rounded-full text-[11px] font-medium ${
+                    <Badge
+                      variant={
                         item.statusBadge.variant === 'tersedia'
-                          ? 'bg-[#EAF5ED] text-[#16A34A]'
-                          : 'bg-[#FDE8E8] text-[#DC2626]'
-                      }`}
+                          ? 'success'
+                          : 'danger'
+                      }
                     >
                       {item.statusBadge.label}
-                    </span>
+                    </Badge>
                   )}
                   {item.keteranganBadge && (
-                    <span
-                      className={`inline-block px-3 py-0.5 rounded-full text-[11px] font-medium ${
+                    <Badge
+                      variant={
                         item.keteranganBadge.variant === 'diubah' ||
                         item.keteranganBadge.variant === 'mengubah'
-                          ? 'bg-[#FDE8E8] text-[#DC2626]'
-                          : 'bg-[#FFF3E0] text-[#D97706]'
-                      }`}
+                          ? 'danger'
+                          : 'warning'
+                      }
                     >
                       {item.keteranganBadge.label}
-                    </span>
+                    </Badge>
                   )}
                 </div>
               </div>
