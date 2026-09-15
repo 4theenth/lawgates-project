@@ -6,6 +6,7 @@ export interface UploadedJsonFile {
   name: string;
   sizeKb: number;
   rawFile?: File;
+  parsedData?: any;
 }
 
 interface StepUploadJsonProps {
@@ -63,7 +64,7 @@ export function StepUploadJson({
   };
 
   return (
-    <div className="flex-1 w-full space-y-6">
+    <div className="flex-1 min-w-0 space-y-6">
       {/* Input File Tersembunyi */}
       <input
         ref={fileInputRef}
@@ -102,10 +103,10 @@ export function StepUploadJson({
           </p>
         </div>
       ) : (
-        /* KONDISI 2: Sudah Ada File Terpilih (1-10 File) Sesuai Gambar 2, 3, 4 */
-        <div className="space-y-6">
+        /* KONDISI 2: Sudah Ada File Terpilih (1-10 File) */
+        <div className="space-y-6 w-full min-w-0">
           {/* Dropdown Kategori Hukum */}
-          <div className="relative">
+          <div className="relative w-full">
             <label className="block font-sans text-[13px] font-medium text-neu-800 mb-1.5">
               Kategori Hukum
             </label>
@@ -125,7 +126,7 @@ export function StepUploadJson({
               />
             </button>
 
-            {/* Dropdown Pilihan Kategori (Sesuai Gambar 3) */}
+            {/* Dropdown Pilihan Kategori */}
             {isCategoryOpen && (
               <div className="absolute left-0 top-full mt-1.5 w-full bg-white rounded-[10px] border border-neu-100 shadow-xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
                 {categoryOptions.map((opt) => (
@@ -136,7 +137,7 @@ export function StepUploadJson({
                       onCategoryChange(opt);
                       setIsCategoryOpen(false);
                     }}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-lg text-[13px] transition-colors cursor-pointer ${
+                    className={`w-full text-left px-3.5 py-2.5 rounded-lg text-[12px] transition-colors cursor-pointer ${
                       opt === selectedCategory
                         ? 'font-semibold text-pr-900 bg-gray-50'
                         : 'text-neu-700 hover:bg-gray-50 hover:text-black'
@@ -150,10 +151,10 @@ export function StepUploadJson({
           </div>
 
           {/* Kartu Daftar File Terpilih */}
-          <div className="bg-white rounded-[16px] border border-neu-100 p-5 shadow-2xs">
+          <div className="bg-white rounded-[16px] border border-neu-100 p-5 shadow-2xs w-full">
             {/* Header Status File */}
             <div className="flex items-center justify-between pb-3 border-b border-neu-50 mb-3">
-              <span className="font-sans text-[13px] font-semibold text-neu-900">
+              <span className="font-sans text-[12px] font-semibold text-neu-900">
                 File Terpilih ({currentCount}/{maxFiles})
               </span>
 
@@ -181,12 +182,12 @@ export function StepUploadJson({
                   className="flex items-center justify-between p-3 rounded-[10px] bg-[#F8FAFC] border border-neu-50 hover:bg-gray-100/60 transition-colors"
                 >
                   {/* Ikon & Nama File */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-lg bg-white border border-neu-100 flex items-center justify-center text-neu-700 shadow-2xs shrink-0">
                       <FileCode2 className="w-4 h-4 text-pr-900" />
                     </div>
-                    <div>
-                      <h4 className="font-sans text-[13px] font-medium text-neu-900 leading-tight line-clamp-1">
+                    <div className="min-w-0">
+                      <h4 className="font-sans text-[12px] font-medium text-neu-900 leading-tight truncate">
                         {file.name}
                       </h4>
                       <p className="font-sans text-[11px] text-neu-400 mt-0.5">
@@ -199,7 +200,7 @@ export function StepUploadJson({
                   <button
                     type="button"
                     onClick={() => onRemoveFile(file.id)}
-                    className="text-[#E53E3E] hover:text-red-700 transition-colors p-1 cursor-pointer"
+                    className="text-[#E53E3E] hover:text-red-700 transition-colors p-1 cursor-pointer shrink-0"
                     title="Hapus file ini"
                   >
                     <XCircle className="w-5 h-5" />
@@ -210,11 +211,11 @@ export function StepUploadJson({
           </div>
 
           {/* Tombol Mulai Import di Kanan Bawah */}
-          <div className="flex justify-end pt-2">
+          <div className="flex justify-end pt-2 w-full">
             <button
               type="button"
               onClick={onStartImport}
-              className="px-6 py-2.5 rounded-[10px] bg-pr-900 text-white text-[13px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer inline-flex items-center gap-2"
+              className="px-6 py-2.5 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer inline-flex items-center gap-2"
             >
               <span>Mulai Import</span>
             </button>
