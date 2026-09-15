@@ -13,7 +13,7 @@ export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
   if (isBerlaku) {
     return (
       <span
-        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#EBF7EE] text-[#1E7E34] select-none ${className}`}
+        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-medium bg-[#EBF7EE] text-[#1E7E34] select-none ${className}`}
       >
         Berlaku
       </span>
@@ -22,7 +22,7 @@ export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#FDEEEE] text-[#D32F2F] select-none ${className}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[12px] font-medium bg-[#FDEEEE] text-[#D32F2F] select-none ${className}`}
     >
       Tidak Berlaku
     </span>
