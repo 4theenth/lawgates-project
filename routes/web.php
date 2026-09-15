@@ -18,7 +18,7 @@ Route::prefix('admin')->group(function () {
         return redirect()->route('admin.dokumen-hukum');
     });
     Route::get('/dashboard', function () {
-        return redirect()->route('admin.dokumen-hukum');
+        return Inertia::render('Admin/Dashboard');
     })->name('admin.dashboard');
     Route::get('/dokumen-hukum', function () {
         return Inertia::render('Admin/DokumenHukum/Index');
