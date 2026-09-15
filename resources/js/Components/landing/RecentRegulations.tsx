@@ -1,5 +1,5 @@
-import frame165 from '@/assets/Frame 165.png';
-import frame167 from '@/assets/Frame 167.png';
+import recentFeaturedRegulation from '@/assets/recent-featured-regulation.webp';
+import recentRegulationThumb from '@/assets/recent-regulation-thumb.webp';
 
 interface RecentItem {
   id: string;
@@ -67,9 +67,9 @@ export function RecentRegulations() {
         <div className="lg:col-span-7">
           <div className="relative w-full h-[380px] rounded-[20px] overflow-hidden border border-pr-800 shadow-md group">
 
-            {/* Main Image - Frame 165 */}
+            {/* Main Featured Regulation Image */}
             <img
-              src={frame165}
+              src={recentFeaturedRegulation}
               alt="Peraturan Presiden"
               className="absolute inset-0 w-full h-full object-cover object-[center_35%] transition-transform duration-500 group-hover:scale-105"
             />
@@ -163,9 +163,9 @@ export function RecentRegulations() {
                 "
               >
 
-                {/* Thumbnail - Frame 167 */}
+                {/* Thumbnail */}
                 <img
-                  src={frame167}
+                  src={recentRegulationThumb}
                   alt=""
                   className="
                     w-[48px]

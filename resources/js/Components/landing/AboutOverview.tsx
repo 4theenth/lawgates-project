@@ -1,45 +1,41 @@
 import { CountUp } from '../common/CountUp';
 import { Icon } from '@/Components/ui/icon';
-import { PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 
 export function AboutOverview() {
   return (
-    <section className={PAGE_CONTAINER}>
-      {/* Dark Navy Banner Container */}
+    <div
+      className="
+        relative
+        flex
+        w-full
+        min-h-[180px]
+        px-6
+        md:px-[78px]
+        py-[30px]
+        flex-col
+        justify-center
+        bg-pr-900
+        border
+        border-pr-700/60
+        rounded-2xl
+        shadow-2xl
+        overflow-hidden
+      "
+    >
+      {/* Subtle ambient gold radial glow */}
       <div
-        className="
-          relative
-          flex
-          w-full
-          max-w-[1199px]
-          min-h-[180px]
-          px-[55px]
-          py-[30px]
-          flex-col
-          items-start
-          gap-[10px]
-          bg-pr-900
-          border
-          border-pr-700/60
-          rounded-2xl
-          shadow-2xl
-          overflow-hidden
-        "
-      >
-        {/* Subtle ambient gold radial glow */}
-        <div
-          className="absolute -top-24 -left-24 w-80 h-80 pointer-events-none rounded-full opacity-20 blur-3xl"
-          style={{
-            background:
-              'radial-gradient(circle, var(--color-sec-900) 0%, transparent 70%)',
-          }}
-        />
+        className="absolute -top-24 -left-24 w-80 h-80 pointer-events-none rounded-full opacity-20 blur-3xl"
+        style={{
+          background:
+            'radial-gradient(circle, var(--color-sec-900) 0%, transparent 70%)',
+        }}
+      />
 
-        {/* Content */}
-        <div className="relative z-10 flex w-full items-start justify-between">
-          
-          {/* LEFT: Badge + Metrics */}
-          <div className="w-[450px] flex flex-col items-start gap-[15px] shrink-0">
+      {/* Content: Layout sesuai Figma Frame 268 (gap 50px) */}
+      <div className="relative z-10 flex flex-col lg:flex-row w-full items-start lg:items-center gap-[30px] lg:gap-[50px]">
+        
+        {/* LEFT: Badge + Metrics */}
+        <div className="flex flex-col items-start gap-[15px] shrink-0">
             
             {/* Badge */}
             <div
@@ -176,27 +172,17 @@ export function AboutOverview() {
             </div>
           </div>
 
-          {/* RIGHT: Description */}
-          <div className="w-[400px] shrink-0 flex-none">
-            <p
-              className="
-                w-full
-                text-white
-                text-justify
-                text-[16px]
-                font-normal
-                leading-[24px]
-              "
-            >
-              LawGates adalah platform pangkalan data hukum terpadu yang
-              merangkum seluruh peraturan perundang-undangan di Indonesia ke
-              dalam satu titik akses pencarian tanpa harus menelusuri puluhan
-              portal instansi pemerintah yang terpisah.
-            </p>
-          </div>
-
+        {/* RIGHT: Description (Figma Frame 268) */}
+        <div className="flex-1 w-full">
+          <p className="text-white text-left text-[14px] lg:text-[15px] xl:text-[16px] font-normal leading-[24px]">
+            LawGates adalah platform pangkalan data hukum terpadu yang
+            merangkum seluruh peraturan perundang-undangan di Indonesia ke
+            dalam satu titik akses pencarian tanpa harus menelusuri puluhan
+            portal instansi pemerintah yang terpisah.
+          </p>
         </div>
+
       </div>
-    </section>
+    </div>
   );
 }

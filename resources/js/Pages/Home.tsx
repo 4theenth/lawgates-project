@@ -28,10 +28,26 @@ export default function Home() {
       <Head title="LawGates - Platform Intelijen Regulasi & Hukum Indonesia" />
       <HeroSection isScrolled={isScrolled} onSearch={handleSearch} />
       <StatsOverview />
-      <Section fullWidth><AboutOverview /></Section>
-      <Section><RegulationHierarchyGrid /></Section>
-      <Section><RecentRegulations /></Section>
-      <Section><ServicesOverview /></Section>
+
+      {/* 3. Section Tentang Kami & 3 Metrik Besar (Dark Banner) */}
+      <Section fullWidth>
+        <AboutOverview />
+      </Section>
+
+      {/* 4. Section Statistik Peraturan (8 Kartu Hierarki Regulasi) */}
+      <Section>
+        <RegulationHierarchyGrid />
+      </Section>
+
+      {/* 5. Section Sistem Hukum Terbaru (Featured Highlight & List) */}
+      <Section>
+        <RecentRegulations />
+      </Section>
+
+      {/* 6. Section Layanan LawGates */}
+      <Section>
+        <ServicesOverview />
+      </Section>
     </PublicLayout>
   );
 }
