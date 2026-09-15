@@ -1,3 +1,21 @@
+import type { LucideIcon } from 'lucide-react';
+
+export interface SubMenuItem {
+  id: string;
+  label: string;
+  href: string;
+  roles?: string[];
+}
+
+export interface SidebarMenuItem {
+  id: string;
+  label: string;
+  href?: string;
+  icon: LucideIcon;
+  roles?: string[];
+  subItems?: SubMenuItem[];
+}
+
 export interface MenuItem {
   id: number | string;
   title: string;
@@ -6,6 +24,7 @@ export interface MenuItem {
   index?: boolean;
   roles?: string[];
   isExternal?: boolean;
+  subItems?: SubMenuItem[];
 }
 
 // Alias for backwards compatibility

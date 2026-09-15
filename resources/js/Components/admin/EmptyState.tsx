@@ -26,11 +26,11 @@ export function EmptyState({
 
       {/* Container teks sesuai spesifikasi Figma (width: 364px, gap: 5px) */}
       <div className="flex w-[364px] max-w-full flex-col items-center gap-[5px] shrink-0">
-        <h3 className="text-[15px] font-semibold text-neu-900 leading-tight">
+        <h3 className="text-[14px] font-semibold text-neu-900 leading-tight">
           {title}
         </h3>
         {description && (
-          <p className="text-[13px] text-neu-500 leading-normal">
+          <p className="text-[12px] text-neu-500 leading-normal">
             {description}
           </p>
         )}

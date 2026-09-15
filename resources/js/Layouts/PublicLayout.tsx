@@ -75,12 +75,12 @@ export function PublicLayout({ children }: PublicLayoutProps) {
   const isScrolled = useScrollPosition(40);
 
   return (
-    <div className="min-h-screen bg-white font-sans flex flex-col  selection:bg-sec-900 selection:text-white">
+    <div className="min-h-screen bg-[#F8F9FA] font-sans flex flex-col selection:bg-sec-900 selection:text-white">
       {/* Public Navbar */}
       <Navbar isScrolled={isScrolled} />
 
       {/* Main Page Content */}
-      <main className="flex-1 w-full flex flex-col justify-center items-center">
+      <main className="flex-1 w-full flex flex-col justify-center items-center pb-12 sm:pb-16 lg:pb-24">
         {children}
       </main>
 

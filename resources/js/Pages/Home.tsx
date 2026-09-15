@@ -41,7 +41,7 @@ export default function Home() {
       </Section>
 
       {/* 6. Section Layanan LawGates */}
-      <Section>
+      <Section className="mb-8 sm:mb-12">
         <ServicesOverview />
       </Section>
     </PublicLayout>

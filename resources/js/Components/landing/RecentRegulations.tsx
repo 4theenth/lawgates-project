@@ -81,13 +81,12 @@ export function RecentRegulations() {
                 left-0
                 bottom-0
                 z-10
-                w-[791px]
-                max-w-full
-                p-[10px_17px]
+                w-full
+                p-4 sm:p-5
                 flex
                 flex-col
                 items-start
-                gap-[10px]
+                gap-2.5
                 bg-[rgba(255,252,252,0.20)]
                 backdrop-blur-[6px]
               "
@@ -99,14 +98,14 @@ export function RecentRegulations() {
                   inline-flex
                   items-center
                   justify-center
-                  px-[8px]
-                  py-[2px]
-                  rounded-[8px]
+                  px-2.5
+                  py-0.5
+                  rounded-[6px]
                   bg-white
                   text-pr-900
-                  text-[8px]
+                  text-[10px]
                   font-semibold
-                  leading-[12px]
+                  leading-tight
                 "
               >
                 Perpres
@@ -115,10 +114,11 @@ export function RecentRegulations() {
               {/* Title */}
               <h3
                 className="
-                  text-[11px]
+                  text-sm
+                  sm:text-[15px]
                   font-semibold
                   text-white
-                  leading-[16px]
+                  leading-snug
                   w-full
                   line-clamp-2
                 "
@@ -127,7 +127,7 @@ export function RecentRegulations() {
               </h3>
 
               {/* Date */}
-              <div className="text-[8px] text-white/80 leading-[12px]">
+              <div className="text-[11px] text-white/90 leading-tight">
                 10 Agustus 2026
               </div>
 
@@ -139,15 +139,15 @@ export function RecentRegulations() {
         {/* =========================
             RECENT LIST
         ========================== */}
-        <div className="lg:col-span-5 flex flex-col">
+        <div className="lg:col-span-5 flex flex-col lg:h-[380px]">
 
           {/* Header */}
-            <h3 className="text-[14px] font-semibold text-neu-700 leading-[20px] mb-[8px]">
-              Terbaru Lainnya
-            </h3>
+          <h3 className="text-[15px] font-semibold text-neu-700 leading-tight mb-2 shrink-0">
+            Terbaru Lainnya
+          </h3>
 
           {/* List */}
-          <div className="flex flex-col">
+          <div className="flex-1 flex flex-col justify-between">
 
             {recentList.map((item) => (
               <div
@@ -155,11 +155,16 @@ export function RecentRegulations() {
                 className="
                   flex
                   items-center
-                  gap-[10px]
-                  py-[8px]
+                  gap-3
+                  py-2
                   border-b
                   border-neu-50
                   cursor-pointer
+                  group/item
+                  transition-colors
+                  hover:bg-neu-50/40
+                  rounded-lg
+                  px-1
                 "
               >
 
@@ -168,8 +173,8 @@ export function RecentRegulations() {
                   src={recentRegulationThumb}
                   alt=""
                   className="
-                    w-[48px]
-                    h-[48px]
+                    w-[52px]
+                    h-[52px]
                     shrink-0
                     rounded-[10px]
                     object-cover
@@ -179,17 +184,17 @@ export function RecentRegulations() {
                 {/* Info */}
                 <div className="flex-1 min-w-0">
 
-                  <h4 className="text-[12px] font-medium text-neu-900 leading-[16px] line-clamp-2">
+                  <h4 className="text-[13px] sm:text-[14px] font-medium text-neu-900 leading-[18px] sm:leading-[20px] line-clamp-2 group-hover/item:text-pr-700 transition-colors">
                     {item.title}
                   </h4>
 
-                  <div className="flex items-center gap-[6px] mt-[2px]">
+                  <div className="flex items-center gap-2 mt-1">
 
-                    <span className="px-[5px] py-[1px] rounded-[4px] bg-neu-50 text-pr-900 text-[7px] font-semibold leading-[10px]">
+                    <span className="px-1.5 py-0.5 rounded-[4px] bg-neu-50 text-pr-900 text-[10px] font-semibold leading-tight">
                       {item.category}
                     </span>
 
-                    <span className="text-[10px] text-neu-500 font-normal leading-[11px]">
+                    <span className="text-[11px] text-neu-500 font-normal leading-tight">
                       {item.date}
                     </span>
 

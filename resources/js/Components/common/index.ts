@@ -12,3 +12,5 @@ export { default as ResponsiveNavLink } from './ResponsiveNavLink';
 export { default as SecondaryButton } from './SecondaryButton';
 export { default as TextInput } from './TextInput';
 export { StatusBadge } from './StatusBadge';
+export { Badge } from './Badge';
+export { IconButton } from './IconButton';
