@@ -30,7 +30,7 @@ export default function Home() {
       <StatsOverview />
 
       {/* 3. Section Tentang Kami & 3 Metrik Besar (Dark Banner) */}
-      <Section fullWidth>
+      <Section>
         <AboutOverview />
       </Section>
 
