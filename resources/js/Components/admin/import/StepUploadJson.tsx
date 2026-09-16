@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, ChevronDown, FileCode2, XCircle } from 'lucide-react';
+import { UploadCloud, ChevronDown, FileCode2, XCircle, AlertCircle } from 'lucide-react';
 
 export interface UploadedJsonFile {
   id: string;
@@ -17,6 +17,8 @@ interface StepUploadJsonProps {
   onCategoryChange: (category: string) => void;
   categoryOptions: string[];
   onStartImport: () => void;
+  errorMessage?: string | null;
+  onClearError?: () => void;
 }
 
 export function StepUploadJson({
@@ -27,6 +29,8 @@ export function StepUploadJson({
   onCategoryChange,
   categoryOptions,
   onStartImport,
+  errorMessage,
+  onClearError,
 }: StepUploadJsonProps) {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -39,6 +43,7 @@ export function StepUploadJson({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
+      if (onClearError) onClearError();
       const selected = Array.from(e.target.files);
       onAddFiles(selected);
       e.target.value = '';
@@ -58,6 +63,7 @@ export function StepUploadJson({
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      if (onClearError) onClearError();
       const dropped = Array.from(e.dataTransfer.files);
       onAddFiles(dropped);
     }
@@ -77,30 +83,42 @@ export function StepUploadJson({
 
       {/* KONDISI 1: Belum Ada File yang Diunggah (Empty Dropzone) */}
       {currentCount === 0 ? (
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`w-full min-h-[380px] rounded-[16px] border-2 border-dashed transition-all flex flex-col items-center justify-center p-12 text-center cursor-pointer bg-white ${
-            isDragging
-              ? 'border-pr-900 bg-pr-50/40'
-              : 'border-neu-200 hover:border-neu-300'
-          }`}
-        >
-          <div className="w-16 h-16 rounded-full bg-gray-50 border border-neu-100 flex items-center justify-center text-neu-600 mb-4 shadow-2xs">
-            <UploadCloud className="w-8 h-8 stroke-[1.75]" />
+        <div className="flex flex-col w-full">
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`w-full min-h-[380px] rounded-[16px] border-2 border-dashed transition-all flex flex-col items-center justify-center p-12 text-center cursor-pointer bg-white ${
+              isDragging
+                ? 'border-pr-900 bg-pr-50/40'
+                : errorMessage
+                ? 'border-dan-800 bg-dan-50/20'
+                : 'border-neu-200 hover:border-neu-300'
+            }`}
+          >
+            <div className="w-16 h-16 rounded-full bg-gray-50 border border-neu-100 flex items-center justify-center text-neu-600 mb-4 shadow-2xs">
+              <UploadCloud className="w-8 h-8 stroke-[1.75]" />
+            </div>
+
+            <h3 className="font-sans text-[16px] font-semibold text-neu-900">
+              Import file JSON hasil OCR di sini
+            </h3>
+            <p className="font-sans text-[13px] text-neu-500 mt-1">
+              Silahkan Tarik dan lepas file di sini, atau klik untuk mengunggah.
+            </p>
+            <p className="font-sans text-[12px] text-neu-400 mt-1">
+              Mendukung 1 hingga 10 file JSON (Maks. 20 MB/file).
+            </p>
           </div>
 
-          <h3 className="font-sans text-[16px] font-semibold text-neu-900">
-            Import file JSON hasil OCR di sini
-          </h3>
-          <p className="font-sans text-[13px] text-neu-500 mt-1">
-            Silahkan Tarik dan lepas file di sini, atau klik untuk mengunggah.
-          </p>
-          <p className="font-sans text-[12px] text-neu-400 mt-1">
-            Mendukung 1 hingga 10 file JSON (Maks. 10 MB/file).
-          </p>
+          {/* Pesan Error Inline (Sesuai AC 3) */}
+          {errorMessage && (
+            <div className="flex items-center gap-2 mt-3 px-3.5 py-2.5 bg-dan-50 border border-dan-200 rounded-[10px] text-dan-900 text-[13px] animate-in fade-in duration-150">
+              <AlertCircle className="w-4 h-4 text-dan-800 shrink-0" />
+              <span className="font-medium">{errorMessage}</span>
+            </div>
+          )}
         </div>
       ) : (
         /* KONDISI 2: Sudah Ada File Terpilih (1-10 File) */
@@ -149,6 +167,14 @@ export function StepUploadJson({
               </div>
             )}
           </div>
+
+          {/* Pesan Error Inline (Sesuai AC 3) */}
+          {errorMessage && (
+            <div className="flex items-center gap-2 p-3.5 bg-dan-50 border border-dan-200 rounded-[10px] text-dan-900 text-[13px] animate-in fade-in duration-150">
+              <AlertCircle className="w-4 h-4 text-dan-800 shrink-0" />
+              <span className="font-medium">{errorMessage}</span>
+            </div>
+          )}
 
           {/* Kartu Daftar File Terpilih */}
           <div className="bg-white rounded-[16px] border border-neu-100 p-5 shadow-2xs w-full">

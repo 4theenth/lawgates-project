@@ -18,7 +18,6 @@ export function AdminHeader({
   const user = auth?.user;
 
   const profileImg = user?.avatar || profileAvatar;
-
   const displayName = user?.name || user?.username || 'Admin';
   const displayEmail = user?.email || 'admin@lawgates.com';
   const displayRole = user?.role || 'admin';
