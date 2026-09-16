@@ -39,6 +39,10 @@ Route::get('/pencarian', function () {
     return Inertia::render('Pencarian');
 });
 
+Route::get('/bandingkan', function () {
+    return Inertia::render('Bandingkan');
+});
+
 Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show']);
 
 // Referensi filter
