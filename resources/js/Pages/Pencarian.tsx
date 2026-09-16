@@ -1,260 +1,368 @@
-import { useState, useEffect } from 'react';
-import { Head, router } from '@inertiajs/react';
-import { PublicLayout, Section } from '@/Layouts/PublicLayout';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Head } from '@inertiajs/react';
+import { PublicLayout } from '@/Layouts/PublicLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
 import { EmptyState } from '@/Components/admin/EmptyState';
-import { Badge } from '@/Components/common/Badge';
-export default function Pencarian() {
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(true);
-  const [totalResult, setTotalResult] = useState(0);
+import { SearchResultCard } from '@/Components/search/SearchResultCard';
+import {
+  DUMMY_SCRAPER_REGULATIONS,
+  ScraperRegulationItem,
+} from '@/data/dummyRegulations';
+import { ChevronLeft, ChevronRight, SlidersHorizontal, RotateCcw } from 'lucide-react';
 
-  // State untuk nilai filter & pencarian
+export default function Pencarian() {
   const [searchQuery, setSearchQuery] = useState('');
   const [kategori, setKategori] = useState('');
   const [tahun, setTahun] = useState('');
   const [status, setStatus] = useState('');
+  const [sortBy, setSortBy] = useState('relevansi');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
+  const itemsPerPage = 5;
 
-  // State untuk daftar referensi dropdown
-  const [listKategori, setListKategori] = useState<any[]>([]);
-  const [listStatus, setListStatus] = useState<any[]>([]);
-  const [listTahun, setListTahun] = useState<string[]>([]);
-
-  // 1. Ambil data referensi filter saat komponen dimuat
-  useEffect(() => {
-    fetch('/api/referensi-filter')
-      .then(res => res.json())
-      .then(data => {
-        setListKategori(data.kategori || []);
-        setListStatus(data.status || []);
-        setListTahun(data.tahun || []);
-      })
-      .catch(err => console.error("Gagal memuat referensi:", err));
-  }, []);
-
-  // 2. Lakukan pencarian berdasarkan parameter URL
+  // Sinkronisasi parameter dari URL saat halaman pertama kali dimuat
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    
-    // Sinkronkan state dengan URL
-    setSearchQuery(params.get('keyword') || '');
-    setKategori(params.get('kategori_id') || '');
+    setSearchQuery(params.get('keyword') || params.get('q') || '');
+    setKategori(params.get('kategori') || params.get('kategori_id') || '');
     setTahun(params.get('tahun') || '');
-    setStatus(params.get('status_id') || '');
-
-    fetchData(params.toString());
+    setStatus(params.get('status') || params.get('status_id') || '');
   }, []);
 
-  const fetchData = (queryString: string) => {
-    setIsSearching(true);
-    fetch(`/api/search?${queryString}`)
-      .then(res => res.json())
-      .then(data => {
-        setSearchResults(data.data || []);
-        setTotalResult(data.total || data.data?.length || 0);
-        setIsSearching(false);
-      })
-      .catch(err => {
-        console.error("Gagal melakukan pencarian:", err);
-        setIsSearching(false);
-      });
-  };
+  // Filter Data Dummy Scraper Python (AC 2, AC 3, AC 4, AC 5)
+  const filteredResults = useMemo(() => {
+    return DUMMY_SCRAPER_REGULATIONS.filter((item) => {
+      const meta = item.metadata;
 
-  // 3. Tangani saat tombol Terapkan atau Enter ditekan
+      // Filter Pencarian Teks (Kata Kunci / Konsep, misal: 'perpajakan')
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const matchTitle = meta.judul.toLowerCase().includes(query);
+        const matchType = meta.tipe_peraturan.toLowerCase().includes(query);
+        const matchId = meta.standard_id.toLowerCase().includes(query);
+        const matchNumber = meta.nomor ? meta.nomor.includes(query) : false;
+        if (!matchTitle && !matchType && !matchId && !matchNumber) {
+          return false;
+        }
+      }
+
+      // Filter Kategori (UU, PP, PERPRES, dsb)
+      if (kategori && kategori !== '') {
+        if (meta.tipe_peraturan.toLowerCase() !== kategori.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // Filter Tahun
+      if (tahun && tahun !== '') {
+        if (meta.tahun !== tahun) {
+          return false;
+        }
+      }
+
+      // Filter Status (Berlaku / Tidak berlaku)
+      if (status && status !== '') {
+        if (meta.status.toLowerCase() !== status.toLowerCase()) {
+          return false;
+        }
+      }
+
+      return true;
+    }).sort((a, b) => {
+      if (sortBy === 'terbaru') {
+        return parseInt(b.metadata.tahun) - parseInt(a.metadata.tahun);
+      }
+      if (sortBy === 'terlama') {
+        return parseInt(a.metadata.tahun) - parseInt(b.metadata.tahun);
+      }
+      return 0; // default relevansi
+    });
+  }, [searchQuery, kategori, tahun, status, sortBy]);
+
+  // Reset pagination ke halaman 1 saat filter berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, kategori, tahun, status, sortBy]);
+
+  // Pagination Slice
+  const totalPages = Math.ceil(filteredResults.length / itemsPerPage);
+  const paginatedResults = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredResults.slice(start, start + itemsPerPage);
+  }, [filteredResults, currentPage]);
+
+  // Daftar opsi unik untuk dropdown
+  const listKategori = useMemo(() => {
+    const set = new Set(DUMMY_SCRAPER_REGULATIONS.map((i) => i.metadata.tipe_peraturan));
+    return Array.from(set);
+  }, []);
+
+  const listTahun = useMemo(() => {
+    const set = new Set(DUMMY_SCRAPER_REGULATIONS.map((i) => i.metadata.tahun));
+    return Array.from(set).sort((a, b) => parseInt(b) - parseInt(a));
+  }, []);
+
   const handleApplyFilter = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    
     const params = new URLSearchParams();
     if (searchQuery) params.set('keyword', searchQuery);
-    if (kategori) params.set('kategori_id', kategori);
+    if (kategori) params.set('kategori', kategori);
     if (tahun) params.set('tahun', tahun);
-    if (status) params.set('status_id', status);
+    if (status) params.set('status', status);
 
     const queryString = params.toString();
-    window.history.pushState(null, '', `?${queryString}`);
-    fetchData(queryString);
+    window.history.pushState(null, '', queryString ? `?${queryString}` : window.location.pathname);
   };
 
-  // Fungsi helper untuk menentukan variant Badge status
-  const getStatusVariant = (statusName: string) => {
-    const name = statusName?.toLowerCase() || '';
-    if (name.includes('tidak berlaku') || name.includes('dicabut')) return 'danger';
-    if (name.includes('diubah')) return 'warning';
-    return 'success'; // Default Berlaku
+  const handleResetFilter = () => {
+    setSearchQuery('');
+    setKategori('');
+    setTahun('');
+    setStatus('');
+    window.history.pushState(null, '', window.location.pathname);
   };
 
   return (
     <PublicLayout>
       <Head title="Pencarian Hukum - LawGates" />
-      
-      <Section>
-        <div className="pt-28 pb-16 w-full max-w-7xl mx-auto px-4 min-h-screen text-gray-900">
-          
-          {/* Breadcrumb & Judul Halaman */}
-          <div className="mb-6">
-            <Breadcrumb 
-              items={[
-                { label: 'Beranda', href: '/' },
-                { label: 'Pencarian Hukum' }
-              ]} 
-              className="mb-4"
-            />
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Pencarian Hukum</h1>
-            <p className="text-sm text-gray-500 mt-1">Pencarian lengkap untuk berbagai jenis undang-undang dan peraturan</p>
+
+      <div className="pt-24 pb-16 w-full max-w-[1202px] mx-auto px-4 sm:px-6 xl:px-0 min-h-screen text-gray-900">
+        {/* Breadcrumb & Judul Halaman */}
+        <div className="mb-6">
+          <Breadcrumb
+            items={[
+              { label: 'Beranda', href: '/' },
+              { label: 'Pencarian Hukum' },
+            ]}
+            className="mb-4"
+          />
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+            Pencarian Hukum
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Pencarian lengkap untuk berbagai jenis undang-undang dan peraturan
+          </p>
+        </div>
+
+        {/* Bilah Pencarian Utama */}
+        <form onSubmit={handleApplyFilter} className="w-full relative mb-8">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <svg
+              className="h-5 w-5 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
           </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pr-900 focus:border-pr-900 text-sm shadow-sm"
+            placeholder="Cari peraturan yang ada di Indonesia (misal: perpajakan)..."
+          />
+        </form>
 
-          {/* Bilah Pencarian Utama */}
-          <form onSubmit={handleApplyFilter} className="w-full relative mb-8">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pr-900 focus:border-pr-900 text-sm shadow-sm"
-              placeholder="Cari peraturan yang ada di Indonesia..."
-            />
-          </form>
-
-          {/* Grid Layout: Filter (Kiri) & Hasil (Kanan) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
-            {/* Sidebar Filter */}
-            <div className="lg:col-span-3">
+        {/* Grid Layout: Filter (Kiri) & Hasil (Kanan) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Sidebar Filter (Collapsible saat icon/header filter diklik) */}
+          {isFilterOpen && (
+            <div className="lg:col-span-3 transition-all duration-300">
               <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
-                  <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                    </svg>
-                    Filter
-                  </h3>
-                  <button 
-                    onClick={() => { setKategori(''); setTahun(''); setStatus(''); }} 
-                    className="text-xs text-gray-400 hover:text-pr-900"
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterOpen(false)}
+                    className="font-semibold text-gray-800 flex items-center gap-2 hover:text-pr-900 transition-colors cursor-pointer group"
+                    title="Tutup Filter"
+                  >
+                    <SlidersHorizontal className="w-4 h-4 text-gray-500 group-hover:text-pr-900" />
+                    <span>Filter</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetFilter}
+                    className="text-xs text-gray-400 hover:text-pr-900 flex items-center gap-1 cursor-pointer transition-colors"
                     title="Reset Filter"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset</span>
                   </button>
                 </div>
 
                 <div className="space-y-5">
+                  {/* Filter Kategori */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Kategori</label>
-                    <select value={kategori} onChange={(e) => setKategori(e.target.value)} className="w-full text-sm border-gray-200 rounded-lg focus:ring-pr-900 py-2.5">
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                      Kategori
+                    </label>
+                    <select
+                      value={kategori}
+                      onChange={(e) => setKategori(e.target.value)}
+                      className="w-full text-sm border-gray-200 rounded-lg focus:ring-pr-900 py-2.5 bg-white cursor-pointer"
+                    >
                       <option value="">Semua kategori</option>
-                      {listKategori.map(item => <option key={item.id} value={item.id}>{item.nama}</option>)}
+                      {listKategori.map((k) => (
+                        <option key={k} value={k}>
+                          {k}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
+                  {/* Filter Tahun */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Tahun</label>
-                    <select value={tahun} onChange={(e) => setTahun(e.target.value)} className="w-full text-sm border-gray-200 rounded-lg focus:ring-pr-900 py-2.5">
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                      Tahun
+                    </label>
+                    <select
+                      value={tahun}
+                      onChange={(e) => setTahun(e.target.value)}
+                      className="w-full text-sm border-gray-200 rounded-lg focus:ring-pr-900 py-2.5 bg-white cursor-pointer"
+                    >
                       <option value="">Semua tahun</option>
-                      {listTahun.map(t => <option key={t} value={t}>{t}</option>)}
+                      {listTahun.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
+                  {/* Filter Status (Berlaku / Tidak berlaku) */}
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Status</label>
-                    <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full text-sm border-gray-200 rounded-lg focus:ring-pr-900 py-2.5">
+                    <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                      Status
+                    </label>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="w-full text-sm border-gray-200 rounded-lg focus:ring-pr-900 py-2.5 bg-white cursor-pointer"
+                    >
                       <option value="">Semua status</option>
-                      {listStatus.map(item => <option key={item.id} value={item.id}>{item.nama}</option>)}
+                      <option value="Berlaku">Berlaku</option>
+                      <option value="Tidak berlaku">Tidak berlaku</option>
                     </select>
                   </div>
 
-                  <button 
+                  <button
+                    type="button"
                     onClick={handleApplyFilter}
-                    className="w-full mt-4 bg-pr-900 text-white font-semibold text-sm py-3 rounded-lg hover:bg-pr-800 transition-colors"
+                    className="w-full mt-4 bg-pr-900 text-white font-semibold text-sm py-3 rounded-lg hover:bg-pr-800 transition-colors cursor-pointer shadow-2xs"
                   >
                     TERAPKAN
                   </button>
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Kolom Hasil Pencarian */}
-            <div className="lg:col-span-9">
-              {/* Header Hasil */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+          {/* Kolom Hasil Pencarian */}
+          <div className={isFilterOpen ? 'lg:col-span-9' : 'lg:col-span-12'}>
+            {/* Header Hasil & Pengurutan */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <div className="flex items-center gap-3">
+                {!isFilterOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterOpen(true)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-gray-500" />
+                    <span>Buka Filter</span>
+                  </button>
+                )}
                 <p className="text-sm text-gray-600">
-                  Ditemukan <span className="font-bold text-pr-900">{totalResult}</span> hasil {searchQuery && <span>untuk "{searchQuery}"</span>}
+                  Ditemukan{' '}
+                  <span className="font-bold text-[#D4AF37]">
+                    {filteredResults.length}
+                  </span>{' '}
+                  hasil {searchQuery && <span>untuk "{searchQuery}"</span>}
                 </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Urutkan:</span>
-                  <select className="text-sm border-gray-200 rounded-lg py-1.5 pl-3 pr-8 focus:ring-pr-900">
-                    <option value="relevansi">Relavansi</option>
-                    <option value="terbaru">Tahun Terbaru</option>
-                    <option value="terlama">Tahun Terlama</option>
-                  </select>
-                </div>
               </div>
 
-              {/* Daftar Kartu Hasil */}
-              {isSearching ? (
-                <div className="py-12 text-center text-gray-500">Mencari peraturan...</div>
-              ) : searchResults.length > 0 ? (
-                <div className="space-y-4">
-                  {searchResults.map((item) => (
-                    <div key={item.id} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                      
-                      {/* Top Badges */}
-                      <div className="flex gap-2 items-center mb-4">
-                        <Badge variant={getStatusVariant(item.status_peraturan?.nama_status)} className="flex items-center gap-1.5 border border-current">
-                          <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                          {item.status_peraturan?.nama_status ?? 'Tidak diketahui'}
-                        </Badge>
-                        <Badge variant="primary" className="font-bold">
-                          {item.jenis_peraturan?.nama ?? 'Peraturan'}
-                        </Badge>
-                      </div>
-
-                      {/* Judul */}
-                      <h3 className="text-[17px] font-bold text-gray-900 mb-6 line-clamp-2 leading-snug">
-                        {item.judul}
-                      </h3>
-
-                      {/* Bottom Info & Action */}
-                      <div className="flex flex-wrap items-center justify-between gap-4 mt-auto border-t border-gray-50 pt-4">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm text-gray-500 font-medium">Tahun {item.tahun}</span>
-                          <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">
-                            {item.instansi || 'Pemerintah Pusat'}
-                          </span>
-                        </div>
-                        
-                        <a 
-                          href={`/peraturan/${item.unique_id}`} 
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                          Lihat Detail
-                        </a>
-                      </div>
-
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState 
-                  title="Peraturan tidak ditemukan"
-                  description="Coba gunakan kata kunci yang berbeda atau ubah filter pencarian Anda."
-                />
-              )}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">Urutkan:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="text-sm border-gray-200 rounded-lg py-1.5 pl-3 pr-8 focus:ring-pr-900 bg-white cursor-pointer"
+                >
+                  <option value="relevansi">Relevansi</option>
+                  <option value="terbaru">Tahun Terbaru</option>
+                  <option value="terlama">Tahun Terlama</option>
+                </select>
+              </div>
             </div>
+
+            {/* Daftar Kartu Hasil Menggunakan Komponen Modular (AC 2, AC 3) */}
+            {paginatedResults.length > 0 ? (
+              <div className="space-y-4">
+                {paginatedResults.map((item) => (
+                  <SearchResultCard key={item.id} item={item} />
+                ))}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>Sebelumnya</span>
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, idx) => idx + 1).map(
+                        (page) => (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() => setCurrentPage(page)}
+                            className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${
+                              currentPage === page
+                                ? 'bg-pr-900 text-white'
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        )
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <span>Selanjutnya</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Empty State Sesuai AC 5: "Regulasi tidak ditemukan" */
+              <EmptyState
+                title="Regulasi tidak ditemukan"
+                description="Coba gunakan kata kunci yang berbeda atau sesuaikan filter pencarian Anda."
+              />
+            )}
           </div>
         </div>
-      </Section>
+      </div>
     </PublicLayout>
   );
 }

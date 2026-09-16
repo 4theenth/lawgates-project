@@ -10,27 +10,27 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  icon = <Scale className="w-6 h-6 text-neu-500 stroke-[1.5]" />,
-  title = 'Belum ada data hukum',
-  description = "Silakan tambahkan data hukum melalui tombol 'Tambah Hukum'",
+  icon = <Scale className="w-7 h-7 text-gray-400 stroke-[1.5]" />,
+  title = 'Hasil tidak ditemukan untuk kata kunci tersebut',
+  description = 'Ups, kata kunci yang kamu cari tidak ada. Coba cek ejaan atau gunakan kata lain.',
   action,
   className = '',
 }: EmptyStateProps) {
   return (
     <div
-      className={`w-full min-h-[380px] flex flex-col items-center justify-center rounded-[14px] border border-dashed border-neu-100 bg-white/70 p-12 text-center transition-all ${className}`}
+      className={`w-full min-h-[360px] flex flex-col items-center justify-center rounded-[20px] border border-dashed border-[#CBD5E1] bg-white p-10 sm:p-12 text-center transition-all ${className}`}
     >
-      <div className="w-14 h-14 rounded-2xl border border-neu-50 bg-gray-50 flex items-center justify-center mb-4 shadow-2xs">
+      <div className="w-16 h-16 rounded-[18px] border border-gray-200 bg-white flex items-center justify-center mb-4 shadow-2xs">
         {icon}
       </div>
 
-      {/* Container teks sesuai spesifikasi Figma (width: 364px, gap: 5px) */}
-      <div className="flex w-[364px] max-w-full flex-col items-center gap-[5px] shrink-0">
-        <h3 className="text-[14px] font-semibold text-neu-900 leading-tight">
+      {/* Container teks sesuai spesifikasi desain */}
+      <div className="flex max-w-[420px] flex-col items-center text-center">
+        <h3 className="text-[16px] font-bold text-gray-900 leading-tight">
           {title}
         </h3>
         {description && (
-          <p className="text-[12px] text-neu-500 leading-normal">
+          <p className="text-[13px] text-gray-500 mt-1.5 leading-relaxed">
             {description}
           </p>
         )}
