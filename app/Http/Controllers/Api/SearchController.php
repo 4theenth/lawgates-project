@@ -37,7 +37,19 @@ class SearchController extends Controller
             $q->where('status_id', $request->status_id);
         });
 
-        // Kembalikan 10 hasil per halaman
-        return response()->json($query->paginate(10));
+        // 5. Sorting
+        $sort = $request->get('sort', 'relevansi');
+        if ($sort === 'terbaru') {
+            $query->orderBy('tahun', 'desc');
+        } elseif ($sort === 'terlama') {
+            $query->orderBy('tahun', 'asc');
+        } else {
+            // Default relevansi (bisa disesuaikan dengan logic relevansi sesungguhnya)
+            $query->orderBy('created_at', 'desc');
+        }
+
+        // Kembalikan hasil dengan pagination dinamis
+        $perPage = $request->get('per_page', 10);
+        return response()->json($query->paginate($perPage));
     }
 }
