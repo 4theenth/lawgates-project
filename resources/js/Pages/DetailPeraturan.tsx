@@ -1,127 +1,276 @@
-import { Head } from '@inertiajs/react';
-import { PublicLayout, Section } from '@/Layouts/PublicLayout';
-import { Breadcrumb } from '@/Components/admin/Breadcrumb';
-import { Badge } from '@/Components/common/Badge';
-export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
+import React, { useMemo } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { PublicLayout } from '@/Layouts/PublicLayout';
+import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
+import { DetailDaftarIsi, TocChapterItem } from '@/Components/peraturan/DetailDaftarIsi';
+import { DetailIsiPeraturan, DetailPembukaanData, DetailBabItem } from '@/Components/peraturan/DetailIsiPeraturan';
+import { DetailRiwayatPerubahan, DetailTimelineItem } from '@/Components/peraturan/DetailRiwayatPerubahan';
+
+interface PeraturanDetailProps {
+  peraturan?: any;
+}
+
+export default function DetailPeraturan({ peraturan = {} }: PeraturanDetailProps) {
+  // 1. Ekstraksi Metadata Header
+  const judul =
+    peraturan?.judul ||
+    'Perubahan Kedua Undang - Undang Dasar Negara Republik Indonesia 1945';
+  const jenisPeraturan =
+    peraturan?.jenis_peraturan?.nama ||
+    peraturan?.jenisPeraturan?.nama ||
+    'UNDANG - UNDANG DASAR';
+  const instansi = peraturan?.instansi || 'Pemerintah Pusat';
+  const statusPeraturan =
+    peraturan?.status_peraturan?.nama_status ||
+    peraturan?.statusPeraturan?.nama_status ||
+    'Berlaku';
+  const tanggalPenetapan = peraturan?.tanggal_penetapan || '18 Agustus 2000';
+  const tempatPenetapan = peraturan?.tempat_penetapan || 'Jakarta';
+
+  // 2. Parser Pembukaan (Menimbang, Mengingat, Memutuskan)
+  const pembukaanData: DetailPembukaanData = useMemo(() => {
+    const struktur = peraturan?.struktur_dokumen || peraturan?.strukturDokumen || [];
+
+    const menimbangItem = struktur.find((s: any) =>
+      s.label?.toLowerCase().includes('menimbang')
+    );
+    const mengingatItem = struktur.find((s: any) =>
+      s.label?.toLowerCase().includes('mengingat')
+    );
+    const memutuskanItem = struktur.find((s: any) =>
+      s.label?.toLowerCase().includes('memutuskan')
+    );
+
+    return {
+      judul:
+        peraturan?.judul ||
+        'Perubahan Kedua Undang - Undang Dasar Negara Republik Indonesia',
+      subJudul:
+        peraturan?.diktum ||
+        'Setiap Masyarakat, mendidik, dan mampu bertindak dengan seksama dan tangguh - menghasilkan hal-hal yang bersifat mendasar yang di hadapi oleh warga, bangsa, dan negara, serta dengan menegaskan keikutsertaannya berdasarkan pasal 27 undang-undang.',
+      menimbang:
+        menimbangItem?.judul_struktur ||
+        'Dalam menjalankan tugas sebagaimana dimaksud dalam Pasal 28, LPSK menyelenggarakan fungsi: a. melaksanakan Perlindungan dan pemenuhan hak Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli sesuai dengan kebutuhan dan memperhatikan hubungan tertentu; b. mengoordinasikan pelaksanaan Perlindungan Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli.',
+      mengingat:
+        mengingatItem?.judul_struktur ||
+        'Dalam menjalankan tugas sebagaimana dimaksud dalam Pasal 28, LPSK menyelenggarakan fungsi: a. melaksanakan Perlindungan dan pemenuhan hak Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli sesuai dengan kebutuhan dan memperhatikan hubungan tertentu; b. mengoordinasikan pelaksanaan Perlindungan Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli.',
+      memutuskan:
+        memutuskanItem?.judul_struktur ||
+        'Dalam menjalankan tugas sebagaimana dimaksud dalam Pasal 28, LPSK menyelenggarakan fungsi: a. melaksanakan Perlindungan dan pemenuhan hak Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli sesuai dengan kebutuhan dan memperhatikan hubungan tertentu; b. mengoordinasikan pelaksanaan Perlindungan Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli.',
+    };
+  }, [peraturan]);
+
+  // 3. Parser Batang Tubuh (BAB & Pasal)
+  const babList: DetailBabItem[] = useMemo(() => {
+    const rawPasal = peraturan?.pasal || [];
+
+    // Jika data pasal riil dari backend ada, kelompokkan ke bab
+    if (rawPasal.length > 0) {
+      return [
+        {
+          id: 'bab-1',
+          judul: 'BAB I - Ketentuan Umum',
+          deskripsi:
+            peraturan?.deskripsi ||
+            'Saksi Pelaku adalah terpidana atau tersangka, terdakwa yang bekerja sama dengan penegak hukum untuk mengungkap tindak pidana.',
+          pasalList: rawPasal.map((p: any) => ({
+            id: `pasal-${p.id || p.nomor_pasal}`,
+            nomor: p.nomor_pasal || `Pasal ${p.urutan || 1}`,
+            isi: p.isi_pasal || p.isi || '',
+          })),
+        },
+      ];
+    }
+
+    // Default mock data sesuai visual figma/desain pengguna
+    return [
+      {
+        id: 'bab-1',
+        judul: 'BAB I - Pemerintah Daerah',
+        deskripsi:
+          'Saksi Pelaku adalah terpidana atau tersangka, terdakwa yang bekerja sama dengan penegak hukum untuk mengungkap tindak pidana. Korban adalah seseorang yang mengalami penderitaan fisik, mental, dan/atau kerugian ekonomi yang diakibatkan oleh suatu tindak pidana.',
+        pasalList: [
+          {
+            id: 'pasal-1',
+            nomor: 'Pasal 1',
+            isi: 'Dalam menjalankan tugas sebagaimana dimaksud dalam Pasal 28, LPSK menyelenggarakan fungsi: a. melaksanakan Perlindungan dan pemenuhan hak Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli sesuai dengan kebutuhan dan memperhatikan hubungan tertentu; b. mengoordinasikan pelaksanaan Perlindungan Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli.',
+          },
+          {
+            id: 'pasal-2',
+            nomor: 'Pasal 2',
+            isi: 'Dalam menjalankan tugas sebagaimana dimaksud dalam Pasal 28, LPSK menyelenggarakan fungsi: a. melaksanakan Perlindungan dan pemenuhan hak Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli sesuai dengan kebutuhan dan memperhatikan hubungan tertentu; b. mengoordinasikan pelaksanaan Perlindungan Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli.',
+          },
+        ],
+      },
+      {
+        id: 'bab-2',
+        judul: 'BAB II - Wilayah Negara',
+        deskripsi:
+          'Saksi Pelaku adalah terpidana atau tersangka, terdakwa yang bekerja sama dengan penegak hukum untuk mengungkap tindak pidana. Korban adalah seseorang yang mengalami penderitaan fisik, mental, dan/atau kerugian ekonomi yang diakibatkan oleh suatu tindak pidana.',
+        pasalList: [
+          {
+            id: 'pasal-3',
+            nomor: 'Pasal 1',
+            isi: 'Dalam menjalankan tugas sebagaimana dimaksud dalam Pasal 28, LPSK menyelenggarakan fungsi: a. melaksanakan Perlindungan dan pemenuhan hak Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli sesuai dengan kebutuhan dan memperhatikan hubungan tertentu; b. mengoordinasikan pelaksanaan Perlindungan Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli.',
+          },
+          {
+            id: 'pasal-4',
+            nomor: 'Pasal 2',
+            isi: 'Dalam menjalankan tugas sebagaimana dimaksud dalam Pasal 28, LPSK menyelenggarakan fungsi: a. melaksanakan Perlindungan dan pemenuhan hak Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli sesuai dengan kebutuhan dan memperhatikan hubungan tertentu; b. mengoordinasikan pelaksanaan Perlindungan Saksi, Korban, Saksi Pelaku, Pelapor, Informan, dan/atau Ahli.',
+          },
+        ],
+      },
+    ];
+  }, [peraturan]);
+
+  // 4. Daftar Isi (TOC)
+  const tocChapters: TocChapterItem[] = useMemo(() => {
+    return [
+      {
+        id: 'bab-1',
+        judul: 'BAB I - Pemerintah Daerah',
+        isExpanded: true,
+        subItems: [
+          { id: 'pasal-1', label: 'Pasal 1 Ayat 1' },
+          { id: 'pasal-2', label: 'Pasal 2 Ayat 1' },
+        ],
+      },
+      {
+        id: 'bab-2',
+        judul: 'BAB II - Wilayah Negara',
+        isExpanded: true,
+        subItems: [
+          { id: 'pasal-3', label: 'Pasal 3 Ayat 1' },
+          { id: 'pasal-4', label: 'Pasal 4 Ayat 1' },
+          { id: 'pasal-5', label: 'Pasal 5 Ayat 1' },
+        ],
+      },
+      {
+        id: 'bab-3',
+        judul: 'BAB III - Hak Asasi',
+        isExpanded: false,
+      },
+      {
+        id: 'bab-4',
+        judul: 'BAB IV - Penduduk',
+        isExpanded: false,
+      },
+      {
+        id: 'bab-5',
+        judul: 'BAB V - Warga Negara',
+        isExpanded: false,
+      },
+    ];
+  }, [babList]);
+
+  // 5. Parser Riwayat Perubahan
+  const riwayatList: DetailTimelineItem[] = useMemo(() => {
+    const rawRelations = peraturan?.law_relations || peraturan?.lawRelations || [];
+
+    if (rawRelations.length > 0) {
+      return rawRelations.map((rel: any, idx: number) => ({
+        id: `rel-${rel.id || idx}`,
+        judul: rel.to_peraturan?.judul || rel.toPeraturan?.judul || 'Perubahan Regulasi Terkait',
+        tahun: rel.to_peraturan?.tahun ? `Tahun ${rel.to_peraturan.tahun}` : undefined,
+        statusBadge: rel.relation_type?.nama_relasi || rel.relationType?.nama_relasi || 'Terkait',
+        isCurrent: idx === 1 || rel.is_current,
+      }));
+    }
+
+    return [
+      {
+        id: 'rev-1',
+        judul: 'Perubahan Pertama Undang-Undang Dasar Negara Republik Indonesia Tahun 1945',
+        tahun: 'Tahun 1999',
+        statusBadge: 'Diubah',
+        isCurrent: false,
+      },
+      {
+        id: 'rev-2',
+        judul: 'Perubahan Kedua Undang-Undang Dasar Negara Republik Indonesia Tahun 1945',
+        tahun: 'Tahun 2000',
+        statusBadge: 'Diubah',
+        isCurrent: true,
+      },
+      {
+        id: 'rev-3',
+        judul: 'Perubahan Ketiga Undang-Undang Dasar Negara Republik Indonesia Tahun 1945',
+        tahun: 'Tahun 2001',
+        statusBadge: 'Diubah',
+        isCurrent: false,
+      },
+      {
+        id: 'rev-4',
+        judul: 'Perubahan Ke-empat Undang-Undang Dasar Negara Republik Indonesia Tahun 1945',
+        tahun: 'Tahun 2002',
+        isCurrent: false,
+      },
+    ];
+  }, [peraturan]);
+
+  const handleCompare = () => {
+    router.visit('/bandingkan');
+  };
+
+  const handleDownload = () => {
+    alert('Mengunduh dokumen hukum resmi...');
+  };
+
+  const handleRelasi = () => {
+    const el = document.getElementById('section-pembukaan');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <PublicLayout>
-      <Head title={`${peraturan.judul} - LawGates`} />
-      
-      <Section>
-        <div className="pt-32 pb-16 w-full max-w-7xl mx-auto px-4 min-h-screen text-gray-900">
-          
-          {/* Breadcrumb Navigasi */}
-          <div className="mb-6">
-            <Breadcrumb 
-              items={[
-                { label: 'Beranda', href: '/' },
-                { label: 'Pencarian Hukum', href: '/pencarian' },
-                { label: peraturan.judul }
-              ]} 
+      <Head title={`${judul} - LawGates`} />
+
+      <div className="bg-[#F8F9FA] min-h-screen">
+        <div className="pt-24 pb-20 w-full max-w-[1240px] mx-auto px-4 sm:px-6">
+            {/* Header Dokumen: Breadcrumb, Badge, Judul, Meta & Action Buttons */}
+            <DetailPeraturanHeader
+              judul={judul}
+              jenisPeraturan={jenisPeraturan}
+              instansi={instansi}
+              statusPeraturan={statusPeraturan}
+              tanggalPenetapan={tanggalPenetapan}
+              tempatPenetapan={tempatPenetapan}
+              onCompare={handleCompare}
+              onDownload={handleDownload}
             />
-          </div>
 
-          {/* Header Metadata */}
-          <div className="mb-8 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <div className="flex gap-2 text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">
-              <span>{peraturan.jenis_peraturan?.nama || 'Peraturan'}</span>
-              <span>•</span>
-              <span>Tahun {peraturan.tahun}</span>
-            </div>
-            <h1 className="text-2xl lg:text-3xl font-bold mb-4">{peraturan.judul}</h1>
-            <div className="flex flex-wrap gap-3 text-sm">
-              <Badge variant={peraturan.status_peraturan?.nama_status?.toLowerCase().includes('tidak') || peraturan.status_peraturan?.nama_status?.toLowerCase().includes('cabut') ? 'danger' : peraturan.status_peraturan?.nama_status?.toLowerCase().includes('ubah') ? 'warning' : 'success'} className="border border-current px-3 py-1 font-semibold">
-                {peraturan.status_peraturan?.nama_status || 'Status Tidak Diketahui'}
-              </Badge>
-              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full font-medium">
-                Ditetapkan: {peraturan.tanggal_penetapan || '-'}
-              </span>
-              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full">
-                Tempat: {peraturan.tempat_penetapan || '-'}
-              </span>
-            </div>
-          </div>
+            {/* Layout 3-Kolom Sesuai Desain Figma:
+                - Kolom 1 (Kiri): Daftar Isi (Table of Contents)
+                - Kolom 2 (Tengah): Isi Peraturan (Pembukaan & Batang Tubuh Bab/Pasal)
+                - Kolom 3 (Kanan): Riwayat Perubahan Timeline & Relasi Button
+            */}
+            <div className="flex flex-col lg:flex-row items-start gap-6 lg:gap-7">
+              {/* KOLOM KIRI: DAFTAR ISI */}
+              <div className="w-full lg:w-[240px] xl:w-[260px] shrink-0">
+                <DetailDaftarIsi
+                  pembukaanLabel="Pembukaan UUD 1945"
+                  chapters={tocChapters}
+                />
+              </div>
 
-          {/* Grid 3 Kolom Sesuai Desain */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
-            {/* Kolom Kiri: Daftar Isi (3 Span) */}
-            <div className="lg:col-span-3">
-              <div className="sticky top-24 bg-white border border-gray-200 rounded-xl p-5 shadow-sm max-h-[calc(100vh-120px)] overflow-y-auto">
-                <h3 className="font-bold text-gray-800 mb-4 text-base border-b pb-2">
-                  Daftar Isi
-                </h3>
-                <div className="space-y-3 text-sm">
-                  {peraturan.struktur_dokumen?.map((str: any) => (
-                    <div key={str.id} className="text-gray-600 hover:text-black transition-colors">
-                      <span className="font-semibold text-gray-800">{str.label}</span>
-                      {str.judul_struktur && (
-                        <p className="text-xs text-gray-500 line-clamp-1">{str.judul_struktur}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
+              {/* KOLOM TENGAH: ISI PERATURAN */}
+              <div className="flex-1 min-w-0 w-full">
+                <DetailIsiPeraturan
+                  pembukaan={pembukaanData}
+                  babList={babList}
+                />
+              </div>
+
+              {/* KOLOM KANAN: RIWAYAT PERUBAHAN */}
+              <div className="w-full lg:w-[260px] xl:w-[280px] shrink-0">
+                <DetailRiwayatPerubahan
+                  riwayat={riwayatList}
+                  onRelasiClick={handleRelasi}
+                />
               </div>
             </div>
-
-            {/* Kolom Tengah: Isi Peraturan (6 Span) */}
-            <div className="lg:col-span-6 space-y-6">
-              <div className="bg-white border border-gray-200 rounded-xl p-6 lg:p-8 shadow-sm space-y-6">
-                <h3 className="font-bold text-lg text-gray-800 border-b pb-3">Isi Peraturan</h3>
-                
-                {/* Render Struktur Dokumen & Pasal secara berurutan */}
-                {peraturan.struktur_dokumen?.map((str: any) => (
-                  <div key={str.id} className="space-y-3 border-l-2 border-pr-900 pl-4 py-2">
-                    <h4 className="font-bold text-md text-pr-900">{str.label}</h4>
-                    <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{str.judul_struktur}</p>
-                  </div>
-                ))}
-
-                {/* Render Pasal-pasal Utama */}
-                <div className="space-y-4 pt-4">
-                  {peraturan.pasal?.map((pasal: any) => (
-                    <div key={pasal.id} className="p-4 border border-gray-100 rounded-lg bg-gray-50/50 shadow-xs">
-                      <span className="inline-block px-2.5 py-1 bg-pr-900 text-white text-xs font-bold rounded-md mb-2">
-                        {pasal.nomor_pasal}
-                      </span>
-                      <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed">{pasal.isi_pasal}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Kolom Kanan: Riwayat Perubahan (3 Span) */}
-<div className="lg:col-span-3">
-  <div className="sticky top-24 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-    <h3 className="font-bold text-gray-800 mb-4 text-base border-b pb-2">
-      Riwayat Perubahan
-    </h3>
-    
-    {/* Kontainer scrollable dengan batas maksimum tinggi */}
-    <div className="max-h-[calc(100vh-220px)] overflow-y-auto pr-2 custom-scrollbar">
-      {peraturan.law_relations && peraturan.law_relations.length > 0 ? (
-        <div className="relative border-l-2 border-gray-200 ml-3 space-y-6 my-2">
-          {peraturan.law_relations.map((rel: any, index: number) => (
-            <div key={index} className="relative pl-5">
-              <div className="absolute w-3 h-3 bg-pr-900 rounded-full -left-[7px] top-1.5 border-2 border-white"></div>
-              <Badge variant="primary" className="text-[11px] font-bold uppercase rounded-md px-2 py-0.5">
-                {rel.relation_type?.nama_relasi}
-              </Badge>
-              <p className="text-sm text-gray-800 mt-1 font-medium">{rel.to_peraturan?.judul}</p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-xs text-gray-500 italic">Tidak ada catatan riwayat perubahan relasi dokumen.</p>
-      )}
-    </div>
-  </div>
-</div>
-
           </div>
-        </div>
-      </Section>
+      </div>
     </PublicLayout>
   );
 }
