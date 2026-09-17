@@ -1,8 +1,7 @@
 <?php
 
-namespace App\Console\Commands;
+namespace App\Services;
 
-use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
 use App\Models\Peraturan;
@@ -16,23 +15,17 @@ use App\Models\PasalPerubahan;
 use App\Models\StrukturDokumen; 
 use App\Models\PenjelasanPasal; 
 
-class ImportOcrJson extends Command
+class DocumentImportService
 {
-    protected $signature = 'import:ocr {file}';
-    protected $description = 'Import JSON OCR komprehensif ke PostgreSQL';
-
-    public function handle()
+    /**
+     * Import JSON OCR komprehensif ke PostgreSQL
+     *
+     * @param array $data
+     * @return Peraturan
+     * @throws \Exception
+     */
+    public function import(array $data)
     {
-        $filePath = storage_path('app/' . $this->argument('file'));
-        
-        if (!File::exists($filePath)) {
-            $this->error("File tidak ditemukan!");
-            return;
-        }
-
-        $json = File::get($filePath);
-        $data = json_decode($json, true);
-
         DB::beginTransaction();
         try {
             // 1. METADATA: Jenis & Status
@@ -45,23 +38,44 @@ class ImportOcrJson extends Command
                 ['nama_status' => $data['metadata']['status']]
             );
 
-            // 2. METADATA: Peraturan Induk
-            $peraturan = Peraturan::updateOrCreate(
-                ['unique_id' => $data['metadata']['id_dokumen']], 
-                [
-                    'judul'                => $data['metadata']['judul'],
-                    'jenis_peraturan_id'   => $jenis->id,
-                    'status_id'            => $status->id,
-                    'tahun'                => $data['metadata']['tahun'] ?? $this->ekstrakTahun($data['metadata']['id_dokumen']),
-                    'nomor'                => $this->ekstrakNomor($data['metadata']['judul'] ?? '', $data['metadata']['id_dokumen'] ?? ''),
-                    'tempat_penetapan'     => $data['metadata']['tempat_penetapan'] ?? null,
-                    'tanggal_penetapan'    => $this->formatTanggal($data['metadata']['tanggal_penetapan'] ?? null),
-                    'tanggal_pengundangan' => $this->formatTanggal($data['metadata']['tanggal_pengundangan'] ?? null),
-                    'tanggal_berlaku'      => $this->formatTanggal($data['metadata']['tanggal_berlaku'] ?? null),
-                    'instansi'             => $data['metadata']['pemrakarsa'] ?? null,
-                    'url_pdf'              => $data['metadata']['sumber_dokumen'] ?? null,
-                ]
-            );
+            $tahun = $data['metadata']['tahun'] ?? $this->ekstrakTahun($data['metadata']['id_dokumen']);
+            $nomor = $this->ekstrakNomor($data['metadata']['judul'] ?? '', $data['metadata']['id_dokumen'] ?? '');
+            
+            // Cari peraturan yang ada berdasarkan unique_id ATAU kombinasi jenis, nomor, tahun (termasuk yang soft-delete)
+            $peraturan = Peraturan::withTrashed()
+                ->where('unique_id', $data['metadata']['id_dokumen'])
+                ->orWhere(function($query) use ($jenis, $nomor, $tahun) {
+                    $query->where('jenis_peraturan_id', $jenis->id)
+                          ->where('nomor', $nomor)
+                          ->where('tahun', $tahun);
+                })
+                ->first();
+
+            $attributes = [
+                'unique_id'            => $data['metadata']['id_dokumen'],
+                'judul'                => $data['metadata']['judul'],
+                'jenis_peraturan_id'   => $jenis->id,
+                'status_id'            => $status->id,
+                'tahun'                => $tahun,
+                'nomor'                => $nomor,
+                'tempat_penetapan'     => $data['metadata']['tempat_penetapan'] ?? null,
+                'tanggal_penetapan'    => $this->formatTanggal($data['metadata']['tanggal_penetapan'] ?? null),
+                'tanggal_pengundangan' => $this->formatTanggal($data['metadata']['tanggal_pengundangan'] ?? null),
+                'tanggal_berlaku'      => $this->formatTanggal($data['metadata']['tanggal_berlaku'] ?? null),
+                'instansi'             => $data['metadata']['pemrakarsa'] ?? null,
+                'url_pdf'              => $data['metadata']['sumber_dokumen'] ?? null,
+            ];
+
+            if ($peraturan) {
+                if ($peraturan->trashed()) {
+                    $peraturan->restore();
+                } else if (!str_contains(strtolower($peraturan->judul), 'menunggu import')) {
+                    throw new \Exception("Dokumen " . $data['metadata']['judul'] . " sudah ada di database.");
+                }
+                $peraturan->update($attributes);
+            } else {
+                $peraturan = Peraturan::create($attributes);
+            }
 
             // 3. CHUNKS: Bersihkan data lama
             Pasal::where('peraturan_id', $peraturan->id)->delete();
@@ -100,21 +114,43 @@ class ImportOcrJson extends Command
                 }
             }
 
+            $maxPasalNum = 0;
+            $inPenjelasan = false;
+
             foreach ($chunks as $chunk) {
                 $tipe = strtoupper($chunk['tipe'] ?? '');
                 $bagianDokumen = strtoupper($chunk['bagian_dokumen'] ?? '');
 
-                // Penjelasan Pasal
-                if ($bagianDokumen === 'PENJELASAN' && ($tipe === 'PASAL' || $tipe === 'PENJELASAN_PASAL')) {
-                    $pasalTerkait = Pasal::where('peraturan_id', $peraturan->id)
-                                         ->where('nomor_pasal', $chunk['label'])
-                                         ->first();
-                    
-                    if ($pasalTerkait) {
-                        PenjelasanPasal::updateOrCreate(
-                            ['peraturan_id' => $peraturan->id, 'pasal_id' => $pasalTerkait->id],
-                            ['isi_penjelasan' => $chunk['teks'] ?? null]
-                        );
+                // Heuristic: Deteksi otomatis jika kita masuk ke bagian penjelasan 
+                // dengan melihat apakah nomor pasal me-restart dari 1 setelah mencapai angka besar
+                if ($tipe === 'PASAL') {
+                    $pasalLabel = $chunk['label'] ?? ''; 
+                    if (preg_match('/Pasal\s+(\d+)/i', $pasalLabel, $matches)) {
+                        $currentPasalNum = (int)$matches[1];
+                        // Jika kita sudah melihat pasal yang cukup besar (misal > 5) 
+                        // lalu tiba-tiba melihat Pasal 1, 2, atau 3 lagi, berarti kita masuk PENJELASAN
+                        if ($maxPasalNum > 5 && $currentPasalNum < $maxPasalNum && $currentPasalNum <= 3) {
+                            $inPenjelasan = true;
+                        }
+                        if (!$inPenjelasan && $currentPasalNum > $maxPasalNum) {
+                            $maxPasalNum = $currentPasalNum;
+                        }
+                    }
+                }
+
+                // Penjelasan Pasal (berdasarkan flag dari OCR atau dari Heuristic)
+                if ($inPenjelasan || $bagianDokumen === 'PENJELASAN' || $tipe === 'PENJELASAN_PASAL') {
+                    if ($tipe === 'PASAL' || $tipe === 'PENJELASAN_PASAL') {
+                        $pasalTerkait = Pasal::where('peraturan_id', $peraturan->id)
+                                             ->where('nomor_pasal', $chunk['label'])
+                                             ->first();
+                        
+                        if ($pasalTerkait) {
+                            PenjelasanPasal::updateOrCreate(
+                                ['peraturan_id' => $peraturan->id, 'pasal_id' => $pasalTerkait->id],
+                                ['isi_penjelasan' => $chunk['teks'] ?? null]
+                            );
+                        }
                     }
                     continue; 
                 }
@@ -306,11 +342,11 @@ class ImportOcrJson extends Command
             }
 
             DB::commit();
-            $this->info("Seluruh data hierarki berhasil diimpor dengan presisi tanpa tabrakan duplikat!");
+            return $peraturan;
 
         } catch (\Exception $e) {
             DB::rollBack();
-            $this->error("Gagal mengimpor: " . $e->getMessage() . " pada baris " . $e->getLine());
+            throw new \Exception("Gagal mengimpor: " . $e->getMessage() . " pada baris " . $e->getLine());
         }
     }
 
