@@ -2,6 +2,7 @@ import React, { FormEventHandler } from 'react';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { AuthCard, FormInput, FormCheckbox } from '@/Components/common';
+import { Icon } from '@/Components/ui/icon';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useToast } from '@/hooks/useToast';
 
@@ -66,6 +67,35 @@ export default function Login({ status, canResetPassword = true }: LoginProps) {
         }
     });
 
+    const isRateLimited =
+        (errors as any).auth === 'rate_limited' ||
+        errors.email === 'rate_limited' ||
+        (errors.email
+            ? errors.email.toLowerCase().includes('terlalu banyak upaya') ||
+              errors.email.toLowerCase().includes('throttle') ||
+              errors.email.toLowerCase().includes('too many')
+            : false);
+
+    const isInvalidCredentials =
+        !isRateLimited &&
+        ((errors as any).auth === 'invalid_credentials' ||
+            errors.email === 'auth_failed' ||
+            errors.email === 'Email atau kata sandi tidak sesuai.' ||
+            (errors.email
+                ? errors.email.toLowerCase().includes('tidak sesuai') ||
+                  errors.email.toLowerCase().includes('credentials') ||
+                  errors.email.toLowerCase().includes('tidak dikenal') ||
+                  errors.email.toLowerCase().includes('tidak cocok')
+                : false));
+
+    const emailInlineError =
+        isInvalidCredentials || isRateLimited ? undefined : errors.email;
+    const passwordInlineError =
+        isInvalidCredentials || isRateLimited ? undefined : errors.password;
+
+    const emailHasError = Boolean(emailInlineError || isInvalidCredentials || isRateLimited);
+    const passwordHasError = Boolean(passwordInlineError || isInvalidCredentials || isRateLimited);
+
     return (
         <GuestLayout>
             <Head title="Masuk" />
@@ -85,6 +115,49 @@ export default function Login({ status, canResetPassword = true }: LoginProps) {
                     </div>
                 )}
 
+                {/* Banner: Email / Password Salah (Image 2) */}
+                {isInvalidCredentials && (
+                    <div className="mb-4 rounded-xl bg-dan-50/80 p-3.5 border border-dan-100/60 flex items-start gap-3">
+                        <Icon name="circle-x" className="h-5 w-5 text-dan-700 shrink-0 mt-0.5" />
+                        <div className="text-xs sm:text-sm">
+                            <p className="font-semibold text-neu-900 leading-tight">
+                                Maaf, email atau kata sandi tidak dikenal
+                            </p>
+                            <p className="text-neu-600 mt-0.5 text-xs">
+                                cobak lagi atau{' '}
+                                <Link
+                                    href={route('register')}
+                                    className="font-semibold text-neu-900 underline hover:text-dan-700"
+                                >
+                                    buat akun
+                                </Link>
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Banner: 5 Kali Gagal Login / Rate Limited (Image 3) */}
+                {isRateLimited && (
+                    <div className="mb-4 rounded-xl bg-dan-50/80 p-3.5 border border-dan-100/60 flex items-start gap-3">
+                        <Icon name="lock" className="h-5 w-5 text-dan-700 shrink-0 mt-0.5" />
+                        <div className="text-xs sm:text-sm">
+                            <p className="font-semibold text-neu-900 leading-tight">
+                                Akses login ditangguhkan sementara
+                            </p>
+                            <p className="text-neu-600 mt-0.5 text-xs">
+                                Anda telah 5 kali salah memasukkan email atau kata sandi. Coba lagi nanti atau{' '}
+                                <Link
+                                    href={route('password.request')}
+                                    className="font-semibold text-neu-900 underline hover:text-dan-700"
+                                >
+                                    Atur ulang kata sandi
+                                </Link>
+                                .
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 <form onSubmit={submit} noValidate className="space-y-4">
                     {/* Email Field with Mail Icon */}
                     <FormInput
@@ -97,10 +170,12 @@ export default function Login({ status, canResetPassword = true }: LoginProps) {
                         value={data.email}
                         autoComplete="username"
                         autoFocus
-                        error={errors.email}
+                        error={emailInlineError}
+                        hasError={emailHasError}
                         onChange={(e) => {
                             setData('email', e.target.value);
                             if (errors.email) clearErrors('email');
+                            if ((errors as any).auth) clearErrors('auth' as any);
                         }}
                     />
 
@@ -115,10 +190,12 @@ export default function Login({ status, canResetPassword = true }: LoginProps) {
                         value={data.password}
                         autoComplete="current-password"
                         isPasswordToggle={true}
-                        error={errors.password}
+                        error={passwordInlineError}
+                        hasError={passwordHasError}
                         onChange={(e) => {
                             setData('password', e.target.value);
                             if (errors.password) clearErrors('password');
+                            if ((errors as any).auth) clearErrors('auth' as any);
                         }}
                     />
 
