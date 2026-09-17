@@ -70,16 +70,16 @@ export default function Bandingkan() {
     <PublicLayout>
       <Head title="Membandingkan Sistem Hukum - LawGates" />
 
-      <div className="bg-[#F8F9FA] min-h-screen">
-        <div className="pt-24 pb-20 w-full max-w-[1240px] mx-auto px-4 sm:px-6 space-y-6">
+      <div className="bg-[#F8F9FA] min-h-screen w-full min-w-0 overflow-x-hidden">
+        <div className="pt-20 sm:pt-24 pb-16 sm:pb-20 w-full max-w-[1240px] mx-auto px-3.5 sm:px-6 space-y-5 sm:space-y-6 min-w-0">
           {/* Header Halaman: Breadcrumbs, Title, Subtitle */}
-          <div className="space-y-3">
+          <div className="space-y-2.5 sm:space-y-3">
             <Breadcrumb items={breadcrumbItems} />
             <div>
-              <h1 className="text-[26px] sm:text-[28px] font-bold text-gray-900 leading-tight">
+              <h1 className="text-[22px] xs:text-[24px] sm:text-[28px] font-bold text-gray-900 leading-tight">
                 Membandingkan Sistem Hukum
               </h1>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
                 Pilih sistem hukum yang mau dibandingkan
               </p>
             </div>

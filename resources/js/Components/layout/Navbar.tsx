@@ -32,7 +32,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
         {/* Floating pill container (transitions width, height, glass background, border, shadow) */}
         <div
           className={`relative flex items-center justify-between mx-auto transition-all duration-500 ease-in-out pointer-events-auto ${isPill
-              ? 'h-[59px] w-[calc(100%-32px)] max-w-[1120px] bg-white/50 backdrop-blur-[14.2px] border border-[#E9E9E94D] rounded-full shadow-[0px_3px_31.3px_-2px_#0000000A] px-6 lg:px-8'
+              ? 'h-[59px] w-[calc(100%-24px)] sm:w-[calc(100%-32px)] max-w-[1120px] bg-white/90 sm:bg-white/80 backdrop-blur-[16px] border border-white/60 rounded-full shadow-[0px_4px_24px_-2px_rgba(0,0,0,0.08)] px-4 sm:px-6 lg:px-8'
               : 'h-[74px] w-full max-w-[1202px] px-4 sm:px-6 xl:px-0 bg-transparent border-transparent shadow-none'
             }`}
         >
