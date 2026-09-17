@@ -7,15 +7,14 @@ import {
   MapPin, 
   ArrowRightLeft, 
   CloudDownload,
-  List,
-  BookOpen,
-  History,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  Download
+  ChevronUp
 } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ChapterItem, ArticleItem } from '@/Components/admin/import/correctionParser';
+import { ReadonlyTableOfContents } from '@/Components/public/peraturan/ReadonlyTableOfContents';
+import { ReadonlyPembukaanSection } from '@/Components/public/peraturan/ReadonlyPembukaanSection';
+import { ReadonlyBatangTubuhSection } from '@/Components/public/peraturan/ReadonlyBatangTubuhSection';
+import { ReadonlyTimelineSection, ReadonlyTimelineItem } from '@/Components/public/peraturan/ReadonlyTimelineSection';
 
 // Format tanggal ke format Indonesia
 const formatTanggal = (dateString: string) => {
@@ -29,11 +28,6 @@ const formatTanggal = (dateString: string) => {
 };
 
 export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
-  // Main Panel Toggle States
-  const [isDaftarIsiOpen, setIsDaftarIsiOpen] = useState(true);
-  const [isIsiPeraturanOpen, setIsIsiPeraturanOpen] = useState(true);
-  const [isRiwayatOpen, setIsRiwayatOpen] = useState(true);
-
   // Scroll to top state
   const [showScrollTop, setShowScrollTop] = useState(false);
 
@@ -45,52 +39,319 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Daftar Isi Accordion State
-  const [expandedStruktur, setExpandedStruktur] = useState<number[]>([]);
+  // Map Data from Database to UI State
+  const initialBabList = useMemo<ChapterItem[]>(() => {
+    const rawStrukturList = peraturan.struktur_dokumen || [];
+    const ignoredTipes = ['PEMBUKAAN', 'KONSIDERANS', 'DASAR_HUKUM', 'DIKTUM'];
+    const strukturList = rawStrukturList.filter((str: any) => !ignoredTipes.includes(str.tipe_struktur));
+    
+    const rawPasalList = peraturan.pasal || [];
+    
+    // First pass: create all ArticleItems and a map for quick lookup
+    const pasalMap = new Map<string, any>();
+    rawPasalList.forEach((p: any) => {
+      pasalMap.set(p.id.toString(), {
+        id: p.id.toString(),
+        nomor: p.nomor_pasal?.toLowerCase().startsWith('pasal') ? p.nomor_pasal : `Pasal ${p.nomor_pasal}`,
+        isi: p.isi_pasal,
+        penjelasan: p.penjelasan?.isi_penjelasan,
+        isExpanded: true,
+        pasalList: [] 
+      });
+    });
 
-  const toggleStruktur = (id: number) => {
-    setExpandedStruktur(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
+    // Second pass: nest pasals inside parent pasals if they have parent_pasal_id
+    const rootPasals: any[] = [];
+    rawPasalList.forEach((p: any) => {
+      const articleItem = pasalMap.get(p.id.toString())!;
+      if (p.parent_pasal_id) {
+        const parentArticle = pasalMap.get(p.parent_pasal_id.toString());
+        if (parentArticle) {
+          parentArticle.pasalList!.push(articleItem);
+        } else {
+          rootPasals.push(p);
+        }
+      } else {
+        rootPasals.push(p);
+      }
+    });
+
+    const unassignedPasals = rootPasals.filter((p: any) => !p.struktur_id);
+    
+    const map = new Map<string, ChapterItem>();
+    
+    // Third pass: instantiate all ChapterItems
+    strukturList.forEach((str: any) => {
+      const pasalsInStruktur = rootPasals.filter((p: any) => p.struktur_id === str.id);
+      
+      let judul = str.label || '';
+      let deskripsi = '';
+      if (str.judul_struktur) {
+        if (!judul) {
+           judul = str.judul_struktur;
+        } else {
+           deskripsi = str.judul_struktur;
+        }
+      }
+
+      map.set(str.id.toString(), {
+        id: str.id.toString(),
+        judul: judul || 'BAGIAN',
+        deskripsi: deskripsi,
+        isExpanded: true,
+        children: [],
+        pasalList: pasalsInStruktur.map((p: any) => pasalMap.get(p.id.toString())!)
+      });
+    });
+
+    const rootItems: ChapterItem[] = [];
+
+    // Fourth pass: attach structural children to parents
+    strukturList.forEach((str: any) => {
+      const item = map.get(str.id.toString());
+      if (item) {
+        if (str.parent_id) {
+          const parent = map.get(str.parent_id.toString());
+          if (parent) {
+            parent.children!.push(item);
+          } else {
+            rootItems.push(item);
+          }
+        } else {
+          rootItems.push(item);
+        }
+      }
+    });
+
+    return rootItems;
+  }, [peraturan]);
+
+  const [babsState, setBabsState] = useState<ChapterItem[]>([]);
+  
+  useEffect(() => {
+    setBabsState(initialBabList);
+  }, [initialBabList]);
+
+  const handleToggleBab = (babId: string) => {
+    const toggleNode = (nodes: ChapterItem[], targetId: string): ChapterItem[] => {
+      return nodes.map(n => {
+        if (n.id === targetId) return { ...n, isExpanded: !n.isExpanded };
+        if (n.children && n.children.length > 0) return { ...n, children: toggleNode(n.children, targetId) };
+        return n;
+      });
+    };
+    setBabsState(prev => toggleNode(prev, babId));
+  };
+  
+  const handleTogglePasal = (babId: string, pasalId: string) => {
+    const togglePasalInList = (pasalList: ArticleItem[], targetPasalId: string): { list: ArticleItem[], updated: boolean } => {
+      let updated = false;
+      const list = pasalList.map(p => {
+        if (p.id === targetPasalId) {
+          updated = true;
+          return { ...p, isExpanded: !p.isExpanded };
+        }
+        if (p.pasalList && p.pasalList.length > 0) {
+          const childResult = togglePasalInList(p.pasalList, targetPasalId);
+          if (childResult.updated) {
+            updated = true;
+            return { ...p, pasalList: childResult.list };
+          }
+        }
+        return p;
+      });
+      return { list, updated };
+    };
+
+    const togglePasalNode = (nodes: ChapterItem[], targetPasalId: string): ChapterItem[] => {
+      return nodes.map(n => {
+        const { list: newPasalList, updated } = togglePasalInList(n.pasalList || [], targetPasalId);
+        
+        if (updated) return { ...n, pasalList: newPasalList };
+        if (n.children && n.children.length > 0) return { ...n, children: togglePasalNode(n.children, targetPasalId) };
+        return n;
+      });
+    };
+    setBabsState(prev => togglePasalNode(prev, pasalId));
   };
 
-  // Group pasals by struktur_id
-  const strukturList = peraturan.struktur_dokumen || [];
-  const pasalList = peraturan.pasal || [];
-  
-  const contentData = strukturList.map((str: any) => ({
-    ...str,
-    pasals: pasalList.filter((p: any) => p.struktur_id === str.id)
-  }));
-  const unassignedPasals = pasalList.filter((p: any) => !p.struktur_id);
+  const handleNavigateToStruktur = (strukturId: string) => {
+    const expandPath = (nodes: ChapterItem[], targetId: string): { nodes: ChapterItem[], found: boolean } => {
+       let foundInList = false;
+       const newNodes = nodes.map(n => {
+          if (n.id === targetId) {
+             foundInList = true;
+             return { ...n, isExpanded: true };
+          }
+          if (n.children && n.children.length > 0) {
+             const result = expandPath(n.children, targetId);
+             if (result.found) {
+                foundInList = true;
+                return { ...n, isExpanded: true, children: result.nodes };
+             }
+             return { ...n, children: result.nodes };
+          }
+          return n;
+       });
+       return { nodes: newNodes, found: foundInList };
+    };
+    setBabsState(prev => expandPath(prev, strukturId).nodes);
+
+    setTimeout(() => {
+      const el = document.getElementById(`struktur-${strukturId}`);
+      if (el) {
+        const headerOffset = 120;
+        const elementPosition = el.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+        window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+      }
+    }, 100);
+  };
+
+  const handleNavigateToPasal = (pasalId: string) => {
+    const expandPasalPath = (pasalList: ArticleItem[], targetId: string): { list: ArticleItem[], found: boolean } => {
+       let foundInList = false;
+       const newList = pasalList.map(p => {
+          if (p.id === targetId) {
+             foundInList = true;
+             return { ...p, isExpanded: true };
+          }
+          if (p.pasalList && p.pasalList.length > 0) {
+             const result = expandPasalPath(p.pasalList, targetId);
+             if (result.found) {
+                foundInList = true;
+                return { ...p, isExpanded: true, pasalList: result.list };
+             }
+             return { ...p, pasalList: result.list };
+          }
+          return p;
+       });
+       return { list: newList, found: foundInList };
+    };
+
+    const expandStrukturPath = (nodes: ChapterItem[], targetId: string): { nodes: ChapterItem[], found: boolean } => {
+       let foundInList = false;
+       const newNodes = nodes.map(n => {
+          const pasalResult = expandPasalPath(n.pasalList || [], targetId);
+          if (pasalResult.found) {
+             foundInList = true;
+             return { ...n, isExpanded: true, pasalList: pasalResult.list };
+          }
+          if (n.children && n.children.length > 0) {
+             const result = expandStrukturPath(n.children, targetId);
+             if (result.found) {
+                foundInList = true;
+                return { ...n, isExpanded: true, children: result.nodes };
+             }
+             return { ...n, children: result.nodes };
+          }
+          return n;
+       });
+       return { nodes: newNodes, found: foundInList };
+    };
+    
+    setBabsState(prev => expandStrukturPath(prev, pasalId).nodes);
+
+    setTimeout(() => {
+      const el = document.getElementById(`section-${pasalId}`);
+      if (el) {
+        const headerOffset = 120;
+        const elementPosition = el.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+        window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+      }
+    }, 100);
+  };
+
+  // Pembukaan State
+  const pembukaanData = useMemo(() => {
+    const strukturList = peraturan.struktur_dokumen || [];
+    const pembukaanNode = strukturList.find((s: any) => s.tipe_struktur === 'PEMBUKAAN');
+    const konsideransNode = strukturList.find((s: any) => s.tipe_struktur === 'KONSIDERANS');
+    const dasarHukumNode = strukturList.find((s: any) => s.tipe_struktur === 'DASAR_HUKUM');
+    const diktumMemutuskan = strukturList.find((s: any) => s.tipe_struktur === 'DIKTUM' && s.label?.toLowerCase() === 'memutuskan');
+    const diktumMenetapkan = strukturList.find((s: any) => s.tipe_struktur === 'DIKTUM' && s.label?.toLowerCase() === 'menetapkan');
+
+    return {
+      judul: peraturan.judul,
+      subJudul: pembukaanNode?.judul_struktur || peraturan.abstrak || '',
+      menimbang: konsideransNode?.judul_struktur || '', 
+      mengingat: dasarHukumNode?.judul_struktur || '',
+      memutuskan: diktumMemutuskan?.judul_struktur || '',
+      menetapkan: diktumMenetapkan?.judul_struktur || '',
+      isExpanded: true
+    };
+  }, [peraturan]);
+
+  const [isPembukaanOpen, setIsPembukaanOpen] = useState(true);
+  const [isMenimbangOpen, setIsMenimbangOpen] = useState(true);
+  const [isMengingatOpen, setIsMengingatOpen] = useState(true);
+  const [isMemutuskanOpen, setIsMemutuskanOpen] = useState(true);
+  const [isMenetapkanOpen, setIsMenetapkanOpen] = useState(true);
+
+  // Timeline State
+  const timelineData = useMemo<ReadonlyTimelineItem[]>(() => {
+    const relations = peraturan.law_relations || [];
+    
+    const beforeCurrent: ReadonlyTimelineItem[] = [];
+    const afterCurrent: ReadonlyTimelineItem[] = [];
+
+    relations.forEach((rel: any, index: number) => {
+      const relName = rel.relation_type?.nama_relasi || 'Terkait';
+      const isMencabut = relName.toLowerCase().includes('cabut');
+      let variant: 'diubah' | 'mengubah' | 'dicabut' = 'mengubah';
+      
+      if (relName.toLowerCase().includes('diubah')) variant = 'diubah';
+      else if (isMencabut) variant = 'dicabut';
+
+      const item: ReadonlyTimelineItem = {
+        id: `rel-${index}`,
+        kode: rel.to_peraturan?.unique_id || '',
+        judul: rel.to_peraturan?.judul || rel.to_peraturan?.unique_id || '',
+        href: `/peraturan/${rel.to_peraturan?.unique_id || ''}`,
+        keteranganBadge: {
+          label: relName,
+          variant: variant
+        },
+        statusBadge: {
+          label: 'Tahun ' + (rel.to_peraturan?.tahun || '-'),
+          variant: 'tersedia'
+        },
+        isCurrent: false
+      };
+
+      // Jika relasinya "Diubah" atau "Dicabut" artinya aturan tersebut mengubah aturan ini, taruh di atas
+      if (variant === 'diubah' || variant === 'dicabut') {
+        beforeCurrent.push(item);
+      } else {
+        // Jika "Mengubah" atau "Mencabut" taruh di bawah
+        afterCurrent.push(item);
+      }
+    });
+
+    const currentItem: ReadonlyTimelineItem = {
+      id: 'current',
+      kode: peraturan.unique_id || '',
+      judul: peraturan.judul,
+      isCurrent: true,
+      currentStatusLabel: 'Dokumen Saat Ini'
+    };
+
+    return [...beforeCurrent, currentItem, ...afterCurrent];
+  }, [peraturan]);
 
   // Format dates
   const tanggalPenetapan = peraturan.tanggal_penetapan ? formatTanggal(peraturan.tanggal_penetapan) : '-';
   const isActive = peraturan.status_peraturan?.nama_status?.toLowerCase().includes('berlaku') && 
                    !peraturan.status_peraturan?.nama_status?.toLowerCase().includes('tidak');
   
-  const scrollToSection = (e: React.MouseEvent, id: string) => {
-    e.preventDefault();
-    const element = document.getElementById(id);
-    if (element) {
-      const headerOffset = 120; // Offset for sticky header
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-  
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: "smooth"
-      });
-    }
-  };
-
   return (
     <PublicLayout>
       <Head title={`${peraturan.judul} - LawGates`} />
       
       <div className="bg-[#F8F9FA] min-h-screen pb-16">
-        <Section>
-          <div className="pt-28 pb-8 w-full max-w-7xl mx-auto px-4 text-gray-900">
+        <Section fullWidth>
+          <div className="pt-28 pb-8 w-full max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-4 lg:px-8 xl:px-12 text-gray-900">
             
             {/* Breadcrumb Navigasi */}
             <div className="mb-6">
@@ -112,7 +373,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                   <span>{peraturan.entitas || 'Pemerintah Pusat'}</span>
                 </div>
                 <div className="flex gap-3">
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold rounded-full transition-colors">
+                  <button className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold rounded-full transition-colors cursor-pointer">
                     <ArrowRightLeft className="w-4 h-4" />
                     Bandingkan
                   </button>
@@ -121,7 +382,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                       href={`/storage/${peraturan.file_pdf}`} 
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-2 px-5 py-2 bg-[#0A1931] hover:bg-blue-900 text-white text-sm font-semibold rounded-full shadow-sm transition-colors"
+                      className="flex items-center gap-2 px-5 py-2 bg-[#0A1931] hover:bg-blue-900 text-white text-sm font-semibold rounded-full shadow-sm transition-colors cursor-pointer"
                     >
                       <CloudDownload className="w-4 h-4" />
                       Download Dokumen
@@ -130,7 +391,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                 </div>
               </div>
 
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 text-gray-900 leading-tight">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 text-gray-900 leading-tight max-w-4xl">
                 {peraturan.judul}
               </h1>
 
@@ -150,232 +411,76 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
               </div>
             </div>
 
-            {/* Grid 3 Kolom Sesuai Desain */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Layout 3-Kolom Menggunakan Komponen Readonly Baru */}
+            <div className="flex flex-col lg:flex-row items-start gap-6">
               
-              {/* Kolom Kiri: Daftar Isi (3 Span) */}
-              <div className="lg:col-span-3">
-                <div className="sticky top-28 bg-white lg:bg-transparent rounded-2xl lg:rounded-none p-5 lg:p-0 shadow-sm lg:shadow-none border border-gray-100 lg:border-none">
-                  <div 
-                    className="flex items-center justify-between gap-2 text-gray-800 font-bold mb-6 cursor-pointer"
-                    onClick={() => setIsDaftarIsiOpen(!isDaftarIsiOpen)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <List className="w-5 h-5 text-gray-500" />
-                      <h3 className="uppercase tracking-wide">DAFTAR ISI</h3>
-                    </div>
-                    <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                      {isDaftarIsiOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                    </button>
-                  </div>
-                  
-                  <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isDaftarIsiOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-                    <div className="overflow-hidden">
-                      <div className="space-y-1 overflow-y-auto max-h-[65vh] pr-2 scrollbar-thin">
-                        {contentData.length > 0 ? (
-                          contentData.map((str: any, idx: number) => {
-                            const isExpanded = expandedStruktur.includes(str.id);
-                            const hasChildren = str.pasals && str.pasals.length > 0;
-                            
-                            let displayTitle = str.label || '';
-                            if (str.judul_struktur) {
-                              const labelLower = (str.label || '').toLowerCase().trim();
-                              const isPreamble = ['pembukaan', 'menimbang', 'mengingat', 'memutuskan', 'menetapkan'].includes(labelLower);
-                              
-                              if (!str.label) {
-                                displayTitle = str.judul_struktur;
-                              } else if (!isPreamble && str.judul_struktur.length <= 100) {
-                                displayTitle = `${str.label} - ${str.judul_struktur}`;
-                              }
-                            }
-                            
-                            return (
-                              <div key={str.id} className="text-sm mb-1">
-                                <button 
-                                  onClick={(e) => {
-                                    if (hasChildren) {
-                                      toggleStruktur(str.id);
-                                    } else {
-                                      scrollToSection(e, `struktur-${str.id}`);
-                                    }
-                                  }}
-                                  className={`flex items-center justify-between w-full px-3 py-2.5 text-left transition-all ${
-                                    isExpanded 
-                                      ? 'bg-white shadow-sm border border-gray-100 rounded-md font-semibold text-gray-800' 
-                                      : 'text-gray-700 hover:bg-gray-100 rounded-md font-medium'
-                                  }`}
-                                >
-                                  <span className="line-clamp-2">{displayTitle}</span>
-                                  {hasChildren && (
-                                    isExpanded ? <ChevronDown className="w-4 h-4 text-gray-500 shrink-0 ml-2" /> : <ChevronRight className="w-4 h-4 text-gray-400 shrink-0 ml-2" />
-                                  )}
-                                </button>
-                                
-                                {/* Children (Pasal) */}
-                                {isExpanded && hasChildren && (
-                                  <div className="pl-4 py-1 border-l border-gray-200 ml-4 space-y-1 mt-1">
-                                    {str.pasals.map((pasal: any) => (
-                                      <a 
-                                        href={`#pasal-${pasal.id}`} 
-                                        onClick={(e) => scrollToSection(e, `pasal-${pasal.id}`)}
-                                        key={pasal.id} 
-                                        className="block w-full text-left px-3 py-1.5 text-gray-600 hover:text-gray-900 rounded text-xs transition-colors"
-                                      >
-                                        Pasal {pasal.nomor_pasal}
-                                      </a>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <p className="text-sm text-gray-500 px-3">Tidak ada daftar isi</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Kolom Tengah: Isi Peraturan (6 Span) */}
-              <div className="lg:col-span-6">
-                <div 
-                  className="flex items-center justify-between gap-2 text-gray-800 font-bold mb-6 cursor-pointer bg-white lg:bg-transparent rounded-xl lg:rounded-none p-4 lg:p-0 shadow-sm lg:shadow-none border border-gray-100 lg:border-none"
-                  onClick={() => setIsIsiPeraturanOpen(!isIsiPeraturanOpen)}
-                >
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-gray-500" />
-                    <h3 className="uppercase tracking-wide">Isi Peraturan</h3>
-                  </div>
-                  <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                    {isIsiPeraturanOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                  </button>
-                </div>
-
-                <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isIsiPeraturanOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-                  <div className="overflow-hidden">
-                    <div className="space-y-6 pb-4">
-                      {/* Abstrak / Pembukaan */}
-                      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                        <div className="flex items-center gap-2 font-bold text-gray-800 mb-4 uppercase text-sm">
-                          <div className="w-2 h-2 bg-[#0A1931] rounded-full"></div>
-                          PEMBUKAAN
-                        </div>
-                        <div className="border-l-4 border-[#0A1931] pl-4 py-1 bg-gray-50/50 rounded-r-lg text-sm text-gray-700 leading-relaxed">
-                          <p className="font-bold text-gray-900 mb-2">{peraturan.judul}</p>
-                          <p>{peraturan.abstrak || 'Tidak ada abstrak atau pembukaan yang tersedia untuk dokumen ini.'}</p>
-                        </div>
-                      </div>
-
-                      {/* Render Struktur dan Pasal yang Dikelompokkan */}
-                      {contentData.map((str: any) => (
-                        <div id={`struktur-${str.id}`} key={`content-str-${str.id}`} className="space-y-4">
-                          <div className="flex items-center gap-2 font-bold text-gray-800 mt-6 mb-2 uppercase text-sm border-b pb-2">
-                            {str.label} {str.judul_struktur ? `- ${str.judul_struktur}` : ''}
-                          </div>
-                          
-                          {str.pasals && str.pasals.map((pasal: any) => (
-                            <div id={`pasal-${pasal.id}`} key={`content-pasal-${pasal.id}`} className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 transition-all hover:shadow-md">
-                              <div className="inline-block px-4 py-1.5 bg-[#0A1931] text-white text-xs font-bold rounded-md mb-4 shadow-sm">
-                                Pasal {pasal.nomor_pasal}
-                              </div>
-                              <div className="text-sm text-gray-700 whitespace-pre-line leading-relaxed pl-1">
-                                {pasal.isi_pasal}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-
-                      {/* Render Pasal yang tidak memiliki struktur_id (jika ada) */}
-                      {unassignedPasals.length > 0 && (
-                        <div className="space-y-4 pt-4">
-                          {unassignedPasals.map((pasal: any) => (
-                            <div id={`pasal-${pasal.id}`} key={`content-pasal-${pasal.id}`} className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 transition-all hover:shadow-md">
-                              <div className="inline-block px-4 py-1.5 bg-[#0A1931] text-white text-xs font-bold rounded-md mb-4 shadow-sm">
-                                Pasal {pasal.nomor_pasal}
-                              </div>
-                              <div className="text-sm text-gray-700 whitespace-pre-line leading-relaxed pl-1">
-                                {pasal.isi_pasal}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Fallback Jika Kosong */}
-                      {contentData.length === 0 && unassignedPasals.length === 0 && (
-                        <div className="bg-white rounded-xl p-8 text-center text-gray-500 shadow-sm border border-gray-100">
-                          Belum ada data isi peraturan.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Kolom Kanan: Riwayat Perubahan (3 Span) */}
-              <div className="lg:col-span-3">
-                <div className="sticky top-28">
-                  <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                    <div 
-                      className="flex items-center justify-between gap-2 text-gray-800 font-bold mb-6 cursor-pointer"
-                      onClick={() => setIsRiwayatOpen(!isRiwayatOpen)}
-                    >
-                      <div className="flex items-center gap-2">
-                        <History className="w-5 h-5 text-gray-500" />
-                        <h3 className="uppercase tracking-wide text-sm">Status & Relasi</h3>
-                      </div>
-                      <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                        {isRiwayatOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                      </button>
-                    </div>
+              {/* Kolom Kiri: Daftar Isi */}
+              <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 lg:sticky lg:top-28">
+                <ReadonlyTableOfContents
+                  pembukaanJudul="Pembukaan"
+                  pembukaanData={pembukaanData}
+                  babList={babsState}
+                  onNavigateToStruktur={handleNavigateToStruktur}
+                  onNavigateToPasal={handleNavigateToPasal}
+                  onNavigateToPembukaan={() => {
+                    setIsPembukaanOpen(true);
+                    setTimeout(() => {
+                      const el = document.getElementById('section-pembukaan');
+                      if (el) {
+                        const headerOffset = 120;
+                        const elementPosition = el.getBoundingClientRect().top;
+                        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                        window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+                      }
+                    }, 100);
+                  }}
+                  onNavigateToSection={(sectionId) => {
+                    if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
+                    else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
+                    else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
+                    else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
                     
-                    <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isRiwayatOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-                      <div className="overflow-hidden">
-                        {peraturan.law_relations && peraturan.law_relations.length > 0 ? (
-                          <div className="space-y-4 mb-4 overflow-y-auto max-h-[65vh] pr-2 scrollbar-thin">
-                            {peraturan.law_relations.map((rel: any, index: number) => {
-                              const relName = rel.relation_type?.nama_relasi || 'Terkait';
-                              // Berikan warna badge berdasarkan tipe relasi
-                              const isMencabut = relName.toLowerCase().includes('cabut');
-                              const isUbah = relName.toLowerCase().includes('ubah');
-                              const badgeClass = isMencabut 
-                                ? 'bg-red-100 text-red-700' 
-                                : isUbah ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
+                    setIsPembukaanOpen(true);
+                    
+                    setTimeout(() => {
+                      const el = document.getElementById(sectionId);
+                      if (el) {
+                        const headerOffset = 120;
+                        const elementPosition = el.getBoundingClientRect().top;
+                        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                        window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+                      }
+                    }, 100);
+                  }}
+                />
+              </div>
 
-                              return (
-                                <Link 
-                                  key={index} 
-                                  href={`/peraturan/${rel.to_peraturan?.unique_id || ''}`}
-                                  className="block p-4 border border-gray-100 rounded-xl hover:border-blue-300 hover:shadow-md transition-all group bg-gray-50/50 hover:bg-blue-50/30"
-                                >
-                                  <div className="flex flex-col items-start gap-2 mb-2">
-                                    <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-md ${badgeClass}`}>
-                                      {relName}
-                                    </span>
-                                  </div>
-                                  <p className="text-xs leading-snug font-semibold text-gray-800 group-hover:text-blue-900 transition-colors">
-                                    {rel.to_peraturan?.judul}
-                                  </p>
-                                  <div className="mt-3 flex items-center gap-2 text-[10px] font-medium text-gray-500">
-                                    <Calendar className="w-3 h-3" />
-                                    Tahun {rel.to_peraturan?.tahun || '-'}
-                                  </div>
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="text-center py-6">
-                            <p className="text-xs text-gray-500 italic">Tidak ada catatan relasi hukum.</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {/* Kolom Tengah: Isi Peraturan */}
+              <div className="flex-1 min-w-0 w-full space-y-4">
+                <ReadonlyPembukaanSection
+                  pembukaan={pembukaanData}
+                  isOpenPembukaan={isPembukaanOpen}
+                  isOpenMenimbang={isMenimbangOpen}
+                  isOpenMengingat={isMengingatOpen}
+                  isOpenMemutuskan={isMemutuskanOpen}
+                  isOpenMenetapkan={isMenetapkanOpen}
+                  onTogglePembukaan={() => setIsPembukaanOpen(!isPembukaanOpen)}
+                  onToggleMenimbang={() => setIsMenimbangOpen(!isMenimbangOpen)}
+                  onToggleMengingat={() => setIsMengingatOpen(!isMengingatOpen)}
+                  onToggleMemutuskan={() => setIsMemutuskanOpen(!isMemutuskanOpen)}
+                  onToggleMenetapkan={() => setIsMenetapkanOpen(!isMenetapkanOpen)}
+                />
+                
+                <ReadonlyBatangTubuhSection
+                  babList={babsState}
+                  onToggleBab={handleToggleBab}
+                  onTogglePasal={handleTogglePasal}
+                />
+              </div>
+
+              {/* Kolom Kanan: Riwayat Perubahan & Metadata */}
+              <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 min-w-0 space-y-4 lg:sticky lg:top-28">
+                <ReadonlyTimelineSection riwayatPerubahan={timelineData} />
               </div>
 
             </div>

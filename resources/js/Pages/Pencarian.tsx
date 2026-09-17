@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { PublicLayout, Section } from '@/Layouts/PublicLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
 import { EmptyState } from '@/Components/admin/EmptyState';
@@ -299,7 +299,11 @@ export default function Pencarian() {
                     const statusName = item.status_peraturan?.nama_status ?? 'Tidak diketahui';
                     
                     return (
-                      <div key={item.id} className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-md transition-shadow">
+                      <Link 
+                        href={`/peraturan/${item.unique_id}`}
+                        key={item.id} 
+                        className="block bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-md hover:border-pr-900 transition-all group cursor-pointer"
+                      >
                         
                         <div className="flex gap-2.5 items-center mb-4">
                           <Badge variant={getStatusVariant(statusName)} className="flex items-center gap-1.5 px-3 py-1 font-semibold rounded-full border border-transparent">
@@ -311,7 +315,7 @@ export default function Pencarian() {
                           </span>
                         </div>
 
-                        <h3 className="text-[17px] font-bold text-gray-900 mb-6 line-clamp-2 leading-snug">
+                        <h3 className="text-[17px] font-bold text-gray-900 mb-6 line-clamp-2 leading-snug group-hover:text-pr-900 transition-colors">
                           {item.judul}
                         </h3>
 
@@ -319,22 +323,19 @@ export default function Pencarian() {
                           <div className="flex items-center gap-3 text-[13px] text-gray-500 font-medium">
                             <span>Tahun {item.tahun}</span>
                             <span className="w-px h-4 bg-gray-300"></span>
-                            <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">
+                            <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full group-hover:bg-gray-200 transition-colors">
                               {item.instansi || 'Pemerintah Pusat'}
                             </span>
                           </div>
                           
-                          <a 
-                            href={`/peraturan/${item.unique_id}`} 
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded-full hover:bg-gray-200 transition-colors"
+                          <div 
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded-full group-hover:bg-pr-900 group-hover:text-white transition-colors"
                           >
                             <Eye className="w-4 h-4" />
                             Lihat Detail
-                          </a>
+                          </div>
                         </div>
-                      </div>
+                      </Link>
                     )
                   })}
 

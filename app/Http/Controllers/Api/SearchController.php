@@ -15,10 +15,33 @@ class SearchController extends Controller
 
         // 1. Filter Keyword (Judul atau Nomor)
         $query->when($request->filled('keyword'), function ($q) use ($request) {
-            $q->where(function($sub) use ($request) {
+            $keyword = trim($request->keyword);
+            
+            // Buat keyword "pintar" yang menormalkan singkatan umum
+            $replacements = [
+                '/\buud\b/i' => 'undang%undang%dasar',
+                '/\buu\b/i' => 'undang%undang',
+                '/\bno\.?\b/i' => 'nomor',
+                '/\bperppu\b/i' => 'peraturan%pemerintah%pengganti%undang%undang',
+                '/\bpp\b/i' => 'peraturan%pemerintah',
+                '/\bperpres\b/i' => 'peraturan%presiden',
+                '/\bpermen\b/i' => 'peraturan%menteri',
+                '/\bpermendagri\b/i' => 'peraturan%menteri%dalam%negeri',
+                '/[\s\-]+/' => '%' // ubah spasi atau strip menjadi wildcard %
+            ];
+            
+            $smartKeyword = preg_replace(array_keys($replacements), array_values($replacements), $keyword);
+
+            $q->where(function($sub) use ($keyword, $smartKeyword) {
                 // Gunakan 'ilike' jika pakai PostgreSQL agar case-insensitive
-                $sub->where('judul', 'ilike', '%' . $request->keyword . '%')
-                    ->orWhere('nomor', 'ilike', '%' . $request->keyword . '%');
+                $sub->where('judul', 'ilike', '%' . $keyword . '%')
+                    ->orWhere('nomor', 'ilike', '%' . $keyword . '%');
+                
+                // Tambahkan pencarian menggunakan smartKeyword jika berbeda
+                if ($smartKeyword !== $keyword && $smartKeyword !== '%') {
+                    $sub->orWhere('judul', 'ilike', '%' . $smartKeyword . '%')
+                        ->orWhere('nomor', 'ilike', '%' . $smartKeyword . '%');
+                }
             });
         });
 
