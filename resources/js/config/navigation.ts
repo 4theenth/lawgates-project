@@ -82,9 +82,9 @@ export const ADMIN_SIDEBAR_MENUS: SidebarMenuItem[] = [
     icon: LayoutGrid,
   },
   {
-    id: 'jenis-hukum',
-    label: 'Jenis Hukum',
-    href: '/admin/jenis-hukum',
+    id: 'kategori-hukum',
+    label: 'Kategori Hukum',
+    href: '/admin/kategori-hukum',
     icon: Gavel,
   },
   {
