@@ -17,8 +17,23 @@ class Pasal extends Model
     }
 
     // Relasi ke tabel struktur_dokumen (Bab/Bagian/Paragraf) yang baru kita buat
-    public function struktur()
+    public function strukturDokumen()
     {
-        return $this->belongsTo(\App\Models\StrukturDokumen::class, 'struktur_id');
+        return $this->belongsTo(StrukturDokumen::class, 'struktur_id');
+    }
+
+    public function penjelasan()
+    {
+        return $this->hasOne(PenjelasanPasal::class, 'pasal_id');
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(Pasal::class, 'parent_pasal_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(Pasal::class, 'parent_pasal_id')->orderBy('urutan');
     }
 }

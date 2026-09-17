@@ -54,7 +54,7 @@ Route::get('/api/referensi-filter', [PeraturanController::class, 'referensiFilte
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('admin')->group(function () {
+Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(function () {
     Route::get('/', function () {
         return redirect()->route('admin.dashboard');
     });

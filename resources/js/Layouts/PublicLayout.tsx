@@ -80,7 +80,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
       <Navbar isScrolled={isScrolled} />
 
       {/* Main Page Content */}
-      <main className="flex-1 w-full flex flex-col justify-center items-center pb-12 sm:pb-16 lg:pb-24">
+      <main className="flex-1 w-full">
         {children}
       </main>
 

@@ -35,10 +35,10 @@ export function AboutOverview() {
       />
 
       {/* Content: Layout sesuai Figma Frame 268 (gap 50px) */}
-      <div className="relative z-10 flex flex-col lg:flex-row w-full items-start lg:items-center gap-6 lg:gap-[50px]">
+      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 w-full items-start lg:items-center gap-6 lg:gap-[50px]">
         
         {/* LEFT: Badge + Metrics */}
-        <div className="flex flex-col items-start gap-3 sm:gap-[15px] w-full lg:w-auto shrink-0">
+        <div className="flex flex-col items-start gap-3 sm:gap-[15px] lg:col-span-7 w-full shrink-0">
             
             {/* Badge */}
             <div
@@ -188,7 +188,7 @@ export function AboutOverview() {
           </div>
 
         {/* RIGHT: Description (Figma Frame 268) */}
-        <div className="flex-1 w-full">
+        <div className="w-full lg:col-span-5">
           <p className="text-white/95 text-justify text-[13px] sm:text-[14px] lg:text-[15px] xl:text-[16px] font-normal leading-[22px] sm:leading-[25px] [text-align-last:left]">
             LawGates adalah platform pangkalan data hukum terpadu yang
             merangkum seluruh peraturan perundang-undangan di Indonesia ke
