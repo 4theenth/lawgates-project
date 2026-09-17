@@ -28,22 +28,24 @@ export function CorrectionBatangTubuhSection({
           key={bab.id}
           className="bg-white rounded-[20px] border border-neu-100 p-5 shadow-2xs space-y-4"
         >
-          <button
-            type="button"
-            onClick={() => onToggleBab(bab.id)}
-            className="w-full flex items-center justify-between cursor-pointer"
-          >
-            <span className="text-[12px] font-bold text-pr-900 tracking-wide uppercase">
-              {bab.judul}
-            </span>
-            {bab.isExpanded ? (
-              <ChevronUp className="w-4 h-4 text-neu-400" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-neu-400" />
-            )}
-          </button>
+          {bab.judul && bab.judul.trim() !== '' && bab.judul.trim() !== '-' && (
+            <button
+              type="button"
+              onClick={() => onToggleBab(bab.id)}
+              className="w-full flex items-center justify-between cursor-pointer"
+            >
+              <span className="text-[12px] font-bold text-pr-900 tracking-wide uppercase">
+                {bab.judul}
+              </span>
+              {bab.isExpanded ? (
+                <ChevronUp className="w-4 h-4 text-neu-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-neu-400" />
+              )}
+            </button>
+          )}
 
-          {bab.isExpanded && (
+          {(bab.isExpanded || !bab.judul || bab.judul.trim() === '' || bab.judul.trim() === '-') && (
             <div className="space-y-4 pt-1">
               {bab.deskripsi && (
                 <textarea
@@ -62,30 +64,32 @@ export function CorrectionBatangTubuhSection({
                   id={`section-${pasal.id}`}
                   className="space-y-2"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center px-3 py-1 rounded-[6px] bg-pr-900 text-white text-[11px] font-semibold">
-                      {pasal.nomor}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onTogglePasal(bab.id, pasal.id)}
-                      className="p-1 text-neu-400 hover:text-black cursor-pointer"
-                    >
-                      {pasal.isExpanded ? (
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                  </div>
+                  {pasal.nomor && pasal.nomor.trim() !== '-' && pasal.nomor.trim() !== '' && (
+                    <div className="flex items-center justify-between">
+                      <span className="inline-flex items-center px-3 py-1 rounded-[6px] bg-pr-900 text-white text-[11px] font-semibold">
+                        {pasal.nomor}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onTogglePasal(bab.id, pasal.id)}
+                        className="p-1 text-neu-400 hover:text-black cursor-pointer"
+                      >
+                        {pasal.isExpanded ? (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  )}
 
-                  {pasal.isExpanded && (
+                  {(pasal.isExpanded || !pasal.nomor || pasal.nomor.trim() === '-' || pasal.nomor.trim() === '') && (
                     <textarea
                       rows={3}
                       value={pasal.isi}
                       onChange={(e) => onChangePasalIsi(bab.id, pasal.id, e.target.value)}
                       className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900"
-                      placeholder="Isi pasal..."
+                      placeholder="Isi bagian..."
                     />
                   )}
                 </div>

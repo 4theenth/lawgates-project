@@ -41,7 +41,7 @@ export function CorrectionTableOfContents({
         </button>
 
         {/* Navigasi Batang Tubuh / BAB */}
-        {babList.map((bab) => {
+        {babList.filter(bab => bab.judul && bab.judul.trim() !== '' && bab.judul.trim() !== '-').map((bab) => {
           if (bab.isExpanded) {
             return (
               <div key={bab.id} className="space-y-2">
@@ -54,9 +54,9 @@ export function CorrectionTableOfContents({
                   <ChevronRight className="w-4 h-4 text-pr-900 shrink-0 ml-2 rotate-90 transition-transform" />
                 </button>
 
-                {bab.pasalList.length > 0 && (
+                {bab.pasalList.filter(p => p.nomor && p.nomor.trim() !== '-' && p.nomor.trim() !== '').length > 0 && (
                   <div className="pl-3 py-1 space-y-1.5 border-l-2 border-pr-900 ml-2">
-                    {bab.pasalList.map((pasal) => (
+                    {bab.pasalList.filter(p => p.nomor && p.nomor.trim() !== '-' && p.nomor.trim() !== '').map((pasal) => (
                       <button
                         key={pasal.id}
                         type="button"
