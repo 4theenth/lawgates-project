@@ -23,6 +23,7 @@ class GoogleAuthController extends Controller
 
         // Fetch user info from Google
         $response = Http::withToken($accessToken)
+            ->when(app()->environment('local'), fn ($http) => $http->withoutVerifying())
             ->get('https://www.googleapis.com/oauth2/v3/userinfo');
 
         if ($response->failed()) {
@@ -42,10 +43,11 @@ class GoogleAuthController extends Controller
         } else {
             // Create new user
             $user = User::create([
-                'username' => $googleUser['name'],
+                'username' => $googleUser['name'] ?? explode('@', $googleUser['email'])[0],
                 'email' => $googleUser['email'],
                 'google_id' => $googleUser['sub'],
                 'auth_provider' => 'google',
+                'role' => 'user',
                 'password' => null,
             ]);
 
@@ -53,6 +55,10 @@ class GoogleAuthController extends Controller
         }
 
         Auth::login($user, $remember);
+
+        if (in_array($user->role, ['admin', 'superadmin'])) {
+            return redirect()->intended(route('admin.dashboard'));
+        }
 
         return redirect()->intended('/');
     }
