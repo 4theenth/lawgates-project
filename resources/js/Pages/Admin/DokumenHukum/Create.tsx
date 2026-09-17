@@ -140,6 +140,32 @@ export default function DokumenHukumCreate() {
         return;
       }
 
+      let isDuplicate = false;
+      if (parsedData?.metadata?.id_dokumen) {
+        try {
+          const checkRes = await fetch(`/peraturan/${parsedData.metadata.id_dokumen}`, {
+            headers: { Accept: 'application/json' },
+          });
+          if (checkRes.status === 200) {
+            const resJson = await checkRes.json();
+            if (resJson.success) {
+              const judul = resJson.data.judul || '';
+              if (!judul.toLowerCase().includes('menunggu import') && !judul.toLowerCase().includes('menunggu impor')) {
+                setInlineError(`Data yang mau diupload ("${parsedData.metadata.judul || file.name}") sudah ada di database.`);
+                isDuplicate = true;
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Gagal mengecek duplikasi", err);
+        }
+      }
+
+      if (isDuplicate) {
+        // Skip adding this file to newItems, or we can just stop the whole batch
+        continue;
+      }
+
       newItems.push({
         id: `${Date.now()}-${idx}`,
         name: file.name,
@@ -149,8 +175,12 @@ export default function DokumenHukumCreate() {
       });
     }
 
-    setInlineError(null);
-    setUploadedFiles((prev) => [...prev, ...newItems]);
+    if (newItems.length > 0) {
+      // Hanya reset error jika ada item valid yang ditambahkan dan error sebelumnya bukan tentang duplikat
+      // Tapi untuk simplicity, kita biarkan error tertampil jika ada skip, 
+      // dan tambahkan yang valid.
+      setUploadedFiles((prev) => [...prev, ...newItems]);
+    }
   };
 
   // Handler hapus berkas unggahan di Langkah 1
@@ -256,42 +286,42 @@ export default function DokumenHukumCreate() {
   }, [currentStep, processList, selectedCategory]);
 
   // Handler simpan seluruh berkas ke database
-  const handleSaveToDatabase = () => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('lawgates_admin_documents');
-      let currentDocs: any[] = [];
-      if (saved) {
-        try {
-          currentDocs = JSON.parse(saved);
-        } catch (e) {
-          currentDocs = [];
-        }
-      }
+  const handleSaveToDatabase = async () => {
+    try {
+      const payload = {
+        files: validatedFiles.map(file => ({
+          parsedData: file.parsedData || file.correctionData
+        }))
+      };
 
-      // Konversi berkas tervalidasi ke dalam DokumenHukumItem
-      const newDocs = validatedFiles.map((file, idx) => {
-        const todayStr = new Intl.DateTimeFormat('id-ID', {
-          day: '2-digit',
-          month: 'long',
-          year: 'numeric',
-        }).format(new Date());
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-        return {
-          id: String(Date.now() + idx),
-          kategori: file.category || selectedCategory || 'UU',
-          judul: file.title || file.name,
-          status: 'berlaku' as const,
-          tgl_ditetapkan: file.correctionData?.metadata?.tanggalDitetapkan || todayStr,
-        };
+      const response = await fetch('/admin/dokumen-hukum/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': csrfToken || '',
+        },
+        body: JSON.stringify(payload)
       });
 
-      const updated = [...newDocs, ...currentDocs];
-      localStorage.setItem('lawgates_admin_documents', JSON.stringify(updated));
-    }
+      if (!response.ok) {
+        const errorData = await response.json();
+        let errorMsg = errorData.message || 'Gagal menyimpan data ke database';
+        if (errorData.errors && errorData.errors.length > 0) {
+          errorMsg += '\nDetail: ' + errorData.errors.join(', ');
+        }
+        throw new Error(errorMsg);
+      }
 
-    setCurrentStep(4);
-    setIsSavedSuccess(true);
-    toast.success('Data hukum berhasil disimpan ke database!');
+      setCurrentStep(4);
+      setIsSavedSuccess(true);
+      toast.success('Data hukum berhasil disimpan ke database!');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Terjadi kesalahan saat menyimpan data.');
+    }
   };
 
   // JIKA SEDANG MENGOREKSI FILE: Tampilkan Layar Penuh Koreksi Data Hukum (Sesuai Gambar 2)
