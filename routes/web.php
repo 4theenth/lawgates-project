@@ -54,6 +54,7 @@ Route::get('/api/referensi-filter', [PeraturanController::class, 'referensiFilte
 |--------------------------------------------------------------------------
 */
 use App\Http\Controllers\Admin\DokumenHukumController;
+use App\Http\Controllers\Admin\KategoriHukumController;
 
 
 Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(function () {
@@ -64,6 +65,11 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     Route::get('/dashboard', function () {
         return Inertia::render('Admin/Dashboard');
     })->name('admin.dashboard');
+
+    Route::get('/kategori-hukum', [KategoriHukumController::class, 'index'])->name('admin.kategori-hukum');
+    Route::post('/kategori-hukum', [KategoriHukumController::class, 'store'])->name('admin.kategori-hukum.store');
+    Route::put('/kategori-hukum/{id}', [KategoriHukumController::class, 'update'])->name('admin.kategori-hukum.update');
+    Route::delete('/kategori-hukum/{id}', [KategoriHukumController::class, 'destroy'])->name('admin.kategori-hukum.destroy');
 
     Route::get('/dokumen-hukum', [DokumenHukumController::class, 'index'])->name('admin.dokumen-hukum');
     Route::delete('/dokumen-hukum/{unique_id}', [DokumenHukumController::class, 'destroy'])->name('admin.dokumen-hukum.destroy');

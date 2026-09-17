@@ -9,43 +9,59 @@ class JenisPeraturanSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('jenis_peraturan')->insert([
+        $data = [
             [
-                'kode' => 'UUD',
-                'nama' => 'Undang-Undang Dasar 1945',
-            ],
-            [
-                'kode' => 'TAP MPR',
-                'nama' => 'Ketetapan MPR',
+                'kode' => 'PERPRES',
+                'nama' => 'Peraturan Presiden',
+                'deskripsi' => 'Dikhususkan untuk peraturan presiden',
             ],
             [
                 'kode' => 'UU',
-                'nama' => 'Undang-Undang',
-            ],
-            [
-                'kode' => 'PERPU',
-                'nama' => 'Peraturan Pemerintah Pengganti Undang-Undang',
+                'nama' => 'Undang Undang',
+                'deskripsi' => 'Dikhususkan untuk undang undang',
             ],
             [
                 'kode' => 'PP',
                 'nama' => 'Peraturan Pemerintah',
+                'deskripsi' => 'Dikhususkan untuk peraturan pemerintah',
             ],
             [
-                'kode' => 'PERPRES',
-                'nama' => 'Peraturan Presiden',
+                'kode' => 'PERBAN',
+                'nama' => 'Peraturan Badan/Lembaga',
+                'deskripsi' => 'Dikhususkan untuk peraturan badan / lembaga',
             ],
             [
-                'kode' => 'PERDA PROV',
-                'nama' => 'Peraturan Daerah Provinsi',
-            ],
-            [
-                'kode' => 'PERDA KAB',
-                'nama' => 'Peraturan Daerah Kabupaten/Kota',
+                'kode' => 'PERDA',
+                'nama' => 'Peraturan Daerah',
+                'deskripsi' => 'Dikhususkan untuk peraturan daerah',
             ],
             [
                 'kode' => 'PERMEN',
-                'nama' => 'Peraturan Menteri',
+                'nama' => 'Peraturan Mentri',
+                'deskripsi' => 'Dikhususkan untuk peraturan mentri',
             ],
-        ]);
+            [
+                'kode' => 'UU_DRT',
+                'nama' => 'Undang Undang Darurat',
+                'deskripsi' => 'Dikhususkan untuk undang undang darurat',
+            ],
+            [
+                'kode' => 'PENPRES',
+                'nama' => 'Penetapan Presiden',
+                'deskripsi' => 'Dikhususkan untuk penetapan presiden',
+            ],
+            [
+                'kode' => 'KEPPRES',
+                'nama' => 'Keputusan Presiden',
+                'deskripsi' => 'Dikhususkan untuk keputusan presiden',
+            ],
+        ];
+
+        foreach ($data as $item) {
+            DB::table('jenis_peraturan')->updateOrInsert(
+                ['kode' => $item['kode']],
+                ['nama' => $item['nama'], 'deskripsi' => $item['deskripsi']]
+            );
+        }
     }
 }
