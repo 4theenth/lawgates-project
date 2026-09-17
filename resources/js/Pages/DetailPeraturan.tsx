@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { PublicLayout } from '@/Layouts/PublicLayout';
+import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
 import { 
   CheckCircle2, 
@@ -182,16 +182,16 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
       const container = document.getElementById('scrollable-content');
       if (container && window.innerWidth >= 1024) {
-        const headerOffset = 24; 
+        const headerOffset = 16;
         const elementPosition = el.getBoundingClientRect().top;
         const containerPosition = container.getBoundingClientRect().top;
         const offsetPosition = elementPosition - containerPosition + container.scrollTop - headerOffset;
-        container.scrollTo({ top: offsetPosition, behavior: "smooth" });
+        container.scrollTo({ top: offsetPosition, behavior: 'smooth' });
       } else {
         const headerOffset = 120;
         const elementPosition = el.getBoundingClientRect().top;
         const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-        window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+        window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
       }
     }, 100);
   };
@@ -364,8 +364,8 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     <PublicLayout>
       <Head title={`${peraturan?.judul || 'Detail Peraturan'} - LawGates`} />
 
-      <div className="bg-[#F8F9FA] min-h-screen pb-16 w-full min-w-0 overflow-x-hidden">
-        <div className="pt-24 pb-8 w-full max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-3.5 sm:px-6 lg:px-8 xl:px-12 text-gray-900 min-w-0">
+      <div className="w-full min-w-0 overflow-x-hidden">
+        <div className={`pt-20 sm:pt-24 pb-8 sm:pb-12 ${PAGE_CONTAINER} text-gray-900 min-w-0`}>
           
           {/* Breadcrumb Navigasi */}
           <div className="mb-4 sm:mb-5">
@@ -452,11 +452,11 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
             </div>
           </div>
 
-            {/* Layout 3-Kolom Menggunakan Komponen Readonly Baru */}
-            <div className="flex flex-col lg:flex-row items-start gap-6 w-full min-w-0">
+            {/* Layout 3-Kolom: Sesuai Proporsi Form Koreksi Data (Daftar Isi Kiri, Editor Utama Tengah Panjang, Status Kanan) */}
+            <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5 w-full min-w-0">
               
-              {/* Kolom Kiri: Daftar Isi */}
-              <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 lg:sticky lg:top-28">
+              {/* Kolom Kiri: Daftar Isi (Ramping seperti Form Koreksi Data) */}
+              <div className="w-full lg:w-[220px] xl:w-[240px] shrink-0 lg:sticky lg:top-28">
                 <ReadonlyTableOfContents
                   pembukaanJudul="Pembukaan"
                   pembukaanData={pembukaanData}
@@ -479,10 +479,10 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                 />
               </div>
 
-              {/* Kolom Tengah: Isi Peraturan */}
+              {/* Kolom Tengah: Isi Peraturan (Sticky, Scrollable, Lebih Panjang Sedikit dari Kolom Kiri & Kanan) */}
               <div 
                 id="scrollable-content"
-                className="flex-1 min-w-0 w-full space-y-4 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-2 lg:pb-16 custom-scrollbar scroll-smooth"
+                className="flex-1 min-w-0 w-full space-y-4 lg:sticky lg:top-28 lg:h-[calc(100vh-105px)] lg:overflow-y-auto lg:pr-2.5 custom-scrollbar scroll-smooth pb-12"
               >
                 <ReadonlyPembukaanSection
                   pembukaan={pembukaanData}
@@ -506,7 +506,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
               </div>
 
               {/* Kolom Kanan: Riwayat Perubahan & Metadata dengan Tombol RELASI */}
-              <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 min-w-0 space-y-4 lg:sticky lg:top-28">
+              <div className="w-full lg:w-[240px] xl:w-[260px] shrink-0 min-w-0 space-y-4 lg:sticky lg:top-28">
                 <ReadonlyTimelineSection 
                   riwayatPerubahan={timelineData} 
                   onRelasiClick={handleRelasi}
