@@ -75,7 +75,32 @@ class ImportOcrJson extends Command
             ];
 
             $urutan = 1;
-            foreach ($data['chunks'] as $chunk) {
+            
+            // Pre-process chunks to move preamble text to the next chunk
+            $chunks = $data['chunks'];
+            $preambleRegex = '/(Ketentuan\s+Pasal\s+.*?\s+diubah\s+sehingga\s+berbunyi\s+sebagai\s+berikut:)/is';
+            
+            for ($i = 0; $i < count($chunks); $i++) {
+                if (isset($chunks[$i]['teks'])) {
+                    if (preg_match($preambleRegex, $chunks[$i]['teks'], $matches)) {
+                        $preamble = $matches[1];
+                        // Remove preamble from current chunk
+                        $chunks[$i]['teks'] = preg_replace($preambleRegex, '', $chunks[$i]['teks']);
+                        // Clean up trailing whitespaces/newlines after removal
+                        $chunks[$i]['teks'] = trim($chunks[$i]['teks']);
+                        
+                        // Append to the next PASAL chunk
+                        for ($j = $i + 1; $j < count($chunks); $j++) {
+                            if (strtoupper($chunks[$j]['tipe'] ?? '') === 'PASAL') {
+                                $chunks[$j]['teks'] = $preamble . "\n\n" . ($chunks[$j]['teks'] ?? '');
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            foreach ($chunks as $chunk) {
                 $tipe = strtoupper($chunk['tipe'] ?? '');
                 $bagianDokumen = strtoupper($chunk['bagian_dokumen'] ?? '');
 
@@ -97,16 +122,27 @@ class ImportOcrJson extends Command
                 // Isi Pasal
                 if ($tipe === 'PASAL') {
                     $strukturId = $currentStrukturIds['PARAGRAF'] 
-                               ?? $currentStrukturIds['BAGIAN'] 
-                               ?? $currentStrukturIds['BAB'] 
-                               ?? null;
+                                ?? $currentStrukturIds['BAGIAN'] 
+                                ?? $currentStrukturIds['BAB'] 
+                                ?? null;
+
+                    $parentPasalId = null;
+                    if (!empty($chunk['parent_pasal_perubahan'])) {
+                        $parentPasal = Pasal::where('peraturan_id', $peraturan->id)
+                                            ->where('nomor_pasal', $chunk['parent_pasal_perubahan'])
+                                            ->first();
+                        if ($parentPasal) {
+                            $parentPasalId = $parentPasal->id;
+                        }
+                    }
 
                     Pasal::create([
-                        'peraturan_id' => $peraturan->id,
-                        'struktur_id'  => $strukturId,
-                        'nomor_pasal'  => $chunk['label'] ?? 'Tanpa Label', 
-                        'isi_pasal'    => $chunk['teks'] ?? null,           
-                        'urutan'       => $urutan++,                        
+                        'peraturan_id'    => $peraturan->id,
+                        'struktur_id'     => $strukturId,
+                        'parent_pasal_id' => $parentPasalId,
+                        'nomor_pasal'     => $chunk['label'] ?? 'Tanpa Label', 
+                        'isi_pasal'       => $chunk['teks'] ?? null,           
+                        'urutan'          => $urutan++,                        
                     ]);
                 } 
                 // Struktur Dokumen (Bab, Bagian, dst)

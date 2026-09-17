@@ -4,7 +4,9 @@ export interface ArticleItem {
   id: string;
   nomor: string;
   isi: string;
+  penjelasan?: string;
   isExpanded?: boolean;
+  pasalList?: ArticleItem[];
 }
 
 export interface ChapterItem {
@@ -13,6 +15,7 @@ export interface ChapterItem {
   deskripsi?: string;
   pasalList: ArticleItem[];
   isExpanded?: boolean;
+  children?: ChapterItem[];
 }
 
 export interface TimelineRelationItem {

@@ -1,7 +1,9 @@
 import React, { FormEventHandler } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, router } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { AuthCard, FormInput, FormCheckbox } from '@/Components/common';
+import { useGoogleLogin } from '@react-oauth/google';
+import { useToast } from '@/hooks/useToast';
 
 export interface LoginProps {
     status?: string;
@@ -14,6 +16,7 @@ export default function Login({ status, canResetPassword = true }: LoginProps) {
         password: '',
         remember: false as boolean,
     });
+    const { toast } = useToast();
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -43,10 +46,25 @@ export default function Login({ status, canResetPassword = true }: LoginProps) {
         });
     };
 
-    const handleGoogleLogin = () => {
-        // Placeholder atau integrasi Google OAuth bila route tersedia
-        window.location.href = '/auth/google';
-    };
+    const handleGoogleLogin = useGoogleLogin({
+        onSuccess: (tokenResponse) => {
+            // Post the token to the backend using router
+            router.post('/auth/google/callback', {
+                access_token: tokenResponse.access_token,
+                remember: true
+            }, {
+                onSuccess: () => {
+                    toast.success('Berhasil', 'Berhasil login dengan Google');
+                },
+                onError: () => {
+                    toast.error('Gagal', 'Terjadi kesalahan saat verifikasi login Google');
+                }
+            });
+        },
+        onError: () => {
+            toast.error('Gagal', 'Login dengan Google dibatalkan atau gagal');
+        }
+    });
 
     return (
         <GuestLayout>

@@ -14,9 +14,11 @@ class CheckRole
      */
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        // Pastikan user sudah login (punya token)
         if (!$request->user()) {
-            return response()->json(['message' => 'Unauthorized. Silakan login terlebih dahulu.'], 401);
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json(['message' => 'Unauthorized. Silakan login terlebih dahulu.'], 401);
+            }
+            return redirect()->route('login');
         }
 
         // Ambil role dari user yang sedang login
@@ -24,9 +26,13 @@ class CheckRole
 
         // Cek apakah role user tersebut ada di dalam daftar role yang diizinkan ($roles)
         if (!in_array($userRole, $roles)) {
-            return response()->json([
-                'message' => 'Forbidden. Akses ditolak untuk role Anda.'
-            ], 403);
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'message' => 'Forbidden. Akses ditolak untuk role Anda.'
+                ], 403);
+            }
+            // User yang tidak berhak mengakses halaman ini dilempar balik ke beranda ('/')
+            return redirect('/');
         }
 
         // Jika role sesuai, lanjutkan request ke Controller
