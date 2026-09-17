@@ -47,24 +47,27 @@ export function FilterPopover({
   const hasSelection = activeCount > 0;
 
   return (
-    <div className="relative inline-block" ref={popoverRef}>
-      {/* Tombol Filter Utama */}
+    <div className="relative inline-block shrink-0" ref={popoverRef}>
+      {/* Tombol Filter Utama dengan Lebar Tetap & Badge Ruang Terproteksi (Zero Layout Shift) */}
       <button
         type="button"
         onClick={onToggle}
-        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] border transition-colors shadow-2xs cursor-pointer text-[12px] font-medium ${
+        className={`relative inline-flex items-center justify-center gap-1.5 w-[94px] h-[33px] rounded-[10px] border transition-colors shadow-2xs cursor-pointer text-[12px] font-medium shrink-0 select-none ${
           isOpen || hasSelection
-            ? 'border-pr-900 bg-pr-50 text-pr-900'
+            ? 'border-pr-900 bg-pr-50 text-pr-900 font-semibold'
             : 'border-neu-50 bg-white text-neu-700 hover:bg-gray-50 hover:text-black'
         }`}
       >
-        <Filter className="w-3.5 h-3.5 text-neu-500" />
+        <Filter className={`w-3.5 h-3.5 shrink-0 ${isOpen || hasSelection ? 'text-pr-900' : 'text-neu-500'}`} />
         <span>Filter</span>
-        {hasSelection && (
-          <span className="ml-1 w-4 h-4 rounded-full bg-pr-900 text-white text-[10px] flex items-center justify-center font-bold">
-            {activeCount}
-          </span>
-        )}
+        {/* Ruang badge selalu dipertahankan (invisible saat tidak ada filter) agar search bar tidak pernah goyang atau bergeser */}
+        <span
+          className={`w-4 h-4 rounded-full bg-pr-900 text-white text-[10px] font-bold flex items-center justify-center shrink-0 transition-opacity ${
+            hasSelection ? 'visible opacity-100' : 'invisible opacity-0'
+          }`}
+        >
+          {activeCount}
+        </span>
       </button>
 
       {/* Popover Dropdown */}
