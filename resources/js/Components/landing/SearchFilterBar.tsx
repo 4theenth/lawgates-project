@@ -37,7 +37,7 @@ function FilterDropdown({
   const displayLabel = selectedOption ? selectedOption.label : placeholder;
 
   return (
-    <div className="flex-1 text-left min-w-0 relative">
+    <div className={`flex-1 text-left min-w-0 relative ${isOpen ? 'z-50' : 'z-10'}`}>
       <div className="text-left text-neu-200 text-[11px] sm:text-[12px] font-normal leading-[16px] sm:leading-[18px] mb-1">
         {label}
       </div>
@@ -57,7 +57,7 @@ function FilterDropdown({
       </button>
 
       {isOpen && (
-        <div className="absolute top-[calc(100%+4px)] left-0 w-full min-w-[140px] sm:min-w-[170px] bg-[#07132B] border border-pr-700/90 rounded-[14px] shadow-2xl backdrop-blur-2xl py-1 z-50 max-h-48 overflow-y-auto">
+        <div className="absolute top-[calc(100%+6px)] left-0 w-full sm:min-w-[170px] bg-[#07132B] border border-pr-700/90 rounded-[14px] shadow-[0_16px_40px_rgba(0,0,0,0.85)] backdrop-blur-2xl py-1.5 z-50 max-h-52 overflow-y-auto custom-scrollbar">
           <button
             type="button"
             onClick={() => {
