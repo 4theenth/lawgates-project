@@ -54,6 +54,10 @@ class GoogleAuthController extends Controller
 
         Auth::login($user, $remember);
 
+        if (in_array($user->role, ['admin', 'superadmin'])) {
+            return redirect()->intended(route('admin.dashboard'));
+        }
+
         return redirect()->intended('/');
     }
 }

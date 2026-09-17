@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { LogIn, Menu, X } from 'lucide-react';
+import { LogIn, Menu, X, User, LogOut, ChevronDown, LayoutDashboard } from 'lucide-react';
 import { Link, usePage } from '@inertiajs/react';
 import { NAVBAR_MENUS, NAVBAR_THEME } from '../../config/navigation';
 import type { MenuItem } from '../../types/navigation';
 import { PAGE_CONTAINER } from '../../Layouts/PublicLayout';
+import Dropdown from '@/Components/common/Dropdown';
+import profileAvatar from '@/assets/profile-avatar.webp';
 
 interface NavbarProps {
   isScrolled: boolean;
@@ -11,8 +13,17 @@ interface NavbarProps {
 }
 
 export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
-  const { url } = usePage();
+  const { url, props } = usePage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const auth = (props as any)?.auth;
+  const user = auth?.user;
+
+  const profileImg = user?.avatar || profileAvatar;
+  const displayName = user?.name || user?.username || 'User';
+  const displayEmail = user?.email || '';
+  const displayRole = user?.role || 'user';
+  const isAdmin = user && ['admin', 'superadmin'].includes(user.role);
 
   // Helper untuk menentukan apakah menu sedang aktif berdasarkan URL saat ini
   const isMenuActive = (path: string, isIndex?: boolean) => {
@@ -43,26 +54,99 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
             </span>
           </Link>
 
-          {/* Desktop Login Button - slides inward toward the center menu when container narrows */}
+          {/* Desktop Auth Section (Login Button OR User Profile Dropdown) */}
           <div className="hidden md:flex items-center gap-4 z-10 transition-transform duration-500">
-            <Link
-              href="/login"
-              className="flex items-center gap-2 bg-pr-900 hover:bg-pr-800 border border-pr-800 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wider transition-all shadow-sm"
-            >
-              <span>LOGIN</span>
-              <LogIn className="w-3.5 h-3.5 text-white" />
-            </Link>
+            {user ? (
+              <Dropdown>
+                <Dropdown.Trigger>
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 cursor-pointer p-1 rounded-full hover:bg-neu-50/20 transition-colors focus:outline-none"
+                    title={displayName}
+                  >
+                    <div
+                      className="w-[34px] h-[34px] rounded-full border border-neu-200/60 shadow-2xs overflow-hidden bg-cover bg-center bg-no-repeat bg-neu-100 shrink-0"
+                      style={{ backgroundImage: `url("${profileImg}")` }}
+                    />
+                    <ChevronDown className={`w-3.5 h-3.5 shrink-0 stroke-[2] ${theme.inactiveItem}`} />
+                  </button>
+                </Dropdown.Trigger>
+
+                <Dropdown.Content width="48" contentClasses="p-1 bg-white border border-neu-100 rounded-xl shadow-xl">
+                  {/* Header User Info */}
+                  <div className="px-3.5 py-2.5 border-b border-neu-50 select-none">
+                    <p className="text-[13px] font-semibold text-neu-900 truncate">
+                      {displayName}
+                    </p>
+                    <p className="text-[11px] text-neu-500 truncate">
+                      {displayEmail}
+                    </p>
+                    <div className="mt-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-pr-50 text-pr-900">
+                      {displayRole}
+                    </div>
+                  </div>
+
+                  {/* Menu Items */}
+                  <div className="py-1">
+                    {isAdmin && (
+                      <Dropdown.Link
+                        href={route('admin.dashboard')}
+                        className="flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors"
+                      >
+                        <LayoutDashboard className="w-3.5 h-3.5 text-neu-500" />
+                        <span>Dashboard Admin</span>
+                      </Dropdown.Link>
+                    )}
+
+                    <Dropdown.Link
+                      href={route('profile.edit')}
+                      className="flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <User className="w-3.5 h-3.5 text-neu-500" />
+                      <span>Pengaturan Profil</span>
+                    </Dropdown.Link>
+
+                    <Dropdown.Link
+                      href={route('logout')}
+                      method="post"
+                      as="button"
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-dan-800 hover:bg-dan-50 rounded-lg transition-colors text-left cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-dan-800" />
+                      <span>Keluar (Log Out)</span>
+                    </Dropdown.Link>
+                  </div>
+                </Dropdown.Content>
+              </Dropdown>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center gap-2 bg-pr-900 hover:bg-pr-800 border border-pr-800 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wider transition-all shadow-sm"
+              >
+                <span>LOGIN</span>
+                <LogIn className="w-3.5 h-3.5 text-white" />
+              </Link>
+            )}
           </div>
 
-          {/* Mobile Hamburger Button */}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            className={`md:hidden p-2 -mr-1 focus:outline-none transition-colors duration-300 z-10 ${theme.hamburger}`}
-            aria-label="Buka menu navigasi"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
+          {/* Mobile Right Section (Avatar + Hamburger) */}
+          <div className="flex items-center gap-2 md:hidden z-10">
+            {user && (
+              <div
+                className="w-[30px] h-[30px] rounded-full border border-neu-200/60 shadow-2xs overflow-hidden bg-cover bg-center bg-no-repeat bg-neu-100 shrink-0"
+                style={{ backgroundImage: `url("${profileImg}")` }}
+                title={displayName}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className={`p-2 -mr-1 focus:outline-none transition-colors duration-300 ${theme.hamburger}`}
+              aria-label="Buka menu navigasi"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Center Navigation Menu (Desktop: hidden on mobile)
@@ -182,16 +266,71 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
             </nav>
           </div>
 
-          {/* Bottom section: Full-width Login Button */}
+          {/* Bottom section: Full-width Login Button or User Profile Card */}
           <div className="pt-6 border-t border-pr-800">
-            <Link
-              href="/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full flex items-center justify-center gap-2 bg-sec-900 hover:bg-sec-800 text-pr-900 py-3 px-4 rounded-xl text-sm font-semibold tracking-wide transition-all shadow-md active:scale-[0.98]"
-            >
-              <span>Layanan (Login)</span>
-              <LogIn className="w-4 h-4" />
-            </Link>
+            {user ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 px-1">
+                  <div
+                    className="w-[40px] h-[40px] rounded-full border border-pr-600 shadow-sm overflow-hidden bg-cover bg-center bg-no-repeat shrink-0"
+                    style={{ backgroundImage: `url("${profileImg}")` }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white truncate">
+                      {displayName}
+                    </p>
+                    <p className="text-xs text-neu-300 truncate">
+                      {displayEmail}
+                    </p>
+                    <span className="mt-1 inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-white/10 text-white">
+                      {displayRole}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1 pt-2">
+                  {isAdmin && (
+                    <Link
+                      href={route('admin.dashboard')}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-neu-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+                    >
+                      <LayoutDashboard className="w-4 h-4 text-sec-900" />
+                      <span>Dashboard Admin</span>
+                    </Link>
+                  )}
+
+                  <Link
+                    href={route('profile.edit')}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-neu-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+                  >
+                    <User className="w-4 h-4 text-neu-300" />
+                    <span>Pengaturan Profil</span>
+                  </Link>
+
+                  <Link
+                    href={route('logout')}
+                    method="post"
+                    as="button"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors text-left cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 text-red-400" />
+                    <span>Keluar (Log Out)</span>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full flex items-center justify-center gap-2 bg-sec-900 hover:bg-sec-800 text-pr-900 py-3 px-4 rounded-xl text-sm font-semibold tracking-wide transition-all shadow-md active:scale-[0.98]"
+              >
+                <span>Layanan (Login)</span>
+                <LogIn className="w-4 h-4" />
+              </Link>
+            )}
           </div>
         </div>
       </div>
