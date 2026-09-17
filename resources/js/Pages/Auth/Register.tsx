@@ -2,6 +2,7 @@ import React, { FormEventHandler } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { AuthCard, FormInput } from '@/Components/common';
+import { Icon } from '@/Components/ui/icon';
 
 export default function Register() {
     const { data, setData, post, processing, errors, reset, setError, clearErrors } = useForm({
@@ -11,6 +12,10 @@ export default function Register() {
         password: '',
         password_confirmation: '',
     });
+
+    const hasCapital = /[A-Z]/.test(data.password);
+    const hasMinLength = data.password.length >= 8;
+    const hasNumberOrSymbol = /[0-9]/.test(data.password) || /[^a-zA-Z0-9]/.test(data.password);
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -32,6 +37,9 @@ export default function Register() {
 
         if (!data.password) {
             setError('password', 'Kata sandi wajib diisi.');
+            hasError = true;
+        } else if (!hasCapital || !hasMinLength || !hasNumberOrSymbol) {
+            setError('password', 'Kata sandi belum memenuhi ketentuan.');
             hasError = true;
         }
 
@@ -151,6 +159,43 @@ export default function Register() {
                             if (errors.password_confirmation) clearErrors('password_confirmation');
                         }}
                     />
+
+                    {/* Ketentuan Kata Sandi */}
+                    <div className="pt-1 space-y-1.5">
+                        <p className="text-xs font-semibold text-neu-800">Ketentuan Kata Sandi:</p>
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                {hasCapital ? (
+                                    <Icon name="check" className="h-3.5 w-3.5 text-suc-800 shrink-0" strokeWidth={2.5} />
+                                ) : (
+                                    <Icon name="x" className="h-3.5 w-3.5 text-neu-400 shrink-0" strokeWidth={2.5} />
+                                )}
+                                <span className={hasCapital ? 'text-xs text-neu-700' : 'text-xs text-neu-500'}>
+                                    Menggunakan huruf Kapital
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {hasMinLength ? (
+                                    <Icon name="check" className="h-3.5 w-3.5 text-suc-800 shrink-0" strokeWidth={2.5} />
+                                ) : (
+                                    <Icon name="x" className="h-3.5 w-3.5 text-neu-400 shrink-0" strokeWidth={2.5} />
+                                )}
+                                <span className={hasMinLength ? 'text-xs text-neu-700' : 'text-xs text-neu-500'}>
+                                    Minimal 8 karakter
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {hasNumberOrSymbol ? (
+                                    <Icon name="check" className="h-3.5 w-3.5 text-suc-800 shrink-0" strokeWidth={2.5} />
+                                ) : (
+                                    <Icon name="x" className="h-3.5 w-3.5 text-neu-400 shrink-0" strokeWidth={2.5} />
+                                )}
+                                <span className={hasNumberOrSymbol ? 'text-xs text-neu-700' : 'text-xs text-neu-500'}>
+                                    Menggunakan angka atau simbol
+                                </span>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* Submit Button */}
                     <div className="pt-2">
