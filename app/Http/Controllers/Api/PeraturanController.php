@@ -42,7 +42,7 @@ class PeraturanController extends Controller
                 $q->orderBy('id', 'asc'); 
             },
             'pasal' => function($q) { 
-                $q->orderBy('urutan', 'asc'); 
+                $q->with(['penjelasan', 'children.penjelasan'])->orderBy('urutan', 'asc'); 
             },
             'lawRelations.toPeraturan',
             'lawRelations.relationType'

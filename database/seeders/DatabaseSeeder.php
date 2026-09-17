@@ -40,5 +40,11 @@ class DatabaseSeeder extends Seeder
             'judul' => 'Kitab Undang-Undang Hukum Pidana',
             'status_id' => $statusId,
         ]);
+
+        // Panggil seeder untuk akun admin dan user
+        $this->call([
+            AdminSeeder::class,
+            UserSeeder::class,
+        ]);
     }
 }

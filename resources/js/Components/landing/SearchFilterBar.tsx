@@ -35,9 +35,9 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
     if (e) e.preventDefault();
     
     const keyword = searchQuery.trim();
-    if (keyword.length > 0 && keyword.length < 3) {
-      setErrorMsg('Masukkan minimal 3 karakter untuk mencari.');
-      return;
+    if (keyword.length === 0) {
+      // If the keyword is completely empty, you might want to handle it, or just let it pass
+      // In this case, we'll let it pass to allow searching for everything or resetting.
     }
     
     setErrorMsg('');
