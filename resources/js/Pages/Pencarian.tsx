@@ -17,7 +17,6 @@ import {
   ChevronLeft,
   ChevronRight,
   SlidersHorizontal,
-  X,
 } from 'lucide-react';
 
 export default function Pencarian() {
@@ -248,26 +247,23 @@ export default function Pencarian() {
               <div className="lg:col-span-4 xl:col-span-3 w-full">
                 <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 shadow-2xs">
                   <div className="flex justify-between items-center mb-5 pb-4 border-b border-gray-100">
-                    <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                      <Filter className="w-4 h-4 text-gray-500" />
-                      Filter Pencarian
-                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setIsFilterOpen(false)}
+                      className="text-sm font-bold text-gray-900 flex items-center gap-2 hover:text-pr-900 transition-colors cursor-pointer group"
+                      title="Klik untuk menyembunyikan filter"
+                    >
+                      <Filter className="w-4 h-4 text-gray-500 group-hover:text-pr-900 transition-colors" />
+                      <span>Filter Pencarian</span>
+                    </button>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={handleResetFilter}
-                        className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                        className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                         title="Reset Filter"
                         type="button"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setIsFilterOpen(false)}
-                        className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                        title="Sembunyikan Filter"
-                        type="button"
-                      >
-                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
