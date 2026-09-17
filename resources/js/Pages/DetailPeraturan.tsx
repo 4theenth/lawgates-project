@@ -175,6 +175,27 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     setBabsState(prev => togglePasalNode(prev, pasalId));
   };
 
+  const scrollToElement = (elementId: string) => {
+    setTimeout(() => {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+
+      const container = document.getElementById('scrollable-content');
+      if (container && window.innerWidth >= 1024) {
+        const headerOffset = 24; 
+        const elementPosition = el.getBoundingClientRect().top;
+        const containerPosition = container.getBoundingClientRect().top;
+        const offsetPosition = elementPosition - containerPosition + container.scrollTop - headerOffset;
+        container.scrollTo({ top: offsetPosition, behavior: "smooth" });
+      } else {
+        const headerOffset = 120;
+        const elementPosition = el.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+        window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+      }
+    }, 100);
+  };
+
   const handleNavigateToStruktur = (strukturId: string) => {
     const expandPath = (nodes: ChapterItem[], targetId: string): { nodes: ChapterItem[], found: boolean } => {
       let foundInList = false;
@@ -196,16 +217,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       return { nodes: newNodes, found: foundInList };
     };
     setBabsState(prev => expandPath(prev, strukturId).nodes);
-
-    setTimeout(() => {
-      const el = document.getElementById(`struktur-${strukturId}`);
-      if (el) {
-        const headerOffset = 120;
-        const elementPosition = el.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-        window.scrollTo({ top: offsetPosition, behavior: "smooth" });
-      }
-    }, 100);
+    scrollToElement(`struktur-${strukturId}`);
   };
 
   const handleNavigateToPasal = (pasalId: string) => {
@@ -251,16 +263,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     };
     
     setBabsState(prev => expandStrukturPath(prev, pasalId).nodes);
-
-    setTimeout(() => {
-      const el = document.getElementById(`section-${pasalId}`);
-      if (el) {
-        const headerOffset = 120;
-        const elementPosition = el.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-        window.scrollTo({ top: offsetPosition, behavior: "smooth" });
-      }
-    }, 100);
+    scrollToElement(`section-${pasalId}`);
   };
 
   // Pembukaan Data
@@ -354,13 +357,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                    !peraturan?.status_peraturan?.nama_status?.toLowerCase().includes('tidak');
 
   const handleRelasi = () => {
-    const el = document.getElementById('section-pembukaan');
-    if (el) {
-      const headerOffset = 120;
-      const elementPosition = el.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
-    }
+    scrollToElement('section-pembukaan');
   };
 
   return (
@@ -468,15 +465,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                   onNavigateToPasal={handleNavigateToPasal}
                   onNavigateToPembukaan={() => {
                     setIsPembukaanOpen(true);
-                    setTimeout(() => {
-                      const el = document.getElementById('section-pembukaan');
-                      if (el) {
-                        const headerOffset = 120;
-                        const elementPosition = el.getBoundingClientRect().top;
-                        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-                        window.scrollTo({ top: offsetPosition, behavior: "smooth" });
-                      }
-                    }, 100);
+                    scrollToElement('section-pembukaan');
                   }}
                   onNavigateToSection={(sectionId) => {
                     if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
@@ -485,22 +474,16 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                     else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
                     
                     setIsPembukaanOpen(true);
-                    
-                    setTimeout(() => {
-                      const el = document.getElementById(sectionId);
-                      if (el) {
-                        const headerOffset = 120;
-                        const elementPosition = el.getBoundingClientRect().top;
-                        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-                        window.scrollTo({ top: offsetPosition, behavior: "smooth" });
-                      }
-                    }, 100);
+                    scrollToElement(sectionId);
                   }}
                 />
               </div>
 
               {/* Kolom Tengah: Isi Peraturan */}
-              <div className="flex-1 min-w-0 w-full space-y-4">
+              <div 
+                id="scrollable-content"
+                className="flex-1 min-w-0 w-full space-y-4 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-2 lg:pb-16 custom-scrollbar scroll-smooth"
+              >
                 <ReadonlyPembukaanSection
                   pembukaan={pembukaanData}
                   isOpenPembukaan={isPembukaanOpen}
