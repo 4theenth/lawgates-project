@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
     Route::post('auth/google/callback', [GoogleAuthController::class, 'callback']);
+    Route::get('auth/google/sync', [GoogleAuthController::class, 'syncView'])
+        ->name('auth.google.sync');
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 
