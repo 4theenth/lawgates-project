@@ -216,17 +216,19 @@ export function CorrectionDetailView({
         {/* KOLOM KANAN: RIWAYAT PERUBAHAN & METADATA */}
         <div className="w-full lg:w-[260px] xl:w-[280px] shrink-0 min-w-0 space-y-4">
           {/* Card 1: Riwayat Perubahan (Scrollable dengan counter) */}
-          <CorrectionTimelineSection
-            riwayatPerubahan={data.riwayatPerubahan}
-            onChangeKode={(id, val) =>
-              setData((prev) => ({
-                ...prev,
-                riwayatPerubahan: prev.riwayatPerubahan.map((r) =>
-                  r.id === id ? { ...r, kode: val } : r
-                ),
-              }))
-            }
-          />
+          {data.riwayatPerubahan && data.riwayatPerubahan.length > 0 && (
+            <CorrectionTimelineSection
+              riwayatPerubahan={data.riwayatPerubahan}
+              onChangeKode={(id, val) =>
+                setData((prev) => ({
+                  ...prev,
+                  riwayatPerubahan: prev.riwayatPerubahan.map((r) =>
+                    r.id === id ? { ...r, kode: val } : r
+                  ),
+                }))
+              }
+            />
+          )}
 
           {/* Card 2: Metadata (Pemrakarsa & Tanggal Ditetapkan) */}
           <CorrectionMetadataSection

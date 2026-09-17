@@ -21,6 +21,7 @@ interface DocumentTableProps {
   sortColumn?: SortColumn | null;
   sortDirection?: SortDirection;
   onSort?: (column: SortColumn) => void;
+  isDetailLoading?: boolean;
 }
 
 export function DocumentTable({
@@ -31,6 +32,7 @@ export function DocumentTable({
   sortColumn = null,
   sortDirection = 'asc',
   onSort,
+  isDetailLoading = false,
 }: DocumentTableProps) {
   // State id dokumen yang menu aksinya sedang terbuka
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
@@ -181,10 +183,11 @@ export function DocumentTable({
                             setActiveActionId(null);
                             if (onEdit) onEdit(doc);
                           }}
-                          className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-neu-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                          disabled={isDetailLoading}
+                          className="w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] text-neu-700 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Pencil className="w-3.5 h-3.5 text-neu-500" />
-                          <span>Edit Data</span>
+                          <span>{isDetailLoading && activeActionId === doc.id ? 'Memuat...' : 'Edit Data'}</span>
                         </button>
 
                         {/* Edit Status */}

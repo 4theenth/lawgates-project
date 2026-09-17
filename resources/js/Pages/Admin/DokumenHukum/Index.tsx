@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
 import { StatusTabs } from '@/Components/admin/StatusTabs';
@@ -18,218 +18,82 @@ import {
 import { Plus, Search, X } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
-const INITIAL_DOCUMENTS: DokumenHukumItem[] = [
-  {
-    id: '1',
-    kategori: 'Peraturan Presiden',
-    judul: 'Peraturan Presiden Nomor 29 Tahun 2026',
-    status: 'berlaku',
-    tgl_ditetapkan: '18 Agustus 2023',
-  },
-  {
-    id: '2',
-    kategori: 'UU',
-    judul: 'Undang-undang Nomor 4 Tahun 2026 Tentang Undang-undang Republik Indonesia',
-    status: 'tidak_berlaku',
-    tgl_ditetapkan: '02 Januari 2001',
-  },
-  {
-    id: '3',
-    kategori: 'Peraturan Presiden',
-    judul: 'Peraturan Presiden Nomor 29 Tahun 2026',
-    status: 'berlaku',
-    tgl_ditetapkan: '18 Agustus 2023',
-  },
-  {
-    id: '4',
-    kategori: 'UUD',
-    judul: 'Undang-undang Nomor 4 Tahun 2026 Tentang Undang-undang Republik Indonesia',
-    status: 'tidak_berlaku',
-    tgl_ditetapkan: '02 Januari 2001',
-  },
-  {
-    id: '5',
-    kategori: 'Peraturan Mentri',
-    judul: 'Undang-undang Nomor 4 Tahun 2026 Tentang Undang-undang Republik Indonesia',
-    status: 'tidak_berlaku',
-    tgl_ditetapkan: '02 Januari 2001',
-  },
-  {
-    id: '6',
-    kategori: 'Putusan MK',
-    judul: 'Undang-undang Nomor 4 Tahun 2026 Tentang Undang-undang Republik Indonesia',
-    status: 'tidak_berlaku',
-    tgl_ditetapkan: '02 Januari 2001',
-  },
-  {
-    id: '7',
-    kategori: 'Peraturan Daerah',
-    judul: 'Undang-undang Nomor 4 Tahun 2026 Tentang Undang-undang Republik Indonesia',
-    status: 'tidak_berlaku',
-    tgl_ditetapkan: '02 Januari 2001',
-  },
-  {
-    id: '8',
-    kategori: 'UU',
-    judul: 'Undang-undang Nomor 4 Tahun 2026 Tentang Undang-undang Republik Indonesia',
-    status: 'tidak_berlaku',
-    tgl_ditetapkan: '02 Januari 2001',
-  },
-  {
-    id: '9',
-    kategori: 'UU',
-    judul: 'Undang-undang Nomor 4 Tahun 2026 Tentang Undang-undang Republik Indonesia',
-    status: 'tidak_berlaku',
-    tgl_ditetapkan: '02 Januari 2001',
-  },
-  {
-    id: '10',
-    kategori: 'UU',
-    judul: 'Undang-undang Nomor 4 Tahun 2026 Tentang Undang-undang Republik Indonesia',
-    status: 'tidak_berlaku',
-    tgl_ditetapkan: '02 Januari 2001',
-  },
-  {
-    id: '11',
-    kategori: 'Peraturan Presiden',
-    judul: 'Peraturan Presiden Nomor 12 Tahun 2024 Tentang Transformasi Digital Hukum',
-    status: 'berlaku',
-    tgl_ditetapkan: '12 Maret 2024',
-  },
-  {
-    id: '12',
-    kategori: 'UU',
-    judul: 'Undang-undang Nomor 1 Tahun 2024 Tentang Informasi dan Transaksi Elektronik',
-    status: 'berlaku',
-    tgl_ditetapkan: '04 Januari 2024',
-  },
-  {
-    id: '13',
-    kategori: 'UU',
-    judul: 'Undang-undang Nomor 12 Tahun 1951 Tentang Senjata Api dan Bahan Peledak',
-    status: 'berlaku',
-    tgl_ditetapkan: '04 September 1951',
-  },
-  {
-    id: '14',
-    kategori: 'Peraturan Mentri',
-    judul: 'Peraturan Menteri Hukum dan HAM Nomor 25 Tahun 2023 Tentang Tata Naskah Dinas',
-    status: 'berlaku',
-    tgl_ditetapkan: '15 November 2023',
-  },
-  {
-    id: '15',
-    kategori: 'Putusan MK',
-    judul: 'Putusan MK Nomor 91/PUU-XVIII/2020 Mengenai Uji Formil Undang-Undang Cipta Kerja',
-    status: 'tidak_berlaku',
-    tgl_ditetapkan: '25 November 2021',
-  },
-  {
-    id: '16',
-    kategori: 'Peraturan Daerah',
-    judul: 'Peraturan Daerah Provinsi DKI Jakarta Nomor 2 Tahun 2024 Tentang Tata Ruang',
-    status: 'berlaku',
-    tgl_ditetapkan: '19 Februari 2024',
-  },
-  {
-    id: '17',
-    kategori: 'UUD',
-    judul: 'Undang-Undang Dasar Negara Republik Indonesia Tahun 1945 Pasca Amandemen Keempat',
-    status: 'berlaku',
-    tgl_ditetapkan: '10 Agustus 2002',
-  },
-  {
-    id: '18',
-    kategori: 'UU',
-    judul: 'Undang-undang Nomor 27 Tahun 2022 Tentang Pelindungan Data Pribadi',
-    status: 'berlaku',
-    tgl_ditetapkan: '17 Oktober 2022',
-  },
-  {
-    id: '19',
-    kategori: 'Peraturan Presiden',
-    judul: 'Peraturan Presiden Nomor 39 Tahun 2019 Tentang Satu Data Indonesia',
-    status: 'berlaku',
-    tgl_ditetapkan: '12 Juni 2019',
-  },
-  {
-    id: '20',
-    kategori: 'Putusan MK',
-    judul: 'Putusan Mahkamah Konstitusi Nomor 13/PUU-XXII/2024',
-    status: 'berlaku',
-    tgl_ditetapkan: '20 Maret 2024',
-  },
-  {
-    id: '21',
-    kategori: 'Peraturan Mentri',
-    judul: 'Peraturan Menteri Komunikasi dan Informatika Nomor 5 Tahun 2020',
-    status: 'berlaku',
-    tgl_ditetapkan: '24 November 2020',
-  },
-  {
-    id: '22',
-    kategori: 'UU',
-    judul: 'Undang-undang Nomor 13 Tahun 2022 Tentang Pembentukan Peraturan Perundang-undangan',
-    status: 'berlaku',
-    tgl_ditetapkan: '16 Juni 2022',
-  },
-];
-
-const ALL_CATEGORIES = [
-  'Peraturan Presiden',
-  'Peraturan Mentri',
-  'Putusan MK',
-  'Undang Undang Darurat',
-  'UUD',
-  'UU',
-  'Peraturan Daerah',
-];
-
-export default function DokumenHukumIndex() {
+export default function DokumenHukumIndex({ peraturans, filters, referensi }: any) {
   const { toast } = useToast();
 
-  // Data dokumen utama dengan persistensi LocalStorage agar sinkron saat ada data baru dari form koreksi / tambah hukum
-  const [documents, setDocuments] = useState<DokumenHukumItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('lawgates_admin_documents');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
-          }
-        } catch (e) {
-          console.error('Error loading documents:', e);
-        }
-      }
-    }
-    return INITIAL_DOCUMENTS;
-  });
-
-  // Simpan perubahan documents ke localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('lawgates_admin_documents', JSON.stringify(documents));
-    }
-  }, [documents]);
+  const ALL_CATEGORIES = referensi?.kategori || [];
 
   // Filter & Search states
-  const [activeTab, setActiveTab] = useState<'all' | 'berlaku' | 'tidak_berlaku'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<'all' | 'berlaku' | 'tidak_berlaku'>(filters?.status || 'all');
+  const [searchQuery, setSearchQuery] = useState(filters?.search || '');
+  
+  const initialCategories = filters?.kategori ? 
+    (Array.isArray(filters.kategori) ? filters.kategori : filters.kategori.split(',')) : [];
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(initialCategories);
+  
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Sorting states
-  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(filters?.sortColumn || null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(filters?.sortDirection || 'asc');
 
   // Pagination states responsif
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(peraturans?.current_page || 1);
+  const [pageSize, setPageSize] = useState(filters?.pageSize ? parseInt(filters.pageSize) : 10);
+
+  // Helper untuk melakukan fetch data ke backend
+  const fetchData = (overrides: any = {}) => {
+    const query: any = {};
+    const finalTab = overrides.status !== undefined ? overrides.status : activeTab;
+    if (finalTab !== 'all') query.status = finalTab;
+    
+    const finalSearch = overrides.search !== undefined ? overrides.search : searchQuery;
+    if (finalSearch) query.search = finalSearch;
+    
+    const finalCats = overrides.kategori !== undefined ? overrides.kategori : selectedCategories;
+    if (finalCats.length > 0) query.kategori = finalCats.join(',');
+    
+    const finalSortCol = overrides.sortColumn !== undefined ? overrides.sortColumn : sortColumn;
+    if (finalSortCol) query.sortColumn = finalSortCol;
+    
+    const finalSortDir = overrides.sortDirection !== undefined ? overrides.sortDirection : sortDirection;
+    if (finalSortDir) query.sortDirection = finalSortDir;
+    
+    const finalPageSize = overrides.pageSize !== undefined ? overrides.pageSize : pageSize;
+    if (finalPageSize !== 10) query.pageSize = finalPageSize;
+    
+    const finalPage = overrides.page !== undefined ? overrides.page : currentPage;
+    if (finalPage > 1) query.page = finalPage;
+
+    router.get('/admin/dokumen-hukum', query, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true
+    });
+  };
+
+  // Mencegah trigger di initial render
+  const isInitialRender = useRef(true);
+
+  // Effect KHUSUS untuk search (debounced)
+  useEffect(() => {
+    if (isInitialRender.current) {
+        isInitialRender.current = false;
+        return;
+    }
+
+    const debounce = setTimeout(() => {
+        fetchData({ search: searchQuery, page: 1 });
+    }, 300);
+    
+    return () => clearTimeout(debounce);
+  }, [searchQuery]);
+
 
   // In-place Modal Overlay states (Nimpa bukan buka halaman baru)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<DokumenHukumItem | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [editingStatusDoc, setEditingStatusDoc] = useState<DokumenHukumItem | null>(null);
   const [deletingDoc, setDeletingDoc] = useState<DokumenHukumItem | null>(null);
 
@@ -245,18 +109,20 @@ export default function DokumenHukumIndex() {
 
   // Handler toggle tab status (Klik tab aktif mematikan filter tab menjadi 'all')
   const handleTabChange = (tab: 'berlaku' | 'tidak_berlaku') => {
-    setActiveTab((prev) => (prev === tab ? 'all' : tab));
+    const newTab = activeTab === tab ? 'all' : tab;
+    setActiveTab(newTab);
     setCurrentPage(1);
+    fetchData({ status: newTab, page: 1 });
   };
 
   // Handler toggle kategori checkbox pada popover filter
   const handleToggleCategory = (category: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((c) => c !== category)
-        : [...prev, category]
-    );
+    const newCats = selectedCategories.includes(category)
+      ? selectedCategories.filter((c) => c !== category)
+      : [...selectedCategories, category];
+    setSelectedCategories(newCats);
     setCurrentPage(1);
+    fetchData({ kategori: newCats, page: 1 });
   };
 
   // Handler pencarian realtime (reset ke halaman 1 agar hasil selalu terlihat)
@@ -267,32 +133,44 @@ export default function DokumenHukumIndex() {
 
   // Handler pengurutan tabel (3-Logic Sort: Klik 1 -> Klik 2 -> Klik 3 Reset Kembali ke Awal)
   const handleSort = (column: SortColumn) => {
+    let newCol: SortColumn | null = column;
+    let newDir: SortDirection = 'asc';
+
     if (sortColumn === column) {
       if (column === 'tgl_ditetapkan') {
         if (sortDirection === 'desc') {
-          // Klik 2: ubah ke terlama
-          setSortDirection('asc');
+          newDir = 'asc';
         } else {
-          // Klik 3: reset kembali ke urutan default awal
-          setSortColumn(null);
-          setSortDirection('desc');
+          newCol = null;
+          newDir = 'desc';
         }
       } else {
         if (sortDirection === 'asc') {
-          // Klik 2: ubah ke Z-A / tidak berlaku dulu
-          setSortDirection('desc');
+          newDir = 'desc';
         } else {
-          // Klik 3: reset kembali ke urutan default awal
-          setSortColumn(null);
-          setSortDirection('asc');
+          newCol = null;
+          newDir = 'asc';
         }
       }
     } else {
-      // Klik 1 pada kolom baru
-      setSortColumn(column);
-      setSortDirection(column === 'tgl_ditetapkan' ? 'desc' : 'asc');
+      newDir = column === 'tgl_ditetapkan' ? 'desc' : 'asc';
     }
+
+    setSortColumn(newCol);
+    setSortDirection(newDir);
     setCurrentPage(1);
+    fetchData({ sortColumn: newCol, sortDirection: newDir, page: 1 });
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    fetchData({ page });
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+    fetchData({ pageSize: size, page: 1 });
   };
 
   // Helper konversi tanggal bahasa Indonesia ke timestamp
@@ -322,125 +200,63 @@ export default function DokumenHukumIndex() {
     return new Date(dateStr).getTime() || 0;
   };
 
-  // Handler buka modal ubah status dokumen
   const handleOpenEditStatus = (doc: DokumenHukumItem) => {
     setEditingStatusDoc(doc);
   };
 
+  const handleEditClick = async (doc: DokumenHukumItem) => {
+    setIsDetailLoading(true);
+    try {
+      const response = await fetch(`/admin/dokumen-hukum/${doc.id}/detail-edit`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) throw new Error('Gagal memuat data peraturan');
+      
+      const resJson = await response.json();
+      
+      doc = { 
+        ...doc, 
+        correctionData: resJson
+      } as any;
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal mengambil detail peraturan');
+    } finally {
+      setIsDetailLoading(false);
+    }
+    setEditingDoc(doc);
+  };
+
   // Handler simpan status dari EditStatusModal
   const handleSaveStatus = (docId: string, newStatus: 'berlaku' | 'tidak_berlaku') => {
-    setDocuments((prev) =>
-      prev.map((item) =>
-        item.id === docId
-          ? { ...item, status: newStatus }
-          : item
-      )
-    );
-    toast.success('Status dokumen hukum berhasil diperbarui!');
+    // TODO: implement real backend saving here via router.patch
+    toast.success('Status dokumen (WIP Backend)');
   };
 
   // Handler simpan tambah / edit dokumen
   const handleSaveDocument = (data: Omit<DokumenHukumItem, 'id'> & { id?: string }) => {
-    if (data.id) {
-      // Mode Edit
-      setDocuments((prev) =>
-        prev.map((item) => (item.id === data.id ? ({ ...item, ...data } as DokumenHukumItem) : item))
-      );
-      toast.success('Data dokumen hukum berhasil diperbarui!');
-    } else {
-      // Mode Tambah Baru
-      const newDoc: DokumenHukumItem = {
-        id: String(Date.now()),
-        kategori: data.kategori,
-        judul: data.judul,
-        status: data.status,
-        tgl_ditetapkan: data.tgl_ditetapkan,
-      };
-      setDocuments((prev) => [newDoc, ...prev]);
-      toast.success('Data dokumen hukum baru berhasil ditambahkan!');
-    }
+    // TODO: implement real backend saving here
+    toast.success('Dokumen hukum (WIP Backend)');
   };
 
   // Handler hapus dokumen
   const handleConfirmDelete = () => {
     if (!deletingDoc) return;
-    setDocuments((prev) => prev.filter((item) => item.id !== deletingDoc.id));
-    setDeletingDoc(null);
-    toast.success('Dokumen hukum berhasil dihapus!');
+    router.delete(`/admin/dokumen-hukum/${deletingDoc.id}`, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        setDeletingDoc(null);
+        toast.success('Dokumen hukum berhasil dihapus!');
+      }
+    });
   };
 
-  // Filter logika data
-  const filteredDocuments = documents.filter((doc) => {
-    // 1. Filter Tab Status
-    if (activeTab !== 'all' && doc.status !== activeTab) {
-      return false;
-    }
-
-    // 2. Filter Kategori dari Popover:
-    // Jika ada kategori yang dipilih, hanya tampilkan yang terpilih.
-    // Jika tidak ada filter yang dipilih (kosong []), munculkan semua peraturan.
-    if (selectedCategories.length > 0) {
-      if (!selectedCategories.includes(doc.kategori)) {
-        return false;
-      }
-    }
-
-    // 3. Filter Search Input (Cari judul, kategori, atau tanggal)
-    if (searchQuery.trim() !== '') {
-      const q = searchQuery.toLowerCase().trim();
-      const matchJudul = doc.judul.toLowerCase().includes(q);
-      const matchKategori = doc.kategori.toLowerCase().includes(q);
-      const matchTgl = doc.tgl_ditetapkan.toLowerCase().includes(q);
-      if (!matchJudul && !matchKategori && !matchTgl) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
-  // Urutkan data berdasarkan sortColumn & sortDirection
-  const sortedDocuments = [...filteredDocuments].sort((a, b) => {
-    if (!sortColumn) return 0;
-
-    if (sortColumn === 'kategori') {
-      return sortDirection === 'asc'
-        ? a.kategori.localeCompare(b.kategori, 'id')
-        : b.kategori.localeCompare(a.kategori, 'id');
-    }
-
-    if (sortColumn === 'judul') {
-      return sortDirection === 'asc'
-        ? a.judul.localeCompare(b.judul, 'id')
-        : b.judul.localeCompare(a.judul, 'id');
-    }
-
-    if (sortColumn === 'status') {
-      // 1st click 'asc': berlaku dulu, 2nd click 'desc': tidak_berlaku dulu
-      if (a.status === b.status) return 0;
-      return sortDirection === 'asc'
-        ? a.status === 'berlaku' ? -1 : 1
-        : a.status === 'tidak_berlaku' ? -1 : 1;
-    }
-
-    if (sortColumn === 'tgl_ditetapkan') {
-      const timeA = parseIndonesianDate(a.tgl_ditetapkan);
-      const timeB = parseIndonesianDate(b.tgl_ditetapkan);
-      // 1st click 'desc': terbaru ke terlama, 2nd click 'asc': terlama ke terbaru
-      return sortDirection === 'asc' ? timeA - timeB : timeB - timeA;
-    }
-
-    return 0;
-  });
-
-  // Potong data untuk pagination
-  const totalItems = sortedDocuments.length;
-  const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const paginatedDocuments = sortedDocuments.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-  const hasData = sortedDocuments.length > 0;
+    // Gunakan data dari backend Inertia Props
+  const paginatedDocuments = peraturans?.data || [];
+  const totalItems = peraturans?.total || 0;
+  const totalPages = peraturans?.last_page || 1;
+  const hasData = paginatedDocuments.length > 0;
 
   // JIKA SEDANG EDIT DATA DOKUMEN: Tampilkan Layar Penuh Edit Data Hukum Sesuai Tangkapan Layar
   if (editingDoc) {
@@ -481,23 +297,9 @@ export default function DokumenHukumIndex() {
             },
           }}
           onSave={(updatedCorrection: LegalDocumentCorrectionData) => {
-            setDocuments((prev) =>
-              prev.map((d) =>
-                d.id === editingDoc.id
-                  ? {
-                      ...d,
-                      judul: updatedCorrection.judul,
-                      tgl_ditetapkan:
-                        updatedCorrection.metadata.tanggalDitetapkan || d.tgl_ditetapkan,
-                      pemrakarsa: updatedCorrection.metadata.pemrakarsa,
-                      tempat_penetapan: updatedCorrection.metadata.tempatPenetapan,
-                      correctionData: updatedCorrection,
-                    }
-                  : d
-              )
-            );
+            // TODO: implement real backend saving here
             setEditingDoc(null);
-            toast.success('Perubahan data hukum berhasil disimpan!');
+            toast.success('Perubahan data hukum (WIP Backend)');
           }}
           onCancel={() => setEditingDoc(null)}
           onBack={() => setEditingDoc(null)}
@@ -564,6 +366,7 @@ export default function DokumenHukumIndex() {
                 onClick={() => {
                   setSearchQuery('');
                   setCurrentPage(1);
+                  fetchData({ search: '', page: 1 });
                 }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neu-400 hover:text-neu-700 p-0.5 cursor-pointer"
                 title="Hapus pencarian"
@@ -584,10 +387,12 @@ export default function DokumenHukumIndex() {
             onClearAll={() => {
               setSelectedCategories([]);
               setCurrentPage(1);
+              fetchData({ kategori: [], page: 1 });
             }}
             onSelectAll={() => {
               setSelectedCategories([...ALL_CATEGORIES]);
               setCurrentPage(1);
+              fetchData({ kategori: [...ALL_CATEGORIES], page: 1 });
             }}
           />
         </div>
@@ -601,9 +406,10 @@ export default function DokumenHukumIndex() {
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={handleSort}
-            onEdit={(doc) => setEditingDoc(doc)}
+            onEdit={handleEditClick}
             onToggleStatus={handleOpenEditStatus}
             onDelete={(doc) => setDeletingDoc(doc)}
+            isDetailLoading={isDetailLoading}
           />
         ) : (
           <EmptyState
@@ -618,11 +424,8 @@ export default function DokumenHukumIndex() {
         currentPage={currentPage}
         totalPages={totalPages}
         pageSize={pageSize}
-        onPageChange={(page) => setCurrentPage(page)}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          setCurrentPage(1);
-        }}
+        onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
       />
 
       {/* ── MODAL OVERLAYS (Nimpa In-Place tanpa reload / pindah halaman) ── */}
