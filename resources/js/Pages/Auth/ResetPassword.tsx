@@ -10,15 +10,71 @@ export default function ResetPassword({
     token: string;
     email: string;
 }) {
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors, reset, setError, clearErrors } = useForm({
         token: token,
         email: email,
         password: '',
         password_confirmation: '',
     });
 
+    const validateEmail = (val: string) => {
+        const trimmed = val.trim();
+        if (!trimmed) {
+            setError('email', 'Email wajib diisi.');
+            return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+            setError('email', 'Format email tidak valid (harus user@domain.com)');
+            return false;
+        }
+        clearErrors('email');
+        return true;
+    };
+
+    const validatePassword = (val: string) => {
+        if (!val) {
+            setError('password', 'Kata sandi wajib diisi.');
+            return false;
+        }
+        if (val.length < 8) {
+            setError('password', 'Panjang kata sandi minimal 8 karakter.');
+            return false;
+        }
+        clearErrors('password');
+        return true;
+    };
+
+    const validatePasswordConfirmation = (confirmVal: string, passVal: string) => {
+        if (!confirmVal) {
+            setError('password_confirmation', 'Konfirmasi kata sandi wajib diisi.');
+            return false;
+        }
+        if (confirmVal !== passVal) {
+            setError('password_confirmation', 'Konfirmasi kata sandi tidak cocok.');
+            return false;
+        }
+        clearErrors('password_confirmation');
+        return true;
+    };
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+
+        let hasError = false;
+
+        if (!validateEmail(data.email)) {
+            hasError = true;
+        }
+
+        if (!validatePassword(data.password)) {
+            hasError = true;
+        }
+
+        if (!validatePasswordConfirmation(data.password_confirmation, data.password)) {
+            hasError = true;
+        }
+
+        if (hasError) return;
 
         post(route('password.store'), {
             onFinish: () => reset('password', 'password_confirmation'),
@@ -36,7 +92,7 @@ export default function ResetPassword({
                 footerLinkText="Kembali ke Login"
                 footerLinkHref={route('login')}
             >
-                <form onSubmit={submit} className="space-y-4">
+                <form onSubmit={submit} noValidate className="space-y-4">
                     <FormInput
                         id="email"
                         type="email"
@@ -45,9 +101,21 @@ export default function ResetPassword({
                         icon="mail"
                         value={data.email}
                         autoComplete="username"
-                        required
                         error={errors.email}
-                        onChange={(e) => setData('email', e.target.value)}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setData('email', val);
+                            if (errors.email) {
+                                if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) {
+                                    clearErrors('email');
+                                }
+                            }
+                        }}
+                        onBlur={(e) => {
+                            if (e.target.value.trim()) {
+                                validateEmail(e.target.value);
+                            }
+                        }}
                     />
 
                     <FormInput
@@ -60,10 +128,29 @@ export default function ResetPassword({
                         value={data.password}
                         autoComplete="new-password"
                         autoFocus
-                        required
                         isPasswordToggle={true}
                         error={errors.password}
-                        onChange={(e) => setData('password', e.target.value)}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setData('password', val);
+                            if (val.length >= 8) {
+                                clearErrors('password');
+                            } else if (errors.password) {
+                                setError('password', 'Panjang kata sandi minimal 8 karakter.');
+                            }
+                            if (data.password_confirmation) {
+                                if (data.password_confirmation === val) {
+                                    clearErrors('password_confirmation');
+                                } else {
+                                    setError('password_confirmation', 'Konfirmasi kata sandi tidak cocok.');
+                                }
+                            }
+                        }}
+                        onBlur={(e) => {
+                            if (e.target.value) {
+                                validatePassword(e.target.value);
+                            }
+                        }}
                     />
 
                     <FormInput
@@ -75,12 +162,26 @@ export default function ResetPassword({
                         placeholder="•••••••"
                         value={data.password_confirmation}
                         autoComplete="new-password"
-                        required
                         isPasswordToggle={true}
                         error={errors.password_confirmation}
-                        onChange={(e) =>
-                            setData('password_confirmation', e.target.value)
-                        }
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setData('password_confirmation', val);
+                            if (val) {
+                                if (val !== data.password) {
+                                    setError('password_confirmation', 'Konfirmasi kata sandi tidak cocok.');
+                                } else {
+                                    clearErrors('password_confirmation');
+                                }
+                            } else {
+                                clearErrors('password_confirmation');
+                            }
+                        }}
+                        onBlur={(e) => {
+                            if (e.target.value) {
+                                validatePasswordConfirmation(e.target.value, data.password);
+                            }
+                        }}
                     />
 
                     <div className="pt-2">

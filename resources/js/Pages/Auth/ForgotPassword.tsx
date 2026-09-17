@@ -12,16 +12,24 @@ export default function ForgotPassword({ status }: ForgotPasswordProps) {
         email: '',
     });
 
+    const validateEmail = (val: string) => {
+        const trimmed = val.trim();
+        if (!trimmed) {
+            setError('email', 'Email wajib diisi.');
+            return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+            setError('email', 'Format email tidak valid (harus user@domain.com)');
+            return false;
+        }
+        clearErrors('email');
+        return true;
+    };
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        const trimmedEmail = data.email.trim();
-        if (!trimmedEmail) {
-            setError('email', 'Email wajib diisi.');
-            return;
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-            setError('email', 'Email tidak valid');
+        if (!validateEmail(data.email)) {
             return;
         }
 
@@ -64,8 +72,18 @@ export default function ForgotPassword({ status }: ForgotPasswordProps) {
                         autoFocus
                         error={emailError}
                         onChange={(e) => {
-                            setData('email', e.target.value);
-                            if (errors.email) clearErrors('email');
+                            const val = e.target.value;
+                            setData('email', val);
+                            if (errors.email) {
+                                if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) {
+                                    clearErrors('email');
+                                }
+                            }
+                        }}
+                        onBlur={(e) => {
+                            if (e.target.value.trim()) {
+                                validateEmail(e.target.value);
+                            }
                         }}
                     />
 
