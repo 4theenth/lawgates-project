@@ -1,20 +1,157 @@
+import React from 'react';
+import { Link } from '@inertiajs/react';
+import { Mail, Phone, ChevronRight } from 'lucide-react';
+import endlessClouds from '@/assets/endless-clouds.svg';
+
+function InstagramIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
+
 export function Footer() {
   return (
-    <footer className="w-full bg-bg-900 border-t border-pr-900 text-neu-400 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-        <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
-          <span className="text-lg font-bold tracking-tight text-white">
-            LawGates
-          </span>
-          <span className="text-xs text-neu-500 hidden sm:inline">|</span>
-          <p className="text-xs text-neu-500 text-center sm:text-left">
-            Platform Intelijen Regulasi & Hukum Indonesia Terpadu.
-          </p>
+    <footer className="relative w-full bg-[#0A1C3E] text-white overflow-hidden z-10 select-none">
+      {/* Endless Clouds SVG Pattern Overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.08] invert"
+        style={{
+          backgroundImage: `url("${endlessClouds}")`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '56px 28px',
+        }}
+      />
+
+      {/* Main Container */}
+      <div className="relative z-10 w-full max-w-[1202px] mx-auto px-4 sm:px-6 xl:px-0 pt-14 pb-8">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-10 lg:gap-12">
+          
+          {/* Kolom Kiri: Brand & Deskripsi */}
+          <div className="md:col-span-6 lg:col-span-5 space-y-4">
+            <h3 className="font-sans text-[20px] font-bold text-white tracking-tight">
+              LawGates
+            </h3>
+            <p className="text-[14px] font-normal leading-[24px] text-white/80 max-w-sm">
+              LawGates adalah platform pangkalan data hukum terpadu yang merangkum seluruh peraturan perundang-undangan di Indonesia ke dalam satu titik akses pencarian tanpa harus menelusuri puluhan portal instansi pemerintah yang terpisah.
+            </p>
+
+            {/* Circular Social Icons */}
+            <div className="flex items-center gap-3 pt-2">
+              <a
+                href="mailto:lawgates@gmail.com"
+                aria-label="Email LawGates"
+                className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center text-white/80 hover:text-white hover:border-white/60 hover:bg-white/5 transition-all"
+              >
+                <Mail className="w-4 h-4 stroke-[1.75]" />
+              </a>
+              <a
+                href="https://instagram.com/lawgates"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram LawGates"
+                className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center text-white/80 hover:text-white hover:border-white/60 hover:bg-white/5 transition-all"
+              >
+                <InstagramIcon className="w-4 h-4 stroke-[1.75]" />
+              </a>
+              <a
+                href="tel:081365638"
+                aria-label="Telepon LawGates"
+                className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center text-white/80 hover:text-white hover:border-white/60 hover:bg-white/5 transition-all"
+              >
+                <Phone className="w-4 h-4 stroke-[1.75]" />
+              </a>
+            </div>
+          </div>
+
+          {/* Kolom Tengah: Jelajahi */}
+          <div className="md:col-span-3 lg:col-span-3 space-y-4">
+            <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
+              JELAJAHI
+            </h4>
+            <ul className="space-y-3">
+              {[
+                { title: 'Beranda', href: '/' },
+                { title: 'Regulasi', href: '/regulasi' },
+                { title: 'Langganan', href: '/langganan' },
+                { title: 'Tentang', href: '/tentang' },
+              ].map((item) => (
+                <li key={item.title}>
+                  <Link
+                    href={item.href}
+                    className="group inline-flex items-center gap-2 text-[14px] text-white/80 hover:text-white transition-colors"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 text-white/50 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                    <span>{item.title}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Kolom Kanan: Kontak */}
+          <div className="md:col-span-3 lg:col-span-4 space-y-4">
+            <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
+              KONTAK
+            </h4>
+            <ul className="space-y-3.5">
+              <li>
+                <a
+                  href="mailto:lawgates@gmail.com"
+                  className="inline-flex items-center gap-3 text-[14px] text-white/80 hover:text-white transition-colors"
+                >
+                  <Mail className="w-4 h-4 text-white/60 shrink-0 stroke-[1.75]" />
+                  <span>lawgates@gmail.com</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://instagram.com/lawgates"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-3 text-[14px] text-white/80 hover:text-white transition-colors"
+                >
+                  <InstagramIcon className="w-4 h-4 text-white/60 shrink-0 stroke-[1.75]" />
+                  <span>@lawgates</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="tel:081365638"
+                  className="inline-flex items-center gap-3 text-[14px] text-white/80 hover:text-white transition-colors"
+                >
+                  <Phone className="w-4 h-4 text-white/60 shrink-0 stroke-[1.75]" />
+                  <span>081365638</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+
         </div>
 
-        <p className="text-xs text-neu-500">
-          &copy; {new Date().getFullYear()} LawGates. Hak Cipta Dilindungi.
-        </p>
+        {/* Divider & Copyright */}
+        <div className="border-t border-white/10 mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[12px] text-white/60">
+          <p>© 2026 LAWGATES. Hak Cipta Dilindungi.</p>
+          <div className="flex items-center gap-6">
+            <Link href="/syarat-ketentuan" className="hover:text-white transition-colors">
+              Syarat & Ketentuan
+            </Link>
+            <Link href="/kebijakan-privasi" className="hover:text-white transition-colors">
+              Kebijakan Privasi
+            </Link>
+          </div>
+        </div>
       </div>
     </footer>
   );

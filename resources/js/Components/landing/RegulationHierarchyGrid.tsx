@@ -166,7 +166,7 @@ export function RegulationHierarchyGrid() {
                   top-[171px]
                   bottom-[5px]
                   z-20
-                  bg-[#EEDFAF]
+                  bg-pr-50
                   rounded-b-[14px]
                   px-[10px]
                   py-[10px]
@@ -229,11 +229,11 @@ export function RegulationHierarchyGrid() {
                   viewBox="0 0 140 27"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
-                  className="w-full h-full"
+                  className="w-full h-full text-pr-50"
                 >
                   <path
                     d="M0 27V11C0 4.92487 4.92487 0 11 0H105.167C109.856 0 114.029 2.97146 115.562 7.40178L119.438 18.5982C120.971 23.0285 125.144 26 129.833 26H140V27H0Z"
-                    fill="#EEDFAF"
+                    fill="currentColor"
                   />
                 </svg>
               </div>

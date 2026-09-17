@@ -1,5 +1,6 @@
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { PublicLayout, Section } from '@/Layouts/PublicLayout';
+import { PublicLayout } from '@/Layouts/PublicLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
 import { 
   CheckCircle2, 
@@ -9,7 +10,6 @@ import {
   CloudDownload,
   ChevronUp
 } from 'lucide-react';
-import React, { useState, useEffect, useMemo } from 'react';
 import { ChapterItem, ArticleItem } from '@/Components/admin/import/correctionParser';
 import { ReadonlyTableOfContents } from '@/Components/public/peraturan/ReadonlyTableOfContents';
 import { ReadonlyPembukaanSection } from '@/Components/public/peraturan/ReadonlyPembukaanSection';
@@ -20,6 +20,7 @@ import { ReadonlyTimelineSection, ReadonlyTimelineItem } from '@/Components/publ
 const formatTanggal = (dateString: string) => {
   if (!dateString) return '-';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
   return new Intl.DateTimeFormat('id-ID', {
     day: 'numeric',
     month: 'long',
@@ -41,6 +42,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
   // Map Data from Database to UI State
   const initialBabList = useMemo<ChapterItem[]>(() => {
+    if (!peraturan) return [];
     const rawStrukturList = peraturan.struktur_dokumen || [];
     const ignoredTipes = ['PEMBUKAAN', 'KONSIDERANS', 'DASAR_HUKUM', 'DIKTUM'];
     const strukturList = rawStrukturList.filter((str: any) => !ignoredTipes.includes(str.tipe_struktur));
@@ -76,8 +78,6 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       }
     });
 
-    const unassignedPasals = rootPasals.filter((p: any) => !p.struktur_id);
-    
     const map = new Map<string, ChapterItem>();
     
     // Third pass: instantiate all ChapterItems
@@ -88,9 +88,9 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       let deskripsi = '';
       if (str.judul_struktur) {
         if (!judul) {
-           judul = str.judul_struktur;
+          judul = str.judul_struktur;
         } else {
-           deskripsi = str.judul_struktur;
+          deskripsi = str.judul_struktur;
         }
       }
 
@@ -177,23 +177,23 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
   const handleNavigateToStruktur = (strukturId: string) => {
     const expandPath = (nodes: ChapterItem[], targetId: string): { nodes: ChapterItem[], found: boolean } => {
-       let foundInList = false;
-       const newNodes = nodes.map(n => {
-          if (n.id === targetId) {
-             foundInList = true;
-             return { ...n, isExpanded: true };
+      let foundInList = false;
+      const newNodes = nodes.map(n => {
+        if (n.id === targetId) {
+          foundInList = true;
+          return { ...n, isExpanded: true };
+        }
+        if (n.children && n.children.length > 0) {
+          const result = expandPath(n.children, targetId);
+          if (result.found) {
+            foundInList = true;
+            return { ...n, isExpanded: true, children: result.nodes };
           }
-          if (n.children && n.children.length > 0) {
-             const result = expandPath(n.children, targetId);
-             if (result.found) {
-                foundInList = true;
-                return { ...n, isExpanded: true, children: result.nodes };
-             }
-             return { ...n, children: result.nodes };
-          }
-          return n;
-       });
-       return { nodes: newNodes, found: foundInList };
+          return { ...n, children: result.nodes };
+        }
+        return n;
+      });
+      return { nodes: newNodes, found: foundInList };
     };
     setBabsState(prev => expandPath(prev, strukturId).nodes);
 
@@ -210,44 +210,44 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
   const handleNavigateToPasal = (pasalId: string) => {
     const expandPasalPath = (pasalList: ArticleItem[], targetId: string): { list: ArticleItem[], found: boolean } => {
-       let foundInList = false;
-       const newList = pasalList.map(p => {
-          if (p.id === targetId) {
-             foundInList = true;
-             return { ...p, isExpanded: true };
+      let foundInList = false;
+      const newList = pasalList.map(p => {
+        if (p.id === targetId) {
+          foundInList = true;
+          return { ...p, isExpanded: true };
+        }
+        if (p.pasalList && p.pasalList.length > 0) {
+          const result = expandPasalPath(p.pasalList, targetId);
+          if (result.found) {
+            foundInList = true;
+            return { ...p, isExpanded: true, pasalList: result.list };
           }
-          if (p.pasalList && p.pasalList.length > 0) {
-             const result = expandPasalPath(p.pasalList, targetId);
-             if (result.found) {
-                foundInList = true;
-                return { ...p, isExpanded: true, pasalList: result.list };
-             }
-             return { ...p, pasalList: result.list };
-          }
-          return p;
-       });
-       return { list: newList, found: foundInList };
+          return { ...p, pasalList: result.list };
+        }
+        return p;
+      });
+      return { list: newList, found: foundInList };
     };
 
     const expandStrukturPath = (nodes: ChapterItem[], targetId: string): { nodes: ChapterItem[], found: boolean } => {
-       let foundInList = false;
-       const newNodes = nodes.map(n => {
-          const pasalResult = expandPasalPath(n.pasalList || [], targetId);
-          if (pasalResult.found) {
-             foundInList = true;
-             return { ...n, isExpanded: true, pasalList: pasalResult.list };
+      let foundInList = false;
+      const newNodes = nodes.map(n => {
+        const pasalResult = expandPasalPath(n.pasalList || [], targetId);
+        if (pasalResult.found) {
+          foundInList = true;
+          return { ...n, isExpanded: true, pasalList: pasalResult.list };
+        }
+        if (n.children && n.children.length > 0) {
+          const result = expandStrukturPath(n.children, targetId);
+          if (result.found) {
+            foundInList = true;
+            return { ...n, isExpanded: true, children: result.nodes };
           }
-          if (n.children && n.children.length > 0) {
-             const result = expandStrukturPath(n.children, targetId);
-             if (result.found) {
-                foundInList = true;
-                return { ...n, isExpanded: true, children: result.nodes };
-             }
-             return { ...n, children: result.nodes };
-          }
-          return n;
-       });
-       return { nodes: newNodes, found: foundInList };
+          return { ...n, children: result.nodes };
+        }
+        return n;
+      });
+      return { nodes: newNodes, found: foundInList };
     };
     
     setBabsState(prev => expandStrukturPath(prev, pasalId).nodes);
@@ -263,8 +263,18 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     }, 100);
   };
 
-  // Pembukaan State
+  // Pembukaan Data
   const pembukaanData = useMemo(() => {
+    if (!peraturan) {
+      return {
+        judul: '',
+        subJudul: '',
+        menimbang: '',
+        mengingat: '',
+        memutuskan: '',
+        menetapkan: '',
+      };
+    }
     const strukturList = peraturan.struktur_dokumen || [];
     const pembukaanNode = strukturList.find((s: any) => s.tipe_struktur === 'PEMBUKAAN');
     const konsideransNode = strukturList.find((s: any) => s.tipe_struktur === 'KONSIDERANS');
@@ -273,13 +283,12 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     const diktumMenetapkan = strukturList.find((s: any) => s.tipe_struktur === 'DIKTUM' && s.label?.toLowerCase() === 'menetapkan');
 
     return {
-      judul: peraturan.judul,
+      judul: peraturan.judul || '',
       subJudul: pembukaanNode?.judul_struktur || peraturan.abstrak || '',
-      menimbang: konsideransNode?.judul_struktur || '', 
+      menimbang: konsideransNode?.judul_struktur || '',
       mengingat: dasarHukumNode?.judul_struktur || '',
       memutuskan: diktumMemutuskan?.judul_struktur || '',
       menetapkan: diktumMenetapkan?.judul_struktur || '',
-      isExpanded: true
     };
   }, [peraturan]);
 
@@ -291,16 +300,17 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
   // Timeline State
   const timelineData = useMemo<ReadonlyTimelineItem[]>(() => {
+    if (!peraturan) return [];
     const relations = peraturan.law_relations || [];
-    
+
     const beforeCurrent: ReadonlyTimelineItem[] = [];
     const afterCurrent: ReadonlyTimelineItem[] = [];
 
     relations.forEach((rel: any, index: number) => {
       const relName = rel.relation_type?.nama_relasi || 'Terkait';
-      const isMencabut = relName.toLowerCase().includes('cabut');
+      const isMencabut = relName.toLowerCase().includes('mencabut');
       let variant: 'diubah' | 'mengubah' | 'dicabut' = 'mengubah';
-      
+
       if (relName.toLowerCase().includes('diubah')) variant = 'diubah';
       else if (isMencabut) variant = 'dicabut';
 
@@ -324,7 +334,6 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       if (variant === 'diubah' || variant === 'dicabut') {
         beforeCurrent.push(item);
       } else {
-        // Jika "Mengubah" atau "Mencabut" taruh di bawah
         afterCurrent.push(item);
       }
     });
@@ -334,85 +343,120 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       kode: peraturan.unique_id || '',
       judul: peraturan.judul,
       isCurrent: true,
-      currentStatusLabel: 'Dokumen Saat Ini'
     };
 
     return [...beforeCurrent, currentItem, ...afterCurrent];
   }, [peraturan]);
 
-  // Format dates
-  const tanggalPenetapan = peraturan.tanggal_penetapan ? formatTanggal(peraturan.tanggal_penetapan) : '-';
-  const isActive = peraturan.status_peraturan?.nama_status?.toLowerCase().includes('berlaku') && 
-                   !peraturan.status_peraturan?.nama_status?.toLowerCase().includes('tidak');
-  
+  // Format dates & active status
+  const tanggalPenetapan = peraturan?.tanggal_penetapan ? formatTanggal(peraturan.tanggal_penetapan) : '-';
+  const isActive = peraturan?.status_peraturan?.nama_status?.toLowerCase().includes('berlaku') && 
+                   !peraturan?.status_peraturan?.nama_status?.toLowerCase().includes('tidak');
+
+  const handleRelasi = () => {
+    const el = document.getElementById('section-pembukaan');
+    if (el) {
+      const headerOffset = 120;
+      const elementPosition = el.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+    }
+  };
+
   return (
     <PublicLayout>
-      <Head title={`${peraturan.judul} - LawGates`} />
-      
-      <div className="bg-[#F8F9FA] min-h-screen pb-16">
-        <Section fullWidth>
-          <div className="pt-28 pb-8 w-full max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-4 lg:px-8 xl:px-12 text-gray-900">
-            
-            {/* Breadcrumb Navigasi */}
-            <div className="mb-6">
-              <Breadcrumb 
-                items={[
-                  { label: 'Beranda', href: '/' },
-                  { label: 'Pencarian Hukum', href: '/pencarian' },
-                  { label: 'Detail Dokumen Hukum' }
-                ]} 
-              />
+      <Head title={`${peraturan?.judul || 'Detail Peraturan'} - LawGates`} />
+
+      <div className="bg-[#F8F9FA] min-h-screen pb-16 w-full min-w-0 overflow-x-hidden">
+        <div className="pt-24 pb-8 w-full max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-3.5 sm:px-6 lg:px-8 xl:px-12 text-gray-900 min-w-0">
+          
+          {/* Breadcrumb Navigasi */}
+          <div className="mb-4 sm:mb-5">
+            <Breadcrumb 
+              items={[
+                { label: 'Beranda', href: '/' },
+                { label: 'Pencarian Hukum', href: '/pencarian' },
+                { label: 'Detail Dokumen Hukum' }
+              ]} 
+            />
+          </div>
+
+          {/* Header Metadata Sesuai Desain */}
+          <div className="mb-6 sm:mb-8 space-y-3 sm:space-y-4">
+            {/* 1. Kategori Peraturan & Instansi */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center px-3.5 py-1 rounded-full bg-[#E5E7EB] text-gray-800 text-[11px] sm:text-xs font-bold uppercase tracking-wider">
+                {peraturan?.jenis_peraturan?.nama || 'UNDANG - UNDANG DASAR'}
+              </span>
+              <span className="text-xs sm:text-sm text-gray-500 font-medium flex items-center gap-1.5">
+                <span className="text-gray-400">•</span>
+                <span>{peraturan?.entitas || 'Pemerintah Pusat'}</span>
+              </span>
             </div>
 
-            {/* Header Metadata */}
-            <div className="mb-10">
-              <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
-                <div className="flex gap-3 text-xs font-semibold text-gray-600 uppercase tracking-wider items-center">
-                  <span className="bg-gray-200 px-3 py-1 rounded-full">{peraturan.jenis_peraturan?.nama || 'PERATURAN'}</span>
-                  <span>•</span>
-                  <span>{peraturan.entitas || 'Pemerintah Pusat'}</span>
-                </div>
-                <div className="flex gap-3">
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold rounded-full transition-colors cursor-pointer">
-                    <ArrowRightLeft className="w-4 h-4" />
-                    Bandingkan
-                  </button>
-                  {peraturan.file_pdf && (
-                    <a 
-                      href={`/storage/${peraturan.file_pdf}`} 
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-2 px-5 py-2 bg-[#0A1931] hover:bg-blue-900 text-white text-sm font-semibold rounded-full shadow-sm transition-colors cursor-pointer"
-                    >
-                      <CloudDownload className="w-4 h-4" />
-                      Download Dokumen
-                    </a>
-                  )}
-                </div>
-              </div>
-
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-6 text-gray-900 leading-tight max-w-4xl">
-                {peraturan.judul}
+            {/* 2. Judul Dokumen & Action Buttons (Bandingkan & Download Dokumen) */}
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6">
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-[32px] font-extrabold text-[#111827] leading-tight max-w-4xl tracking-tight">
+                {peraturan?.judul}
               </h1>
 
-              <div className="flex flex-wrap gap-3 text-sm">
-                <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold border ${isActive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                  <CheckCircle2 className="w-4 h-4" />
-                  {peraturan.status_peraturan?.nama_status || 'Berlaku'}
-                </span>
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-200 text-gray-700 rounded-full font-medium">
-                  <Calendar className="w-4 h-4" />
-                  Ditetapkan {tanggalPenetapan}
-                </span>
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-200 text-gray-700 rounded-full font-medium">
-                  <MapPin className="w-4 h-4" />
-                  Tempat Penetapan : {peraturan.tempat_penetapan || '-'}
-                </span>
+              <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                {/* Tombol Bandingkan */}
+                <Link
+                  href="/bandingkan"
+                  className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 bg-[#E5E7EB] hover:bg-gray-300 text-gray-800 text-xs sm:text-sm font-semibold rounded-2xl transition-colors cursor-pointer shadow-2xs"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-700" />
+                  <span>Bandingkan</span>
+                </Link>
+
+                {/* Tombol Download Dokumen */}
+                {peraturan?.file_pdf ? (
+                  <a 
+                    href={`/storage/${peraturan.file_pdf}`} 
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-[#0A1931] hover:bg-[#071326] text-white text-xs sm:text-sm font-semibold rounded-2xl shadow-sm transition-colors cursor-pointer"
+                  >
+                    <CloudDownload className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                    <span>Download Dokumen</span>
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => alert('Mengunduh dokumen hukum resmi...')}
+                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-[#0A1931] hover:bg-[#071326] text-white text-xs sm:text-sm font-semibold rounded-2xl shadow-sm transition-colors cursor-pointer"
+                  >
+                    <CloudDownload className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                    <span>Download Dokumen</span>
+                  </button>
+                )}
               </div>
             </div>
 
+            {/* 3. Badges Metadata: Status, Tanggal Ditetapkan, Tempat Penetapan */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm pt-1">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 sm:py-1.5 rounded-full font-semibold border ${
+                isActive 
+                  ? 'bg-[#DCFCE7] text-[#15803D] border-[#BBF7D0]' 
+                  : 'bg-red-50 text-red-700 border-red-200'
+              }`}>
+                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#15803D]" />
+                <span>{peraturan?.status_peraturan?.nama_status || 'Berlaku'}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 sm:py-1.5 bg-[#F3F4F6] text-gray-700 rounded-full font-medium">
+                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
+                <span>Ditetapkan: {tanggalPenetapan}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 sm:py-1.5 bg-[#F3F4F6] text-gray-700 rounded-full font-medium">
+                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
+                <span>Tempat Penetapan : {peraturan?.tempat_penetapan || '-'}</span>
+              </span>
+            </div>
+          </div>
+
             {/* Layout 3-Kolom Menggunakan Komponen Readonly Baru */}
-            <div className="flex flex-col lg:flex-row items-start gap-6">
+            <div className="flex flex-col lg:flex-row items-start gap-6 w-full min-w-0">
               
               {/* Kolom Kiri: Daftar Isi */}
               <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 lg:sticky lg:top-28">
@@ -478,14 +522,16 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                 />
               </div>
 
-              {/* Kolom Kanan: Riwayat Perubahan & Metadata */}
+              {/* Kolom Kanan: Riwayat Perubahan & Metadata dengan Tombol RELASI */}
               <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 min-w-0 space-y-4 lg:sticky lg:top-28">
-                <ReadonlyTimelineSection riwayatPerubahan={timelineData} />
+                <ReadonlyTimelineSection 
+                  riwayatPerubahan={timelineData} 
+                  onRelasiClick={handleRelasi}
+                />
               </div>
 
             </div>
           </div>
-        </Section>
       </div>
 
       {/* Scroll to Top Button */}

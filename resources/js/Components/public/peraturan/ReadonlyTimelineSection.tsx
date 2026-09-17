@@ -11,10 +11,12 @@ export interface ReadonlyTimelineItem extends TimelineRelationItem {
 
 interface ReadonlyTimelineSectionProps {
   riwayatPerubahan: ReadonlyTimelineItem[];
+  onRelasiClick?: () => void;
 }
 
 export function ReadonlyTimelineSection({
   riwayatPerubahan,
+  onRelasiClick,
 }: ReadonlyTimelineSectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentItemRef = useRef<HTMLDivElement>(null);
@@ -138,6 +140,19 @@ export function ReadonlyTimelineSection({
           </div>
         )}
       </div>
+
+      {/* Tombol RELASI */}
+      {onRelasiClick && (
+        <div className="pt-3 mt-3 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={onRelasiClick}
+            className="w-full py-2.5 rounded-xl bg-[#0A1C3E] hover:bg-[#071530] text-white text-xs font-bold tracking-wider uppercase transition-all shadow-2xs cursor-pointer"
+          >
+            RELASI
+          </button>
+        </div>
+      )}
     </div>
   );
 }

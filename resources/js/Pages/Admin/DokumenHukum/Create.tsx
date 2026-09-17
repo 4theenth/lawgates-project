@@ -79,6 +79,7 @@ export default function DokumenHukumCreate() {
 
   // State status publikasi Langkah 4
   const [isSavedSuccess, setIsSavedSuccess] = useState(false);
+  const [inlineError, setInlineError] = useState<string | null>(null);
 
   const headerFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -90,30 +91,65 @@ export default function DokumenHukumCreate() {
 
   // Handler tambah berkas dari tombol di header atau dropzone
   const handleAddFiles = async (newFiles: File[]) => {
+    setInlineError(null);
+
+    // 1. Validasi Ekstensi & Ukuran File (AC 2: Maksimal 20 MB)
+    for (const file of newFiles) {
+      const isJson =
+        file.name.toLowerCase().endsWith('.json') ||
+        file.type === 'application/json';
+
+      if (!isJson) {
+        setInlineError(
+          `Berkas "${file.name}" tidak valid. Hanya berkas berformat .json yang diperbolehkan.`
+        );
+        return;
+      }
+
+      const MAX_SIZE = 20 * 1024 * 1024; // 20 MB
+      if (file.size > MAX_SIZE) {
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+        setInlineError(
+          `Ukuran berkas "${file.name}" (${sizeMb} MB) melebihi batas maksimal 20 MB.`
+        );
+        return;
+      }
+    }
+
     const remainingSlots = Math.max(0, 10 - uploadedFiles.length);
+    if (remainingSlots <= 0) {
+      setInlineError('Maksimal hanya dapat mengunggah 10 berkas sekaligus.');
+      return;
+    }
+
     const toAdd = newFiles.slice(0, remainingSlots);
 
-    const newItems: UploadedJsonFile[] = await Promise.all(
-      toAdd.map(async (file, idx) => {
-        let parsedData: any = null;
-        try {
-          const text = await file.text();
-          const cleanText = text.replace(/^\uFEFF/, '').trim();
-          parsedData = JSON.parse(cleanText);
-        } catch (e) {
-          console.warn('File is not JSON, will use fallback data', e);
-          toast.error('Berkas bukan format JSON yang valid!', file.name);
-        }
-        return {
-          id: `${Date.now()}-${idx}`,
-          name: file.name,
-          sizeKb: Math.round(file.size / 1024),
-          rawFile: file,
-          parsedData,
-        };
-      })
-    );
+    const newItems: UploadedJsonFile[] = [];
+    for (let idx = 0; idx < toAdd.length; idx++) {
+      const file = toAdd[idx];
+      let parsedData: any = null;
+      try {
+        const text = await file.text();
+        const cleanText = text.replace(/^\uFEFF/, '').trim();
+        parsedData = JSON.parse(cleanText);
+      } catch (e) {
+        console.warn('File is not JSON', e);
+        setInlineError(
+          `Format berkas "${file.name}" tidak valid (bukan format JSON yang benar).`
+        );
+        return;
+      }
 
+      newItems.push({
+        id: `${Date.now()}-${idx}`,
+        name: file.name,
+        sizeKb: Math.round(file.size / 1024),
+        rawFile: file,
+        parsedData,
+      });
+    }
+
+    setInlineError(null);
     setUploadedFiles((prev) => [...prev, ...newItems]);
   };
 
@@ -369,6 +405,8 @@ export default function DokumenHukumCreate() {
               onCategoryChange={setSelectedCategory}
               categoryOptions={CATEGORY_OPTIONS}
               onStartImport={handleStartImport}
+              errorMessage={inlineError}
+              onClearError={() => setInlineError(null)}
             />
           </div>
         )}

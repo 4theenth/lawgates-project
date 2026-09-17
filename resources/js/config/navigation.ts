@@ -42,6 +42,23 @@ export const NAVBAR_MENUS: MenuItem[] = [
  */
 export const NAVBAR_THEME = {
   fontSize: 'text-[14px]',
+  // Kondisi Normal (Belum di-scroll / Hero gelap)
+  default: {
+    logo: 'text-white',
+    activeItem: 'text-sec-900 font-semibold',
+    inactiveItem: 'text-neu-300 hover:text-white',
+    activeIndicator: 'border-b border-sec-900',
+    hamburger: 'text-white hover:text-sec-900',
+  },
+  // Kondisi Di-scroll (Background Kaca / Bening)
+  scrolled: {
+    logo: 'text-neu-900',
+    activeItem: 'text-pr-900 font-semibold',
+    inactiveItem: 'text-neu-900/80 hover:text-neu-900',
+    activeIndicator: 'border-b border-pr-900',
+    hamburger: 'text-neu-900 hover:text-pr-900',
+  },
+  // Fallback kompatibilitas
   activeItem: 'text-sec-900 font-semibold',
   inactiveItem: 'text-neu-300 hover:text-white',
   activeIndicator: 'border-b border-sec-900',

@@ -15,15 +15,15 @@ interface BreadcrumbProps {
 
 export function Breadcrumb({ items, className = '' }: BreadcrumbProps) {
   return (
-    <nav aria-label="Breadcrumb" className={`flex items-center text-xs text-gray-500 font-medium ${className}`}>
-      <ol className="inline-flex items-center space-x-1 sm:space-x-1.5">
+    <nav aria-label="Breadcrumb" className={`flex items-center text-[11px] sm:text-xs text-gray-500 font-medium ${className}`}>
+      <ol className="flex flex-wrap items-center gap-x-1 gap-y-1 sm:gap-x-1.5">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
 
           return (
             <li key={`${item.label}-${index}`} className="inline-flex items-center">
               {index > 0 && (
-                <ChevronRight className="w-3.5 h-3.5 mx-1 text-gray-400 shrink-0" />
+                <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 mx-0.5 sm:mx-1 text-gray-400 shrink-0" />
               )}
               {item.onClick ? (
                 <button
