@@ -8,9 +8,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Auth\Events\Registered;
+use Inertia\Inertia;
 
 class GoogleAuthController extends Controller
 {
+    public function syncView(Request $request)
+    {
+        return Inertia::render('Auth/GoogleSync', [
+            'email' => $request->query('email', 'Mangadi@gmail.com'),
+        ]);
+    }
+
     public function callback(Request $request)
     {
         $request->validate([
@@ -36,9 +44,17 @@ class GoogleAuthController extends Controller
         $user = User::where('email', $googleUser['email'])->first();
 
         if ($user) {
-            // Update google_id if not set
+            // Jika akun telah ada namun belum terhubung dengan Google, minta konfirmasi sinkronisasi
             if (!$user->google_id) {
-                $user->update(['google_id' => $googleUser['sub']]);
+                if ($request->boolean('confirm_link')) {
+                    $user->update(['google_id' => $googleUser['sub']]);
+                } else {
+                    return Inertia::render('Auth/GoogleSync', [
+                        'email' => $user->email,
+                        'accessToken' => $accessToken,
+                        'remember' => $remember,
+                    ]);
+                }
             }
         } else {
             // Create new user

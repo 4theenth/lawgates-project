@@ -2,8 +2,7 @@ import React, { FormEventHandler } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { AuthCard, FormInput } from '@/Components/common';
-import { useGoogleLogin } from '@react-oauth/google';
-import { useToast } from '@/hooks/useToast';
+import { Icon } from '@/Components/ui/icon';
 
 export default function Register() {
     const { data, setData, post, processing, errors, reset, setError, clearErrors } = useForm({
@@ -14,45 +13,9 @@ export default function Register() {
         password_confirmation: '',
     });
 
-    const validateEmail = (val: string) => {
-        const trimmed = val.trim();
-        if (!trimmed) {
-            setError('email', 'Email wajib diisi.');
-            return false;
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-            setError('email', 'Format email tidak valid (harus user@domain.com)');
-            return false;
-        }
-        clearErrors('email');
-        return true;
-    };
-
-    const validatePassword = (val: string) => {
-        if (!val) {
-            setError('password', 'Kata sandi wajib diisi.');
-            return false;
-        }
-        if (val.length < 8) {
-            setError('password', 'Panjang kata sandi minimal 8 karakter.');
-            return false;
-        }
-        clearErrors('password');
-        return true;
-    };
-
-    const validatePasswordConfirmation = (confirmVal: string, passVal: string) => {
-        if (!confirmVal) {
-            setError('password_confirmation', 'Konfirmasi kata sandi wajib diisi.');
-            return false;
-        }
-        if (confirmVal !== passVal) {
-            setError('password_confirmation', 'Konfirmasi kata sandi tidak cocok.');
-            return false;
-        }
-        clearErrors('password_confirmation');
-        return true;
-    };
+    const hasCapital = /[A-Z]/.test(data.password);
+    const hasMinLength = data.password.length >= 8;
+    const hasNumberOrSymbol = /[0-9]/.test(data.password) || /[^a-zA-Z0-9]/.test(data.password);
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -68,6 +31,9 @@ export default function Register() {
         }
 
         if (!validatePassword(data.password)) {
+            hasError = true;
+        } else if (!hasCapital || !hasMinLength || !hasNumberOrSymbol) {
+            setError('password', 'Kata sandi belum memenuhi ketentuan.');
             hasError = true;
         }
 
@@ -248,6 +214,43 @@ export default function Register() {
                             }
                         }}
                     />
+
+                    {/* Ketentuan Kata Sandi */}
+                    <div className="pt-1 space-y-1.5">
+                        <p className="text-xs font-semibold text-neu-800">Ketentuan Kata Sandi:</p>
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                {hasCapital ? (
+                                    <Icon name="check" className="h-3.5 w-3.5 text-suc-800 shrink-0" strokeWidth={2.5} />
+                                ) : (
+                                    <Icon name="x" className="h-3.5 w-3.5 text-neu-400 shrink-0" strokeWidth={2.5} />
+                                )}
+                                <span className={hasCapital ? 'text-xs text-neu-700' : 'text-xs text-neu-500'}>
+                                    Menggunakan huruf Kapital
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {hasMinLength ? (
+                                    <Icon name="check" className="h-3.5 w-3.5 text-suc-800 shrink-0" strokeWidth={2.5} />
+                                ) : (
+                                    <Icon name="x" className="h-3.5 w-3.5 text-neu-400 shrink-0" strokeWidth={2.5} />
+                                )}
+                                <span className={hasMinLength ? 'text-xs text-neu-700' : 'text-xs text-neu-500'}>
+                                    Minimal 8 karakter
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {hasNumberOrSymbol ? (
+                                    <Icon name="check" className="h-3.5 w-3.5 text-suc-800 shrink-0" strokeWidth={2.5} />
+                                ) : (
+                                    <Icon name="x" className="h-3.5 w-3.5 text-neu-400 shrink-0" strokeWidth={2.5} />
+                                )}
+                                <span className={hasNumberOrSymbol ? 'text-xs text-neu-700' : 'text-xs text-neu-500'}>
+                                    Menggunakan angka atau simbol
+                                </span>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* Submit Button */}
                     <div className="pt-2">

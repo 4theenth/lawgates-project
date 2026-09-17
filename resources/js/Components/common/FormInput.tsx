@@ -9,6 +9,7 @@ export interface FormInputProps extends Omit<InputHTMLAttributes<HTMLInputElemen
     iconPosition?: 'left' | 'right';
     rightIcon?: string | React.ReactNode;
     error?: string;
+    hasError?: boolean;
     helperText?: string;
     containerClassName?: string;
     inputClassName?: string;
@@ -26,6 +27,7 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
             iconPosition = 'left',
             rightIcon,
             error,
+            hasError,
             helperText,
             className,
             containerClassName,
@@ -39,6 +41,7 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
     ) => {
         const [showPassword, setShowPassword] = useState(false);
         const inputId = id || name;
+        const isErrorState = Boolean(error || hasError);
 
         // Tentukan tipe aktual jika password toggle aktif
         const actualType = type === 'password' && isPasswordToggle
@@ -77,8 +80,8 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
                 <div
                     className={cn(
                         'group relative flex w-full items-center rounded-xl border bg-white px-3.5 py-2.5 sm:py-3 transition-all duration-150',
-                        error
-                            ? 'border-red-500 focus-within:border-red-600 focus-within:ring-1 focus-within:ring-red-500'
+                        isErrorState
+                            ? 'border-dan-700 focus-within:border-dan-800 focus-within:ring-1 focus-within:ring-dan-700'
                             : 'border-neu-50 hover:border-neu-200 focus-within:border-pr-900 focus-within:ring-1 focus-within:ring-pr-900',
                         disabled && 'bg-neu-100 opacity-60 cursor-not-allowed',
                         className
@@ -89,7 +92,7 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
                         <div className="mr-3 flex items-center justify-center shrink-0">
                             {renderIcon(
                                 icon,
-                                error ? 'text-red-400 group-focus-within:text-red-500' : undefined
+                                isErrorState ? 'text-dan-700 group-focus-within:text-dan-800' : undefined
                             )}
                         </div>
                     )}
@@ -103,7 +106,8 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
                         disabled={disabled}
                         required={required}
                         className={cn(
-                            'w-full border-none bg-transparent p-0 text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none focus:ring-0',
+                            'w-full border-none bg-transparent p-0 text-sm placeholder:text-neu-400 focus:outline-none focus:ring-0',
+                            isErrorState ? 'text-dan-700' : 'text-neu-900',
                             disabled && 'cursor-not-allowed',
                             inputClassName
                         )}
