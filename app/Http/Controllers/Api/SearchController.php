@@ -47,7 +47,8 @@ class SearchController extends Controller
 
         // 2. Filter Kategori
         $query->when($request->filled('kategori_id'), function ($q) use ($request) {
-            $q->where('jenis_peraturan_id', $request->kategori_id);
+            $ids = explode(',', $request->kategori_id);
+            $q->whereIn('jenis_peraturan_id', $ids);
         });
 
         // 3. Filter Tahun
@@ -57,7 +58,8 @@ class SearchController extends Controller
 
         // 4. Filter Status
         $query->when($request->filled('status_id'), function ($q) use ($request) {
-            $q->where('status_id', $request->status_id);
+            $ids = explode(',', $request->status_id);
+            $q->whereIn('status_id', $ids);
         });
 
         // 5. Sorting
