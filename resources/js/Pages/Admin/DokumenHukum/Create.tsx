@@ -288,22 +288,29 @@ export default function DokumenHukumCreate() {
   // Handler simpan seluruh berkas ke database
   const handleSaveToDatabase = async () => {
     try {
-      const payload = {
-        files: validatedFiles.map(file => ({
-          parsedData: file.parsedData || file.correctionData
-        }))
-      };
+      const payload = new FormData();
+      validatedFiles.forEach((file, index) => {
+        // Stringify JSON data since FormData only takes strings/blobs
+        const parsedDataStr = typeof file.parsedData === 'object' 
+            ? JSON.stringify(file.parsedData || file.correctionData)
+            : (file.parsedData || file.correctionData);
+        payload.append(`files[${index}][parsedData]`, parsedDataStr);
+        
+        // Append actual file if available
+        if (file.rawFile) {
+            payload.append(`files[${index}][rawFile]`, file.rawFile);
+        }
+      });
 
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
       const response = await fetch('/admin/dokumen-hukum/import', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
           'X-CSRF-TOKEN': csrfToken || '',
         },
-        body: JSON.stringify(payload)
+        body: payload
       });
 
       if (!response.ok) {

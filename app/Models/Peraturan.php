@@ -14,6 +14,7 @@ class Peraturan extends Model
 
     protected $fillable = [
         'unique_id',
+        'file_pdf_path',
         'jenis_peraturan_id',
         'nomor',
         'tahun',

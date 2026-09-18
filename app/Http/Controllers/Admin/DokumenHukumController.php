@@ -123,10 +123,21 @@ class DokumenHukumController extends Controller
         $successCount = 0;
         $errors = [];
 
-        foreach ($request->input('files') as $fileData) {
+        foreach ($request->input('files') as $index => $fileData) {
             try {
                 if (isset($fileData['parsedData'])) {
-                    $importService->import($fileData['parsedData']);
+                    $parsed = is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData'];
+                    $peraturan = $importService->import($parsed);
+                    
+                    // Cek jika ada file PDF yang disertakan
+                    if ($request->hasFile("files.{$index}.rawFile")) {
+                        $pdfFile = $request->file("files.{$index}.rawFile");
+                        // Simpan ke disk minio di dalam folder pdf_dokumen
+                        $path = $pdfFile->storeAs('pdf_dokumen', $peraturan->unique_id . '.pdf', 'minio');
+                        $peraturan->file_pdf_path = $path;
+                        $peraturan->save();
+                    }
+
                     $successCount++;
                 }
             } catch (\Exception $e) {
@@ -258,5 +269,115 @@ class DokumenHukumController extends Controller
         ];
 
         return response()->json($data);
+    }
+    public function scanMinio()
+    {
+        // Tingkatkan batas waktu eksekusi agar tidak timeout jika jumlah file MinIO sangat banyak
+        set_time_limit(300); // 5 menit
+
+        try {
+            // Karena MinIO/S3 adalah Object Storage (bukan folder nyata), allDirectories() seringkali kosong.
+            // Solusi terbaik: Ambil semua file, lalu saring file yang bernama 'ocr.json'
+            $allFiles = \Illuminate\Support\Facades\Storage::disk('minio')->allFiles('documents');
+            
+            $pendingImports = [];
+            
+            // Collect existing PDF paths to check against (kalau sudah masuk ke DB)
+            $existingPaths = Peraturan::whereNotNull('file_pdf_path')->pluck('file_pdf_path')->toArray();
+            
+            foreach ($allFiles as $file) {
+                // Hapus slash di awal jika ada
+                $file = ltrim($file, '/');
+                
+                // Jika file ini adalah ocr.json, berarti foldernya siap di-import
+                if (str_ends_with(strtolower($file), '/ocr.json')) {
+                    $dir = dirname($file); // misal: documents/uu/undang-undang-1-2024
+                    $expectedPdfPath = $dir . '/document.pdf';
+                    
+                    // Jika PDF path ini belum ada di database
+                    if (!in_array($expectedPdfPath, $existingPaths)) {
+                        // Deteksi kategori dari path (misal: documents/uu/undang-undang-1-2024)
+                        $parts = explode('/', $dir);
+                        $kategoriRaw = $parts[1] ?? 'unknown'; // Ambil 'uu'
+                        
+                        $kategori = 'Lainnya';
+                        if ($kategoriRaw === 'uu' || str_contains(strtolower($dir), 'undang-undang')) {
+                            $kategori = 'Undang-Undang';
+                        }
+                        
+                        $pendingImports[] = [
+                            'folder_path' => $dir,
+                            'nama_file' => basename($dir),
+                            'kategori' => $kategori
+                        ];
+                    }
+                }
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => array_values($pendingImports)
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("MinIO Scan Error: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memindai MinIO: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function importFromMinio(Request $request, DocumentImportService $importService)
+    {
+        $request->validate([
+            'folder_path' => 'required|string',
+        ]);
+
+        $folderPath = $request->folder_path;
+        $jsonPath = $folderPath . '/ocr.json';
+
+        try {
+            if (!\Illuminate\Support\Facades\Storage::disk('minio')->exists($jsonPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File ocr.json tidak ditemukan di folder tersebut.'
+                ], 404);
+            }
+
+            // Get JSON content from MinIO
+            $jsonContent = \Illuminate\Support\Facades\Storage::disk('minio')->get($jsonPath);
+            $parsedData = json_decode($jsonContent, true);
+
+            if (!$parsedData) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal membaca format JSON.'
+                ], 400);
+            }
+
+            // Import using existing service
+            $peraturan = $importService->import($parsedData);
+
+            // Karena DocumentImportService melakukan hardcode path 'documents/...',
+            // kita override berdasarkan lokasi folder sebenarnya di MinIO
+            if ($peraturan) {
+                $peraturan->update([
+                    'file_pdf_path' => $folderPath . '/document.pdf'
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Berhasil import peraturan dari MinIO',
+                'data' => $peraturan
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error("MinIO Import Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 }

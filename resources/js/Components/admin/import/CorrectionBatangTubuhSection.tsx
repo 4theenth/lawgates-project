@@ -23,7 +23,11 @@ export function CorrectionBatangTubuhSection({
 
   return (
     <div className="space-y-4">
-      {babList.map((bab) => (
+      {babList.filter(bab => 
+        (bab.judul && bab.judul.trim() !== '' && bab.judul.trim() !== '-') || 
+        (bab.deskripsi && bab.deskripsi.trim() !== '') || 
+        (bab.pasalList && bab.pasalList.length > 0)
+      ).map((bab) => (
         <div
           key={bab.id}
           className="bg-white rounded-[20px] border border-neu-100 p-5 shadow-2xs space-y-4"

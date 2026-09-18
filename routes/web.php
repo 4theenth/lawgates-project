@@ -44,6 +44,7 @@ Route::get('/bandingkan', function () {
 });
 
 Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show']);
+Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download']);
 
 // Referensi filter
 Route::get('/api/referensi-filter', [PeraturanController::class, 'referensiFilter']);
@@ -79,6 +80,10 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     Route::get('/dokumen-hukum/tambah', function () {
         return Inertia::render('Admin/DokumenHukum/Create');
     })->name('admin.dokumen-hukum.tambah');
+
+    // MinIO Sync Routes
+    Route::get('/dokumen-hukum/minio/scan', [DokumenHukumController::class, 'scanMinio'])->name('admin.dokumen-hukum.minio.scan');
+    Route::post('/dokumen-hukum/minio/import', [DokumenHukumController::class, 'importFromMinio'])->name('admin.dokumen-hukum.minio.import');
 });
 
 /*
