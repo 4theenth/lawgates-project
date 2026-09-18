@@ -408,24 +408,23 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                 </Link>
 
                 {/* Tombol Download Dokumen */}
-                {peraturan?.file_pdf ? (
+                {peraturan?.unique_id ? (
                   <a 
-                    href={`/storage/${peraturan.file_pdf}`} 
-                    target="_blank"
-                    rel="noreferrer"
+                    href={`/peraturan/${peraturan.unique_id}/download`}
                     className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-[#0A1931] hover:bg-[#071326] text-white text-xs sm:text-sm font-semibold rounded-2xl shadow-sm transition-colors cursor-pointer"
                   >
                     <CloudDownload className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
-                    <span>Download Dokumen</span>
+                    <span>Lihat / Download Dokumen</span>
                   </a>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => alert('Mengunduh dokumen hukum resmi...')}
-                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-[#0A1931] hover:bg-[#071326] text-white text-xs sm:text-sm font-semibold rounded-2xl shadow-sm transition-colors cursor-pointer"
+                    onClick={() => alert('Dokumen PDF tidak tersedia untuk peraturan ini.')}
+                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-gray-400 text-white text-xs sm:text-sm font-semibold rounded-2xl shadow-sm cursor-not-allowed"
+                    disabled
                   >
                     <CloudDownload className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
-                    <span>Download Dokumen</span>
+                    <span>Lihat / Download Dokumen</span>
                   </button>
                 )}
               </div>

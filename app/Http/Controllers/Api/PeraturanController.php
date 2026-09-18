@@ -70,6 +70,36 @@ class PeraturanController extends Controller
         ], 200);
     }
 
+    public function download($unique_id)
+    {
+        $peraturan = Peraturan::with('jenisPeraturan')->where('unique_id', $unique_id)->firstOrFail();
+
+        // Generate tipe_peraturan (e.g. 'uu', 'uudrt') dan standart_id (e.g. 'undang-undang-1-2022')
+        $tipe_peraturan = $peraturan->jenisPeraturan ? strtolower($peraturan->jenisPeraturan->kode) : 'unknown';
+        $nama_jenis = $peraturan->jenisPeraturan ? \Illuminate\Support\Str::slug($peraturan->jenisPeraturan->nama) : 'peraturan';
+        
+        // standart_id pattern: jenis-nomor-tahun
+        $standart_id = $nama_jenis . '-' . \Illuminate\Support\Str::slug($peraturan->nomor) . '-' . $peraturan->tahun;
+
+        // Path di dalam bucket minio: documents/{tipe_peraturan}/{standart_id}/document.pdf
+        $path = 'documents/' . $tipe_peraturan . '/' . $standart_id . '/document.pdf';
+
+        try {
+            $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+            
+            // Cek apakah file ada di MinIO
+            if ($disk->exists($path)) {
+                // Streaming file dari Laravel (inline / preview) alih-alih download otomatis
+                return $disk->response($path, $standart_id . '.pdf');
+            } else {
+                return redirect('/peraturan/' . $unique_id)->with('error', 'Dokumen PDF tidak tersedia di server penyimpanan (Path: ' . $path . ').');
+            }
+        } catch (\Exception $e) {
+            \Log::error('MinIO Download Error: ' . $e->getMessage());
+            return redirect('/peraturan/' . $unique_id)->with('error', 'Gagal mengunduh dokumen dari server penyimpanan.');
+        }
+    }
+
     // Fungsi baru untuk mengambil data filter secara dinamis
     public function referensiFilter()
     {

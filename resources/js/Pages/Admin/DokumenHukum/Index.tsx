@@ -97,6 +97,56 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
   const [editingStatusDoc, setEditingStatusDoc] = useState<DokumenHukumItem | null>(null);
   const [deletingDoc, setDeletingDoc] = useState<DokumenHukumItem | null>(null);
 
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [syncItems, setSyncItems] = useState<any[]>([]);
+  const [isSyncLoading, setIsSyncLoading] = useState(false);
+  const [importingPath, setImportingPath] = useState<string | null>(null);
+
+  const handleOpenSyncModal = async () => {
+    setIsSyncModalOpen(true);
+    setIsSyncLoading(true);
+    try {
+      const response = await fetch('/admin/dokumen-hukum/minio/scan');
+      const json = await response.json();
+      if (json.success) {
+        setSyncItems(json.data);
+      } else {
+        toast.error(json.message || 'Gagal memindai MinIO');
+      }
+    } catch (error) {
+      toast.error('Terjadi kesalahan saat memindai server');
+    } finally {
+      setIsSyncLoading(false);
+    }
+  };
+
+  const handleImportMinio = async (folderPath: string) => {
+    setImportingPath(folderPath);
+    try {
+      const response = await fetch('/admin/dokumen-hukum/minio/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': (document.head.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+        },
+        body: JSON.stringify({ folder_path: folderPath })
+      });
+      const json = await response.json();
+      if (response.ok && json.success) {
+        toast.success('Berhasil import dokumen dari MinIO!');
+        setSyncItems(prev => prev.filter(item => item.folder_path !== folderPath));
+        fetchData();
+      } else {
+        toast.error(json.message || 'Gagal melakukan import');
+      }
+    } catch (error) {
+      toast.error('Terjadi kesalahan saat melakukan import');
+    } finally {
+      setImportingPath(null);
+    }
+  };
+
   const statusOptions = [
     { id: 'berlaku' as const, label: 'Berlaku' },
     { id: 'tidak_berlaku' as const, label: 'Tidak Berlaku' },
@@ -329,6 +379,14 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Tombol Sinkronisasi MinIO */}
+          <button
+            onClick={handleOpenSyncModal}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-white border border-neu-200 text-neu-700 text-[14px] font-medium hover:bg-neu-50 hover:text-neu-900 transition-colors shadow-2xs cursor-pointer"
+          >
+            <span>Sinkronisasi MinIO</span>
+          </button>
+
           {/* Tombol Tambah Hukum (Membuka Alur Tambah Data / Impor JSON OCR) */}
           <Link
             href="/admin/dokumen-hukum/tambah"
@@ -453,6 +511,78 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
         onClose={() => setDeletingDoc(null)}
         onConfirm={handleConfirmDelete}
       />
+
+      {/* Modal Sinkronisasi MinIO */}
+      {isSyncModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-neu-200 flex items-center justify-between">
+              <h2 className="text-[18px] font-semibold text-neu-900">Sinkronisasi Dokumen MinIO</h2>
+              <button
+                onClick={() => setIsSyncModalOpen(false)}
+                className="text-neu-400 hover:text-neu-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {isSyncLoading ? (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <div className="w-8 h-8 border-4 border-pr-200 border-t-pr-900 rounded-full animate-spin"></div>
+                  <p className="mt-4 text-neu-600">Memindai server MinIO...</p>
+                </div>
+              ) : syncItems.length > 0 ? (
+                <div className="overflow-x-auto border border-neu-200 rounded-lg">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-neu-50">
+                      <tr>
+                        <th className="px-4 py-3 text-[13px] font-medium text-neu-600 border-b border-neu-200">Kategori</th>
+                        <th className="px-4 py-3 text-[13px] font-medium text-neu-600 border-b border-neu-200">Nama Folder / File</th>
+                        <th className="px-4 py-3 text-[13px] font-medium text-neu-600 border-b border-neu-200 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neu-200">
+                      {syncItems.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-neu-50 transition-colors">
+                          <td className="px-4 py-3 text-[14px] text-neu-900 font-medium capitalize">{item.kategori}</td>
+                          <td className="px-4 py-3 text-[14px] text-neu-600">{item.nama_file}</td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => handleImportMinio(item.folder_path)}
+                              disabled={importingPath === item.folder_path}
+                              className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors ${
+                                importingPath === item.folder_path 
+                                ? 'bg-neu-100 text-neu-400 cursor-not-allowed' 
+                                : 'bg-pr-100 text-pr-900 hover:bg-pr-200'
+                              }`}
+                            >
+                              {importingPath === item.folder_path ? 'Mengimpor...' : 'Import'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  <p className="text-neu-600 text-[15px]">Tidak ada dokumen baru di MinIO yang perlu di-import.</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 border-t border-neu-200 flex justify-end">
+              <button
+                onClick={() => setIsSyncModalOpen(false)}
+                className="px-4 py-2 bg-neu-100 text-neu-700 rounded-lg font-medium hover:bg-neu-200"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

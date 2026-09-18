@@ -51,6 +51,10 @@ class DocumentImportService
                 })
                 ->first();
 
+            $tipeFolder = strtolower($data['metadata']['tipe_peraturan'] ?? 'uu');
+            $docFolder = $data['metadata']['standard_id'] ?? $data['metadata']['id_dokumen'] ?? '';
+            $pdfPath = "documents/{$tipeFolder}/{$docFolder}/document.pdf";
+
             $attributes = [
                 'unique_id'            => $data['metadata']['id_dokumen'],
                 'judul'                => $data['metadata']['judul'],
@@ -64,6 +68,7 @@ class DocumentImportService
                 'tanggal_berlaku'      => $this->formatTanggal($data['metadata']['tanggal_berlaku'] ?? null),
                 'instansi'             => $data['metadata']['pemrakarsa'] ?? null,
                 'url_pdf'              => $data['metadata']['sumber_dokumen'] ?? null,
+                'file_pdf_path'        => $pdfPath,
             ];
 
             if ($peraturan) {
