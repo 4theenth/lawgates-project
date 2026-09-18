@@ -42,7 +42,7 @@ class LoginRequest extends FormRequest
     {
         return [
             'email.required' => 'Email wajib diisi.',
-            'email.email' => 'Email tidak valid.',
+            'email.email' => 'Email tidak valid',
             'password.required' => 'Kata sandi wajib diisi.',
         ];
     }
@@ -60,6 +60,7 @@ class LoginRequest extends FormRequest
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
+                'auth' => 'invalid_credentials',
                 'email' => 'Email atau kata sandi tidak sesuai.',
             ]);
         }
@@ -83,10 +84,8 @@ class LoginRequest extends FormRequest
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
         throw ValidationException::withMessages([
-            'email' => trans('auth.throttle', [
-                'seconds' => $seconds,
-                'minutes' => ceil($seconds / 60),
-            ]),
+            'auth' => 'rate_limited',
+            'email' => 'rate_limited',
         ]);
     }
 

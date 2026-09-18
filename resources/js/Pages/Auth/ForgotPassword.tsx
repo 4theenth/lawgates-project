@@ -36,6 +36,15 @@ export default function ForgotPassword({ status }: ForgotPasswordProps) {
         post(route('password.email'));
     };
 
+    // Format pesan error bila email tidak terdaftar sesuai desain
+    const emailError = errors.email
+        ? errors.email.includes("can't find a user") ||
+          errors.email === 'passwords.user' ||
+          errors.email.toLowerCase().includes('tidak terdaftar')
+            ? 'Email tidak terdaftar'
+            : errors.email
+        : undefined;
+
     return (
         <GuestLayout>
             <Head title="Lupa Kata Sandi" />
@@ -43,9 +52,6 @@ export default function ForgotPassword({ status }: ForgotPasswordProps) {
             <AuthCard
                 title="Lupa kata sandi"
                 subtitle="Masukkan email yang terdaftar, kami akan kirim link untuk reset kata sandi"
-                footerText="Sudah ingat kata sandi?"
-                footerLinkText="Kembali ke Login"
-                footerLinkHref={route('login')}
             >
                 {status && (
                     <div className="mb-4 rounded-xl bg-suc-50 p-3 text-xs sm:text-sm font-medium text-suc-800 border border-suc-200">
@@ -64,7 +70,7 @@ export default function ForgotPassword({ status }: ForgotPasswordProps) {
                         value={data.email}
                         autoComplete="username"
                         autoFocus
-                        error={errors.email}
+                        error={emailError}
                         onChange={(e) => {
                             const val = e.target.value;
                             setData('email', val);
