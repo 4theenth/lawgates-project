@@ -3,6 +3,8 @@ import { Head, useForm, router } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { AuthCard, FormInput } from '@/Components/common';
 import { Icon } from '@/Components/ui/icon';
+import { useGoogleLogin } from '@react-oauth/google';
+import { useToast } from '@/hooks/useToast';
 
 export default function Register() {
     const { data, setData, post, processing, errors, reset, setError, clearErrors } = useForm({
@@ -12,6 +14,46 @@ export default function Register() {
         password: '',
         password_confirmation: '',
     });
+
+    const validateEmail = (val: string) => {
+        const trimmed = val.trim();
+        if (!trimmed) {
+            setError('email', 'Email wajib diisi.');
+            return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+            setError('email', 'Email tidak valid');
+            return false;
+        }
+        clearErrors('email');
+        return true;
+    };
+
+    const validatePassword = (val: string) => {
+        if (!val) {
+            setError('password', 'Kata sandi wajib diisi.');
+            return false;
+        }
+        if (val.length < 8) {
+            setError('password', 'Panjang kata sandi minimal 8 karakter.');
+            return false;
+        }
+        clearErrors('password');
+        return true;
+    };
+
+    const validatePasswordConfirmation = (confirmVal: string, passVal: string) => {
+        if (!confirmVal) {
+            setError('password_confirmation', 'Konfirmasi kata sandi wajib diisi.');
+            return false;
+        }
+        if (confirmVal !== passVal) {
+            setError('password_confirmation', 'Konfirmasi kata sandi tidak cocok.');
+            return false;
+        }
+        clearErrors('password_confirmation');
+        return true;
+    };
 
     const hasCapital = /[A-Z]/.test(data.password);
     const hasMinLength = data.password.length >= 8;

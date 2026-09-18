@@ -3,21 +3,59 @@ import { Head, router } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Icon } from '@/Components/ui/icon';
 import profileAvatar from '@/assets/profile-avatar.webp';
+import { useGoogleLogin } from '@react-oauth/google';
+import { useToast } from '@/hooks/useToast';
 
 export interface GoogleSyncProps {
     email?: string;
     accessToken?: string;
     remember?: boolean;
+    isRegisterFlow?: boolean;
+    error?: string;
 }
 
 export default function GoogleSync({
     email = 'Mangadi@gmail.com',
     accessToken,
     remember = true,
+    isRegisterFlow = false,
+    error,
 }: GoogleSyncProps) {
     const [processing, setProcessing] = useState(false);
+    const { toast } = useToast();
+
+    const triggerGooglePopup = useGoogleLogin({
+        onSuccess: (tokenResponse) => {
+            setProcessing(true);
+            router.post(
+                '/auth/google/callback',
+                {
+                    access_token: tokenResponse.access_token,
+                    confirm_link: true,
+                    remember: remember,
+                },
+                {
+                    onFinish: () => setProcessing(false),
+                    onError: () => {
+                        toast.error('Gagal', 'Gagal memverifikasi akun Google.');
+                    },
+                }
+            );
+        },
+        onError: () => {
+            toast.error('Batal', 'Verifikasi Google dibatalkan.');
+            setProcessing(false);
+        },
+    });
 
     const handleConfirm = () => {
+        // Jika alur registrasi atau belum ada accessToken, buka pop-up Google OAuth untuk konfirmasi kepemilikan
+        if (isRegisterFlow || !accessToken) {
+            triggerGooglePopup();
+            return;
+        }
+
+        // Jika accessToken sudah ada (alur login biasa), langsung kirim konfirmasi
         setProcessing(true);
         router.post(
             '/auth/google/callback',
@@ -28,12 +66,19 @@ export default function GoogleSync({
             },
             {
                 onFinish: () => setProcessing(false),
+                onError: () => {
+                    toast.error('Gagal', 'Terjadi kesalahan saat menghubungkan akun.');
+                },
             }
         );
     };
 
     const handleCancel = () => {
-        router.get(route('login'));
+        if (isRegisterFlow) {
+            router.get(route('register'));
+        } else {
+            router.get(route('login'));
+        }
     };
 
     return (
@@ -41,6 +86,13 @@ export default function GoogleSync({
             <Head title="Sinkronisasi Akun" />
 
             <div className="w-full max-w-[440px] rounded-[24px] sm:rounded-[28px] border border-neu-50 bg-[#FFFFFF] p-7 sm:p-9 shadow-[0px_4px_16px_rgba(12,12,13,0.05)] text-center transition-all">
+                {/* Error Banner jika akun google tidak cocok */}
+                {error && (
+                    <div className="mb-4 rounded-xl bg-dan-50/80 p-3.5 border border-dan-100/60 flex items-start gap-2.5 text-left">
+                        <Icon name="circle-x" className="h-5 w-5 text-dan-700 shrink-0 mt-0.5" />
+                        <p className="text-xs text-dan-700 leading-snug">{error}</p>
+                    </div>
+                )}
                 {/* Header Subtitle */}
                 <div className="flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold text-neu-800 mb-6">
                     <Icon name="repeat" className="h-4 w-4 text-neu-700" />
