@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { LegalDocumentCorrectionData } from './correctionParser';
+import { AutoResizeTextarea } from './AutoResizeTextarea';
 
 interface CorrectionPembukaanSectionProps {
   pembukaan: LegalDocumentCorrectionData['pembukaan'];
@@ -60,11 +61,10 @@ export function CorrectionPembukaanSection({
               placeholder="Judul Pembukaan..."
             />
             {pembukaan.subJudul !== undefined && (
-              <textarea
-                rows={2}
+              <AutoResizeTextarea
                 value={pembukaan.subJudul}
                 onChange={(e) => onChangePembukaan('subJudul', e.target.value)}
-                className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900"
+                className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[60px]"
                 placeholder="Diktum pembuka / tentang..."
               />
             )}
@@ -86,11 +86,10 @@ export function CorrectionPembukaanSection({
             </button>
             {isOpenMenimbang && (
               <div className="mt-2">
-                <textarea
-                  rows={4}
+                <AutoResizeTextarea
                   value={pembukaan.menimbang}
                   onChange={(e) => onChangePembukaan('menimbang', e.target.value)}
-                  className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900"
+                  className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[100px]"
                   placeholder="Isi konsiderans menimbang..."
                 />
               </div>
@@ -113,11 +112,10 @@ export function CorrectionPembukaanSection({
             </button>
             {isOpenMengingat && (
               <div className="mt-2">
-                <textarea
-                  rows={4}
+                <AutoResizeTextarea
                   value={pembukaan.mengingat}
                   onChange={(e) => onChangePembukaan('mengingat', e.target.value)}
-                  className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900"
+                  className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[100px]"
                   placeholder="Dasar hukum mengingat..."
                 />
               </div>
@@ -140,11 +138,10 @@ export function CorrectionPembukaanSection({
             </button>
             {isOpenMemutuskan && (
               <div className="mt-2">
-                <textarea
-                  rows={3}
+                <AutoResizeTextarea
                   value={pembukaan.memutuskan}
                   onChange={(e) => onChangePembukaan('memutuskan', e.target.value)}
-                  className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900"
+                  className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[80px]"
                   placeholder="Diktum memutuskan..."
                 />
               </div>

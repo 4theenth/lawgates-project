@@ -292,9 +292,13 @@ export default function DokumenHukumCreate() {
       validatedFiles.forEach((file, index) => {
         // Stringify JSON data since FormData only takes strings/blobs
         const parsedDataStr = typeof file.parsedData === 'object' 
-            ? JSON.stringify(file.parsedData || file.correctionData)
-            : (file.parsedData || file.correctionData);
+            ? JSON.stringify(file.parsedData)
+            : file.parsedData;
         payload.append(`files[${index}][parsedData]`, parsedDataStr);
+
+        if (file.correctionData) {
+            payload.append(`files[${index}][correctionData]`, JSON.stringify(file.correctionData));
+        }
         
         // Append actual file if available
         if (file.rawFile) {

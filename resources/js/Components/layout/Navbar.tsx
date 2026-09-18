@@ -162,8 +162,9 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
             return isExternal ? (
               <a
                 key={item.id}
-                href={item.path}
-                target="_blank"
+                href={item.disabled ? '#' : item.path}
+                onClick={item.disabled ? (e) => e.preventDefault() : undefined}
+                target={item.disabled ? undefined : "_blank"}
                 rel="noopener noreferrer"
                 className={`transition-colors duration-300 relative py-1 ${NAVBAR_THEME.fontSize} ${theme.inactiveItem}`}
               >
@@ -172,7 +173,8 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
             ) : (
               <Link
                 key={item.id}
-                href={item.path}
+                href={item.disabled ? '#' : item.path}
+                onClick={item.disabled ? (e) => e.preventDefault() : undefined}
                 className={`transition-colors duration-300 relative py-1 ${NAVBAR_THEME.fontSize} ${active
                     ? theme.activeItem
                     : theme.inactiveItem
@@ -238,10 +240,13 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                 return isExternal ? (
                   <a
                     key={item.id}
-                    href={item.path}
-                    target="_blank"
+                    href={item.disabled ? '#' : item.path}
+                    target={item.disabled ? undefined : "_blank"}
                     rel="noopener noreferrer"
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={(e) => {
+                      if (item.disabled) e.preventDefault();
+                      else setMobileMenuOpen(false);
+                    }}
                     className="px-3.5 py-3 rounded-xl text-sm font-medium text-neu-200 hover:text-white hover:bg-white/5 transition-colors"
                   >
                     {item.title}
@@ -249,8 +254,11 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                 ) : (
                   <Link
                     key={item.id}
-                    href={item.path}
-                    onClick={() => setMobileMenuOpen(false)}
+                    href={item.disabled ? '#' : item.path}
+                    onClick={(e) => {
+                      if (item.disabled) e.preventDefault();
+                      else setMobileMenuOpen(false);
+                    }}
                     className={`px-3.5 py-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${active
                         ? NAVBAR_THEME.mobileMenu.active
                         : NAVBAR_THEME.mobileMenu.inactive

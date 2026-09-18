@@ -22,17 +22,20 @@ export const NAVBAR_MENUS: MenuItem[] = [
   {
     id: 2,
     title: 'Regulasi',
-    path: '/regulasi',
+    path: '#',
+    disabled: true,
   },
   {
     id: 3,
     title: 'Langganan',
-    path: '/langganan',
+    path: '#',
+    disabled: true,
   },
   {
     id: 4,
     title: 'Tentang',
-    path: '/tentang',
+    path: '#',
+    disabled: true,
   },
 ];
 
@@ -98,8 +101,8 @@ export const ADMIN_SIDEBAR_MENUS: SidebarMenuItem[] = [
     label: 'Users',
     icon: Users,
     subItems: [
-      { id: 'user-list', label: 'Users', href: '/admin/users' },
-      { id: 'admin-list', label: 'Admin', href: '/admin/users/admin' },
+      { id: 'user-list', label: 'Users', href: '#', disabled: true },
+      { id: 'admin-list', label: 'Admin', href: '#', disabled: true },
     ],
   },
 ];

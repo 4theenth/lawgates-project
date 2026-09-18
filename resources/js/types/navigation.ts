@@ -5,6 +5,7 @@ export interface SubMenuItem {
   label: string;
   href: string;
   roles?: string[];
+  disabled?: boolean;
 }
 
 export interface SidebarMenuItem {
@@ -14,6 +15,7 @@ export interface SidebarMenuItem {
   icon: LucideIcon;
   roles?: string[];
   subItems?: SubMenuItem[];
+  disabled?: boolean;
 }
 
 export interface MenuItem {
@@ -25,6 +27,7 @@ export interface MenuItem {
   roles?: string[];
   isExternal?: boolean;
   subItems?: SubMenuItem[];
+  disabled?: boolean;
 }
 
 // Alias for backwards compatibility
