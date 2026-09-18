@@ -29,14 +29,39 @@ class RegisteredUserController extends Controller
      *
      * @throws ValidationException
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'email' => 'required|string|lowercase|email|max:255',
             'phone' => 'nullable|string|max:25',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
+
+        $existingUser = User::where('email', $request->email)->first();
+
+        if ($existingUser) {
+            // Jika akun sudah memiliki password manual, tampilkan error sudah terdaftar
+            if (!empty($existingUser->password)) {
+                throw ValidationException::withMessages([
+                    'email' => 'Email sudah terdaftar. Silakan login.',
+                ]);
+            }
+
+            // Jika akun terdaftar via Google (password masih kosong), simpan data pending di session
+            // dan alihkan ke layar Singkronisasi Akun
+            session([
+                'pending_link_email' => $request->email,
+                'pending_link_password' => $request->password,
+                'pending_link_name' => $request->name,
+                'pending_link_phone' => $request->phone,
+            ]);
+
+            return Inertia::render('Auth/GoogleSync', [
+                'email' => $existingUser->email,
+                'isRegisterFlow' => true,
+            ]);
+        }
 
         $user = User::create([
             'username' => $request->name,
