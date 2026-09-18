@@ -90,7 +90,9 @@ class DokumenHukumController extends Controller
 
         // Fetch References for filters (Categories)
         $categories = JenisPeraturan::whereIn('id', Peraturan::select('jenis_peraturan_id')->distinct())
-            ->pluck('nama');
+            ->pluck('nama')
+            ->unique()
+            ->values();
 
         return Inertia::render('Admin/DokumenHukum/Index', [
             'peraturans' => $paginator,
