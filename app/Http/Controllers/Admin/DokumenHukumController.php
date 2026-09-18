@@ -11,6 +11,9 @@ use Inertia\Inertia;
 use App\Services\DocumentImportService;
 use App\Models\StrukturDokumen;
 use App\Models\Pasal;
+use App\Models\PenjelasanPasal;
+use App\Models\LawRelation;
+use Illuminate\Support\Facades\DB;
 
 class DokumenHukumController extends Controller
 {
@@ -129,6 +132,11 @@ class DokumenHukumController extends Controller
                     $parsed = is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData'];
                     $peraturan = $importService->import($parsed);
                     
+                    if (isset($fileData['correctionData'])) {
+                        $correctionData = is_string($fileData['correctionData']) ? json_decode($fileData['correctionData'], true) : $fileData['correctionData'];
+                        $this->performUpdate($peraturan, $correctionData, true);
+                    }
+
                     // Cek jika ada file PDF yang disertakan
                     if ($request->hasFile("files.{$index}.rawFile")) {
                         $pdfFile = $request->file("files.{$index}.rawFile");
@@ -213,17 +221,26 @@ class DokumenHukumController extends Controller
                 
                 $pasalList = [];
                 foreach ($pasals as $pasal) {
+                    $penjelasan = \App\Models\PenjelasanPasal::where('pasal_id', $pasal->id)->first();
                     $pasalList[] = [
                         'id' => (string)$pasal->id,
                         'nomor' => $pasal->nomor_pasal,
                         'isi' => $pasal->isi_pasal ?? '',
-                        'penjelasan' => '' // Get from PenjelasanPasal if needed
+                        'penjelasan' => $penjelasan ? $penjelasan->isi_penjelasan : ''
                     ];
+                }
+
+                $judulStruktur = trim($bab->judul_struktur);
+                $label = trim($bab->label);
+                if (stripos($judulStruktur, $label) === 0) {
+                    $judulFormatted = $judulStruktur;
+                } else {
+                    $judulFormatted = $label . ' ' . $judulStruktur;
                 }
 
                 $babList[] = [
                     'id' => (string)$bab->id,
-                    'judul' => $bab->label . ' ' . $bab->judul_struktur,
+                    'judul' => trim($judulFormatted),
                     'deskripsi' => '',
                     'pasalList' => $pasalList,
                     'isExpanded' => false,
@@ -234,10 +251,12 @@ class DokumenHukumController extends Controller
             $pasals = Pasal::where('peraturan_id', $peraturan->id)->orderBy('urutan')->get();
             $pasalList = [];
             foreach ($pasals as $pasal) {
+                $penjelasan = \App\Models\PenjelasanPasal::where('pasal_id', $pasal->id)->first();
                 $pasalList[] = [
                     'id' => (string)$pasal->id,
                     'nomor' => $pasal->nomor_pasal,
                     'isi' => $pasal->isi_pasal ?? '',
+                    'penjelasan' => $penjelasan ? $penjelasan->isi_penjelasan : ''
                 ];
             }
             if (count($pasalList) > 0) {
@@ -250,25 +269,291 @@ class DokumenHukumController extends Controller
             }
         }
 
-        $data = [
+        // Ambil Riwayat Perubahan (Law Relations)
+        $riwayatPerubahan = [];
+        
+        // Add current document as first item
+        $riwayatPerubahan[] = [
+            'id' => 'current',
+            'kode' => $peraturan->unique_id,
+            'isCurrent' => true,
+            'currentStatusLabel' => 'Sedang dikoreksi'
+        ];
+
+        $lawRelations = \App\Models\LawRelation::with(['toPeraturan', 'relationType'])
+            ->where('from_peraturan_id', $peraturan->id)
+            ->get();
+
+        foreach ($lawRelations as $relation) {
+            $target = $relation->toPeraturan;
+            $type = $relation->relationType;
+            
+            $statusLabel = 'tersedia';
+            $statusVariant = 'tersedia';
+            if ($target && str_contains(strtolower($target->judul), 'menunggu import')) {
+                $statusLabel = 'belum tersedia';
+                $statusVariant = 'belum_tersedia';
+            }
+
+            $keteranganLabel = $type ? $type->nama_relasi : 'terkait';
+            $keteranganVariant = 'warning';
+            if (in_array($keteranganLabel, ['diubah_oleh', 'dicabut_oleh', 'mencabut_sebagian'])) {
+                $keteranganVariant = 'danger';
+            }
+
+            $riwayatPerubahan[] = [
+                'id' => (string)$relation->id,
+                'kode' => $target ? $target->unique_id : '',
+                'statusBadge' => [
+                    'label' => $statusLabel,
+                    'variant' => $statusVariant
+                ],
+                'keteranganBadge' => [
+                    'label' => $keteranganLabel,
+                    'variant' => $keteranganVariant
+                ],
+                'isCurrent' => false
+            ];
+        }
+
+        return response()->json([
             'standarId' => $peraturan->unique_id,
             'judul' => $peraturan->judul,
             'pembukaan' => [
-                'judul' => $peraturan->judul,
+                'judul' => 'Pembukaan',
                 'menimbang' => $menimbang,
                 'mengingat' => $mengingat,
                 'memutuskan' => $memutuskan,
             ],
             'babList' => $babList,
-            'riwayatPerubahan' => [],
+            'riwayatPerubahan' => $riwayatPerubahan,
             'metadata' => [
                 'pemrakarsa' => $peraturan->instansi ?? '',
                 'tanggalDitetapkan' => $peraturan->tanggal_penetapan ? $peraturan->tanggal_penetapan->format('Y-m-d') : '',
                 'tempatPenetapan' => $peraturan->tempat_penetapan ?? '',
             ]
-        ];
+        ]);
+    }
 
-        return response()->json($data);
+    public function update(Request $request, $unique_id)
+    {
+        try {
+            DB::beginTransaction();
+
+            $peraturan = Peraturan::where('unique_id', $unique_id)->firstOrFail();
+            $this->performUpdate($peraturan, $request->all());
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Data hukum berhasil diperbarui'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Update Dokumen Hukum Error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memperbarui data hukum: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function performUpdate(Peraturan $peraturan, array $data, bool $isImport = false)
+    {
+        // 1. Update Peraturan Utama
+        if (isset($data['judul'])) {
+            $peraturan->judul = $data['judul'];
+        }
+        if (isset($data['nomorPeraturan'])) {
+            $peraturan->nomor = $data['nomorPeraturan'];
+        }
+        if (isset($data['tempatPenetapan'])) {
+            $peraturan->tempat_penetapan = $data['tempatPenetapan'];
+        }
+        if (isset($data['tanggalPenetapan'])) {
+            // assume format Y-m-d
+            $peraturan->tanggal_penetapan = $data['tanggalPenetapan'];
+        }
+        if (isset($data['metadata']['pemrakarsa'])) {
+            $peraturan->instansi = $data['metadata']['pemrakarsa'];
+        }
+        
+        $standarId = $data['standarId'] ?? null;
+        if ($standarId && $standarId !== $peraturan->unique_id) {
+            $exists = Peraturan::where('unique_id', $standarId)->where('id', '!=', $peraturan->id)->first();
+            if (!$exists) {
+                $peraturan->unique_id = $standarId;
+            }
+        }
+        $peraturan->save();
+
+        // 2. Update Pembukaan
+        $pembukaanData = $data['pembukaan'] ?? [];
+        $menimbang = $pembukaanData['menimbang'] ?? '';
+        $mengingat = $pembukaanData['mengingat'] ?? '';
+        $memutuskan = $pembukaanData['memutuskan'] ?? '';
+        
+        $pembukaanText = '';
+        if ($menimbang) $pembukaanText .= "Menimbang :\n$menimbang\n";
+        if ($mengingat) $pembukaanText .= "Mengingat :\n$mengingat\n";
+        if ($memutuskan) $pembukaanText .= "Memutuskan :\n$memutuskan\n";
+        $pembukaanText = trim($pembukaanText);
+
+        if ($isImport) {
+            // Hapus yang lama dari proses import sebelumnya
+            Pasal::where('peraturan_id', $peraturan->id)->delete();
+            StrukturDokumen::where('peraturan_id', $peraturan->id)->delete();
+            PenjelasanPasal::where('peraturan_id', $peraturan->id)->delete();
+
+            $urutanStruktur = 1;
+            $urutanPasal = 1;
+            
+            if ($pembukaanText) {
+                StrukturDokumen::create([
+                    'peraturan_id' => $peraturan->id,
+                    'tipe_struktur' => 'PEMBUKAAN',
+                    'judul_struktur' => $pembukaanText,
+                    'urutan' => $urutanStruktur++
+                ]);
+            }
+
+            $babList = $data['babList'] ?? [];
+            foreach ($babList as $babData) {
+                $babId = null;
+                if ($babData['id'] !== 'bab_default') {
+                    $judulStruktur = $babData['judul'] ?? '';
+                    $label = '';
+                    if (preg_match('/^(BAB\s+[IVXLCDM]+)\s+(.*)$/i', $judulStruktur, $m)) {
+                        $label = $m[1];
+                        $judulStruktur = $m[2];
+                    } else {
+                        $label = $judulStruktur;
+                        $judulStruktur = '';
+                    }
+
+                    $bab = StrukturDokumen::create([
+                        'peraturan_id' => $peraturan->id,
+                        'tipe_struktur' => 'BAB',
+                        'label' => $label,
+                        'judul_struktur' => $judulStruktur,
+                        'urutan' => $urutanStruktur++
+                    ]);
+                    $babId = $bab->id;
+                }
+
+                foreach ($babData['pasalList'] as $pasalData) {
+                    $nomor_pasal = str_replace('Pasal ', '', $pasalData['nomor'] ?? '');
+                    if (is_numeric($nomor_pasal)) {
+                        $nomor_pasal = (int) $nomor_pasal;
+                    } else {
+                        $nomor_pasal = 0; 
+                    }
+
+                    $pasal = Pasal::create([
+                        'peraturan_id' => $peraturan->id,
+                        'struktur_dokumen_id' => $babId,
+                        'nomor_pasal' => $nomor_pasal,
+                        'isi_pasal' => $pasalData['isi'] ?? '',
+                        'urutan' => $urutanPasal++
+                    ]);
+
+                    $penjelasanText = trim($pasalData['penjelasan'] ?? '');
+                    if ($penjelasanText) {
+                        PenjelasanPasal::create([
+                            'peraturan_id' => $peraturan->id,
+                            'pasal_id' => $pasal->id,
+                            'isi_penjelasan' => $penjelasanText
+                        ]);
+                    }
+                }
+            }
+        } else {
+            // Normal update for existing documents
+            $pembukaan = StrukturDokumen::where('peraturan_id', $peraturan->id)
+                ->where('tipe_struktur', 'PEMBUKAAN')
+                ->first();
+                
+            if ($pembukaan) {
+                if ($pembukaanText) {
+                    $pembukaan->judul_struktur = $pembukaanText;
+                    $pembukaan->save();
+                } else {
+                    $pembukaan->delete();
+                }
+            } else if ($pembukaanText) {
+                StrukturDokumen::create([
+                    'peraturan_id' => $peraturan->id,
+                    'tipe_struktur' => 'PEMBUKAAN',
+                    'judul_struktur' => $pembukaanText,
+                ]);
+            }
+
+            $babList = $data['babList'] ?? [];
+            foreach ($babList as $babData) {
+                if ($babData['id'] !== 'bab_default') {
+                    $bab = StrukturDokumen::find($babData['id']);
+                    if ($bab) {
+                        if (isset($babData['judul'])) {
+                            $judulStruktur = $babData['judul'] ?? '';
+                            $label = '';
+                            if (preg_match('/^(BAB\s+[IVXLCDM]+)\s+(.*)$/i', $judulStruktur, $m)) {
+                                $label = $m[1];
+                                $judulStruktur = $m[2];
+                            } else {
+                                $label = $judulStruktur;
+                                $judulStruktur = '';
+                            }
+                            $bab->label = $label;
+                            $bab->judul_struktur = $judulStruktur;
+                        }
+                        $bab->save();
+                    }
+                }
+
+                foreach ($babData['pasalList'] as $pasalData) {
+                    $pasal = Pasal::find($pasalData['id']);
+                    if ($pasal) {
+                        $pasal->isi_pasal = $pasalData['isi'] ?? '';
+                        $pasal->save();
+
+                        // Update or Create Penjelasan
+                        $penjelasanText = trim($pasalData['penjelasan'] ?? '');
+                        $penjelasan = PenjelasanPasal::where('pasal_id', $pasal->id)->first();
+                        
+                        if ($penjelasan) {
+                            if ($penjelasanText) {
+                                $penjelasan->isi_penjelasan = $penjelasanText;
+                                $penjelasan->save();
+                            } else {
+                                $penjelasan->delete();
+                            }
+                        } else if ($penjelasanText) {
+                            PenjelasanPasal::create([
+                                'pasal_id' => $pasal->id,
+                                'peraturan_id' => $peraturan->id,
+                                'isi_penjelasan' => $penjelasanText,
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Update Riwayat Perubahan (LawRelation)
+            $riwayatPerubahan = $data['riwayatPerubahan'] ?? [];
+            foreach ($riwayatPerubahan as $riwayatData) {
+                if (isset($riwayatData['id']) && is_numeric($riwayatData['id'])) {
+                    $relation = LawRelation::find($riwayatData['id']);
+                    if ($relation) {
+                        $kode = $riwayatData['kode'] ?? '';
+                        $targetPeraturan = Peraturan::where('unique_id', $kode)->first();
+                        if ($targetPeraturan) {
+                            $relation->to_peraturan_id = $targetPeraturan->id;
+                            $relation->save();
+                        }
+                    }
+                }
+            }
     }
     public function scanMinio()
     {

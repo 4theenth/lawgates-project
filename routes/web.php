@@ -76,7 +76,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     Route::delete('/dokumen-hukum/{unique_id}', [DokumenHukumController::class, 'destroy'])->name('admin.dokumen-hukum.destroy');
     Route::post('/dokumen-hukum/import', [DokumenHukumController::class, 'importOcr'])->name('admin.dokumen-hukum.import');
     Route::get('/dokumen-hukum/{unique_id}/detail-edit', [DokumenHukumController::class, 'getDetailForEdit'])->name('admin.dokumen-hukum.detail-edit');
-
+    Route::put('/dokumen-hukum/{unique_id}', [DokumenHukumController::class, 'update'])->name('admin.dokumen-hukum.update');
     Route::get('/dokumen-hukum/tambah', function () {
         return Inertia::render('Admin/DokumenHukum/Create');
     })->name('admin.dokumen-hukum.tambah');
