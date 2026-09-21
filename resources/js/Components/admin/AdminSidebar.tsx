@@ -78,6 +78,19 @@ export function AdminSidebar({ isCollapsed, menus = ADMIN_SIDEBAR_MENUS }: Admin
                   <div className="ml-[26px] mt-1 space-y-1 pl-2 border-l border-neu-50">
                     {item.subItems.map((sub) => {
                       const isSubActive = url === sub.href;
+
+                      if (sub.disabled) {
+                        return (
+                          <span
+                            key={sub.id}
+                            className={`block py-[6px] px-[10px] rounded-[8px] ${SIDEBAR_THEME.submenuItem.fontSize} text-neu-400 opacity-50 cursor-not-allowed select-none`}
+                            title="Fitur belum tersedia"
+                          >
+                            {sub.label}
+                          </span>
+                        );
+                      }
+
                       return (
                         <Link
                           key={sub.id}
@@ -94,6 +107,24 @@ export function AdminSidebar({ isCollapsed, menus = ADMIN_SIDEBAR_MENUS }: Admin
                   </div>
                 )}
               </div>
+            );
+          }
+
+          if (item.disabled) {
+            return (
+              <span
+                key={item.id}
+                title="Fitur belum tersedia"
+                className={`relative ${SIDEBAR_THEME.itemBase} group text-neu-400 opacity-50 cursor-not-allowed select-none ${isCollapsed ? 'justify-center px-0' : 'justify-start gap-[12px]'
+                  }`}
+              >
+                <Icon className="w-[18px] h-[18px] shrink-0" />
+                {!isCollapsed && (
+                  <span className="text-[12px] font-normal">
+                    {item.label}
+                  </span>
+                )}
+              </span>
             );
           }
 

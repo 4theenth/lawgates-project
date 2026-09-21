@@ -59,6 +59,46 @@ export default function Register() {
     const hasMinLength = data.password.length >= 8;
     const hasNumberOrSymbol = /[0-9]/.test(data.password) || /[^a-zA-Z0-9]/.test(data.password);
 
+    const validateEmail = (val: string) => {
+        const trimmed = val.trim();
+        if (!trimmed) {
+            setError('email', 'Email wajib diisi.');
+            return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+            setError('email', 'Format email tidak valid (harus user@domain.com)');
+            return false;
+        }
+        clearErrors('email');
+        return true;
+    };
+
+    const validatePassword = (val: string) => {
+        if (!val) {
+            setError('password', 'Kata sandi wajib diisi.');
+            return false;
+        }
+        if (val.length < 8) {
+            setError('password', 'Panjang kata sandi minimal 8 karakter.');
+            return false;
+        }
+        clearErrors('password');
+        return true;
+    };
+
+    const validatePasswordConfirmation = (val: string, passwordVal: string) => {
+        if (!val) {
+            setError('password_confirmation', 'Konfirmasi kata sandi wajib diisi.');
+            return false;
+        }
+        if (val !== passwordVal) {
+            setError('password_confirmation', 'Konfirmasi kata sandi tidak cocok.');
+            return false;
+        }
+        clearErrors('password_confirmation');
+        return true;
+    };
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 

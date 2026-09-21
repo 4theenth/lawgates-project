@@ -41,6 +41,30 @@ export function CorrectionDetailView({
     generateInitialCorrectionData(file)
   );
 
+  const [activeSection, setActiveSection] = useState<string>('');
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Find the first intersecting entry
+        const visibleEntry = entries.find((entry) => entry.isIntersecting);
+        if (visibleEntry) {
+          setActiveSection(visibleEntry.target.id);
+        }
+      },
+      { rootMargin: '-10% 0px -80% 0px', threshold: 0 }
+    );
+
+    // Observe all sections
+    const elements = document.querySelectorAll('[id^="section-"]');
+    elements.forEach((el) => observer.observe(el));
+
+    return () => {
+      elements.forEach((el) => observer.unobserve(el));
+      observer.disconnect();
+    };
+  }, [data]);
+
   // Sinkronisasi otomatis jika berkas berubah atau file baru diunggah
   useEffect(() => {
     if (file.correctionData) {
@@ -88,6 +112,23 @@ export function CorrectionDetailView({
               ...b,
               pasalList: b.pasalList.map((p) =>
                 p.id === pasalId ? { ...p, isExpanded: !p.isExpanded } : p
+              ),
+            }
+          : b
+      ),
+    }));
+  };
+
+  const forceExpandPasal = (babId: string, pasalId: string) => {
+    setData((prev) => ({
+      ...prev,
+      babList: prev.babList.map((b) =>
+        b.id === babId
+          ? {
+              ...b,
+              isExpanded: true,
+              pasalList: b.pasalList.map((p) =>
+                p.id === pasalId ? { ...p, isExpanded: true } : p
               ),
             }
           : b
@@ -146,11 +187,13 @@ export function CorrectionDetailView({
         <CorrectionTableOfContents
           pembukaanJudul={data.pembukaan?.judul}
           babList={data.babList}
-          onToggleBab={toggleBab}
+          activeSection={activeSection}
+          onPasalClick={forceExpandPasal}
+          onPembukaanClick={() => setIsOpenPembukaan(true)}
         />
 
         {/* KOLOM TENGAH: EDITOR DOKUMEN HUKUM */}
-        <div className="flex-1 min-w-0 w-full space-y-4">
+        <div className="flex-1 min-w-0 w-full space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar" id="editor-scroll-container">
           {/* Standar ID & Judul Peraturan */}
           <CorrectionHeaderSection
             standarId={data.standarId}
@@ -187,6 +230,14 @@ export function CorrectionDetailView({
             babList={data.babList}
             onToggleBab={toggleBab}
             onTogglePasal={togglePasal}
+            onChangeBabJudul={(babId, val) =>
+              setData((prev) => ({
+                ...prev,
+                babList: prev.babList.map((b) =>
+                  b.id === babId ? { ...b, judul: val } : b
+                ),
+              }))
+            }
             onChangeBabDeskripsi={(babId, val) =>
               setData((prev) => ({
                 ...prev,
@@ -210,25 +261,38 @@ export function CorrectionDetailView({
                 ),
               }))
             }
+            onChangePasalPenjelasan={(babId, pasalId, val) =>
+              setData((prev) => ({
+                ...prev,
+                babList: prev.babList.map((b) =>
+                  b.id === babId
+                    ? {
+                        ...b,
+                        pasalList: b.pasalList.map((p) =>
+                          p.id === pasalId ? { ...p, penjelasan: val } : p
+                        ),
+                      }
+                    : b
+                ),
+              }))
+            }
           />
         </div>
 
         {/* KOLOM KANAN: RIWAYAT PERUBAHAN & METADATA */}
         <div className="w-full lg:w-[260px] xl:w-[280px] shrink-0 min-w-0 space-y-4">
           {/* Card 1: Riwayat Perubahan (Scrollable dengan counter) */}
-          {data.riwayatPerubahan && data.riwayatPerubahan.length > 0 && (
-            <CorrectionTimelineSection
-              riwayatPerubahan={data.riwayatPerubahan}
-              onChangeKode={(id, val) =>
-                setData((prev) => ({
-                  ...prev,
-                  riwayatPerubahan: prev.riwayatPerubahan.map((r) =>
-                    r.id === id ? { ...r, kode: val } : r
-                  ),
-                }))
-              }
-            />
-          )}
+          <CorrectionTimelineSection
+            riwayatPerubahan={data.riwayatPerubahan || []}
+            onChangeKode={(id, val) =>
+              setData((prev) => ({
+                ...prev,
+                riwayatPerubahan: prev.riwayatPerubahan.map((r) =>
+                  r.id === id ? { ...r, kode: val } : r
+                ),
+              }))
+            }
+          />
 
           {/* Card 2: Metadata (Pemrakarsa & Tanggal Ditetapkan) */}
           <CorrectionMetadataSection
