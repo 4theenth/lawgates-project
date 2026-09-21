@@ -400,7 +400,9 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
               <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
                 {/* Tombol Bandingkan */}
                 <Link
-                  href="/bandingkan"
+                  href="#"
+                  onClick={(e) => e.preventDefault()}
+                  title="Fitur belum tersedia"
                   className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 bg-[#E5E7EB] hover:bg-gray-300 text-gray-800 text-xs sm:text-sm font-semibold rounded-2xl transition-colors cursor-pointer shadow-2xs"
                 >
                   <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-700" />

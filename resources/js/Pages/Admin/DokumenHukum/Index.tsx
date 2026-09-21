@@ -346,10 +346,31 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
               },
             },
           }}
-          onSave={(updatedCorrection: LegalDocumentCorrectionData) => {
-            // TODO: implement real backend saving here
-            setEditingDoc(null);
-            toast.success('Perubahan data hukum (WIP Backend)');
+          onSave={async (updatedCorrection: LegalDocumentCorrectionData) => {
+            try {
+              const response = await fetch(`/admin/dokumen-hukum/${editingDoc.id}`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                  'X-CSRF-TOKEN': (document.head.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+                },
+                body: JSON.stringify(updatedCorrection)
+              });
+
+              const json = await response.json();
+
+              if (!response.ok || !json.success) {
+                throw new Error(json.message || 'Gagal menyimpan data');
+              }
+
+              toast.success('Data hukum berhasil diperbarui');
+              setEditingDoc(null);
+              router.reload({ only: ['peraturans'] });
+            } catch (error: any) {
+              console.error(error);
+              toast.error(error.message || 'Gagal menyimpan data hukum');
+            }
           }}
           onCancel={() => setEditingDoc(null)}
           onBack={() => setEditingDoc(null)}
