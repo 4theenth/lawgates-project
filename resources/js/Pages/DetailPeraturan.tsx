@@ -399,15 +399,28 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
               <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
                 {/* Tombol Bandingkan */}
-                <Link
-                  href="#"
-                  onClick={(e) => e.preventDefault()}
-                  title="Fitur belum tersedia"
-                  className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 bg-[#E5E7EB] hover:bg-gray-300 text-gray-800 text-xs sm:text-sm font-semibold rounded-2xl transition-colors cursor-pointer shadow-2xs"
-                >
-                  <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-700" />
-                  <span>Bandingkan</span>
-                </Link>
+                {peraturan?.law_relations && peraturan.law_relations.some((rel: any) => {
+                  const name = (rel.relation_type?.nama_relasi || '').toLowerCase();
+                  return name.includes('ubah') || name.includes('cabut');
+                }) ? (
+                  <Link
+                    href={`/bandingkan?id=${peraturan?.unique_id}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs sm:text-sm font-semibold rounded-2xl transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
+                    <span>Bandingkan</span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    title="Tidak ada riwayat perubahan untuk dibandingkan"
+                    className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 bg-[#E5E7EB] text-gray-500 text-xs sm:text-sm font-semibold rounded-2xl transition-colors cursor-not-allowed shadow-2xs"
+                    disabled
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+                    <span>Bandingkan</span>
+                  </button>
+                )}
 
                 {/* Tombol Download Dokumen */}
                 {peraturan?.unique_id ? (

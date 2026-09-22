@@ -13,6 +13,11 @@ use App\Http\Controllers\Api\UserController;
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::get('/search', [SearchController::class, 'search']); 
+
+// Perbandingan Dokumen Hukum
+Route::get('/peraturan/compare', [\App\Http\Controllers\Api\ComparisonController::class, 'compare']);
+Route::get('/peraturan/{unique_id}/lineage', [\App\Http\Controllers\Api\ComparisonController::class, 'getLineage']);
+
 Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show']);
 
 // Route Baru: Mengambil data referensi untuk Dropdown di Frontend
