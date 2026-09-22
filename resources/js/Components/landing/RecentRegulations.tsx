@@ -46,7 +46,7 @@ const recentList: RecentItem[] = [
 
 export function RecentRegulations() {
   return (
-    <section className="w-full">
+    <section className=" mt-[66px] w-full">
       {/* Section Header */}
       <div className="mb-8">
         <h2 className="text-2xl sm:text-[28px] font-bold text-neu-900 tracking-tight">

@@ -1,5 +1,6 @@
-import React, { FormEventHandler } from 'react';
+import React, { FormEventHandler, useState, useEffect } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
+import axios from 'axios';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { AuthCard, FormInput } from '@/Components/common';
 import { Icon } from '@/Components/ui/icon';
@@ -15,14 +16,19 @@ export default function Register() {
         password_confirmation: '',
     });
 
+    const [emailValid, setEmailValid] = useState(false);
+    const [checkingEmail, setCheckingEmail] = useState(false);
+    const [phoneValid, setPhoneValid] = useState(false);
+    const [checkingPhone, setCheckingPhone] = useState(false);
+
     const validateEmail = (val: string) => {
         const trimmed = val.trim();
         if (!trimmed) {
             setError('email', 'Email wajib diisi.');
             return false;
         }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-            setError('email', 'Email tidak valid');
+        if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(trimmed)) {
+            setError('email', 'Format email tidak valid (harus mengandung @ dan domain yang benar).');
             return false;
         }
         clearErrors('email');
@@ -55,52 +61,91 @@ export default function Register() {
         return true;
     };
 
+    const handleCheckEmail = async () => {
+        if (!validateEmail(data.email)) return;
+        setCheckingEmail(true);
+        try {
+            await axios.post('/check-email', { email: data.email });
+            setEmailValid(true);
+            clearErrors('email');
+        } catch (error: any) {
+            setEmailValid(false);
+            if (error.response?.data?.errors?.email) {
+                setError('email', error.response.data.errors.email[0]);
+            } else {
+                setError('email', 'Terjadi kesalahan saat memeriksa email.');
+            }
+        } finally {
+            setCheckingEmail(false);
+        }
+    };
+
+    const handleCheckPhone = async () => {
+        if (!validatePhone(data.phone)) return;
+        setCheckingPhone(true);
+        try {
+            await axios.post('/check-phone', { phone: data.phone });
+            setPhoneValid(true);
+            clearErrors('phone');
+        } catch (error: any) {
+            setPhoneValid(false);
+            if (error.response?.data?.errors?.phone) {
+                setError('phone', error.response.data.errors.phone[0]);
+            } else {
+                setError('phone', 'Terjadi kesalahan saat memeriksa nomor telepon.');
+            }
+        } finally {
+            setCheckingPhone(false);
+        }
+    };
+
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            if (data.email && /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(data.email.trim())) {
+                handleCheckEmail();
+            }
+        }, 800);
+        return () => clearTimeout(timeout);
+    }, [data.email]);
+
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            if (data.phone && /^[0-9+]+$/.test(data.phone.trim()) && data.phone.trim().length >= 9) {
+                handleCheckPhone();
+            }
+        }, 800);
+        return () => clearTimeout(timeout);
+    }, [data.phone]);
+
     const hasCapital = /[A-Z]/.test(data.password);
     const hasMinLength = data.password.length >= 8;
     const hasNumberOrSymbol = /[0-9]/.test(data.password) || /[^a-zA-Z0-9]/.test(data.password);
 
-    const validateEmail = (val: string) => {
+    const validatePhone = (val: string) => {
         const trimmed = val.trim();
         if (!trimmed) {
-            setError('email', 'Email wajib diisi.');
+            setError('phone', 'Nomor telepon wajib diisi.');
             return false;
         }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-            setError('email', 'Format email tidak valid (harus user@domain.com)');
+        if (!/^[0-9+]+$/.test(trimmed)) {
+            setError('phone', 'Nomor telepon hanya boleh berisi angka dan tanda plus (+).');
             return false;
         }
-        clearErrors('email');
-        return true;
-    };
-
-    const validatePassword = (val: string) => {
-        if (!val) {
-            setError('password', 'Kata sandi wajib diisi.');
+        if (trimmed.length < 9 || trimmed.length > 20) {
+            setError('phone', 'Panjang nomor telepon harus antara 9-20 karakter.');
             return false;
         }
-        if (val.length < 8) {
-            setError('password', 'Panjang kata sandi minimal 8 karakter.');
-            return false;
-        }
-        clearErrors('password');
-        return true;
-    };
-
-    const validatePasswordConfirmation = (val: string, passwordVal: string) => {
-        if (!val) {
-            setError('password_confirmation', 'Konfirmasi kata sandi wajib diisi.');
-            return false;
-        }
-        if (val !== passwordVal) {
-            setError('password_confirmation', 'Konfirmasi kata sandi tidak cocok.');
-            return false;
-        }
-        clearErrors('password_confirmation');
+        clearErrors('phone');
         return true;
     };
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+
+        if (checkingEmail || checkingPhone) {
+            // Wait for checks to complete
+            return;
+        }
 
         let hasError = false;
         if (!data.name.trim()) {
@@ -109,6 +154,16 @@ export default function Register() {
         }
 
         if (!validateEmail(data.email)) {
+            hasError = true;
+        } else if (!emailValid) {
+            setError('email', 'Menunggu validasi email atau format salah.');
+            hasError = true;
+        }
+
+        if (!validatePhone(data.phone)) {
+            hasError = true;
+        } else if (!phoneValid) {
+            setError('phone', 'Menunggu validasi nomor telepon atau format salah.');
             hasError = true;
         }
 
@@ -197,11 +252,20 @@ export default function Register() {
                         value={data.email}
                         autoComplete="username"
                         error={errors.email}
+                        isValidated={emailValid}
+                        rightIcon={
+                            checkingEmail ? (
+                                <Icon name="loader" className="h-5 w-5 text-neu-400 animate-spin" />
+                            ) : emailValid ? (
+                                <Icon name="check-circle" className="h-5 w-5 text-suc-600" />
+                            ) : null
+                        }
                         onChange={(e) => {
                             const val = e.target.value;
                             setData('email', val);
+                            setEmailValid(false);
                             if (errors.email) {
-                                if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) {
+                                if (/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val.trim())) {
                                     clearErrors('email');
                                 }
                             }
@@ -224,9 +288,25 @@ export default function Register() {
                         value={data.phone}
                         autoComplete="tel"
                         error={errors.phone}
+                        isValidated={phoneValid}
+                        rightIcon={
+                            checkingPhone ? (
+                                <Icon name="loader" className="h-5 w-5 text-neu-400 animate-spin" />
+                            ) : phoneValid ? (
+                                <Icon name="check-circle" className="h-5 w-5 text-suc-600" />
+                            ) : null
+                        }
                         onChange={(e) => {
-                            setData('phone', e.target.value);
+                            // Sanitasi otomatis: hanya izinkan angka dan plus
+                            const sanitized = e.target.value.replace(/[^0-9+]/g, '');
+                            setData('phone', sanitized);
+                            setPhoneValid(false);
                             if (errors.phone) clearErrors('phone');
+                        }}
+                        onBlur={(e) => {
+                            if (e.target.value.trim()) {
+                                validatePhone(e.target.value);
+                            }
                         }}
                     />
 

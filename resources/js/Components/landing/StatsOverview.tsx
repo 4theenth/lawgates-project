@@ -42,7 +42,7 @@ const statsData: StatItem[] = [
     title: 'HUKUM DICABUT',
     count: 12000,
     subtitle: 'Total Hukum Dicabut',
-    icon: <Icon name="hammer" className="w-[20px] h-[20px] text-neu-900" />,
+    icon: <Icon name="gavel" className="w-[20px] h-[20px] text-neu-900" />,
     valueColor: 'text-neu-900',
   },
 ];

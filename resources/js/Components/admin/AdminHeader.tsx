@@ -3,6 +3,7 @@ import { usePage, Link } from '@inertiajs/react';
 import { Bell, PanelLeft, User, LogOut, ChevronDown } from 'lucide-react';
 import { IconButton } from '@/Components/common/IconButton';
 import Dropdown from '@/Components/common/Dropdown';
+import ApplicationLogo from '@/Components/common/ApplicationLogo';
 import profileAvatar from '@/assets/profile-avatar.webp';
 
 interface AdminHeaderProps {
@@ -27,9 +28,7 @@ export function AdminHeader({
       {/* Kiri: Brand LawGates & Tombol Panel-Left */}
       <div className="flex items-center gap-4">
         <Link href="/" className="flex items-center">
-          <span className="font-sans text-[16px] font-semibold leading-[24px] text-black tracking-tight">
-            LawGates
-          </span>
+          <ApplicationLogo className="h-[24px] w-auto text-pr-900" />
         </Link>
 
         {/* Tombol Toggle Sidebar (Panel Left) */}

@@ -105,13 +105,25 @@ class PeraturanController extends Controller
     {
         // 1. Ambil Jenis Peraturan (Kategori) yang ID-nya benar-benar ada di tabel peraturan
         $kategori = JenisPeraturan::whereIn('id', Peraturan::select('jenis_peraturan_id')->distinct())
-            ->select('id', 'nama')
-            ->get();
+            ->get()
+            ->groupBy('nama')
+            ->map(function ($items, $nama) {
+                return [
+                    'id' => $items->pluck('id')->join(','),
+                    'nama' => $nama
+                ];
+            })->values();
 
         // 2. Ambil Status yang ID-nya benar-benar ada di tabel peraturan
         $status = Status::whereIn('id', Peraturan::select('status_id')->distinct())
-            ->select('id', 'nama_status as nama')
-            ->get();
+            ->get()
+            ->groupBy('nama_status')
+            ->map(function ($items, $nama) {
+                return [
+                    'id' => $items->pluck('id')->join(','),
+                    'nama' => $nama
+                ];
+            })->values();
 
         // 3. Ambil Tahun yang tersedia secara unik dan urutkan dari yang terbaru
         $tahun = Peraturan::select('tahun')

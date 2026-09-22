@@ -10,6 +10,7 @@ export interface FormInputProps extends Omit<InputHTMLAttributes<HTMLInputElemen
     rightIcon?: string | React.ReactNode;
     error?: string;
     hasError?: boolean;
+    isValidated?: boolean;
     helperText?: string;
     containerClassName?: string;
     inputClassName?: string;
@@ -28,6 +29,7 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
             rightIcon,
             error,
             hasError,
+            isValidated,
             helperText,
             className,
             containerClassName,
@@ -82,6 +84,8 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
                         'group relative flex w-full items-center rounded-xl border bg-white px-3.5 py-2.5 sm:py-3 transition-all duration-150',
                         isErrorState
                             ? 'border-dan-700 focus-within:border-dan-800 focus-within:ring-1 focus-within:ring-dan-700'
+                            : isValidated
+                            ? 'border-suc-600 focus-within:border-suc-600 focus-within:ring-1 focus-within:ring-suc-600'
                             : 'border-neu-50 hover:border-neu-200 focus-within:border-pr-900 focus-within:ring-1 focus-within:ring-pr-900',
                         disabled && 'bg-neu-100 opacity-60 cursor-not-allowed',
                         className
