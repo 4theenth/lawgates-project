@@ -13,8 +13,9 @@ interface ToastContextValue {
   showToast: (options: ToastOptions) => void;
   removeToast: (id: string) => void;
   toast: {
-    success: (message: string, description?: string, duration?: number) => void;
-    error: (message: string, description?: string, duration?: number) => void;
+    success: (message?: string, description?: string, duration?: number) => void;
+    deleted: (message?: string, description?: string, duration?: number) => void;
+    error: (message?: string, description?: string, duration?: number) => void;
     warning: (message: string, description?: string, duration?: number) => void;
     info: (message: string, description?: string, duration?: number) => void;
   };
@@ -43,9 +44,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toast = {
-    success: (message: string, description?: string, duration?: number) =>
+    success: (message: string = 'Data berhasil disimpan', description?: string, duration?: number) =>
       showToast({ type: 'success', message, description, duration }),
-    error: (message: string, description?: string, duration?: number) =>
+    deleted: (message: string = 'Data berhasil dihapus', description?: string, duration?: number) =>
+      showToast({ type: 'delete', message, description, duration }),
+    error: (message: string = 'Data gagal disimpan / dihapus', description?: string, duration?: number) =>
       showToast({ type: 'error', message, description, duration }),
     warning: (message: string, description?: string, duration?: number) =>
       showToast({ type: 'warning', message, description, duration }),
@@ -71,8 +74,9 @@ const defaultFallbackValue: ToastContextValue = {
   showToast: () => {},
   removeToast: () => {},
   toast: {
-    success: (msg) => console.log('[Toast Success]:', msg),
-    error: (msg) => console.error('[Toast Error]:', msg),
+    success: (msg = 'Data berhasil disimpan') => console.log('[Toast Success]:', msg),
+    deleted: (msg = 'Data berhasil dihapus') => console.log('[Toast Deleted]:', msg),
+    error: (msg = 'Data gagal disimpan / dihapus') => console.error('[Toast Error]:', msg),
     warning: (msg) => console.warn('[Toast Warning]:', msg),
     info: (msg) => console.info('[Toast Info]:', msg),
   },

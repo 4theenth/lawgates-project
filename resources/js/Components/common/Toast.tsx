@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { CircleCheckBig, CircleAlert, AlertTriangle, Info, X } from 'lucide-react';
+import { Check, X, AlertTriangle, Info, Trash2, AlertCircle } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+export type ToastType = 'success' | 'error' | 'warning' | 'info' | 'delete';
 
 export interface ToastItem {
   id: string;
@@ -50,28 +50,54 @@ export function Toast({ toast, onClose }: ToastProps) {
 
   const config = {
     success: {
-      border: 'border-[#C6F6D5]',
-      iconBadge: 'bg-[#EAF5ED] text-[#16A34A]',
-      progressBar: 'bg-[#16A34A]',
-      icon: <CircleCheckBig className="w-4 h-4 stroke-[2]" />,
+      container: 'bg-[#D2E7D7] border border-[#BCDCC4]',
+      textColor: 'text-[#145732]',
+      descColor: 'text-[#145732]/85',
+      iconBadge: 'bg-[#1E8349] text-white',
+      progressTrack: 'bg-[#70B58B]',
+      progressBar: 'bg-[#145732]',
+      closeColor: 'text-[#2D5A3D] hover:text-black',
+      icon: <Check className="w-5 h-5 stroke-[2.75]" />,
+    },
+    delete: {
+      container: 'bg-[#D2E7D7] border border-[#BCDCC4]',
+      textColor: 'text-[#145732]',
+      descColor: 'text-[#145732]/85',
+      iconBadge: 'bg-[#1E8349] text-white',
+      progressTrack: 'bg-[#70B58B]',
+      progressBar: 'bg-[#145732]',
+      closeColor: 'text-[#2D5A3D] hover:text-black',
+      icon: <Trash2 className="w-5 h-5 stroke-[2.2]" />,
     },
     error: {
-      border: 'border-[#FED7D7]',
-      iconBadge: 'bg-[#FFF5F5] text-[#E53E3E]',
-      progressBar: 'bg-[#E53E3E]',
-      icon: <CircleAlert className="w-4 h-4 stroke-[2]" />,
+      container: 'bg-[#FCE6E8] border border-[#F8C8CC]',
+      textColor: 'text-[#8C1D24]',
+      descColor: 'text-[#8C1D24]/85',
+      iconBadge: 'bg-[#BA1A1A] text-white',
+      progressTrack: 'bg-[#ECA8AE]',
+      progressBar: 'bg-[#8C1D24]',
+      closeColor: 'text-[#8C1D24] hover:text-black',
+      icon: <AlertCircle className="w-5 h-5 stroke-[2.4]" />,
     },
     warning: {
-      border: 'border-[#FEEBC8]',
-      iconBadge: 'bg-[#FFFAF0] text-[#DD6B20]',
-      progressBar: 'bg-[#DD6B20]',
-      icon: <AlertTriangle className="w-4 h-4 stroke-[2]" />,
+      container: 'bg-[#FEF3D6] border border-[#FDE6A8]',
+      textColor: 'text-[#7A5A0A]',
+      descColor: 'text-[#7A5A0A]/85',
+      iconBadge: 'bg-[#EAB308] text-white',
+      progressTrack: 'bg-[#F6D888]',
+      progressBar: 'bg-[#7A5A0A]',
+      closeColor: 'text-[#7A5A0A] hover:text-black',
+      icon: <AlertTriangle className="w-5 h-5 stroke-[2.2]" />,
     },
     info: {
-      border: 'border-[#BEE3F8]',
-      iconBadge: 'bg-[#EBF8FF] text-[#3182CE]',
-      progressBar: 'bg-[#3182CE]',
-      icon: <Info className="w-4 h-4 stroke-[2]" />,
+      container: 'bg-[#D7EFFE] border border-[#BCE2FD]',
+      textColor: 'text-[#0C548A]',
+      descColor: 'text-[#0C548A]/85',
+      iconBadge: 'bg-[#0284C7] text-white',
+      progressTrack: 'bg-[#90CEFA]',
+      progressBar: 'bg-[#0C548A]',
+      closeColor: 'text-[#0C548A] hover:text-black',
+      icon: <Info className="w-5 h-5 stroke-[2.2]" />,
     },
   }[toast.type];
 
@@ -79,22 +105,22 @@ export function Toast({ toast, onClose }: ToastProps) {
     <div
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className={`relative flex items-center gap-3 py-2.5 px-3.5 sm:px-4 bg-white/98 backdrop-blur-md rounded-[12px] border ${config.border} shadow-[0_10px_30px_rgba(0,0,0,0.1)] transition-all animate-in fade-in slide-in-from-top-3 duration-250 min-w-[280px] max-w-md pointer-events-auto overflow-hidden select-none`}
+      className={`relative flex items-center gap-3.5 py-3 px-5 rounded-[20px] ${config.container} shadow-[0_6px_20px_rgba(0,0,0,0.06)] transition-all animate-in fade-in slide-in-from-top-3 duration-250 min-w-[340px] max-w-lg pointer-events-auto overflow-hidden select-none`}
     >
-      {/* Icon status */}
+      {/* Icon lingkaran solid sesuai Gambar 5 */}
       <div
-        className={`w-7 h-7 rounded-full ${config.iconBadge} flex items-center justify-center shrink-0`}
+        className={`w-9 h-9 rounded-full ${config.iconBadge} flex items-center justify-center shrink-0 shadow-2xs`}
       >
         {config.icon}
       </div>
 
       {/* Konten Pesan */}
       <div className="flex-1 min-w-0 pr-1">
-        <p className="text-[13px] font-semibold text-neu-900 leading-tight">
+        <p className={`text-[15px] font-normal ${config.textColor} leading-tight`}>
           {toast.message}
         </p>
         {toast.description && (
-          <p className="text-[11px] text-neu-600 mt-0.5 leading-snug">
+          <p className={`text-[12px] ${config.descColor} mt-0.5 leading-snug`}>
             {toast.description}
           </p>
         )}
@@ -104,14 +130,14 @@ export function Toast({ toast, onClose }: ToastProps) {
       <button
         type="button"
         onClick={() => onClose(toast.id)}
-        className="p-1 text-neu-400 hover:text-neu-700 hover:bg-gray-100 rounded-md transition-colors cursor-pointer shrink-0"
+        className={`p-1.5 ${config.closeColor} rounded-lg transition-colors cursor-pointer shrink-0 ml-1`}
         title="Tutup notifikasi"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="w-5 h-5 stroke-[2]" />
       </button>
 
-      {/* Animated Progress Bar di bawah alert */}
-      <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-gray-100 overflow-hidden">
+      {/* Animated Progress Bar di bawah alert sesuai Gambar 5 */}
+      <div className={`absolute bottom-0 left-0 right-0 h-[5px] ${config.progressTrack} overflow-hidden`}>
         <div
           className={`h-full ${config.progressBar} transition-all duration-75 ease-linear`}
           style={{ width: `${progress}%` }}
