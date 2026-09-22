@@ -24,7 +24,7 @@ export const PAGE_CONTAINER = 'w-full max-w-[1202px] mx-auto px-4 sm:px-6 xl:px-
  * Vertical spacing between every page section — 121px (Figma spec).
  * Use the <Section> wrapper to apply this automatically.
  */
-export const SECTION_SPACING = 66; // px
+export const SECTION_SPACING = 0; // px
 
 // ─────────────────────────────────────────────
 // Section Wrapper

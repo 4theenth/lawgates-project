@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from '@inertiajs/react';
 import { Mail, Phone, ChevronRight } from 'lucide-react';
 import endlessClouds from '@/assets/endless-clouds.svg';
+import ApplicationLogo from '@/Components/common/ApplicationLogo';
 
 function InstagramIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
@@ -40,9 +41,9 @@ export function Footer() {
           
           {/* Kolom Kiri: Brand & Deskripsi */}
           <div className="md:col-span-6 lg:col-span-5 space-y-4">
-            <h3 className="font-sans text-[20px] font-bold text-white tracking-tight">
-              LawGates
-            </h3>
+            <Link href="/" className="inline-flex items-center" aria-label="Beranda LawGates">
+              <ApplicationLogo className="h-[26px] sm:h-[28px] w-auto text-white" />
+            </Link>
             <p className="text-[14px] font-normal leading-[24px] text-white/80 max-w-sm">
               LawGates adalah platform pangkalan data hukum terpadu yang merangkum seluruh peraturan perundang-undangan di Indonesia ke dalam satu titik akses pencarian tanpa harus menelusuri puluhan portal instansi pemerintah yang terpisah.
             </p>
