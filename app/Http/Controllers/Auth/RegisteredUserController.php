@@ -34,8 +34,12 @@ class RegisteredUserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255',
-            'phone' => 'nullable|string|max:25',
+            'phone' => ['required', 'string', 'regex:/^[0-9+\-\s()]{8,20}$/', 'unique:users,phone'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ], [
+            'phone.regex' => 'Format nomor telepon tidak valid.',
+            'phone.required' => 'Nomor telepon wajib diisi.',
+            'phone.unique' => 'Nomor telepon sudah terdaftar.',
         ]);
 
         $existingUser = User::where('email', $request->email)->first();
@@ -77,5 +81,40 @@ class RegisteredUserController extends Controller
         Auth::login($user);
 
         return redirect('/');
+    }
+
+    /**
+     * Handle email validation check
+     */
+    public function checkEmail(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|string|lowercase|email|max:255',
+        ]);
+
+        $existingUser = User::where('email', $request->email)->first();
+        if ($existingUser) {
+            throw ValidationException::withMessages([
+                'email' => 'Email sudah terdaftar. Silakan login.',
+            ]);
+        }
+
+        return response()->json(['valid' => true]);
+    }
+
+    /**
+     * Handle phone validation check
+     */
+    public function checkPhone(Request $request)
+    {
+        $request->validate([
+            'phone' => ['required', 'string', 'regex:/^[0-9+\-\s()]{8,20}$/', 'unique:users,phone'],
+        ], [
+            'phone.regex' => 'Format nomor telepon tidak valid.',
+            'phone.required' => 'Nomor telepon wajib diisi.',
+            'phone.unique' => 'Nomor telepon sudah terdaftar.',
+        ]);
+
+        return response()->json(['valid' => true]);
     }
 }
