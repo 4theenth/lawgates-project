@@ -32,12 +32,7 @@ export function ComparisonDocumentCard({
             <Scale className="w-4 h-4 sm:w-5 sm:h-5 stroke-[1.75]" />
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
-            {document.standardId && (
-              <span className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-mono border border-gray-200">
-                {document.standardId}
-              </span>
-            )}
+          <div className="flex items-center justify-end">
             <span
               className={`text-[11px] sm:text-xs font-semibold px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full border ${
                 isSuccess

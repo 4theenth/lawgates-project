@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Head } from '@inertiajs/react';
-import { PublicLayout } from '@/Layouts/PublicLayout';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
 import { ComparisonSelectorCard } from '@/Components/comparison/ComparisonSelectorCard';
 import { ComparisonDocumentCard } from '@/Components/comparison/ComparisonDocumentCard';
 import { ComparisonTable } from '@/Components/comparison/ComparisonTable';
 import axios from 'axios';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 export default function Bandingkan() {
   const [selectedLeftId, setSelectedLeftId] = useState('');
@@ -15,115 +15,173 @@ export default function Bandingkan() {
   const [isLoadingLineage, setIsLoadingLineage] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
   const [comparisonData, setComparisonData] = useState<any>(null);
+  const [isLeftLocked, setIsLeftLocked] = useState(false);
 
+  // Breadcrumbs sesuai desain: Beranda > Pencarian Hukum > Detail Sistem Hukum > Bandingkan Sistem Hukum
   const breadcrumbItems = [
     { label: 'Beranda', href: '/' },
     { label: 'Pencarian Hukum', href: '/pencarian' },
+    {
+      label: 'Detail Sistem Hukum',
+      href: selectedLeftId ? `/peraturan/${selectedLeftId}` : '/pencarian',
+    },
     { label: 'Bandingkan Sistem Hukum' },
   ];
 
+  // Eksekusi komparasi API
+  const runComparison = useCallback(async (leftId: string, rightId: string) => {
+    if (!leftId || !rightId) return;
+    setIsComparing(true);
+    try {
+      const res = await axios.get(
+        `/api/peraturan/compare?left_id=${encodeURIComponent(leftId)}&right_id=${encodeURIComponent(rightId)}`
+      );
+      if (res.data.success) {
+        setComparisonData(res.data.data);
+      }
+    } catch (e) {
+      console.error('Error saat komparasi:', e);
+    } finally {
+      setIsComparing(false);
+    }
+  }, []);
+
+  // Fetch lineage dan auto-select dokumen pembanding jika ada
+  const fetchLineage = useCallback(
+    async (baseId: string) => {
+      setIsLoadingLineage(true);
+      try {
+        const res = await axios.get(`/api/peraturan/${encodeURIComponent(baseId)}/lineage`);
+        if (res.data.success) {
+          const dataOptions = res.data.data || [];
+          setOptions(dataOptions);
+
+          // Cari opsi dokumen pembanding yang paling relevan (misal UU pengubah seperti UU 63 2024)
+          const candidates = dataOptions.filter((opt: any) => opt.id !== baseId);
+
+          const bestCandidate =
+            candidates.find(
+              (opt: any) =>
+                opt.isReady &&
+                (opt.relationDescription?.includes('Mengubah') ||
+                  opt.relationDescription?.includes('Diubah'))
+            ) ||
+            candidates.find((opt: any) => opt.isReady) ||
+            candidates[0];
+
+          if (bestCandidate) {
+            setSelectedRightId(bestCandidate.id);
+            runComparison(baseId, bestCandidate.id);
+          }
+        }
+      } catch (e) {
+        console.error('Error saat fetch lineage:', e);
+      } finally {
+        setIsLoadingLineage(false);
+      }
+    },
+    [runComparison]
+  );
+
+  // Baca parameter query URL `?id=...` saat pertama kali halaman dimuat
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
     if (id) {
       setSelectedLeftId(id);
+      setIsLeftLocked(true);
       fetchLineage(id);
     }
-  }, []);
+  }, [fetchLineage]);
 
-  const fetchLineage = async (baseId: string) => {
-    setIsLoadingLineage(true);
-    try {
-      const res = await axios.get(`/api/peraturan/${baseId}/lineage`);
-      if (res.data.success) {
-        setOptions(res.data.data);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsLoadingLineage(false);
+  const handleCompareClick = () => {
+    runComparison(selectedLeftId, selectedRightId);
+  };
+
+  const handleViewDetail = (uniqueId: string) => {
+    if (uniqueId) {
+      router.visit(`/peraturan/${uniqueId}`);
     }
   };
 
-  const handleCompare = async () => {
-    if (!selectedLeftId || !selectedRightId) return;
-    setIsComparing(true);
-    try {
-      const res = await axios.get(`/api/peraturan/compare?left_id=${selectedLeftId}&right_id=${selectedRightId}`);
-      if (res.data.success) {
-        setComparisonData(res.data.data);
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Gagal membandingkan dokumen.");
-    } finally {
-      setIsComparing(false);
+  const handleDownload = (uniqueId: string) => {
+    if (uniqueId) {
+      window.open(`/peraturan/${uniqueId}/download`, '_blank');
     }
-  };
-
-  const handleViewDetail = (title: string) => {
-    console.log('Lihat detail', title);
-  };
-
-  const handleDownload = (title: string) => {
-    console.log('Download', title);
   };
 
   return (
     <PublicLayout>
-      <Head title="Bandingkan Dokumen - LawGates" />
-      <div className="min-h-screen bg-[#F8FAFC]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-6 sm:space-y-8">
+      <Head title="Membandingkan Sistem Hukum - LawGates" />
+      <div className="w-full bg-[#F8FAFC] min-h-screen">
+        <div className={`pt-20 sm:pt-24 pb-12 sm:pb-16 ${PAGE_CONTAINER} text-gray-900 min-w-0 space-y-6 sm:space-y-7`}>
+          {/* Header Judul Sesuai Desain */}
           <div>
-            <Breadcrumb items={breadcrumbItems} />
-            <h1 className="mt-4 text-2xl sm:text-3xl font-bold text-[#0A1931]">
-              Bandingkan Dokumen
+            <Breadcrumb items={breadcrumbItems} className="mb-3 text-xs sm:text-sm text-gray-500" />
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0A1931] tracking-tight">
+              Membandingkan Sistem Hukum
             </h1>
-            <p className="mt-2 text-sm sm:text-base text-gray-600 max-w-3xl">
-              Pilih dua dokumen untuk membandingkan secara komprehensif, mulai dari
-              informasi umum, pembukaan, hingga detail batang tubuh / pasal per pasal.
+            <p className="mt-1.5 text-xs sm:text-sm text-gray-500">
+              Pilih sistem hukum yang mau dibandingkan
             </p>
           </div>
 
+          {/* Kartu Selektor Peraturan */}
           <ComparisonSelectorCard
             options={options}
             selectedLeftId={selectedLeftId}
             selectedRightId={selectedRightId}
             onChangeLeft={setSelectedLeftId}
-            onChangeRight={setSelectedRightId}
-            onCompareClick={handleCompare}
-            disabledLeft={true}
+            onChangeRight={(newRightId) => {
+              setSelectedRightId(newRightId);
+              runComparison(selectedLeftId, newRightId);
+            }}
+            onCompareClick={handleCompareClick}
+            disabledLeft={isLeftLocked}
+            isLoading={isComparing || isLoadingLineage}
           />
 
+          {/* Indikator Loading */}
           {isComparing ? (
-            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-gray-200 shadow-sm">
-              <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
-              <p className="text-sm text-gray-500 font-medium">Sedang membandingkan dokumen...</p>
+            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-gray-200 shadow-2xs">
+              <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-3" />
+              <p className="text-xs sm:text-sm text-gray-500 font-medium">Sedang membandingkan dokumen...</p>
             </div>
           ) : comparisonData ? (
             <>
+              {/* Kartu Informasi Metadata Kedua Dokumen (Kiri: Diubah, Kanan: Berlaku) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
                 <ComparisonDocumentCard
                   document={comparisonData.acuanAwal}
                   variant="default"
-                  onViewDetail={() => handleViewDetail(comparisonData.acuanAwal.title)}
-                  onDownload={() => handleDownload(comparisonData.acuanAwal.title)}
+                  onViewDetail={() => handleViewDetail(comparisonData.acuanAwal.id)}
+                  onDownload={() => handleDownload(comparisonData.acuanAwal.id)}
                 />
                 <ComparisonDocumentCard
                   document={comparisonData.yangDibandingkan}
                   variant="success"
-                  onViewDetail={() => handleViewDetail(comparisonData.yangDibandingkan.title)}
-                  onDownload={() => handleDownload(comparisonData.yangDibandingkan.title)}
+                  onViewDetail={() => handleViewDetail(comparisonData.yangDibandingkan.id)}
+                  onDownload={() => handleDownload(comparisonData.yangDibandingkan.id)}
                 />
               </div>
 
+              {/* Tabel Komparasi Pasal per Pasal */}
               <ComparisonTable
                 leftTitle={comparisonData.acuanAwal.title}
                 rightTitle={comparisonData.yangDibandingkan.title}
                 sections={comparisonData.sections}
               />
             </>
-          ) : null}
+          ) : (
+            !isLoadingLineage && selectedLeftId && !selectedRightId && (
+              <div className="flex items-center gap-3 p-6 bg-white rounded-2xl border border-gray-200 shadow-2xs text-gray-600">
+                <AlertCircle className="w-5 h-5 text-blue-500 shrink-0" />
+                <p className="text-xs sm:text-sm">
+                  Silakan pilih dokumen pada kolom <strong>YANG MAU DIBANDINGKAN</strong> di atas.
+                </p>
+              </div>
+            )
+          )}
         </div>
       </div>
     </PublicLayout>

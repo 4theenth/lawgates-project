@@ -30,6 +30,15 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
     if (isIndex || path === '/') {
       return url === '/' || url === '';
     }
+    if (path === '/pencarian' || path === '/regulasi') {
+      return (
+        url === '/pencarian' ||
+        url.startsWith('/pencarian') ||
+        url.startsWith('/peraturan') ||
+        url.startsWith('/bandingkan') ||
+        url.startsWith('/regulasi')
+      );
+    }
     return url === path || url.startsWith(`${path}/`);
   };
 

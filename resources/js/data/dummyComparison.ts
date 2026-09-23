@@ -17,7 +17,8 @@ export interface ComparisonRow {
   leftValue: string | string[] | React.ReactNode;
   leftDiffType?: 'normal' | 'deleted' | 'modified';
   rightValue: string | string[] | React.ReactNode;
-  rightDiffType?: 'normal' | 'added' | 'modified';
+  rightDiffType?: 'normal' | 'added' | 'modified' | 'deleted';
+  isChanged?: boolean;
 }
 
 export interface ComparisonSection {
@@ -28,9 +29,19 @@ export interface ComparisonSection {
 export interface ComparisonDataset {
   standardIdGroup: string;
   standardIdVerified: boolean;
+  relationBanner?: {
+    isRelationVerified: boolean;
+    relationType: string;
+    title: string;
+    subtitle: string;
+    changedCount: number;
+    indukId: string;
+    pengubahId: string;
+  };
   acuanAwal: ComparisonDocumentMeta;
   yangDibandingkan: ComparisonDocumentMeta;
   sections: ComparisonSection[];
+  totalChangedPasal?: number;
 }
 
 export const COMPARISON_OPTIONS = [

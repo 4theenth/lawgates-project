@@ -39,6 +39,8 @@ Route::get('/pencarian', function () {
     return Inertia::render('Pencarian');
 });
 
+Route::redirect('/regulasi', '/pencarian');
+
 Route::get('/bandingkan', function () {
     return Inertia::render('Bandingkan');
 });
