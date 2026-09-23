@@ -14,6 +14,7 @@ interface ToastContextValue {
   removeToast: (id: string) => void;
   toast: {
     success: (message: string, description?: string, duration?: number) => void;
+    delete: (message: string, description?: string, duration?: number) => void;
     error: (message: string, description?: string, duration?: number) => void;
     warning: (message: string, description?: string, duration?: number) => void;
     info: (message: string, description?: string, duration?: number) => void;
@@ -45,6 +46,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const toast = {
     success: (message: string, description?: string, duration?: number) =>
       showToast({ type: 'success', message, description, duration }),
+    delete: (message: string, description?: string, duration?: number) =>
+      showToast({ type: 'delete', message, description, duration }),
     error: (message: string, description?: string, duration?: number) =>
       showToast({ type: 'error', message, description, duration }),
     warning: (message: string, description?: string, duration?: number) =>
@@ -72,6 +75,7 @@ const defaultFallbackValue: ToastContextValue = {
   removeToast: () => {},
   toast: {
     success: (msg) => console.log('[Toast Success]:', msg),
+    delete: (msg) => console.log('[Toast Delete]:', msg),
     error: (msg) => console.error('[Toast Error]:', msg),
     warning: (msg) => console.warn('[Toast Warning]:', msg),
     info: (msg) => console.info('[Toast Info]:', msg),

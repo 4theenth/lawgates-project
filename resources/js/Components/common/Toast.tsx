@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { CircleCheckBig, CircleAlert, AlertTriangle, Info, X } from 'lucide-react';
+import { Check, Trash2, AlertTriangle, Info, X } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
+export type ToastType = 'success' | 'delete' | 'error' | 'warning' | 'info';
 
 export interface ToastItem {
   id: string;
@@ -50,28 +50,48 @@ export function Toast({ toast, onClose }: ToastProps) {
 
   const config = {
     success: {
-      border: 'border-[#C6F6D5]',
-      iconBadge: 'bg-[#EAF5ED] text-[#16A34A]',
-      progressBar: 'bg-[#16A34A]',
-      icon: <CircleCheckBig className="w-4 h-4 stroke-[2]" />,
+      cardBg: 'bg-[#D6EADA]',
+      textColor: 'text-[#15803D]',
+      iconBadge: 'bg-[#15803D]',
+      progressBar: 'bg-[#15803D]',
+      trackBar: 'bg-[#15803D]/25',
+      icon: <Check className="w-4 h-4 text-white stroke-[2.5]" />,
+    },
+    delete: {
+      cardBg: 'bg-[#D6EADA]',
+      textColor: 'text-[#15803D]',
+      iconBadge: 'bg-[#15803D]',
+      progressBar: 'bg-[#15803D]',
+      trackBar: 'bg-[#15803D]/25',
+      icon: <Trash2 className="w-4 h-4 text-white stroke-[2]" />,
     },
     error: {
-      border: 'border-[#FED7D7]',
-      iconBadge: 'bg-[#FFF5F5] text-[#E53E3E]',
-      progressBar: 'bg-[#E53E3E]',
-      icon: <CircleAlert className="w-4 h-4 stroke-[2]" />,
+      cardBg: 'bg-[#FCE8E8]',
+      textColor: 'text-[#B72121]',
+      iconBadge: 'bg-[#B72121]',
+      progressBar: 'bg-[#B72121]',
+      trackBar: 'bg-[#B72121]/25',
+      icon: (
+        <span className="text-white font-bold text-[15px] leading-none select-none">
+          !
+        </span>
+      ),
     },
     warning: {
-      border: 'border-[#FEEBC8]',
-      iconBadge: 'bg-[#FFFAF0] text-[#DD6B20]',
-      progressBar: 'bg-[#DD6B20]',
-      icon: <AlertTriangle className="w-4 h-4 stroke-[2]" />,
+      cardBg: 'bg-[#FFF3E0]',
+      textColor: 'text-[#D97706]',
+      iconBadge: 'bg-[#D97706]',
+      progressBar: 'bg-[#D97706]',
+      trackBar: 'bg-[#D97706]/25',
+      icon: <AlertTriangle className="w-4 h-4 text-white stroke-[2]" />,
     },
     info: {
-      border: 'border-[#BEE3F8]',
-      iconBadge: 'bg-[#EBF8FF] text-[#3182CE]',
-      progressBar: 'bg-[#3182CE]',
-      icon: <Info className="w-4 h-4 stroke-[2]" />,
+      cardBg: 'bg-[#EBF8FF]',
+      textColor: 'text-[#2563EB]',
+      iconBadge: 'bg-[#2563EB]',
+      progressBar: 'bg-[#2563EB]',
+      trackBar: 'bg-[#2563EB]/25',
+      icon: <Info className="w-4 h-4 text-white stroke-[2]" />,
     },
   }[toast.type];
 
@@ -79,39 +99,41 @@ export function Toast({ toast, onClose }: ToastProps) {
     <div
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className={`relative flex items-center gap-3 py-2.5 px-3.5 sm:px-4 bg-white/98 backdrop-blur-md rounded-[12px] border ${config.border} shadow-[0_10px_30px_rgba(0,0,0,0.1)] transition-all animate-in fade-in slide-in-from-top-3 duration-250 min-w-[280px] max-w-md pointer-events-auto overflow-hidden select-none`}
+      className={`relative flex items-center justify-between gap-3.5 pt-3 pb-4 px-4 ${config.cardBg} rounded-[16px] shadow-lg transition-all animate-in fade-in slide-in-from-top-3 duration-200 min-w-[320px] sm:min-w-[360px] max-w-md pointer-events-auto overflow-hidden select-none`}
     >
-      {/* Icon status */}
-      <div
-        className={`w-7 h-7 rounded-full ${config.iconBadge} flex items-center justify-center shrink-0`}
-      >
-        {config.icon}
-      </div>
+      <div className="flex items-center gap-3.5 min-w-0 flex-1">
+        {/* Bulatan solid icon */}
+        <div
+          className={`w-7 h-7 rounded-full ${config.iconBadge} flex items-center justify-center shrink-0 shadow-2xs`}
+        >
+          {config.icon}
+        </div>
 
-      {/* Konten Pesan */}
-      <div className="flex-1 min-w-0 pr-1">
-        <p className="text-[13px] font-semibold text-neu-900 leading-tight">
-          {toast.message}
-        </p>
-        {toast.description && (
-          <p className="text-[11px] text-neu-600 mt-0.5 leading-snug">
-            {toast.description}
+        {/* Konten Pesan */}
+        <div className="min-w-0 pr-1">
+          <p className={`text-[14px] font-medium leading-tight ${config.textColor}`}>
+            {toast.message}
           </p>
-        )}
+          {toast.description && (
+            <p className={`text-[12px] opacity-80 mt-0.5 leading-snug ${config.textColor}`}>
+              {toast.description}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Tombol Tutup (X) */}
       <button
         type="button"
         onClick={() => onClose(toast.id)}
-        className="p-1 text-neu-400 hover:text-neu-700 hover:bg-gray-100 rounded-md transition-colors cursor-pointer shrink-0"
+        className="p-1 text-neu-700 hover:text-black hover:bg-black/5 rounded-md transition-colors cursor-pointer shrink-0"
         title="Tutup notifikasi"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="w-4 h-4" />
       </button>
 
       {/* Animated Progress Bar di bawah alert */}
-      <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-gray-100 overflow-hidden">
+      <div className={`absolute bottom-0 left-0 right-0 h-[4px] ${config.trackBar} overflow-hidden`}>
         <div
           className={`h-full ${config.progressBar} transition-all duration-75 ease-linear`}
           style={{ width: `${progress}%` }}
