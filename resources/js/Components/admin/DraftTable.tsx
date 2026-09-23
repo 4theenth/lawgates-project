@@ -91,9 +91,9 @@ export function DraftTable({
             <col className="w-[7%]" />
           </colgroup>
 
-          {/* Table Header (Sesuai Gambar 1 & Gambar 2: rounded corners & bg-[#E9EAEB]) */}
+          {/* Table Header (Sesuai spesifikasi admin: rounded-tl-xl, rounded-tr-xl, bg-neu-50) */}
           <thead>
-            <tr className="bg-[#E9EAEB] border-b border-neu-200 text-[12px] font-semibold text-neu-600 uppercase tracking-wider select-none">
+            <tr className="bg-neu-50 border-b border-neu-200 text-[12px] font-semibold text-neu-600 uppercase tracking-wider select-none">
               {/* Table Header (Sesuai spesifikasi: checkbox hanya nyala jika memilih semua) */}
               <th className="py-3 px-4 text-center rounded-tl-xl">
                 <input
@@ -239,9 +239,9 @@ export function DraftTable({
                             setActiveActionId(null);
                             onDelete?.(draft);
                           }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-1.5 text-[12px] text-[#C5221F] hover:bg-red-50 transition-colors cursor-pointer"
+                          className="w-full flex items-center gap-2.5 px-3.5 py-1.5 text-[12px] text-dan-800 hover:bg-dan-50 transition-colors cursor-pointer"
                         >
-                          <Trash2 className="w-3.5 h-3.5 text-[#C5221F]" />
+                          <Trash2 className="w-3.5 h-3.5 text-dan-800" />
                           <span>Hapus</span>
                         </button>
                       </div>

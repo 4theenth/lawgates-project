@@ -65,9 +65,9 @@ export function CategoryTable({
     <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-visible transition-all duration-200">
       <div className="overflow-x-auto sm:overflow-visible">
         <table className="w-full min-w-[500px] text-left border-collapse">
-          {/* Table Header (Sesuai spesifikasi admin: rounded-tl-xl, rounded-tr-xl, bg-[#E9EAEB]) */}
+          {/* Table Header (Sesuai spesifikasi admin: rounded-tl-xl, rounded-tr-xl, bg-neu-50) */}
           <thead>
-            <tr className="bg-[#E9EAEB] border-b border-neu-200 text-[12px] font-semibold text-neu-600 uppercase tracking-wider select-none">
+            <tr className="bg-neu-50 border-b border-neu-200 text-[12px] font-semibold text-neu-600 uppercase tracking-wider select-none">
               <th className="py-3 px-5 whitespace-nowrap rounded-tl-xl">
                 <div
                   onClick={() => onSort?.('kategori')}
