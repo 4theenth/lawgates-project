@@ -7,14 +7,15 @@ import { ComparisonDocumentCard } from '@/Components/comparison/ComparisonDocume
 import { ComparisonTable } from '@/Components/comparison/ComparisonTable';
 import axios from 'axios';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { ComparisonDataset, ComparisonOption } from '@/types/comparison';
 
 export default function Bandingkan() {
   const [selectedLeftId, setSelectedLeftId] = useState('');
   const [selectedRightId, setSelectedRightId] = useState('');
-  const [options, setOptions] = useState<any[]>([]);
+  const [options, setOptions] = useState<ComparisonOption[]>([]);
   const [isLoadingLineage, setIsLoadingLineage] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
-  const [comparisonData, setComparisonData] = useState<any>(null);
+  const [comparisonData, setComparisonData] = useState<ComparisonDataset | null>(null);
   const [isLeftLocked, setIsLeftLocked] = useState(false);
 
   // Breadcrumbs sesuai desain: Beranda > Pencarian Hukum > Detail Sistem Hukum > Bandingkan Sistem Hukum
@@ -57,16 +58,16 @@ export default function Bandingkan() {
           setOptions(dataOptions);
 
           // Cari opsi dokumen pembanding yang paling relevan (misal UU pengubah seperti UU 63 2024)
-          const candidates = dataOptions.filter((opt: any) => opt.id !== baseId);
+          const candidates = dataOptions.filter((opt: ComparisonOption) => opt.id !== baseId);
 
           const bestCandidate =
             candidates.find(
-              (opt: any) =>
+              (opt: ComparisonOption) =>
                 opt.isReady &&
                 (opt.relationDescription?.includes('Mengubah') ||
                   opt.relationDescription?.includes('Diubah'))
             ) ||
-            candidates.find((opt: any) => opt.isReady) ||
+            candidates.find((opt: ComparisonOption) => opt.isReady) ||
             candidates[0];
 
           if (bestCandidate) {

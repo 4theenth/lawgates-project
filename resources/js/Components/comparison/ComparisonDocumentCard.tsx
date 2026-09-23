@@ -1,6 +1,6 @@
 import React from 'react';
 import { Scale, Eye, ArrowDownToLine } from 'lucide-react';
-import { ComparisonDocumentMeta } from '@/data/dummyComparison';
+import { ComparisonDocumentMeta } from '@/types/comparison';
 
 export interface ComparisonDocumentCardProps {
   document: ComparisonDocumentMeta;

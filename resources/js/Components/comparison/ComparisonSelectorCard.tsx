@@ -1,9 +1,9 @@
 import React from 'react';
 import { Scale, ChevronDown, SlidersHorizontal, FileText } from 'lucide-react';
-import { COMPARISON_OPTIONS } from '@/data/dummyComparison';
+import { ComparisonOption } from '@/types/comparison';
 
 export interface ComparisonSelectorCardProps {
-  options?: any[];
+  options?: ComparisonOption[];
   selectedLeftId: string;
   selectedRightId: string;
   onChangeLeft: (id: string) => void;
@@ -23,7 +23,7 @@ export function ComparisonSelectorCard({
   disabledLeft = false,
   isLoading = false,
 }: ComparisonSelectorCardProps) {
-  const currentOptions = options.length > 0 ? options : COMPARISON_OPTIONS;
+  const currentOptions = options;
   const leftOpt = currentOptions.find((o) => o.id === selectedLeftId);
   const rightOpt = currentOptions.find((o) => o.id === selectedRightId);
 

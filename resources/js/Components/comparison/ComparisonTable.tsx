@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
-import { ComparisonSection, ComparisonRow } from '@/data/dummyComparison';
+import { ComparisonSection, ComparisonRow } from '@/types/comparison';
 import { diffWordsWithSpace } from 'diff';
 
 export interface ComparisonTableProps {
