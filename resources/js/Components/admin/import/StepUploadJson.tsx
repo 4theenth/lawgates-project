@@ -7,6 +7,7 @@ export interface UploadedJsonFile {
   sizeKb: number;
   rawFile?: File;
   parsedData?: any;
+  error?: string;
 }
 
 interface StepUploadJsonProps {
@@ -40,6 +41,8 @@ export function StepUploadJson({
   const currentCount = files.length;
   const remainingSlots = maxFiles - currentCount;
   const isFull = currentCount >= maxFiles;
+  const hasError = files.some((f) => Boolean(f.error || f.sizeKb > 10 * 1024));
+  const isImportDisabled = hasError || files.length === 0;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -108,7 +111,7 @@ export function StepUploadJson({
               Silahkan Tarik dan lepas file di sini, atau klik untuk mengunggah.
             </p>
             <p className="font-sans text-[12px] text-neu-400 mt-1">
-              Mendukung 1 hingga 10 file JSON (Maks. 20 MB/file).
+              Mendukung 1 hingga 10 file JSON (Maks. 10 MB/file).
             </p>
           </div>
 
@@ -179,8 +182,8 @@ export function StepUploadJson({
           {/* Kartu Daftar File Terpilih */}
           <div className="bg-white rounded-[16px] border border-neu-100 p-5 shadow-2xs w-full">
             {/* Header Status File */}
-            <div className="flex items-center justify-between pb-3 border-b border-neu-50 mb-3">
-              <span className="font-sans text-[12px] font-semibold text-neu-900">
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-sans text-[13px] font-semibold text-neu-900">
                 File Terpilih ({currentCount}/{maxFiles})
               </span>
 
@@ -202,37 +205,52 @@ export function StepUploadJson({
 
             {/* List Berkas JSON */}
             <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
-              {files.map((file) => (
-                <div
-                  key={file.id}
-                  className="flex items-center justify-between p-3 rounded-[10px] bg-neu-50/40 border border-neu-50 hover:bg-neu-50 transition-colors"
-                >
-                  {/* Ikon & Nama File */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-white border border-neu-100 flex items-center justify-center text-neu-700 shadow-2xs shrink-0">
-                      <FileCode2 className="w-4 h-4 text-pr-900" />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="font-sans text-[12px] font-medium text-neu-900 leading-tight truncate">
-                        {file.name}
-                      </h4>
-                      <p className="font-sans text-[11px] text-neu-400 mt-0.5">
-                        {file.sizeKb} KB
-                      </p>
-                    </div>
-                  </div>
+              {files.map((file) => {
+                const isError = Boolean(file.error || file.sizeKb > 10 * 1024);
+                const displaySize =
+                  file.sizeKb >= 10 * 1024
+                    ? `${Math.round(file.sizeKb / 1024)} MB`
+                    : `${file.sizeKb} KB`;
 
-                  {/* Tombol Hapus File (X Merah) */}
-                  <button
-                    type="button"
-                    onClick={() => onRemoveFile(file.id)}
-                    className="text-dan-800 hover:text-dan-900 transition-colors p-1 cursor-pointer shrink-0"
-                    title="Hapus file ini"
+                return (
+                  <div
+                    key={file.id}
+                    className={`flex items-center justify-between p-3.5 rounded-[12px] bg-neu-50/50 transition-colors ${
+                      isError
+                        ? 'border border-dan-800'
+                        : 'border border-transparent hover:border-neu-100'
+                    }`}
                   >
-                    <XCircle className="w-5 h-5" />
-                  </button>
-                </div>
-              ))}
+                    {/* Ikon & Nama File */}
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <FileCode2 className="w-6 h-6 text-pr-900 shrink-0 stroke-[1.75]" />
+                      <div className="min-w-0">
+                        <h4 className="font-sans text-[13px] font-medium text-neu-900 leading-tight truncate">
+                          {file.name}
+                        </h4>
+                        <div className="font-sans text-[11px] text-neu-500 mt-1 flex items-center gap-2">
+                          <span>{displaySize}</span>
+                          {isError && (
+                            <span className="text-dan-800 font-medium">
+                              {file.error || 'Ukuran file melebihi 10MB!'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tombol Hapus File (X Merah) */}
+                    <button
+                      type="button"
+                      onClick={() => onRemoveFile(file.id)}
+                      className="text-dan-800 hover:text-dan-900 transition-colors p-1 cursor-pointer shrink-0"
+                      title="Hapus file ini"
+                    >
+                      <XCircle className="w-5 h-5 stroke-[1.75]" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -240,8 +258,13 @@ export function StepUploadJson({
           <div className="flex justify-end pt-2 w-full">
             <button
               type="button"
+              disabled={isImportDisabled}
               onClick={onStartImport}
-              className="px-6 py-2.5 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer inline-flex items-center gap-2"
+              className={`px-6 py-2.5 rounded-[10px] text-[14px] font-medium transition-colors shadow-2xs inline-flex items-center gap-2 ${
+                isImportDisabled
+                  ? 'bg-pr-500 text-white cursor-not-allowed opacity-90'
+                  : 'bg-pr-900 text-white hover:bg-pr-800 cursor-pointer'
+              }`}
             >
               <span>Mulai Import</span>
             </button>
