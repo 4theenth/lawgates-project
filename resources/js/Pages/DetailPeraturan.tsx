@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { useToast } from '@/hooks/useToast';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
 import { 
@@ -29,6 +30,19 @@ const formatTanggal = (dateString: string) => {
 };
 
 export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
+  const { flash } = usePage<any>().props;
+  const { toast } = useToast();
+
+  // Tampilkan toast jika ada flash message dari backend (misal: gagal download)
+  useEffect(() => {
+    if (flash?.error) {
+      toast.error(flash.error);
+    }
+    if (flash?.success) {
+      toast.success(flash.success);
+    }
+  }, [flash]);
+
   // Scroll to top state
   const [showScrollTop, setShowScrollTop] = useState(false);
 
@@ -399,20 +413,35 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
               <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
                 {/* Tombol Bandingkan */}
-                <Link
-                  href="#"
-                  onClick={(e) => e.preventDefault()}
-                  title="Fitur belum tersedia"
-                  className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 bg-[#E5E7EB] hover:bg-gray-300 text-gray-800 text-xs sm:text-sm font-semibold rounded-2xl transition-colors cursor-pointer shadow-2xs"
-                >
-                  <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-700" />
-                  <span>Bandingkan</span>
-                </Link>
+                {peraturan?.law_relations && peraturan.law_relations.some((rel: any) => {
+                  const name = (rel.relation_type?.nama_relasi || '').toLowerCase();
+                  return name.includes('ubah') || name.includes('cabut');
+                }) ? (
+                  <Link
+                    href={`/bandingkan?id=${peraturan?.unique_id}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs sm:text-sm font-semibold rounded-2xl transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
+                    <span>Bandingkan</span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    title="Tidak ada riwayat perubahan untuk dibandingkan"
+                    className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 bg-[#E5E7EB] text-gray-500 text-xs sm:text-sm font-semibold rounded-2xl transition-colors cursor-not-allowed shadow-2xs"
+                    disabled
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+                    <span>Bandingkan</span>
+                  </button>
+                )}
 
                 {/* Tombol Download Dokumen */}
-                {peraturan?.unique_id ? (
+                {peraturan?.file_pdf_path ? (
                   <a 
                     href={`/peraturan/${peraturan.unique_id}/download`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-[#0A1931] hover:bg-[#071326] text-white text-xs sm:text-sm font-semibold rounded-2xl shadow-sm transition-colors cursor-pointer"
                   >
                     <CloudDownload className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
@@ -421,12 +450,12 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => alert('Dokumen PDF tidak tersedia untuk peraturan ini.')}
-                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-gray-400 text-white text-xs sm:text-sm font-semibold rounded-2xl shadow-sm cursor-not-allowed"
-                    disabled
+                    onClick={() => toast.warning('Dokumen PDF belum tersedia di penyimpanan.')}
+                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs sm:text-sm font-semibold rounded-2xl border border-gray-300 shadow-2xs transition-colors cursor-pointer"
+                    title="Dokumen PDF belum tersedia di server penyimpanan"
                   >
-                    <CloudDownload className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
-                    <span>Lihat / Download Dokumen</span>
+                    <CloudDownload className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+                    <span>Dokumen Belum Tersedia</span>
                   </button>
                 )}
               </div>
