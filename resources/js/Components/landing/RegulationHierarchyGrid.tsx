@@ -70,7 +70,7 @@ const hierarchyData: HierarchyCardItem[] = [
 
 export function RegulationHierarchyGrid() {
   return (
-    <section className="w-full">
+    <section className="mt-[66px] w-full">
       {/* Section Header */}
       <div className="mb-8">
         <h2 className="text-2xl sm:text-[26px] font-bold text-neu-900 tracking-tight">
@@ -109,14 +109,14 @@ export function RegulationHierarchyGrid() {
               "
             >
 
-              {/* FOTO */}
+              {/* FOTO - Lebar penuh sejajar folder di dalam rim kartu 5px */}
               <div
                 className="
                   absolute
                   inset-x-[5px]
                   top-[5px]
-                  h-[171px]
-                  rounded-[14px]
+                  h-[140px]
+                  rounded-t-[15px]
                   overflow-hidden
                   z-0
                 "
@@ -158,18 +158,18 @@ export function RegulationHierarchyGrid() {
                 </span>
               </div>
 
-              {/* CARD BODY */}
+              {/* CARD BODY - Folder abu-abu neu besar memenuhi bagian bawah */}
               <div
                 className="
                   absolute
                   inset-x-[5px]
-                  top-[171px]
+                  top-[111px]
                   bottom-[5px]
                   z-20
                   bg-pr-50
-                  rounded-b-[14px]
-                  px-[10px]
-                  py-[10px]
+                  rounded-b-[15px]
+                  px-[16px]
+                  py-[16px]
                   flex
                   flex-col
                   justify-between
@@ -181,7 +181,7 @@ export function RegulationHierarchyGrid() {
 
                   <h3
                     className="
-                      text-[12px]
+                      text-[13px]
                       font-semibold
                       text-pr-900
                       leading-[18px]
@@ -192,11 +192,11 @@ export function RegulationHierarchyGrid() {
 
                   <p
                     className="
-                      mt-[2px]
-                      text-[9px]
+                      mt-[3px]
+                      text-[10px]
                       font-normal
                       text-neu-600
-                      leading-[13px]
+                      leading-[14px]
                       line-clamp-2
                     "
                   >
@@ -210,8 +210,8 @@ export function RegulationHierarchyGrid() {
                   className="
                     relative
                     z-30
-                    text-[18px]
-                    font-semibold
+                    text-[22px]
+                    font-bold
                     text-pr-900
                     leading-[130%]
                   "
@@ -221,8 +221,8 @@ export function RegulationHierarchyGrid() {
 
               </div>
 
-              {/* CARD NOTCH / TAB SHAPE */}
-              <div className="absolute left-[5px] top-[145px] z-10 w-[140px] h-[27px] pointer-events-none">
+              {/* CARD NOTCH / TAB SHAPE - Tab folder yang naik di sisi kiri */}
+              <div className="absolute left-[5px] top-[85px] z-10 w-[140px] sm:w-[155px] h-[27px] pointer-events-none">
                 <svg
                   width="140"
                   height="27"
@@ -230,6 +230,7 @@ export function RegulationHierarchyGrid() {
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
                   className="w-full h-full text-pr-50"
+                  preserveAspectRatio="none"
                 >
                   <path
                     d="M0 27V11C0 4.92487 4.92487 0 11 0H105.167C109.856 0 114.029 2.97146 115.562 7.40178L119.438 18.5982C120.971 23.0285 125.144 26 129.833 26H140V27H0Z"

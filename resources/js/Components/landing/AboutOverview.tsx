@@ -3,8 +3,12 @@ import { Icon } from '@/Components/ui/icon';
 
 export function AboutOverview() {
   return (
-    <div
-      className="
+    <div className=" w-full ">
+
+
+      <div
+        className="
+      mt-[66px]
         relative
         flex
         w-full
@@ -24,22 +28,22 @@ export function AboutOverview() {
         shadow-2xl
         overflow-hidden
       "
-    >
-      {/* Subtle ambient gold radial glow */}
-      <div
-        className="absolute -top-24 -left-24 w-80 h-80 pointer-events-none rounded-full opacity-20 blur-3xl"
-        style={{
-          background:
-            'radial-gradient(circle, var(--color-sec-900) 0%, transparent 70%)',
-        }}
-      />
+      >
+        {/* Subtle ambient gold radial glow */}
+        <div
+          className="absolute -top-24 -left-24 w-80 h-80 pointer-events-none rounded-full opacity-20 blur-3xl"
+          style={{
+            background:
+              'radial-gradient(circle, var(--color-sec-900) 0%, transparent 70%)',
+          }}
+        />
 
-      {/* Content: Layout sesuai Figma Frame 268 (gap 50px) */}
-      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 w-full items-start lg:items-center gap-6 lg:gap-[50px]">
-        
-        {/* LEFT: Badge + Metrics */}
-        <div className="flex flex-col items-start gap-3 sm:gap-[15px] lg:col-span-7 w-full shrink-0">
-            
+        {/* Content: Layout with right side wider than left */}
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 w-full items-center gap-6 lg:gap-8 xl:gap-10">
+
+          {/* LEFT: Badge + Metrics (col-span-5) */}
+          <div className="flex flex-col items-start gap-3 sm:gap-[15px] lg:col-span-5 w-full shrink-0">
+
             {/* Badge */}
             <div
               className="
@@ -87,7 +91,7 @@ export function AboutOverview() {
 
             {/* 3 Metrics */}
             <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-[20px] w-full lg:w-auto">
-              
+
               {/* Metric 1 */}
               <div className="flex flex-col items-start min-w-0">
                 <div
@@ -187,17 +191,19 @@ export function AboutOverview() {
             </div>
           </div>
 
-        {/* RIGHT: Description (Figma Frame 268) */}
-        <div className="w-full lg:col-span-5">
-          <p className="text-white/95 text-justify text-[13px] sm:text-[14px] lg:text-[15px] xl:text-[16px] font-normal leading-[22px] sm:leading-[25px] [text-align-last:left]">
-            LawGates adalah platform pangkalan data hukum terpadu yang
-            merangkum seluruh peraturan perundang-undangan di Indonesia ke
-            dalam satu titik akses pencarian tanpa harus menelusuri puluhan
-            portal instansi pemerintah yang terpisah.
-          </p>
-        </div>
+          {/* RIGHT: Description (col-span-7: wider to close gap and balance layout) */}
+          <div className="w-full lg:col-span-7">
+            <p className="text-white/95 text-justify text-[13px] sm:text-[14px] lg:text-[15px] xl:text-[16px] font-normal leading-[24px] sm:leading-[26px] [text-align-last:left]">
+              LawGates adalah platform pangkalan data hukum terpadu yang
+              merangkum seluruh peraturan perundang-undangan di Indonesia ke
+              dalam satu titik akses pencarian tanpa harus menelusuri puluhan
+              portal instansi pemerintah yang terpisah.
+            </p>
+          </div>
 
+        </div>
       </div>
+
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { NAVBAR_MENUS, NAVBAR_THEME } from '../../config/navigation';
 import type { MenuItem } from '../../types/navigation';
 import { PAGE_CONTAINER } from '../../Layouts/PublicLayout';
 import Dropdown from '@/Components/common/Dropdown';
+import ApplicationLogo from '@/Components/common/ApplicationLogo';
 import profileAvatar from '@/assets/profile-avatar.webp';
 
 interface NavbarProps {
@@ -58,9 +59,11 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
         >
           {/* Brand Logo - slides inward toward the center menu when container narrows */}
           <Link href="/" className="flex items-center gap-2 z-10 transition-transform duration-500">
-            <span className={`font-['Inter'] text-[18px] font-semibold leading-[28px] transition-colors duration-300 ${theme.logo}`}>
-              LawGates
-            </span>
+            <ApplicationLogo
+              className={`h-[26px] w-auto transition-colors duration-300 ${
+                !isPill ? 'text-white' : 'text-pr-900'
+              }`}
+            />
           </Link>
 
           {/* Desktop Auth Section (Login Button OR User Profile Dropdown) */}
@@ -225,9 +228,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-2"
               >
-                <span className="font-['Inter'] text-[18px] font-semibold text-white">
-                  LawGates
-                </span>
+                <ApplicationLogo className="h-[24px] w-auto text-white" />
               </Link>
 
               <button

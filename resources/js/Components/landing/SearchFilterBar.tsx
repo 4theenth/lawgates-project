@@ -180,9 +180,7 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
   return (
     <div
       ref={filterContainerRef}
-      className={`relative flex flex-col w-full max-w-[699px] rounded-[25px] transition-all duration-300 ${
-        isScrolled ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'
-      }`}
+      className="relative flex flex-col w-full max-w-[699px] rounded-[25px]"
     >
       <div className="relative z-20 flex items-center w-full h-[54px] sm:h-[60px] bg-pr-900 border border-pr-700 rounded-[25px] py-[6px] sm:py-[8px] px-2 sm:px-[10px] shadow-2xl backdrop-blur-[40px]">
         
