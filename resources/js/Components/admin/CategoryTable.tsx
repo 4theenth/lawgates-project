@@ -62,13 +62,13 @@ export function CategoryTable({
   }, [activeActionId]);
 
   return (
-    <div className="w-full bg-white rounded-xl border border-neu-100 shadow-2xs overflow-visible transition-all duration-200">
+    <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-visible transition-all duration-200">
       <div className="overflow-x-auto sm:overflow-visible">
         <table className="w-full min-w-[500px] text-left border-collapse">
-          {/* Table Header */}
+          {/* Table Header (Sesuai spesifikasi admin: rounded-tl-xl, rounded-tr-xl, bg-[#E9EAEB]) */}
           <thead>
-            <tr className="bg-neu-50 border-b border-neu-100 text-[12px] font-semibold text-neu-600 uppercase tracking-wider select-none">
-              <th className="py-3 px-5 whitespace-nowrap">
+            <tr className="bg-[#E9EAEB] border-b border-neu-200 text-[12px] font-semibold text-neu-600 uppercase tracking-wider select-none">
+              <th className="py-3 px-5 whitespace-nowrap rounded-tl-xl">
                 <div
                   onClick={() => onSort?.('kategori')}
                   className="group inline-flex items-center gap-1 cursor-pointer hover:text-neu-900 transition-colors"
@@ -86,7 +86,7 @@ export function CategoryTable({
                   {renderSortIcon('deskripsi')}
                 </div>
               </th>
-              <th className="py-3 px-5 text-right whitespace-nowrap">
+              <th className="py-3 px-5 text-right whitespace-nowrap rounded-tr-xl">
                 <span>Aksi</span>
               </th>
             </tr>

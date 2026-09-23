@@ -208,7 +208,7 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
       preserveScroll: true,
       onSuccess: () => {
         setDeletingCat(null);
-        toast.success('Kategori hukum berhasil dihapus!');
+        toast.delete('Kategori hukum berhasil dihapus!');
       },
       onError: () => {
         toast.error('Gagal menghapus kategori hukum.');
