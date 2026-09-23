@@ -1,7 +1,7 @@
 import React from 'react';
 import { Badge } from './Badge';
 
-export type RegulationStatus = 'berlaku' | 'tidak_berlaku' | string;
+export type RegulationStatus = 'berlaku' | 'tidak_berlaku' | 'draft' | string;
 
 interface StatusBadgeProps {
   status: RegulationStatus;
@@ -9,7 +9,19 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
-  const isBerlaku = status.toLowerCase() === 'berlaku';
+  const norm = (status || '').toLowerCase();
+
+  if (norm === 'draft') {
+    return (
+      <span
+        className={`inline-flex items-center justify-center rounded-full font-medium select-none bg-neu-50 text-neu-900 border border-neu-200 px-3 py-1 text-[12px] leading-normal ${className}`}
+      >
+        Draft
+      </span>
+    );
+  }
+
+  const isBerlaku = norm === 'berlaku';
 
   return (
     <Badge

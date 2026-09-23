@@ -84,6 +84,12 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
         return Inertia::render('Admin/DokumenHukum/Create');
     })->name('admin.dokumen-hukum.tambah');
 
+    // Draft Routes
+    Route::get('/dokumen-hukum/draft/{id}', [DokumenHukumController::class, 'showDraft'])->name('admin.dokumen-hukum.draft.show');
+    Route::post('/dokumen-hukum/draft', [DokumenHukumController::class, 'storeDraft'])->name('admin.dokumen-hukum.draft.store');
+    Route::post('/dokumen-hukum/draft/publish', [DokumenHukumController::class, 'publishDraft'])->name('admin.dokumen-hukum.draft.publish');
+    Route::post('/dokumen-hukum/draft/bulk-delete', [DokumenHukumController::class, 'bulkDeleteDraft'])->name('admin.dokumen-hukum.draft.bulk-delete');
+
     // MinIO Sync Routes
     Route::get('/dokumen-hukum/minio/scan', [DokumenHukumController::class, 'scanMinio'])->name('admin.dokumen-hukum.minio.scan');
     Route::post('/dokumen-hukum/minio/import', [DokumenHukumController::class, 'importFromMinio'])->name('admin.dokumen-hukum.minio.import');

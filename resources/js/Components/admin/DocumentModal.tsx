@@ -23,7 +23,7 @@ export function DocumentModal({
 
   const [kategori, setKategori] = useState(categories[0] || 'UU');
   const [judul, setJudul] = useState('');
-  const [status, setStatus] = useState<'berlaku' | 'tidak_berlaku'>('berlaku');
+  const [status, setStatus] = useState<'berlaku' | 'tidak_berlaku' | 'draft'>('berlaku');
   const [tglDitetapkan, setTglDitetapkan] = useState('');
 
   useEffect(() => {
@@ -133,6 +133,17 @@ export function DocumentModal({
                   className="text-pr-900 focus:ring-pr-900"
                 />
                 <span>Tidak Berlaku</span>
+              </label>
+              <label className="flex items-center gap-2 text-[13px] text-neu-700 cursor-pointer">
+                <input
+                  type="radio"
+                  name="status"
+                  value="draft"
+                  checked={status === 'draft'}
+                  onChange={() => setStatus('draft')}
+                  className="text-pr-900 focus:ring-pr-900"
+                />
+                <span>Draft</span>
               </label>
             </div>
           </div>
