@@ -74,29 +74,41 @@ class PeraturanController extends Controller
     {
         $peraturan = Peraturan::with('jenisPeraturan')->where('unique_id', $unique_id)->firstOrFail();
 
-        // Generate tipe_peraturan (e.g. 'uu', 'uudrt') dan standart_id (e.g. 'undang-undang-1-2022')
-        $tipe_peraturan = $peraturan->jenisPeraturan ? strtolower($peraturan->jenisPeraturan->kode) : 'unknown';
-        $nama_jenis = $peraturan->jenisPeraturan ? \Illuminate\Support\Str::slug($peraturan->jenisPeraturan->nama) : 'peraturan';
-        
-        // standart_id pattern: jenis-nomor-tahun
-        $standart_id = $nama_jenis . '-' . \Illuminate\Support\Str::slug($peraturan->nomor) . '-' . $peraturan->tahun;
-
-        // Path di dalam bucket minio: documents/{tipe_peraturan}/{standart_id}/document.pdf
-        $path = 'documents/' . $tipe_peraturan . '/' . $standart_id . '/document.pdf';
-
         try {
             $disk = \Illuminate\Support\Facades\Storage::disk('minio');
-            
-            // Cek apakah file ada di MinIO
-            if ($disk->exists($path)) {
-                // Streaming file dari Laravel (inline / preview) alih-alih download otomatis
-                return $disk->response($path, $standart_id . '.pdf');
-            } else {
-                return redirect('/peraturan/' . $unique_id)->with('error', 'Dokumen PDF tidak tersedia di server penyimpanan (Path: ' . $path . ').');
+            $cleanTitle = \Illuminate\Support\Str::limit(\Illuminate\Support\Str::slug($peraturan->judul), 80, '');
+            $filename = ($cleanTitle ?: 'dokumen-peraturan') . '.pdf';
+
+            // 1. Cek langsung jika file_pdf_path yang tersimpan di DB ada di MinIO
+            if ($peraturan->file_pdf_path && $disk->exists($peraturan->file_pdf_path)) {
+                return $disk->response($peraturan->file_pdf_path, $filename);
             }
+
+            // 2. Fallback pencarian beberapa format penamaan folder di MinIO
+            $tipe_peraturan = $peraturan->jenisPeraturan ? strtolower($peraturan->jenisPeraturan->kode) : 'unknown';
+            $nama_jenis = $peraturan->jenisPeraturan ? \Illuminate\Support\Str::slug($peraturan->jenisPeraturan->nama) : 'peraturan';
+            $nomor_slug = \Illuminate\Support\Str::slug($peraturan->nomor);
+            $tahun = $peraturan->tahun;
+
+            $fallbackPaths = [
+                "documents/{$tipe_peraturan}/{$nama_jenis}-{$nomor_slug}-{$tahun}/document.pdf",
+                "documents/{$tipe_peraturan}/undang-undang-{$nomor_slug}-{$tahun}/document.pdf",
+                "documents/{$tipe_peraturan}/{$nomor_slug}-{$tahun}/document.pdf",
+                "pdf_dokumen/{$peraturan->unique_id}.pdf",
+            ];
+
+            foreach ($fallbackPaths as $fallback) {
+                if ($disk->exists($fallback)) {
+                    // Simpan path yang valid ke database agar pencarian berikutnya instan
+                    $peraturan->update(['file_pdf_path' => $fallback]);
+                    return $disk->response($fallback, $filename);
+                }
+            }
+
+            return redirect('/peraturan/' . $unique_id)->with('error', 'Dokumen PDF tidak tersedia di server penyimpanan MinIO.');
         } catch (\Exception $e) {
             \Log::error('MinIO Download Error: ' . $e->getMessage());
-            return redirect('/peraturan/' . $unique_id)->with('error', 'Gagal mengunduh dokumen dari server penyimpanan.');
+            return redirect('/peraturan/' . $unique_id)->with('error', 'Gagal mengakses server penyimpanan MinIO: ' . $e->getMessage());
         }
     }
 

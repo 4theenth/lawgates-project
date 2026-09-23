@@ -39,6 +39,8 @@ Route::get('/pencarian', function () {
     return Inertia::render('Pencarian');
 });
 
+Route::redirect('/regulasi', '/pencarian');
+
 Route::get('/bandingkan', function () {
     return Inertia::render('Bandingkan');
 });
@@ -56,6 +58,7 @@ Route::get('/api/referensi-filter', [PeraturanController::class, 'referensiFilte
 */
 use App\Http\Controllers\Admin\DokumenHukumController;
 use App\Http\Controllers\Admin\KategoriHukumController;
+use App\Http\Controllers\Admin\TeamController;
 
 
 Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(function () {
@@ -90,6 +93,9 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     // MinIO Sync Routes
     Route::get('/dokumen-hukum/minio/scan', [DokumenHukumController::class, 'scanMinio'])->name('admin.dokumen-hukum.minio.scan');
     Route::post('/dokumen-hukum/minio/import', [DokumenHukumController::class, 'importFromMinio'])->name('admin.dokumen-hukum.minio.import');
+
+    // Users & Team Management Routes
+    Route::get('/users/tim', [TeamController::class, 'index'])->name('admin.users.tim');
 });
 
 /*

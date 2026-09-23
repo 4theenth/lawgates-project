@@ -11,9 +11,24 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ isCollapsed, menus = ADMIN_SIDEBAR_MENUS }: AdminSidebarProps) {
   const { url } = usePage();
-  const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({
-    users: false,
+  const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = { users: false };
+    menus.forEach((m) => {
+      if (m.subItems?.some((sub) => url === sub.href || (sub.href !== '#' && url.startsWith(`${sub.href}`)))) {
+        initial[m.id] = true;
+      }
+    });
+    return initial;
   });
+
+  // Auto-expand submenu if current page is a child route
+  React.useEffect(() => {
+    menus.forEach((m) => {
+      if (m.subItems?.some((sub) => url === sub.href || (sub.href !== '#' && url.startsWith(`${sub.href}`)))) {
+        setOpenSubmenus((prev) => ({ ...prev, [m.id]: true }));
+      }
+    });
+  }, [url, menus]);
 
   const toggleSubmenu = (id: string) => {
     setOpenSubmenus((prev) => ({
@@ -47,24 +62,36 @@ export function AdminSidebar({ isCollapsed, menus = ADMIN_SIDEBAR_MENUS }: Admin
           const Icon = item.icon;
           const hasSub = !!item.subItems?.length;
           const isActive = isItemActive(item.href);
-          const isSubOpen = openSubmenus[item.id];
+          const isChildActive = hasSub && item.subItems?.some((sub) => url === sub.href || (sub.href !== '#' && url.startsWith(sub.href)));
+          const isSubOpen = openSubmenus[item.id] ?? isChildActive;
 
           if (hasSub) {
             return (
-              <div key={item.id} className="w-full">
+              <div key={item.id} className="relative w-full">
                 <button
                   type="button"
                   onClick={() => toggleSubmenu(item.id)}
                   title={isCollapsed ? item.label : undefined}
-                  className={`${SIDEBAR_THEME.itemBase} ${SIDEBAR_THEME.dropdownParent.container} ${isCollapsed ? 'justify-center px-0' : 'justify-between'
-                    }`}
+                  className={`relative ${SIDEBAR_THEME.itemBase} ${
+                    isChildActive
+                      ? SIDEBAR_THEME.activeItem.container
+                      : SIDEBAR_THEME.dropdownParent.container
+                  } ${isCollapsed ? 'justify-center px-0' : 'justify-between'}`}
                 >
                   <div className="flex items-center gap-[12px]">
-                    <Icon className={`w-[18px] h-[18px] shrink-0 ${SIDEBAR_THEME.dropdownParent.icon}`} />
-                    {!isCollapsed && <span className="text-[12px]">{item.label}</span>}
+                    <Icon
+                      className={`w-[18px] h-[18px] shrink-0 ${
+                        isChildActive ? SIDEBAR_THEME.activeItem.icon : SIDEBAR_THEME.dropdownParent.icon
+                      }`}
+                    />
+                    {!isCollapsed && (
+                      <span className={`text-[12px] ${isChildActive ? 'font-bold text-pr-900' : 'font-normal'}`}>
+                        {item.label}
+                      </span>
+                    )}
                   </div>
                   {!isCollapsed && (
-                    <span className={SIDEBAR_THEME.dropdownParent.arrow}>
+                    <span className={isChildActive ? 'text-pr-900' : SIDEBAR_THEME.dropdownParent.arrow}>
                       {isSubOpen ? (
                         <ChevronDown className="w-3.5 h-3.5" />
                       ) : (
@@ -76,7 +103,7 @@ export function AdminSidebar({ isCollapsed, menus = ADMIN_SIDEBAR_MENUS }: Admin
 
                 {/* Submenu Accordion */}
                 {!isCollapsed && isSubOpen && item.subItems && (
-                  <div className="ml-[26px] mt-1 space-y-1 pl-2 border-l border-neu-50">
+                  <div className="ml-[20px] mt-1 space-y-1 pl-3 border-l border-neu-200">
                     {item.subItems.map((sub) => {
                       const isSubActive = url === sub.href;
 
@@ -84,8 +111,7 @@ export function AdminSidebar({ isCollapsed, menus = ADMIN_SIDEBAR_MENUS }: Admin
                         return (
                           <span
                             key={sub.id}
-                            className={`block py-[6px] px-[10px] rounded-[8px] ${SIDEBAR_THEME.submenuItem.fontSize} text-neu-400 opacity-50 cursor-not-allowed select-none`}
-                            title="Fitur belum tersedia"
+                            className="block py-[4px] px-[8px] rounded-[6px] text-[12px] text-neu-400 select-none cursor-default"
                           >
                             {sub.label}
                           </span>
@@ -96,10 +122,11 @@ export function AdminSidebar({ isCollapsed, menus = ADMIN_SIDEBAR_MENUS }: Admin
                         <Link
                           key={sub.id}
                           href={sub.href}
-                          className={`block py-[6px] px-[10px] rounded-[8px] ${SIDEBAR_THEME.submenuItem.fontSize} transition-colors ${isSubActive
-                            ? SIDEBAR_THEME.submenuItem.active
-                            : SIDEBAR_THEME.submenuItem.inactive
-                            }`}
+                          className={`block py-[4px] px-[8px] rounded-[6px] ${SIDEBAR_THEME.submenuItem.fontSize} transition-colors ${
+                            isSubActive
+                              ? SIDEBAR_THEME.submenuItem.active
+                              : SIDEBAR_THEME.submenuItem.inactive
+                          }`}
                         >
                           {sub.label}
                         </Link>
