@@ -486,6 +486,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
               {/* Kolom Tengah: Isi Peraturan (Sticky, Scrollable, Lebih Panjang Sedikit dari Kolom Kiri & Kanan) */}
               <div 
                 id="scrollable-content"
+                scroll-region="true"
                 className="flex-1 min-w-0 w-full space-y-4 lg:sticky lg:top-28 lg:h-[calc(100vh-105px)] lg:overflow-y-auto lg:pr-2.5 custom-scrollbar scroll-smooth pb-12"
               >
                 <ReadonlyPembukaanSection

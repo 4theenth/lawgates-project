@@ -80,18 +80,46 @@ export default function Pencarian() {
       .catch((err) => console.error('Gagal memuat referensi:', err));
   }, []);
 
-  // 2. Sinkronisasi dengan URL search params saat pertama kali dimuat
-  useEffect(() => {
+  const updateBrowserUrl = (queryString: string) => {
+    if (typeof window === 'undefined') return;
+    const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+    const currentState = window.history.state;
+    if (currentState && typeof currentState === 'object' && currentState.page) {
+      window.history.replaceState(
+        {
+          ...currentState,
+          page: {
+            ...currentState.page,
+            url: newUrl,
+          },
+        },
+        '',
+        newUrl
+      );
+    } else {
+      window.history.replaceState(currentState, '', newUrl);
+    }
+  };
+
+  const syncWithUrlParams = () => {
     const params = new URLSearchParams(window.location.search);
 
     const initialKeyword = params.get('keyword') || params.get('q') || '';
     setSearchQuery(initialKeyword);
 
     const catParam = params.get('kategori_id') || params.get('kategori') || '';
-    if (catParam) setSelectedKategori(catParam.split(',').filter(Boolean));
+    if (catParam) {
+      setSelectedKategori(catParam.split(',').filter(Boolean));
+    } else {
+      setSelectedKategori([]);
+    }
 
     const statusParam = params.get('status_id') || params.get('status') || '';
-    if (statusParam) setSelectedStatus(statusParam.split(',').filter(Boolean));
+    if (statusParam) {
+      setSelectedStatus(statusParam.split(',').filter(Boolean));
+    } else {
+      setSelectedStatus([]);
+    }
 
     const yearParam = params.get('tahun') || '';
     if (yearParam.includes('-')) {
@@ -101,6 +129,9 @@ export default function Pencarian() {
     } else if (yearParam) {
       setTahunDari(yearParam);
       setTahunSampai(yearParam);
+    } else {
+      setTahunDari('2020');
+      setTahunSampai('2026');
     }
 
     setSort(params.get('sort') || 'relevansi');
@@ -111,6 +142,20 @@ export default function Pencarian() {
     setPerPage(urlPerPage);
 
     fetchData(params.toString());
+  };
+
+  // 2. Sinkronisasi dengan URL search params saat pertama kali dimuat dan navigasi browser (popstate)
+  useEffect(() => {
+    syncWithUrlParams();
+
+    const handlePopState = () => {
+      syncWithUrlParams();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
 
   // Tutup dropdown sort, pagination, dan filter saat klik di luar
@@ -208,7 +253,7 @@ export default function Pencarian() {
     if (currentPerPage) params.set('per_page', currentPerPage.toString());
     if (page > 1) params.set('page', page.toString());
 
-    window.history.pushState(null, '', `?${params.toString()}`);
+    updateBrowserUrl(params.toString());
     fetchData(params.toString());
   };
 
@@ -263,9 +308,7 @@ export default function Pencarian() {
     setOpenYearSub({ dari: true, sampai: true });
     setActiveDropdown(null);
 
-    if (typeof window !== 'undefined') {
-      window.history.pushState(null, '', window.location.pathname);
-    }
+    updateBrowserUrl('');
 
     // Hanya ambil data default jika data saat ini memang terfilter/berbeda
     if (isDataFiltered) {
