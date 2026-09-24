@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Peraturan;
 use App\Models\JenisPeraturan;
 use App\Models\Status;
+use App\Services\DocumentStorageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class PeraturanController extends Controller
@@ -34,7 +36,6 @@ class PeraturanController extends Controller
 
     public function show($unique_id)
     {
-        // Memuat semua relasi lengkap untuk halaman detail
         $peraturan = Peraturan::with([
             'jenisPeraturan', 
             'statusPeraturan',
@@ -74,42 +75,63 @@ class PeraturanController extends Controller
     {
         $peraturan = Peraturan::with('jenisPeraturan')->where('unique_id', $unique_id)->firstOrFail();
 
-        try {
-            $disk = \Illuminate\Support\Facades\Storage::disk('minio');
-            $cleanTitle = \Illuminate\Support\Str::limit(\Illuminate\Support\Str::slug($peraturan->judul), 80, '');
-            $filename = ($cleanTitle ?: 'dokumen-peraturan') . '.pdf';
+        $cleanTitle = Str::limit(Str::slug($peraturan->judul), 80, '');
+        $filename = ($cleanTitle ?: 'dokumen-peraturan') . '.pdf';
 
-            // 1. Cek langsung jika file_pdf_path yang tersimpan di DB ada di MinIO
-            if ($peraturan->file_pdf_path && $disk->exists($peraturan->file_pdf_path)) {
-                return $disk->response($peraturan->file_pdf_path, $filename);
-            }
+        // 1. Ambil dari local cache (atau unduh sekali dari MinIO lalu simpan ke disk lokal)
+        $localPath = DocumentStorageService::getCachedOrDownload($peraturan);
 
-            // 2. Fallback pencarian beberapa format penamaan folder di MinIO
-            $tipe_peraturan = $peraturan->jenisPeraturan ? strtolower($peraturan->jenisPeraturan->kode) : 'unknown';
-            $nama_jenis = $peraturan->jenisPeraturan ? \Illuminate\Support\Str::slug($peraturan->jenisPeraturan->nama) : 'peraturan';
-            $nomor_slug = \Illuminate\Support\Str::slug($peraturan->nomor);
-            $tahun = $peraturan->tahun;
-
-            $fallbackPaths = [
-                "documents/{$tipe_peraturan}/{$nama_jenis}-{$nomor_slug}-{$tahun}/document.pdf",
-                "documents/{$tipe_peraturan}/undang-undang-{$nomor_slug}-{$tahun}/document.pdf",
-                "documents/{$tipe_peraturan}/{$nomor_slug}-{$tahun}/document.pdf",
-                "pdf_dokumen/{$peraturan->unique_id}.pdf",
+        if ($localPath && file_exists($localPath) && filesize($localPath) > 1024) {
+            $headers = [
+                'Content-Type' => 'application/pdf',
+                'Cache-Control' => 'public, max-age=604800, immutable',
+                'ETag' => '"' . md5_file($localPath) . '"',
             ];
 
-            foreach ($fallbackPaths as $fallback) {
-                if ($disk->exists($fallback)) {
-                    // Simpan path yang valid ke database agar pencarian berikutnya instan
-                    $peraturan->update(['file_pdf_path' => $fallback]);
-                    return $disk->response($fallback, $filename);
-                }
+            // Jika diminta inline (misalnya untuk iframe viewer)
+            if (request()->has('inline') && request('inline') == '1') {
+                return response()->file($localPath, array_merge($headers, [
+                    'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                ]));
             }
 
-            return redirect('/peraturan/' . $unique_id)->with('error', 'Dokumen PDF tidak tersedia di server penyimpanan MinIO.');
-        } catch (\Exception $e) {
-            \Log::error('MinIO Download Error: ' . $e->getMessage());
-            return redirect('/peraturan/' . $unique_id)->with('error', 'Gagal mengakses server penyimpanan MinIO: ' . $e->getMessage());
+            // Default: unduh langsung (attachment)
+            return response()->download($localPath, $filename, array_merge($headers, [
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]));
         }
+
+        // Jika diminta inline oleh iframe dan file tidak ada, JANGAN redirect()->back()
+        // karena redirect di dalam iframe akan me-load parent page di dalam iframe (nested / double loop)!
+        if (request()->has('inline') && request('inline') == '1') {
+            return response('Dokumen PDF tidak tersedia di server penyimpanan MinIO.', 404);
+        }
+
+        return redirect()->back()->with('error', 'Dokumen PDF tidak tersedia di server penyimpanan MinIO.');
+    }
+
+    public function viewer($unique_id)
+    {
+        $peraturan = Peraturan::with([
+            'jenisPeraturan',
+            'statusPeraturan',
+            'lawRelations.toPeraturan',
+            'lawRelations.relationType'
+        ])
+        ->where('unique_id', $unique_id)
+        ->firstOrFail();
+
+        // Cek ketersediaan dokumen: apakah sudah di cache atau ada di MinIO
+        $localPath = DocumentStorageService::getCachedOrDownload($peraturan);
+        $hasPdf = ($localPath && file_exists($localPath) && filesize($localPath) > 1024);
+
+        $pdfUrl = $hasPdf ? url("/peraturan/{$unique_id}/download?inline=1") : null;
+
+        return inertia('Viewer/DokumenViewer', [
+            'peraturan' => $peraturan,
+            'pdfUrl'    => $pdfUrl,
+            'hasPdf'    => $hasPdf,
+        ]);
     }
 
     // Fungsi baru untuk mengambil data filter secara dinamis

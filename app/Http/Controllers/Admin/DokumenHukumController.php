@@ -328,10 +328,15 @@ class DokumenHukumController extends Controller
                     // Cek jika ada file PDF yang disertakan
                     if ($request->hasFile("files.{$index}.rawFile")) {
                         $pdfFile = $request->file("files.{$index}.rawFile");
-                        // Simpan ke disk minio di dalam folder pdf_dokumen
-                        $path = $pdfFile->storeAs('pdf_dokumen', $peraturan->unique_id . '.pdf', 'minio');
-                        $peraturan->file_pdf_path = $path;
-                        $peraturan->save();
+                        // Pastikan file yang diunggah benar-benar PDF sebelum disimpan
+                        $mime = $pdfFile->getMimeType();
+                        $ext = strtolower($pdfFile->getClientOriginalExtension());
+                        if (str_contains($mime, 'pdf') || $ext === 'pdf') {
+                            // Simpan ke disk minio di dalam folder pdf_dokumen
+                            $path = $pdfFile->storeAs('pdf_dokumen', $peraturan->unique_id . '.pdf', 'minio');
+                            $peraturan->file_pdf_path = $path;
+                            $peraturan->save();
+                        }
                     }
 
                     $successCount++;
