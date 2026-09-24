@@ -222,10 +222,13 @@ export function StepUploadJson({
                     }`}
                   >
                     {/* Ikon & Nama File */}
-                    <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1 mr-3">
                       <FileCode2 className="w-6 h-6 text-pr-900 shrink-0 stroke-[1.75]" />
-                      <div className="min-w-0">
-                        <h4 className="font-sans text-[13px] font-medium text-neu-900 leading-tight truncate">
+                      <div className="min-w-0 flex-1">
+                        <h4
+                          className="font-sans text-[13px] font-medium text-neu-900 leading-tight truncate"
+                          title={file.name}
+                        >
                           {file.name}
                         </h4>
                         <div className="font-sans text-[11px] text-neu-500 mt-1 flex items-center gap-2">

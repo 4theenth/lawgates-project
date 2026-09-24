@@ -45,20 +45,30 @@ export function StepValidationCorrection({
             className="flex items-center justify-between p-3.5 rounded-[10px] bg-neu-50/40 border border-neu-50 hover:bg-neu-50 transition-colors gap-3 w-full min-w-0"
           >
             {/* Sisi Kiri: Ikon Timbangan Hukum & Nama Berkas */}
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-neu-700 shrink-0">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-neu-700 shrink-0 mt-0.5">
                 <Scale className="w-5 h-5 text-neu-700 stroke-[1.75]" />
               </div>
-              <span
-                className="font-sans text-[12px] font-medium text-neu-900 truncate block min-w-0"
-                title={file.name}
-              >
-                {file.name}
-              </span>
+              <div className="min-w-0 flex-1">
+                <span
+                  className="font-sans text-[13px] font-medium text-neu-900 break-words [overflow-wrap:anywhere] leading-snug block"
+                  title={file.title || file.name}
+                >
+                  {file.title || file.name}
+                </span>
+                {file.title && file.title !== file.name && (
+                  <span
+                    className="font-sans text-[11px] text-neu-500 break-words [overflow-wrap:anywhere] block mt-0.5"
+                    title={file.name}
+                  >
+                    {file.name}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Sisi Kanan: Tombol Edit (Pensil) & Tombol Hapus (Tong Sampah Merah) */}
-            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            <div className="flex items-center gap-1.5 shrink-0 ml-2 mt-0.5">
               <IconButton
                 icon={<Pencil className="w-4 h-4 text-neu-500" />}
                 variant="ghost"
