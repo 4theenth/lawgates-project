@@ -107,7 +107,12 @@ export default function Bandingkan() {
 
   const handleDownload = (uniqueId: string) => {
     if (uniqueId) {
-      window.open(`/peraturan/${uniqueId}/download`, '_blank');
+      const link = document.createElement('a');
+      link.href = `/peraturan/${uniqueId}/download`;
+      link.setAttribute('download', '');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 

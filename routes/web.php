@@ -46,7 +46,8 @@ Route::get('/bandingkan', function () {
 });
 
 Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show']);
-Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download']);
+Route::get('/peraturan/{unique_id}/lihat', [PeraturanController::class, 'viewer'])->name('peraturan.viewer');
+Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download'])->name('peraturan.download');
 
 // Referensi filter
 Route::get('/api/referensi-filter', [PeraturanController::class, 'referensiFilter']);
