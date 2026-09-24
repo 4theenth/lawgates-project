@@ -61,32 +61,37 @@ export function StepProcessExtraction({
             return (
               <div key={file.id} className="space-y-2">
                 {/* Baris Informasi File & Status */}
-                <div className="flex items-center justify-between text-[13px]">
-                  <div className="flex items-center gap-2.5">
-                    {isSelesai && (
-                      <CheckCircle2 className="w-4 h-4 text-[#2E7D32]" />
-                    )}
-                    {isMemproses && (
-                      <Loader2 className="w-4 h-4 text-pr-900 animate-spin" />
-                    )}
-                    {isGagal && (
-                      <XCircle className="w-4 h-4 text-[#E53E3E]" />
-                    )}
-                    <span className="font-medium text-neu-900">
+                <div className="flex items-center justify-between gap-4 text-[13px]">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="shrink-0">
+                      {isSelesai && (
+                        <CheckCircle2 className="w-4 h-4 text-[#2E7D32]" />
+                      )}
+                      {isMemproses && (
+                        <Loader2 className="w-4 h-4 text-pr-900 animate-spin" />
+                      )}
+                      {isGagal && (
+                        <XCircle className="w-4 h-4 text-[#E53E3E]" />
+                      )}
+                    </div>
+                    <span
+                      className="font-medium text-neu-900 truncate block min-w-0"
+                      title={file.name}
+                    >
                       {file.name}
                     </span>
                   </div>
 
                   {/* Status Badge Text */}
-                  <div>
+                  <div className="shrink-0 text-right">
                     {isSelesai && (
                       <span className="text-[12px] font-medium text-[#2E7D32]">
                         Selesai
                       </span>
                     )}
                     {isMemproses && (
-                      <span className="text-[12px] font-medium text-neu-600">
-                        Memproses
+                      <span className="text-[12px] font-medium text-neu-600 tabular-nums">
+                        Memproses {file.progressPercent}%
                       </span>
                     )}
                     {isGagal && (
