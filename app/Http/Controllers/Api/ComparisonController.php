@@ -53,7 +53,7 @@ class ComparisonController extends Controller
             }
         }
         
-        $family = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'pasal'])
+        $family = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'pasal', 'strukturDokumen'])
             ->whereIn('id', $visited)
             ->get();
         
@@ -103,7 +103,7 @@ class ComparisonController extends Controller
                 'tanggalBerlaku' => $p->tanggal_penetapan ? $p->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-',
                 'status' => $p->statusPeraturan ? $p->statusPeraturan->nama_status : 'Berlaku',
                 'pasalCount' => $p->pasal->count(),
-                'isReady' => $p->pasal->count() > 0,
+                'isReady' => (bool) $p->is_available,
                 'relationDescription' => $relDesc,
             ];
         });

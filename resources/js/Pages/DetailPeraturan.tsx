@@ -329,8 +329,21 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       const isWaitingImport = rawJudul.toLowerCase().includes('menunggu import');
       const hasUniqueId = Boolean(toPeraturan?.unique_id);
 
-      // Dokumen belum ada / belum ditambahkan ke database jika to_peraturan null, atau menunggu import, atau tidak ada unique_id
-      const isAvailable = Boolean(toPeraturan && !isWaitingImport && hasUniqueId);
+      // Pengecekan ketat: Dokumen benar-benar tersedia HANYA jika memiliki pembukaan DAN pasal,
+      // tidak sedang menunggu import, dan memiliki unique_id yang valid.
+      const hasPembukaan = Boolean(
+        toPeraturan?.has_pembukaan ?? (toPeraturan?.pembukaan_count && toPeraturan.pembukaan_count > 0)
+      );
+      const hasPasal = Boolean(
+        toPeraturan?.has_pasal ?? (toPeraturan?.pasal_count && toPeraturan.pasal_count > 0)
+      );
+
+      const isAvailable = Boolean(
+        toPeraturan &&
+        !isWaitingImport &&
+        hasUniqueId &&
+        (toPeraturan.is_available ?? (hasPembukaan && hasPasal))
+      );
 
       // Bersihkan teks "Menunggu import dokumen: xxx" agar menjadi judul peraturan yang rapi sesuai desain
       let displayJudul = rawJudul || rel.to_peraturan_id || 'Peraturan Terkait';
