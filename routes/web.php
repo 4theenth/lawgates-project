@@ -32,8 +32,12 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+    $user = auth()->user();
+    if ($user && in_array($user->role, ['admin', 'superadmin'])) {
+        return redirect()->route('admin.dashboard');
+    }
+    return redirect('/');
+})->name('dashboard');
 
 Route::get('/pencarian', function () {
     return Inertia::render('Pencarian');
@@ -46,7 +50,8 @@ Route::get('/bandingkan', function () {
 });
 
 Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show']);
-Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download']);
+Route::get('/peraturan/{unique_id}/lihat', [PeraturanController::class, 'viewer'])->name('peraturan.viewer');
+Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download'])->name('peraturan.download');
 
 // Referensi filter
 Route::get('/api/referensi-filter', [PeraturanController::class, 'referensiFilter']);

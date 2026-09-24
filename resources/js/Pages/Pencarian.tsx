@@ -41,6 +41,7 @@ export default function Pencarian() {
   // State tampilan
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const [activeDropdown, setActiveDropdown] = useState<'kategori' | 'tahun' | 'status' | null>(null);
+  const [isResetSpinning, setIsResetSpinning] = useState(false);
 
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isPerPageOpen, setIsPerPageOpen] = useState(false);
@@ -65,6 +66,7 @@ export default function Pencarian() {
   const sortRef = useRef<HTMLDivElement>(null);
   const perPageRef = useRef<HTMLDivElement>(null);
   const yearSubRef = useRef<HTMLDivElement>(null);
+  const lastFetchedQueryRef = useRef<string | null>(null);
 
   // 1. Ambil data referensi filter saat dimuat
   useEffect(() => {
@@ -132,6 +134,7 @@ export default function Pencarian() {
   }, []);
 
   const fetchData = (queryString: string) => {
+    lastFetchedQueryRef.current = queryString;
     setIsSearching(true);
     fetch(`/api/search?${queryString}`)
       .then((res) => res.json())
@@ -220,7 +223,35 @@ export default function Pencarian() {
     applyFilters({ page: 1 });
   };
 
+  const isFormDirty =
+    searchQuery.trim() !== '' ||
+    selectedKategori.length > 0 ||
+    selectedStatus.length > 0 ||
+    tahunDari !== '2020' ||
+    tahunSampai !== '2026' ||
+    sort !== 'relevansi' ||
+    perPage !== 10;
+
+  const isDataFiltered =
+    (lastFetchedQueryRef.current !== null && lastFetchedQueryRef.current !== '') ||
+    (typeof window !== 'undefined' && Boolean(window.location.search && window.location.search !== '?')) ||
+    currentPage > 1;
+
   const handleResetFilter = () => {
+    // Jalankan animasi putar halus setiap kali tombol diklik
+    setIsResetSpinning(false);
+    requestAnimationFrame(() => {
+      setIsResetSpinning(true);
+    });
+
+    if (isSearching) return;
+
+    // Jika form sudah dalam keadaan default DAN data yang tampil sudah data default (tidak ada filter aktif)
+    // Jangan lakukan fetch atau tampilkan loading kembali meskipun tombol di-klik berulang kali
+    if (!isFormDirty && !isDataFiltered) {
+      return;
+    }
+
     setSearchQuery('');
     setSelectedKategori([]);
     setTahunDari('');
@@ -228,11 +259,18 @@ export default function Pencarian() {
     setSelectedStatus([]);
     setSort('relevansi');
     setPerPage(10);
+    setCurrentPage(1);
     setOpenYearSub({ dari: true, sampai: true });
     setActiveDropdown(null);
 
-    window.history.pushState(null, '', window.location.pathname);
-    fetchData('');
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', window.location.pathname);
+    }
+
+    // Hanya ambil data default jika data saat ini memang terfilter/berbeda
+    if (isDataFiltered) {
+      fetchData('');
+    }
   };
 
   const handleSortChange = (newSort: string) => {
@@ -444,11 +482,14 @@ export default function Pencarian() {
                   </button>
                   <button
                     onClick={handleResetFilter}
-                    className="text-gray-500 hover:text-gray-800 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                    className="text-gray-500 hover:text-gray-800 p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all cursor-pointer"
                     title="Reset Filter"
                     type="button"
                   >
-                    <RotateCcw className="w-4 h-4" />
+                    <RotateCcw
+                      className={`w-4 h-4 ${isResetSpinning ? 'animate-smooth-spin' : ''}`}
+                      onAnimationEnd={() => setIsResetSpinning(false)}
+                    />
                   </button>
                 </div>
 

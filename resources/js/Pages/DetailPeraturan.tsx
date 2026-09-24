@@ -1,16 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useToast } from '@/hooks/useToast';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
-import { Breadcrumb } from '@/Components/admin/Breadcrumb';
-import { 
-  CheckCircle2, 
-  Calendar, 
-  MapPin, 
-  ArrowRightLeft, 
-  CloudDownload,
-  ChevronUp
-} from 'lucide-react';
+import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
+import { ChevronUp } from 'lucide-react';
 import { ChapterItem, ArticleItem } from '@/Components/admin/import/correctionParser';
 import { ReadonlyTableOfContents } from '@/Components/public/peraturan/ReadonlyTableOfContents';
 import { ReadonlyPembukaanSection } from '@/Components/public/peraturan/ReadonlyPembukaanSection';
@@ -331,17 +324,60 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       if (relName.toLowerCase().includes('diubah')) variant = 'diubah';
       else if (isMencabut) variant = 'dicabut';
 
+      const toPeraturan = rel.to_peraturan;
+      const rawJudul = toPeraturan?.judul || '';
+      const isWaitingImport = rawJudul.toLowerCase().includes('menunggu import');
+      const hasUniqueId = Boolean(toPeraturan?.unique_id);
+
+      // Pengecekan ketat: Dokumen benar-benar tersedia HANYA jika memiliki pembukaan DAN pasal,
+      // tidak sedang menunggu import, dan memiliki unique_id yang valid.
+      const hasPembukaan = Boolean(
+        toPeraturan?.has_pembukaan ?? (toPeraturan?.pembukaan_count && toPeraturan.pembukaan_count > 0)
+      );
+      const hasPasal = Boolean(
+        toPeraturan?.has_pasal ?? (toPeraturan?.pasal_count && toPeraturan.pasal_count > 0)
+      );
+
+      const isAvailable = Boolean(
+        toPeraturan &&
+        !isWaitingImport &&
+        hasUniqueId &&
+        (toPeraturan.is_available ?? (hasPembukaan && hasPasal))
+      );
+
+      // Bersihkan teks "Menunggu import dokumen: xxx" agar menjadi judul peraturan yang rapi sesuai desain
+      let displayJudul = rawJudul || rel.to_peraturan_id || 'Peraturan Terkait';
+      if (isWaitingImport) {
+        const rawName = rawJudul.replace(/^menunggu import dokumen:\s*/i, '').trim();
+        const formatted = rawName
+          .replace(/^undang-undang-(\d+)-(\d+)/i, 'Undang-Undang Nomor $1 Tahun $2')
+          .replace(/^undang-(\d+)-(\d+)/i, 'Undang-Undang Nomor $1 Tahun $2')
+          .replace(/^uu-(\d+)-(\d+)/i, 'Undang-Undang Nomor $1 Tahun $2')
+          .replace(/^perpu-(\d+)-(\d+)/i, 'Peraturan Pemerintah Pengganti Undang-Undang Nomor $1 Tahun $2')
+          .replace(/^pp-(\d+)-(\d+)/i, 'Peraturan Pemerintah Nomor $1 Tahun $2');
+
+        if (formatted !== rawName) {
+          displayJudul = formatted;
+        } else {
+          displayJudul = rawName
+            .split(/[-_]/)
+            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+        }
+      }
+
       const item: ReadonlyTimelineItem = {
         id: `rel-${index}`,
-        kode: rel.to_peraturan?.unique_id || '',
-        judul: rel.to_peraturan?.judul || rel.to_peraturan?.unique_id || '',
-        href: `/peraturan/${rel.to_peraturan?.unique_id || ''}`,
+        kode: toPeraturan?.unique_id || '',
+        judul: displayJudul,
+        href: isAvailable ? `/peraturan/${toPeraturan?.unique_id}` : undefined,
+        isAvailable: isAvailable,
         keteranganBadge: {
           label: relName,
           variant: variant
         },
         statusBadge: {
-          label: 'Tahun ' + (rel.to_peraturan?.tahun || '-'),
+          label: 'Tahun ' + (toPeraturan?.tahun || '-'),
           variant: 'tersedia'
         },
         isCurrent: false
@@ -360,6 +396,11 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       kode: peraturan.unique_id || '',
       judul: peraturan.judul,
       isCurrent: true,
+      isAvailable: true,
+      keteranganBadge: {
+        label: peraturan.status_peraturan?.nama_status || 'Diubah',
+        variant: 'diubah'
+      }
     };
 
     return [...beforeCurrent, currentItem, ...afterCurrent];
@@ -367,12 +408,29 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
   // Format dates & active status
   const tanggalPenetapan = peraturan?.tanggal_penetapan ? formatTanggal(peraturan.tanggal_penetapan) : '-';
-  const isActive = peraturan?.status_peraturan?.nama_status?.toLowerCase().includes('berlaku') && 
-                   !peraturan?.status_peraturan?.nama_status?.toLowerCase().includes('tidak');
+
+  // Handler download dokumen di background tanpa reload / tab baru
+  const handleDownload = () => {
+    if (!peraturan?.unique_id) return;
+    const link = document.createElement('a');
+    link.href = `/peraturan/${peraturan.unique_id}/download`;
+    link.setAttribute('download', '');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleRelasi = () => {
     scrollToElement('section-pembukaan');
   };
+
+  const canCompare = Boolean(
+    peraturan?.law_relations &&
+    peraturan.law_relations.some((rel: any) => {
+      const name = (rel.relation_type?.nama_relasi || '').toLowerCase();
+      return name.includes('ubah') || name.includes('cabut');
+    })
+  );
 
   return (
     <PublicLayout>
@@ -381,106 +439,22 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       <div className="w-full min-w-0 overflow-x-hidden">
         <div className={`pt-20 sm:pt-24 pb-8 sm:pb-12 ${PAGE_CONTAINER} text-gray-900 min-w-0`}>
           
-          {/* Breadcrumb Navigasi */}
-          <div className="mb-4 sm:mb-5">
-            <Breadcrumb 
-              items={[
-                { label: 'Beranda', href: '/' },
-                { label: 'Pencarian Hukum', href: '/pencarian' },
-                { label: 'Detail Dokumen Hukum' }
-              ]} 
-            />
-          </div>
-
-          {/* Header Metadata Sesuai Desain */}
-          <div className="mb-6 sm:mb-8 space-y-3 sm:space-y-4">
-            {/* 1. Kategori Peraturan & Instansi */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center px-3.5 py-1 rounded-full bg-[#E5E7EB] text-gray-800 text-[11px] sm:text-xs font-bold uppercase tracking-wider">
-                {peraturan?.jenis_peraturan?.nama || 'UNDANG - UNDANG DASAR'}
-              </span>
-              <span className="text-xs sm:text-sm text-gray-500 font-medium flex items-center gap-1.5">
-                <span className="text-gray-400">•</span>
-                <span>{peraturan?.entitas || 'Pemerintah Pusat'}</span>
-              </span>
-            </div>
-
-            {/* 2. Judul Dokumen & Action Buttons (Bandingkan & Download Dokumen) */}
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6">
-              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-[32px] font-extrabold text-[#111827] leading-tight max-w-4xl tracking-tight">
-                {peraturan?.judul}
-              </h1>
-
-              <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-                {/* Tombol Bandingkan */}
-                {peraturan?.law_relations && peraturan.law_relations.some((rel: any) => {
-                  const name = (rel.relation_type?.nama_relasi || '').toLowerCase();
-                  return name.includes('ubah') || name.includes('cabut');
-                }) ? (
-                  <Link
-                    href={`/bandingkan?id=${peraturan?.unique_id}`}
-                    className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs sm:text-sm font-semibold rounded-2xl transition-colors cursor-pointer shadow-2xs"
-                  >
-                    <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
-                    <span>Bandingkan</span>
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    title="Tidak ada riwayat perubahan untuk dibandingkan"
-                    className="inline-flex items-center gap-2 px-4 py-2 sm:py-2.5 bg-[#E5E7EB] text-gray-500 text-xs sm:text-sm font-semibold rounded-2xl transition-colors cursor-not-allowed shadow-2xs"
-                    disabled
-                  >
-                    <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
-                    <span>Bandingkan</span>
-                  </button>
-                )}
-
-                {/* Tombol Download Dokumen */}
-                {peraturan?.file_pdf_path ? (
-                  <a 
-                    href={`/peraturan/${peraturan.unique_id}/download`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-[#0A1931] hover:bg-[#071326] text-white text-xs sm:text-sm font-semibold rounded-2xl shadow-sm transition-colors cursor-pointer"
-                  >
-                    <CloudDownload className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
-                    <span>Lihat / Download Dokumen</span>
-                  </a>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => toast.warning('Dokumen PDF belum tersedia di penyimpanan.')}
-                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs sm:text-sm font-semibold rounded-2xl border border-gray-300 shadow-2xs transition-colors cursor-pointer"
-                    title="Dokumen PDF belum tersedia di server penyimpanan"
-                  >
-                    <CloudDownload className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
-                    <span>Dokumen Belum Tersedia</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* 3. Badges Metadata: Status, Tanggal Ditetapkan, Tempat Penetapan */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm pt-1">
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 sm:py-1.5 rounded-full font-semibold border ${
-                isActive 
-                  ? 'bg-[#DCFCE7] text-[#15803D] border-[#BBF7D0]' 
-                  : 'bg-red-50 text-red-700 border-red-200'
-              }`}>
-                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#15803D]" />
-                <span>{peraturan?.status_peraturan?.nama_status || 'Berlaku'}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 sm:py-1.5 bg-[#F3F4F6] text-gray-700 rounded-full font-medium">
-                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
-                <span>Ditetapkan: {tanggalPenetapan}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 sm:py-1.5 bg-[#F3F4F6] text-gray-700 rounded-full font-medium">
-                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
-                <span>Tempat Penetapan : {peraturan?.tempat_penetapan || '-'}</span>
-              </span>
-            </div>
-          </div>
+          {/* Header Metadata Sesuai Desain Reusable */}
+          <DetailPeraturanHeader
+            breadcrumbItems={[
+              { label: 'Beranda', href: '/' },
+              { label: 'Pencarian Hukum', href: '/pencarian' },
+              { label: 'Detail Sistem Hukum' }
+            ]}
+            jenisPeraturan={peraturan?.jenis_peraturan?.nama || 'UNDANG - UNDANG DASAR'}
+            instansi={peraturan?.entitas || 'Pemerintah Pusat'}
+            judul={peraturan?.judul}
+            statusPeraturan={peraturan?.status_peraturan?.nama_status || 'Berlaku'}
+            tanggalPenetapan={tanggalPenetapan}
+            tempatPenetapan={peraturan?.tempat_penetapan || 'Jakarta'}
+            onCompare={canCompare ? () => router.visit(`/bandingkan?id=${peraturan?.unique_id}`) : undefined}
+            downloadHref={`/peraturan/${peraturan?.unique_id}/lihat`}
+          />
 
             {/* Layout 3-Kolom: Sesuai Proporsi Form Koreksi Data (Daftar Isi Kiri, Editor Utama Tengah Panjang, Status Kanan) */}
             <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5 w-full min-w-0">

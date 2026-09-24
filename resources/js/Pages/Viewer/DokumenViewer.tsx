@@ -1,59 +1,90 @@
-import React from 'react';
-import { Head, Link } from '@inertiajs/react';
-import { Navbar } from '@/Components/layout/Navbar';
-import { ArrowLeft, Download } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Head, usePage } from '@inertiajs/react';
+import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
+import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
+import { useToast } from '@/hooks/useToast';
 
 interface DokumenViewerProps {
-    peraturan: any;
-    pdfUrl: string;
+  peraturan: any;
+  pdfUrl?: string | null;
+  hasPdf?: boolean;
 }
 
-export default function DokumenViewer({ peraturan, pdfUrl }: DokumenViewerProps) {
-    return (
-        <div className="min-h-screen bg-slate-50 flex flex-col">
-            <Head title={`Dokumen ${peraturan.judul}`} />
-            
-            <Navbar isScrolled={false} />
-            
-            <main className="flex-1 container mx-auto px-4 py-8 max-w-7xl flex flex-col">
-                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <Link 
-                            href={`/peraturan/${peraturan.unique_id}`}
-                            className="p-2 hover:bg-slate-200 rounded-full transition-colors flex-shrink-0"
-                        >
-                            <ArrowLeft className="w-5 h-5 text-slate-700" />
-                        </Link>
-                        <div>
-                            <h1 className="text-xl font-bold text-slate-900 line-clamp-1">{peraturan.judul}</h1>
-                            <p className="text-sm text-slate-500">
-                                {peraturan.jenis_peraturan?.nama} Nomor {peraturan.nomor} Tahun {peraturan.tahun}
-                            </p>
-                        </div>
-                    </div>
-                    
-                    {/* Tombol fallback jika user ingin benar-benar mendownloadnya */}
-                    <a 
-                        href={pdfUrl} 
-                        download
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors cursor-pointer whitespace-nowrap self-start sm:self-auto"
-                    >
-                        <Download className="w-4 h-4" />
-                        <span>Download PDF</span>
-                    </a>
-                </div>
-                
-                {/* PDF Viewer Iframe */}
-                <div className="flex-1 bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200 relative" style={{ minHeight: 'calc(100vh - 200px)' }}>
-                    <iframe 
-                        src={pdfUrl} 
-                        className="w-full h-full border-none absolute inset-0"
-                        title={`Dokumen PDF ${peraturan.judul}`}
-                    />
-                </div>
-            </main>
+const formatTanggal = (dateString?: string) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  return new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+};
+
+export default function DokumenViewer({ peraturan, pdfUrl, hasPdf }: DokumenViewerProps) {
+  const { flash } = usePage<any>().props;
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (flash?.error) {
+      toast.error(flash.error);
+    }
+    if (flash?.success) {
+      toast.success(flash.success);
+    }
+    if (hasPdf === false) {
+      toast.error('Dokumen PDF belum tersedia di penyimpanan MinIO.');
+    }
+  }, [flash, hasPdf]);
+
+  // Handler download langsung di halaman yang sama tanpa redirect / tab baru
+  const handleDownload = () => {
+    if (!hasPdf || !pdfUrl) {
+      toast.error('Dokumen PDF belum tersedia di penyimpanan MinIO.');
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = `/peraturan/${peraturan.unique_id}/download`;
+    link.setAttribute('download', '');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <PublicLayout>
+      <Head title={`Dokumen ${peraturan.judul} - LawGates`} />
+
+      <div className="w-full min-w-0 overflow-x-hidden">
+        <div className={`pt-20 sm:pt-24 pb-12 sm:pb-16 ${PAGE_CONTAINER} text-gray-900 min-w-0`}>
+          {/* Header Metadata Sesuai Desain Tangkapan Layar */}
+          <DetailPeraturanHeader
+            breadcrumbItems={[
+              { label: 'Beranda', href: '/' },
+              { label: 'Pencarian Hukum', href: '/pencarian' },
+              { label: 'Detail Sistem Hukum' },
+            ]}
+            jenisPeraturan={peraturan.jenis_peraturan?.nama || 'UNDANG - UNDANG DASAR'}
+            instansi={peraturan.instansi || peraturan.entitas || 'Pemerintah Pusat'}
+            judul={peraturan.judul}
+            statusPeraturan={peraturan.status_peraturan?.nama_status || 'Berlaku'}
+            tanggalPenetapan={formatTanggal(peraturan.tanggal_penetapan)}
+            tempatPenetapan={peraturan.tempat_penetapan || 'Jakarta'}
+            onDownload={handleDownload}
+          />
+
+          {/* Layar PDF Viewer: Jika dokumen ada tampilkan PDF, jika belum ada biarkan abu-abu saja */}
+          <div className="w-full mt-6 sm:mt-8 bg-[#525659] rounded-2xl sm:rounded-3xl shadow-md border border-gray-200 overflow-hidden relative h-[85vh] min-h-[750px] max-h-[1200px]">
+            {hasPdf && pdfUrl && (
+              <iframe
+                src={`${pdfUrl}#toolbar=0&navpanes=0`}
+                className="w-full h-full border-none block"
+                title={`Dokumen PDF ${peraturan.judul}`}
+              />
+            )}
+          </div>
         </div>
-    );
+      </div>
+    </PublicLayout>
+  );
 }

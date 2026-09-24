@@ -1,5 +1,6 @@
 import React from 'react';
-import { Calendar, MapPin, SlidersHorizontal, ArrowDownToLine, Check } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import { Calendar, MapPin, ArrowRightLeft, Download, Check } from 'lucide-react';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
 
 export interface DetailPeraturanHeaderProps {
@@ -12,6 +13,7 @@ export interface DetailPeraturanHeaderProps {
   tempatPenetapan?: string;
   onCompare?: () => void;
   onDownload?: () => void;
+  downloadHref?: string;
   showCompare?: boolean;
 }
 
@@ -19,7 +21,7 @@ export function DetailPeraturanHeader({
   breadcrumbItems = [
     { label: 'Beranda', href: '/' },
     { label: 'Pencarian Hukum', href: '/pencarian' },
-    { label: 'Detail Dokumen Hukum' },
+    { label: 'Detail Sistem Hukum' },
   ],
   jenisPeraturan = 'UNDANG - UNDANG DASAR',
   instansi = 'Pemerintah Pusat',
@@ -29,6 +31,7 @@ export function DetailPeraturanHeader({
   tempatPenetapan = 'Jakarta',
   onCompare,
   onDownload,
+  downloadHref,
   showCompare = true,
 }: DetailPeraturanHeaderProps) {
   const isBerlaku =
@@ -51,63 +54,72 @@ export function DetailPeraturanHeader({
         </span>
       </div>
 
-      {/* 3. Judul Dokumen Hukum */}
-      <h1 className="text-[24px] sm:text-[28px] lg:text-[30px] font-bold text-gray-900 leading-[1.3] tracking-tight">
-        {judul}
-      </h1>
-
-      {/* 4. Meta Badges & Action Buttons Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-        {/* Badges Status & Tanggal */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Status Badge */}
-          <div
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-              isBerlaku
-                ? 'bg-[#EBF8F2] text-[#059669] border border-[#059669]/20'
-                : 'bg-red-50 text-red-700 border border-red-200'
-            }`}
-          >
-            {isBerlaku && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
-            <span>{statusPeraturan}</span>
-          </div>
-
-          {/* Tanggal Penetapan */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-gray-700 text-xs font-medium shadow-2xs">
-            <Calendar className="w-3.5 h-3.5 text-gray-400" />
-            <span>Ditetapkan: {tanggalPenetapan || '-'}</span>
-          </div>
-
-          {/* Tempat Penetapan */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-gray-700 text-xs font-medium shadow-2xs">
-            <MapPin className="w-3.5 h-3.5 text-gray-400" />
-            <span>Tempat Penetapan: {tempatPenetapan || '-'}</span>
-          </div>
-        </div>
+      {/* 3. Judul Dokumen Hukum & Action Buttons Row */}
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6 pt-1">
+        <h1 className="text-[22px] sm:text-[26px] lg:text-[30px] font-bold text-gray-900 leading-[1.3] tracking-tight max-w-4xl">
+          {judul}
+        </h1>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-3 shrink-0">
-          {/* Tombol Bandingkan */}
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 self-start">
+          {/* Tombol Bandingkan Sesuai Desain */}
           {onCompare && (
             <button
               type="button"
               onClick={onCompare}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 text-xs font-semibold transition-all shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#E5E7EB] hover:bg-[#D1D5DB] text-gray-800 text-sm font-semibold transition-all shadow-2xs cursor-pointer"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-gray-600" />
+              <ArrowRightLeft className="w-4 h-4 text-gray-700 stroke-[2]" />
               <span>Bandingkan</span>
             </button>
           )}
 
-          {/* Tombol Download Dokumen */}
-          <button
-            type="button"
-            onClick={onDownload}
-            className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl bg-[#0A1C3E] hover:bg-[#081734] text-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
-          >
-            <ArrowDownToLine className="w-3.5 h-3.5 text-white" />
-            <span>Download Dokumen</span>
-          </button>
+          {/* Tombol Download Dokumen Sesuai Desain */}
+          {downloadHref ? (
+            <Link
+              href={downloadHref}
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#0E1E38] hover:bg-[#091528] text-white text-sm font-semibold transition-all shadow-xs cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-white stroke-[2]" />
+              <span>Download Dokumen</span>
+            </Link>
+          ) : onDownload ? (
+            <button
+              type="button"
+              onClick={onDownload}
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#0E1E38] hover:bg-[#091528] text-white text-sm font-semibold transition-all shadow-xs cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-white stroke-[2]" />
+              <span>Download Dokumen</span>
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* 4. Badges Status & Tanggal Row */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 pt-1">
+        {/* Status Badge */}
+        <div
+          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+            isBerlaku
+              ? 'bg-[#EBF8F2] text-[#059669] border border-[#059669]/20'
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}
+        >
+          {isBerlaku && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
+          <span>{statusPeraturan}</span>
+        </div>
+
+        {/* Tanggal Penetapan */}
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-gray-700 text-xs font-medium shadow-2xs">
+          <Calendar className="w-3.5 h-3.5 text-gray-400" />
+          <span>Ditetapkan: {tanggalPenetapan || '-'}</span>
+        </div>
+
+        {/* Tempat Penetapan */}
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-gray-700 text-xs font-medium shadow-2xs">
+          <MapPin className="w-3.5 h-3.5 text-gray-400" />
+          <span>Tempat Penetapan : {tempatPenetapan || '-'}</span>
         </div>
       </div>
     </div>
