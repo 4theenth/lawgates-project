@@ -14,10 +14,11 @@ interface ToastContextValue {
   removeToast: (id: string) => void;
   toast: {
     success: (message?: string, description?: string, duration?: number) => void;
+    delete: (message?: string, description?: string, duration?: number) => void;
     deleted: (message?: string, description?: string, duration?: number) => void;
     error: (message?: string, description?: string, duration?: number) => void;
-    warning: (message: string, description?: string, duration?: number) => void;
-    info: (message: string, description?: string, duration?: number) => void;
+    warning: (message?: string, description?: string, duration?: number) => void;
+    info: (message?: string, description?: string, duration?: number) => void;
   };
 }
 
@@ -46,13 +47,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const toast = {
     success: (message: string = 'Data berhasil disimpan', description?: string, duration?: number) =>
       showToast({ type: 'success', message, description, duration }),
+    delete: (message: string = 'Data berhasil dihapus', description?: string, duration?: number) =>
+      showToast({ type: 'delete', message, description, duration }),
     deleted: (message: string = 'Data berhasil dihapus', description?: string, duration?: number) =>
       showToast({ type: 'delete', message, description, duration }),
     error: (message: string = 'Data gagal disimpan / dihapus', description?: string, duration?: number) =>
       showToast({ type: 'error', message, description, duration }),
-    warning: (message: string, description?: string, duration?: number) =>
+    warning: (message: string = 'Perhatian', description?: string, duration?: number) =>
       showToast({ type: 'warning', message, description, duration }),
-    info: (message: string, description?: string, duration?: number) =>
+    info: (message: string = 'Informasi', description?: string, duration?: number) =>
       showToast({ type: 'info', message, description, duration }),
   };
 
@@ -75,10 +78,11 @@ const defaultFallbackValue: ToastContextValue = {
   removeToast: () => {},
   toast: {
     success: (msg = 'Data berhasil disimpan') => console.log('[Toast Success]:', msg),
+    delete: (msg = 'Data berhasil dihapus') => console.log('[Toast Delete]:', msg),
     deleted: (msg = 'Data berhasil dihapus') => console.log('[Toast Deleted]:', msg),
     error: (msg = 'Data gagal disimpan / dihapus') => console.error('[Toast Error]:', msg),
-    warning: (msg) => console.warn('[Toast Warning]:', msg),
-    info: (msg) => console.info('[Toast Info]:', msg),
+    warning: (msg = 'Perhatian') => console.warn('[Toast Warning]:', msg),
+    info: (msg = 'Informasi') => console.info('[Toast Info]:', msg),
   },
 };
 

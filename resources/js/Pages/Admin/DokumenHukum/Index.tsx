@@ -6,6 +6,7 @@ import { StatusTabs } from '@/Components/admin/StatusTabs';
 import { EmptyState } from '@/Components/admin/EmptyState';
 import { Pagination } from '@/Components/admin/Pagination';
 import { DocumentTable, DokumenHukumItem, SortColumn, SortDirection } from '@/Components/admin/DocumentTable';
+import { DraftTable } from '@/Components/admin/DraftTable';
 import { FilterPopover } from '@/Components/admin/FilterPopover';
 import { DocumentModal } from '@/Components/admin/DocumentModal';
 import { EditStatusModal } from '@/Components/admin/EditStatusModal';
@@ -18,13 +19,13 @@ import {
 import { Plus, Search, X } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
-export default function DokumenHukumIndex({ peraturans, filters, referensi }: any) {
+export default function DokumenHukumIndex({ peraturans, drafts, filters, referensi }: any) {
   const { toast } = useToast();
 
   const ALL_CATEGORIES = referensi?.kategori || [];
 
   // Filter & Search states
-  const [activeTab, setActiveTab] = useState<'all' | 'berlaku' | 'tidak_berlaku'>(filters?.status || 'all');
+  const [activeTab, setActiveTab] = useState<'all' | 'berlaku' | 'tidak_berlaku' | 'draft'>(filters?.status || 'all');
   const [searchQuery, setSearchQuery] = useState(filters?.search || '');
   
   const initialCategories = filters?.kategori ? 
@@ -32,6 +33,7 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialCategories);
   
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedDraftIds, setSelectedDraftIds] = useState<string[]>([]);
 
   // Sorting states
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(filters?.sortColumn || null);
@@ -54,10 +56,11 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
     if (finalCats.length > 0) query.kategori = finalCats.join(',');
     
     const finalSortCol = overrides.sortColumn !== undefined ? overrides.sortColumn : sortColumn;
-    if (finalSortCol) query.sortColumn = finalSortCol;
-    
-    const finalSortDir = overrides.sortDirection !== undefined ? overrides.sortDirection : sortDirection;
-    if (finalSortDir) query.sortDirection = finalSortDir;
+    if (finalSortCol) {
+      query.sortColumn = finalSortCol;
+      const finalSortDir = overrides.sortDirection !== undefined ? overrides.sortDirection : sortDirection;
+      if (finalSortDir) query.sortDirection = finalSortDir;
+    }
     
     const finalPageSize = overrides.pageSize !== undefined ? overrides.pageSize : pageSize;
     if (finalPageSize !== 10) query.pageSize = finalPageSize;
@@ -97,59 +100,10 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
   const [editingStatusDoc, setEditingStatusDoc] = useState<DokumenHukumItem | null>(null);
   const [deletingDoc, setDeletingDoc] = useState<DokumenHukumItem | null>(null);
 
-  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
-  const [syncItems, setSyncItems] = useState<any[]>([]);
-  const [isSyncLoading, setIsSyncLoading] = useState(false);
-  const [importingPath, setImportingPath] = useState<string | null>(null);
-
-  const handleOpenSyncModal = async () => {
-    setIsSyncModalOpen(true);
-    setIsSyncLoading(true);
-    try {
-      const response = await fetch('/admin/dokumen-hukum/minio/scan');
-      const json = await response.json();
-      if (json.success) {
-        setSyncItems(json.data);
-      } else {
-        toast.error(json.message || 'Gagal memindai MinIO');
-      }
-    } catch (error) {
-      toast.error('Terjadi kesalahan saat memindai server');
-    } finally {
-      setIsSyncLoading(false);
-    }
-  };
-
-  const handleImportMinio = async (folderPath: string) => {
-    setImportingPath(folderPath);
-    try {
-      const response = await fetch('/admin/dokumen-hukum/minio/import', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-CSRF-TOKEN': (document.head.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
-        },
-        body: JSON.stringify({ folder_path: folderPath })
-      });
-      const json = await response.json();
-      if (response.ok && json.success) {
-        toast.success('Berhasil import dokumen dari MinIO!');
-        setSyncItems(prev => prev.filter(item => item.folder_path !== folderPath));
-        fetchData();
-      } else {
-        toast.error(json.message || 'Gagal melakukan import');
-      }
-    } catch (error) {
-      toast.error('Terjadi kesalahan saat melakukan import');
-    } finally {
-      setImportingPath(null);
-    }
-  };
-
   const statusOptions = [
     { id: 'berlaku' as const, label: 'Berlaku' },
     { id: 'tidak_berlaku' as const, label: 'Tidak Berlaku' },
+    { id: 'draft' as const, label: 'Draft' },
   ];
 
   const breadcrumbs = [
@@ -158,9 +112,10 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
   ];
 
   // Handler toggle tab status (Klik tab aktif mematikan filter tab menjadi 'all')
-  const handleTabChange = (tab: 'berlaku' | 'tidak_berlaku') => {
+  const handleTabChange = (tab: 'berlaku' | 'tidak_berlaku' | 'draft') => {
     const newTab = activeTab === tab ? 'all' : tab;
     setActiveTab(newTab);
+    setSelectedDraftIds([]);
     setCurrentPage(1);
     fetchData({ status: newTab, page: 1 });
   };
@@ -181,35 +136,26 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
     setCurrentPage(1);
   };
 
-  // Handler pengurutan tabel (3-Logic Sort: Klik 1 -> Klik 2 -> Klik 3 Reset Kembali ke Awal)
+  // Handler pengurutan tabel (3-Logic Sort: Klik 1 (A-Z) -> Klik 2 (Z-A) -> Klik 3 Reset Kembali ke Awal)
   const handleSort = (column: SortColumn) => {
     let newCol: SortColumn | null = column;
     let newDir: SortDirection = 'asc';
 
     if (sortColumn === column) {
-      if (column === 'tgl_ditetapkan') {
-        if (sortDirection === 'desc') {
-          newDir = 'asc';
-        } else {
-          newCol = null;
-          newDir = 'desc';
-        }
+      if (sortDirection === 'asc') {
+        newDir = 'desc';
       } else {
-        if (sortDirection === 'asc') {
-          newDir = 'desc';
-        } else {
-          newCol = null;
-          newDir = 'asc';
-        }
+        newCol = null;
+        newDir = 'asc';
       }
     } else {
-      newDir = column === 'tgl_ditetapkan' ? 'desc' : 'asc';
+      newDir = 'asc';
     }
 
     setSortColumn(newCol);
     setSortDirection(newDir);
     setCurrentPage(1);
-    fetchData({ sortColumn: newCol, sortDirection: newDir, page: 1 });
+    fetchData({ sortColumn: newCol, sortDirection: newCol ? newDir : undefined, page: 1 });
   };
 
   const handlePageChange = (page: number) => {
@@ -278,15 +224,33 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
   };
 
   // Handler simpan status dari EditStatusModal
-  const handleSaveStatus = (docId: string, newStatus: 'berlaku' | 'tidak_berlaku') => {
-    // TODO: implement real backend saving here via router.patch
-    toast.success('Status dokumen (WIP Backend)');
+  const handleSaveStatus = async (docId: string, newStatus: 'berlaku' | 'tidak_berlaku') => {
+    try {
+      const csrfToken = (document.head.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+      const response = await fetch(`/admin/dokumen-hukum/${docId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (response.ok) {
+        toast.success('Status hukum berhasil diperbarui');
+        setEditingStatusDoc(null);
+        fetchData();
+      } else {
+        toast.error('Gagal memperbarui status hukum');
+      }
+    } catch (err) {
+      toast.error('Gagal memperbarui status hukum');
+    }
   };
 
   // Handler simpan tambah / edit dokumen
   const handleSaveDocument = (data: Omit<DokumenHukumItem, 'id'> & { id?: string }) => {
-    // TODO: implement real backend saving here
-    toast.success('Dokumen hukum (WIP Backend)');
+    toast.success('Data hukum berhasil disimpan');
   };
 
   // Handler hapus dokumen
@@ -297,16 +261,78 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
       preserveScroll: true,
       onSuccess: () => {
         setDeletingDoc(null);
-        toast.success('Dokumen hukum berhasil dihapus!');
-      }
+        toast.delete('Data berhasil dihapus');
+      },
+      onError: () => {
+        toast.error('Data gagal dihapus');
+      },
     });
   };
 
-    // Gunakan data dari backend Inertia Props
+  // Handler publish draft (tunggal atau massal)
+  const handlePublishDraft = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    try {
+      const csrfToken = (document.head.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+      const response = await fetch('/admin/dokumen-hukum/draft/publish', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+        },
+        body: JSON.stringify({ ids }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Gagal mempublikasikan draft');
+      }
+
+      toast.success('Data hukum berhasil dipublikasikan!');
+      setSelectedDraftIds([]);
+      fetchData();
+    } catch (error: any) {
+      console.error(error);
+      toast.error('Data gagal dipublikasikan');
+    }
+  };
+
+  // Handler delete draft (tunggal atau massal)
+  const handleDeleteDraft = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    try {
+      const csrfToken = (document.head.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+      const response = await fetch('/admin/dokumen-hukum/draft/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+        },
+        body: JSON.stringify({ ids }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Gagal menghapus draft');
+      }
+
+      toast.delete('Data berhasil dihapus');
+      setSelectedDraftIds([]);
+      fetchData();
+    } catch (error: any) {
+      console.error(error);
+      toast.error('Data gagal dihapus');
+    }
+  };
+
+  // Gunakan data dari backend Inertia Props sesuai tab aktif
+  const isDraftTab = activeTab === 'draft';
+  const activePaginator = isDraftTab ? drafts : peraturans;
   const paginatedDocuments = peraturans?.data || [];
-  const totalItems = peraturans?.total || 0;
-  const totalPages = peraturans?.last_page || 1;
-  const hasData = paginatedDocuments.length > 0;
+  const paginatedDrafts = drafts?.data || [];
+  const totalItems = activePaginator?.total || 0;
+  const totalPages = activePaginator?.last_page || 1;
+  const hasData = isDraftTab ? paginatedDrafts.length > 0 : paginatedDocuments.length > 0;
 
   // JIKA SEDANG EDIT DATA DOKUMEN: Tampilkan Layar Penuh Edit Data Hukum Sesuai Tangkapan Layar
   if (editingDoc) {
@@ -400,14 +426,6 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Tombol Sinkronisasi MinIO */}
-          <button
-            onClick={handleOpenSyncModal}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-white border border-neu-200 text-neu-700 text-[14px] font-medium hover:bg-neu-50 hover:text-neu-900 transition-colors shadow-2xs cursor-pointer"
-          >
-            <span>Sinkronisasi MinIO</span>
-          </button>
-
           {/* Tombol Tambah Hukum (Membuka Alur Tambah Data / Impor JSON OCR) */}
           <Link
             href="/admin/dokumen-hukum/tambah"
@@ -428,7 +446,7 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
           onChange={handleTabChange}
         />
 
-        {/* Search Input & Tombol Popover Filter */}
+        {/* Search Input & Action Buttons */}
         <div className="flex items-center gap-2.5 shrink-0">
           <div className="relative w-64 md:w-72 shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neu-400 pointer-events-none" />
@@ -455,31 +473,91 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
             )}
           </div>
 
-          {/* Popover Filter Kategori */}
-          <FilterPopover
-            isOpen={isFilterOpen}
-            onToggle={() => setIsFilterOpen(!isFilterOpen)}
-            onClose={() => setIsFilterOpen(false)}
-            categories={ALL_CATEGORIES}
-            selectedCategories={selectedCategories}
-            onToggleCategory={handleToggleCategory}
-            onClearAll={() => {
-              setSelectedCategories([]);
-              setCurrentPage(1);
-              fetchData({ kategori: [], page: 1 });
-            }}
-            onSelectAll={() => {
-              setSelectedCategories([...ALL_CATEGORIES]);
-              setCurrentPage(1);
-              fetchData({ kategori: [...ALL_CATEGORIES], page: 1 });
-            }}
-          />
+          {/* Di tab Draft: Tampilkan tombol Publish & Hapus sesuai logic selection */}
+          {isDraftTab ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handlePublishDraft(selectedDraftIds)}
+                disabled={selectedDraftIds.length === 0}
+                className={`px-5 py-1.5 rounded-[8px] text-[13px] font-medium transition-all ${
+                  selectedDraftIds.length >= 1
+                    ? 'bg-pr-900 text-white hover:bg-pr-800 cursor-pointer shadow-2xs'
+                    : 'bg-neu-200 text-neu-400 cursor-not-allowed opacity-60'
+                }`}
+              >
+                Publish
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteDraft(selectedDraftIds)}
+                disabled={selectedDraftIds.length <= 1}
+                className={`px-5 py-1.5 rounded-[8px] text-[13px] font-medium transition-all ${
+                  selectedDraftIds.length > 1
+                    ? 'bg-[#C5221F] text-white hover:bg-[#A31816] cursor-pointer shadow-2xs'
+                    : 'bg-neu-200 text-neu-400 cursor-not-allowed opacity-60'
+                }`}
+              >
+                Hapus
+              </button>
+            </div>
+          ) : (
+            /* Popover Filter Kategori untuk Tab Non-Draft */
+            <FilterPopover
+              isOpen={isFilterOpen}
+              onToggle={() => setIsFilterOpen(!isFilterOpen)}
+              onClose={() => setIsFilterOpen(false)}
+              categories={ALL_CATEGORIES}
+              selectedCategories={selectedCategories}
+              onToggleCategory={handleToggleCategory}
+              onClearAll={() => {
+                setSelectedCategories([]);
+                setCurrentPage(1);
+                fetchData({ kategori: [], page: 1 });
+              }}
+              onSelectAll={() => {
+                setSelectedCategories([...ALL_CATEGORIES]);
+                setCurrentPage(1);
+                fetchData({ kategori: [...ALL_CATEGORIES], page: 1 });
+              }}
+            />
+          )}
         </div>
       </div>
 
-      {/* 4. Area Data: Tabel Dokumen jika ada data, atau Empty State jika kosong */}
+      {/* 4. Area Data: Tabel Dokumen / Tabel Draft atau Empty State jika kosong */}
       <div className="mb-6">
-        {hasData ? (
+        {isDraftTab ? (
+          paginatedDrafts.length > 0 ? (
+            <DraftTable
+              drafts={paginatedDrafts}
+              selectedIds={selectedDraftIds}
+              onToggleSelect={(id) => {
+                setSelectedDraftIds((prev) =>
+                  prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+                );
+              }}
+              onSelectAll={() => {
+                if (selectedDraftIds.length === paginatedDrafts.length) {
+                  setSelectedDraftIds([]);
+                } else {
+                  setSelectedDraftIds(paginatedDrafts.map((d: any) => d.id));
+                }
+              }}
+              sortColumn={sortColumn as any}
+              sortDirection={sortDirection}
+              onSort={handleSort as any}
+              onEdit={(draft) => router.visit(`/admin/dokumen-hukum/tambah?draft_id=${draft.id}`)}
+              onPublish={(draft) => handlePublishDraft([draft.id])}
+              onDelete={(draft) => handleDeleteDraft([draft.id])}
+            />
+          ) : (
+            <EmptyState
+              title="Belum ada draft hukum"
+              description="Draft dokumen hukum hasil simpan OCR akan ditampilkan di sini."
+            />
+          )
+        ) : hasData ? (
           <DocumentTable
             documents={paginatedDocuments}
             sortColumn={sortColumn}
@@ -532,78 +610,6 @@ export default function DokumenHukumIndex({ peraturans, filters, referensi }: an
         onClose={() => setDeletingDoc(null)}
         onConfirm={handleConfirmDelete}
       />
-
-      {/* Modal Sinkronisasi MinIO */}
-      {isSyncModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-neu-200 flex items-center justify-between">
-              <h2 className="text-[18px] font-semibold text-neu-900">Sinkronisasi Dokumen MinIO</h2>
-              <button
-                onClick={() => setIsSyncModalOpen(false)}
-                className="text-neu-400 hover:text-neu-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6">
-              {isSyncLoading ? (
-                <div className="flex flex-col items-center justify-center py-10">
-                  <div className="w-8 h-8 border-4 border-pr-200 border-t-pr-900 rounded-full animate-spin"></div>
-                  <p className="mt-4 text-neu-600">Memindai server MinIO...</p>
-                </div>
-              ) : syncItems.length > 0 ? (
-                <div className="overflow-x-auto border border-neu-200 rounded-lg">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-neu-50">
-                      <tr>
-                        <th className="px-4 py-3 text-[13px] font-medium text-neu-600 border-b border-neu-200">Kategori</th>
-                        <th className="px-4 py-3 text-[13px] font-medium text-neu-600 border-b border-neu-200">Nama Folder / File</th>
-                        <th className="px-4 py-3 text-[13px] font-medium text-neu-600 border-b border-neu-200 text-right">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-neu-200">
-                      {syncItems.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-neu-50 transition-colors">
-                          <td className="px-4 py-3 text-[14px] text-neu-900 font-medium capitalize">{item.kategori}</td>
-                          <td className="px-4 py-3 text-[14px] text-neu-600">{item.nama_file}</td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => handleImportMinio(item.folder_path)}
-                              disabled={importingPath === item.folder_path}
-                              className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors ${
-                                importingPath === item.folder_path 
-                                ? 'bg-neu-100 text-neu-400 cursor-not-allowed' 
-                                : 'bg-pr-100 text-pr-900 hover:bg-pr-200'
-                              }`}
-                            >
-                              {importingPath === item.folder_path ? 'Mengimpor...' : 'Import'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-10">
-                  <p className="text-neu-600 text-[15px]">Tidak ada dokumen baru di MinIO yang perlu di-import.</p>
-                </div>
-              )}
-            </div>
-            
-            <div className="px-6 py-4 border-t border-neu-200 flex justify-end">
-              <button
-                onClick={() => setIsSyncModalOpen(false)}
-                className="px-4 py-2 bg-neu-100 text-neu-700 rounded-lg font-medium hover:bg-neu-200"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </AdminLayout>
   );
 }

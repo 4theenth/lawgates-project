@@ -105,4 +105,3 @@ export function Toast({ toast, onClose }: ToastProps) {
     </div>
   );
 }
-

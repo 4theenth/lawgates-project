@@ -30,6 +30,8 @@ export function StatusTabs<T extends string = string>({
           activeClass = 'bg-[#E8F2EC] text-[#15803D] border border-[#B9D9C5] font-semibold shadow-2xs';
         } else if (tab.id === 'tidak_berlaku') {
           activeClass = 'bg-[#F8E9E9] text-[#B72121] border border-[#E9BCBC] font-semibold shadow-2xs';
+        } else if (tab.id === 'draft') {
+          activeClass = 'bg-neu-50 text-neu-900 border border-neu-200 font-semibold shadow-2xs';
         }
 
         return (
@@ -51,6 +53,9 @@ export function StatusTabs<T extends string = string>({
               )}
               {isActive && tab.id === 'tidak_berlaku' && (
                 <span className="w-2 h-2 rounded-full bg-[#B72121] shrink-0" />
+              )}
+              {isActive && tab.id === 'draft' && (
+                <span className="w-2 h-2 rounded-full bg-neu-900 shrink-0" />
               )}
               <span>{tab.label}</span>
             </button>

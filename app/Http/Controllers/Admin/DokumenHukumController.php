@@ -13,6 +13,7 @@ use App\Models\StrukturDokumen;
 use App\Models\Pasal;
 use App\Models\PenjelasanPasal;
 use App\Models\LawRelation;
+use App\Models\DraftDokumen;
 use Illuminate\Support\Facades\DB;
 
 class DokumenHukumController extends Controller
@@ -21,7 +22,7 @@ class DokumenHukumController extends Controller
     {
         $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan']);
 
-        // Filter: Status (Berlaku / Tidak Berlaku)
+        // Filter: Status (Berlaku / Tidak Berlaku / Draft)
         if ($request->filled('status') && $request->status !== 'all') {
             $query->whereHas('statusPeraturan', function ($q) use ($request) {
                 if ($request->status === 'berlaku') {
@@ -30,6 +31,8 @@ class DokumenHukumController extends Controller
                       ->where('nama_status', 'not ilike', '%belum berlaku%');
                 } else if ($request->status === 'tidak_berlaku') {
                     $q->where('nama_status', 'ilike', '%tidak berlaku%');
+                } else if ($request->status === 'draft') {
+                    $q->where('nama_status', 'ilike', '%draft%');
                 }
             });
         }
@@ -47,26 +50,46 @@ class DokumenHukumController extends Controller
             });
         }
 
-        // Sort
+        // Sort (3-Logic Sort)
         if ($request->filled('sortColumn') && $request->filled('sortDirection')) {
             $direction = strtolower($request->sortDirection) === 'desc' ? 'desc' : 'asc';
             
             if ($request->sortColumn === 'kategori') {
-                $query->join('jenis_peraturan', 'peraturan.jenis_peraturan_id', '=', 'jenis_peraturan.id')
+                $query->leftJoin('jenis_peraturan', 'peraturan.jenis_peraturan_id', '=', 'jenis_peraturan.id')
                       ->orderBy('jenis_peraturan.nama', $direction)
+                      ->orderBy('peraturan.updated_at', 'desc')
                       ->select('peraturan.*');
             } else if ($request->sortColumn === 'status') {
-                $query->join('status', 'peraturan.status_id', '=', 'status.id')
-                      ->orderBy('status.nama_status', $direction)
+                $query->leftJoin('status_peraturan', 'peraturan.status_id', '=', 'status_peraturan.id');
+                if ($direction === 'asc') {
+                    // Klik sekali: dari yg berlaku -> tidak berlaku
+                    $query->orderByRaw("CASE 
+                        WHEN LOWER(status_peraturan.nama_status) LIKE '%tidak%' THEN 2
+                        WHEN LOWER(status_peraturan.nama_status) LIKE '%berlaku%' THEN 1
+                        ELSE 3
+                    END ASC");
+                } else {
+                    // Klik 2 kali: dari yg tidak berlaku -> berlaku
+                    $query->orderByRaw("CASE 
+                        WHEN LOWER(status_peraturan.nama_status) LIKE '%tidak%' THEN 1
+                        WHEN LOWER(status_peraturan.nama_status) LIKE '%berlaku%' THEN 2
+                        ELSE 3
+                    END ASC");
+                }
+                $query->orderBy('peraturan.updated_at', 'desc')
                       ->select('peraturan.*');
             } else if ($request->sortColumn === 'tgl_ditetapkan') {
-                $query->orderBy('tanggal_penetapan', $direction);
+                $query->orderByRaw("tanggal_penetapan {$direction} NULLS LAST")
+                      ->orderBy('peraturan.updated_at', 'desc');
+            } else if ($request->sortColumn === 'judul') {
+                $query->orderByRaw("judul {$direction} NULLS LAST")
+                      ->orderBy('peraturan.updated_at', 'desc');
             } else {
                 $query->orderBy($request->sortColumn, $direction);
             }
         } else {
-            // Default sort
-            $query->orderBy('tanggal_penetapan', 'desc');
+            // Default sort: sesuai terakhir pembaruan
+            $query->orderBy('peraturan.updated_at', 'desc')->orderBy('peraturan.id', 'desc');
         }
 
         $pageSize = $request->input('pageSize', 10);
@@ -74,13 +97,19 @@ class DokumenHukumController extends Controller
 
         // Format data to match React component expectations
         $formattedData = $paginator->getCollection()->map(function ($item) {
+            $namaStatus = strtolower($item->statusPeraturan ? $item->statusPeraturan->nama_status : '');
+            $status = 'berlaku';
+            if (str_contains($namaStatus, 'draft')) {
+                $status = 'draft';
+            } else if (str_contains($namaStatus, 'tidak berlaku')) {
+                $status = 'tidak_berlaku';
+            }
+
             return [
                 'id' => (string) $item->unique_id, // unique_id used for URL and deletion
                 'kategori' => $item->jenisPeraturan ? $item->jenisPeraturan->nama : '-',
                 'judul' => $item->judul,
-                'status' => $item->statusPeraturan ? (
-                    str_contains(strtolower($item->statusPeraturan->nama_status), 'tidak berlaku') ? 'tidak_berlaku' : 'berlaku'
-                ) : 'berlaku', // Fallback status
+                'status' => $status,
                 'tgl_ditetapkan' => $item->tanggal_penetapan ? $item->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-',
                 'real_status' => $item->statusPeraturan ? $item->statusPeraturan->nama_status : '-',
             ];
@@ -94,12 +123,169 @@ class DokumenHukumController extends Controller
             ->unique()
             ->values();
 
+        // Khusus Tab Draft: Ambil data dari tabel draft_dokumen
+        $draftsPaginator = null;
+        if ($request->status === 'draft') {
+            $draftQuery = DraftDokumen::query()->where('status', 'draft');
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $draftQuery->where(function($q) use ($search) {
+                    $q->where('nama_draft', 'ilike', "%{$search}%")
+                      ->orWhere('autor', 'ilike', "%{$search}%");
+                });
+            }
+
+            if ($request->filled('sortColumn') && $request->filled('sortDirection')) {
+                $dir = strtolower($request->sortDirection) === 'desc' ? 'desc' : 'asc';
+                if ($request->sortColumn === 'nama_draft') {
+                    $draftQuery->orderBy('nama_draft', $dir);
+                } else if ($request->sortColumn === 'autor') {
+                    $draftQuery->orderBy('autor', $dir);
+                } else if ($request->sortColumn === 'jumlah_file') {
+                    $draftQuery->orderBy('jumlah_file', $dir);
+                } else {
+                    $draftQuery->orderBy('created_at', $dir);
+                }
+            } else {
+                $draftQuery->orderBy('created_at', 'desc')->orderBy('id', 'desc');
+            }
+
+            $draftsPaginator = $draftQuery->paginate($pageSize)->withQueryString();
+            $formattedDrafts = $draftsPaginator->getCollection()->map(function ($item) {
+                return [
+                    'id' => (string) $item->id,
+                    'nama_draft' => $item->nama_draft,
+                    'autor' => $item->autor ?: 'Admin',
+                    'jumlah_file' => (int) $item->jumlah_file,
+                    'created_at' => $item->created_at ? $item->created_at->isoFormat('D MMMM YYYY') : '-',
+                ];
+            });
+            $draftsPaginator->setCollection($formattedDrafts);
+        }
+
         return Inertia::render('Admin/DokumenHukum/Index', [
             'peraturans' => $paginator,
+            'drafts' => $draftsPaginator,
             'filters' => $request->only(['search', 'status', 'kategori', 'sortColumn', 'sortDirection', 'pageSize']),
             'referensi' => [
                 'kategori' => $categories
             ]
+        ]);
+    }
+
+    public function storeDraft(Request $request)
+    {
+        $request->validate([
+            'nama_draft' => 'required|string|max:255',
+            'files' => 'required|array',
+            'id' => 'nullable|integer',
+        ]);
+
+        $user = auth()->user();
+        $autor = $user ? ($user->name ?? 'Admin') : 'Admin';
+        $files = $request->input('files');
+
+        if ($request->filled('id')) {
+            $draft = DraftDokumen::find($request->id);
+            if ($draft) {
+                $draft->update([
+                    'nama_draft' => $request->nama_draft,
+                    'jumlah_file' => count($files),
+                    'files_data' => $files,
+                    'status' => 'draft',
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Draft berhasil diperbarui',
+                    'data' => $draft,
+                ]);
+            }
+        }
+
+        $draft = DraftDokumen::create([
+            'nama_draft' => $request->nama_draft,
+            'user_id' => $user?->id,
+            'autor' => $autor,
+            'jumlah_file' => count($files),
+            'files_data' => $files,
+            'status' => 'draft',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Draft berhasil disimpan',
+            'data' => $draft,
+        ]);
+    }
+
+    public function showDraft($id)
+    {
+        $draft = DraftDokumen::findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $draft,
+        ]);
+    }
+
+    public function publishDraft(Request $request, DocumentImportService $importService)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+        ]);
+
+        $drafts = DraftDokumen::whereIn('id', $request->ids)->get();
+        $totalPublished = 0;
+
+        foreach ($drafts as $draft) {
+            $filesData = $draft->files_data ?: [];
+            foreach ($filesData as $fileData) {
+                try {
+                    if (isset($fileData['parsedData'])) {
+                        $parsed = is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData'];
+                        $peraturan = $importService->import($parsed);
+                        
+                        if (isset($fileData['correctionData'])) {
+                            $correctionData = is_string($fileData['correctionData']) ? json_decode($fileData['correctionData'], true) : $fileData['correctionData'];
+                            $this->performUpdate($peraturan, $correctionData, true);
+                        }
+
+                        // Pastikan status adalah Berlaku
+                        $statusBerlaku = Status::where('nama_status', 'ilike', 'berlaku')->first();
+                        if ($statusBerlaku) {
+                            $peraturan->status_id = $statusBerlaku->id;
+                            $peraturan->save();
+                        }
+
+                        $totalPublished++;
+                    }
+                } catch (\Exception $e) {
+                    \Log::error("Error publishing draft item: " . $e->getMessage());
+                }
+            }
+
+            $draft->status = 'published';
+            $draft->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Berhasil mempublikasikan dokumen hukum",
+        ]);
+    }
+
+    public function bulkDeleteDraft(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+        ]);
+
+        DraftDokumen::whereIn('id', $request->ids)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Draft berhasil dihapus',
         ]);
     }
 
@@ -385,11 +571,17 @@ class DokumenHukumController extends Controller
             $peraturan->instansi = $data['metadata']['pemrakarsa'];
         }
         
-        $standarId = $data['standarId'] ?? null;
-        if ($standarId && $standarId !== $peraturan->unique_id) {
-            $exists = Peraturan::where('unique_id', $standarId)->where('id', '!=', $peraturan->id)->first();
-            if (!$exists) {
-                $peraturan->unique_id = $standarId;
+        if (isset($data['status'])) {
+            $statusInput = strtolower($data['status']);
+            if ($statusInput === 'draft') {
+                $statusObj = \App\Models\Status::firstOrCreate(['nama_status' => 'Draft']);
+            } else if ($statusInput === 'tidak_berlaku') {
+                $statusObj = \App\Models\Status::where('nama_status', 'ilike', 'tidak berlaku')->first();
+            } else {
+                $statusObj = \App\Models\Status::where('nama_status', 'ilike', 'berlaku')->first();
+            }
+            if ($statusObj) {
+                $peraturan->status_id = $statusObj->id;
             }
         }
         $peraturan->save();

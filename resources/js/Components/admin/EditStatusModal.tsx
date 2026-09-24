@@ -23,7 +23,7 @@ export function EditStatusModal({
 
   useEffect(() => {
     if (documentData) {
-      setSelectedStatus(documentData.status);
+      setSelectedStatus(documentData.status === 'tidak_berlaku' ? 'tidak_berlaku' : 'berlaku');
     }
     setIsDropdownOpen(false);
   }, [documentData, show]);
@@ -96,7 +96,7 @@ export function EditStatusModal({
               />
             </button>
 
-            {/* Menu Pilihan Status Dropdown (Sesuai Gambar Figma) */}
+            {/* Menu Pilihan Status Dropdown (Hanya Berlaku dan Tidak Berlaku) */}
             {isDropdownOpen && (
               <div className="absolute left-0 top-full mt-1.5 w-full bg-white rounded-[10px] border border-neu-100 shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
                 {/* Opsi Berlaku */}
