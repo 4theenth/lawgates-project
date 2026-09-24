@@ -39,7 +39,8 @@ export function AdminSidebar({ isCollapsed, menus = ADMIN_SIDEBAR_MENUS }: Admin
 
   const isItemActive = (itemHref?: string) => {
     if (!itemHref) return false;
-    return url === itemHref || url.startsWith(`${itemHref}/`);
+    const cleanUrl = url.split('?')[0];
+    return cleanUrl === itemHref || cleanUrl.startsWith(`${itemHref}/`);
   };
 
   return (
