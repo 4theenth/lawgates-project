@@ -64,7 +64,7 @@ export function Toast({ toast, onClose }: ToastProps) {
     <div
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className={`relative flex items-center gap-3.5 py-3 px-5 rounded-2xl ${theme.container} shadow-md transition-all animate-in fade-in slide-in-from-top-3 duration-250 min-w-[340px] max-w-lg pointer-events-auto overflow-hidden select-none`}
+      className={`relative flex items-center gap-3.5 py-3 px-5 rounded-2xl ${theme.container} shadow-md transition-all animate-in fade-in slide-in-from-top-2 sm:slide-in-from-right-4 duration-250 min-w-[280px] sm:min-w-[340px] max-w-md pointer-events-auto overflow-hidden select-none`}
     >
       {/* Icon lingkaran solid sesuai LawGates theme */}
       <div
