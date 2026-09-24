@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from '@inertiajs/react';
-import { Calendar, MapPin, SlidersHorizontal, ArrowDownToLine, Check, Eye } from 'lucide-react';
+import { Calendar, MapPin, ArrowRightLeft, Download, Check } from 'lucide-react';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
 
 export interface DetailPeraturanHeaderProps {
@@ -13,8 +13,7 @@ export interface DetailPeraturanHeaderProps {
   tempatPenetapan?: string;
   onCompare?: () => void;
   onDownload?: () => void;
-  onView?: () => void;
-  viewHref?: string;
+  downloadHref?: string;
   showCompare?: boolean;
 }
 
@@ -32,8 +31,7 @@ export function DetailPeraturanHeader({
   tempatPenetapan = 'Jakarta',
   onCompare,
   onDownload,
-  onView,
-  viewHref,
+  downloadHref,
   showCompare = true,
 }: DetailPeraturanHeaderProps) {
   const isBerlaku =
@@ -64,50 +62,37 @@ export function DetailPeraturanHeader({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 self-start">
-          {/* Tombol Bandingkan */}
+          {/* Tombol Bandingkan Sesuai Desain */}
           {onCompare && (
             <button
               type="button"
               onClick={onCompare}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 text-xs font-semibold transition-all shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#E5E7EB] hover:bg-[#D1D5DB] text-gray-800 text-sm font-semibold transition-all shadow-2xs cursor-pointer"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-gray-600" />
+              <ArrowRightLeft className="w-4 h-4 text-gray-700 stroke-[2]" />
               <span>Bandingkan</span>
             </button>
           )}
 
-          {/* Tombol Lihat Dokumen (Opsional jika ada) */}
-          {viewHref && (
+          {/* Tombol Download Dokumen Sesuai Desain */}
+          {downloadHref ? (
             <Link
-              href={viewHref}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 text-xs font-semibold transition-all shadow-2xs cursor-pointer"
+              href={downloadHref}
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#0E1E38] hover:bg-[#091528] text-white text-sm font-semibold transition-all shadow-xs cursor-pointer"
             >
-              <Eye className="w-3.5 h-3.5 text-gray-600" />
-              <span>Lihat Dokumen</span>
+              <Download className="w-4 h-4 text-white stroke-[2]" />
+              <span>Download Dokumen</span>
             </Link>
-          )}
-          {onView && !viewHref && (
-            <button
-              type="button"
-              onClick={onView}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 text-xs font-semibold transition-all shadow-2xs cursor-pointer"
-            >
-              <Eye className="w-3.5 h-3.5 text-gray-600" />
-              <span>Lihat Dokumen</span>
-            </button>
-          )}
-
-          {/* Tombol Download Dokumen */}
-          {onDownload && (
+          ) : onDownload ? (
             <button
               type="button"
               onClick={onDownload}
-              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-[#0A1931] hover:bg-[#071326] text-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#0E1E38] hover:bg-[#091528] text-white text-sm font-semibold transition-all shadow-xs cursor-pointer"
             >
-              <ArrowDownToLine className="w-3.5 h-3.5 text-white" />
+              <Download className="w-4 h-4 text-white stroke-[2]" />
               <span>Download Dokumen</span>
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 

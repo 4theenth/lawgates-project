@@ -6,7 +6,7 @@ import { ComparisonSelectorCard } from '@/Components/comparison/ComparisonSelect
 import { ComparisonDocumentCard } from '@/Components/comparison/ComparisonDocumentCard';
 import { ComparisonTable } from '@/Components/comparison/ComparisonTable';
 import axios from 'axios';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, Scale } from 'lucide-react';
 import { ComparisonDataset, ComparisonOption } from '@/types/comparison';
 
 export default function Bandingkan() {
@@ -47,7 +47,7 @@ export default function Bandingkan() {
     }
   }, []);
 
-  // Fetch lineage dan auto-select dokumen pembanding jika ada
+  // Fetch lineage relasi dokumen (tanpa auto-select sisi kanan agar pengguna memilih sendiri)
   const fetchLineage = useCallback(
     async (baseId: string) => {
       setIsLoadingLineage(true);
@@ -56,24 +56,7 @@ export default function Bandingkan() {
         if (res.data.success) {
           const dataOptions = res.data.data || [];
           setOptions(dataOptions);
-
-          // Cari opsi dokumen pembanding yang paling relevan (misal UU pengubah seperti UU 63 2024)
-          const candidates = dataOptions.filter((opt: ComparisonOption) => opt.id !== baseId);
-
-          const bestCandidate =
-            candidates.find(
-              (opt: ComparisonOption) =>
-                opt.isReady &&
-                (opt.relationDescription?.includes('Mengubah') ||
-                  opt.relationDescription?.includes('Diubah'))
-            ) ||
-            candidates.find((opt: ComparisonOption) => opt.isReady) ||
-            candidates[0];
-
-          if (bestCandidate) {
-            setSelectedRightId(bestCandidate.id);
-            runComparison(baseId, bestCandidate.id);
-          }
+          // Jangan auto-select sisi kanan; pengguna memilih sendiri dari dropdown
         }
       } catch (e) {
         console.error('Error saat fetch lineage:', e);
@@ -81,7 +64,7 @@ export default function Bandingkan() {
         setIsLoadingLineage(false);
       }
     },
-    [runComparison]
+    []
   );
 
   // Baca parameter query URL `?id=...` saat pertama kali halaman dimuat
@@ -96,7 +79,9 @@ export default function Bandingkan() {
   }, [fetchLineage]);
 
   const handleCompareClick = () => {
-    runComparison(selectedLeftId, selectedRightId);
+    if (selectedLeftId && selectedRightId) {
+      runComparison(selectedLeftId, selectedRightId);
+    }
   };
 
   const handleViewDetail = (uniqueId: string) => {
@@ -140,7 +125,11 @@ export default function Bandingkan() {
             onChangeLeft={setSelectedLeftId}
             onChangeRight={(newRightId) => {
               setSelectedRightId(newRightId);
-              runComparison(selectedLeftId, newRightId);
+              if (newRightId) {
+                runComparison(selectedLeftId, newRightId);
+              } else {
+                setComparisonData(null);
+              }
             }}
             onCompareClick={handleCompareClick}
             disabledLeft={isLeftLocked}
@@ -179,11 +168,16 @@ export default function Bandingkan() {
               />
             </>
           ) : (
-            !isLoadingLineage && selectedLeftId && !selectedRightId && (
-              <div className="flex items-center gap-3 p-6 bg-white rounded-2xl border border-gray-200 shadow-2xs text-gray-600">
-                <AlertCircle className="w-5 h-5 text-blue-500 shrink-0" />
-                <p className="text-xs sm:text-sm">
-                  Silakan pilih dokumen pada kolom <strong>YANG MAU DIBANDINGKAN</strong> di atas.
+            !isLoadingLineage && (
+              <div className="w-full border border-dashed border-gray-300 rounded-2xl bg-white/40 p-12 sm:p-24 flex flex-col items-center justify-center text-center min-h-[380px]">
+                <div className="w-12 h-12 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-400 mb-3.5 shadow-2xs">
+                  <Scale className="w-5 h-5 text-gray-400 stroke-[1.75]" />
+                </div>
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-1">
+                  Belum ada hukum yang dibandingkan
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-400">
+                  Silahkan pilih hukum yang ingin dibandingkan
                 </p>
               </div>
             )

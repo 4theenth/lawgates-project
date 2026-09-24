@@ -324,17 +324,47 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       if (relName.toLowerCase().includes('diubah')) variant = 'diubah';
       else if (isMencabut) variant = 'dicabut';
 
+      const toPeraturan = rel.to_peraturan;
+      const rawJudul = toPeraturan?.judul || '';
+      const isWaitingImport = rawJudul.toLowerCase().includes('menunggu import');
+      const hasUniqueId = Boolean(toPeraturan?.unique_id);
+
+      // Dokumen belum ada / belum ditambahkan ke database jika to_peraturan null, atau menunggu import, atau tidak ada unique_id
+      const isAvailable = Boolean(toPeraturan && !isWaitingImport && hasUniqueId);
+
+      // Bersihkan teks "Menunggu import dokumen: xxx" agar menjadi judul peraturan yang rapi sesuai desain
+      let displayJudul = rawJudul || rel.to_peraturan_id || 'Peraturan Terkait';
+      if (isWaitingImport) {
+        const rawName = rawJudul.replace(/^menunggu import dokumen:\s*/i, '').trim();
+        const formatted = rawName
+          .replace(/^undang-undang-(\d+)-(\d+)/i, 'Undang-Undang Nomor $1 Tahun $2')
+          .replace(/^undang-(\d+)-(\d+)/i, 'Undang-Undang Nomor $1 Tahun $2')
+          .replace(/^uu-(\d+)-(\d+)/i, 'Undang-Undang Nomor $1 Tahun $2')
+          .replace(/^perpu-(\d+)-(\d+)/i, 'Peraturan Pemerintah Pengganti Undang-Undang Nomor $1 Tahun $2')
+          .replace(/^pp-(\d+)-(\d+)/i, 'Peraturan Pemerintah Nomor $1 Tahun $2');
+
+        if (formatted !== rawName) {
+          displayJudul = formatted;
+        } else {
+          displayJudul = rawName
+            .split(/[-_]/)
+            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+        }
+      }
+
       const item: ReadonlyTimelineItem = {
         id: `rel-${index}`,
-        kode: rel.to_peraturan?.unique_id || '',
-        judul: rel.to_peraturan?.judul || rel.to_peraturan?.unique_id || '',
-        href: `/peraturan/${rel.to_peraturan?.unique_id || ''}`,
+        kode: toPeraturan?.unique_id || '',
+        judul: displayJudul,
+        href: isAvailable ? `/peraturan/${toPeraturan?.unique_id}` : undefined,
+        isAvailable: isAvailable,
         keteranganBadge: {
           label: relName,
           variant: variant
         },
         statusBadge: {
-          label: 'Tahun ' + (rel.to_peraturan?.tahun || '-'),
+          label: 'Tahun ' + (toPeraturan?.tahun || '-'),
           variant: 'tersedia'
         },
         isCurrent: false
@@ -353,6 +383,11 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       kode: peraturan.unique_id || '',
       judul: peraturan.judul,
       isCurrent: true,
+      isAvailable: true,
+      keteranganBadge: {
+        label: peraturan.status_peraturan?.nama_status || 'Diubah',
+        variant: 'diubah'
+      }
     };
 
     return [...beforeCurrent, currentItem, ...afterCurrent];
@@ -405,8 +440,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
             tanggalPenetapan={tanggalPenetapan}
             tempatPenetapan={peraturan?.tempat_penetapan || 'Jakarta'}
             onCompare={canCompare ? () => router.visit(`/bandingkan?id=${peraturan?.unique_id}`) : undefined}
-            viewHref={`/peraturan/${peraturan?.unique_id}/lihat`}
-            onDownload={handleDownload}
+            downloadHref={`/peraturan/${peraturan?.unique_id}/lihat`}
           />
 
             {/* Layout 3-Kolom: Sesuai Proporsi Form Koreksi Data (Daftar Isi Kiri, Editor Utama Tengah Panjang, Status Kanan) */}
