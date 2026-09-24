@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { PublicLayout } from '@/Layouts/PublicLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
-import { EmptyState } from '@/Components/admin/EmptyState';
 import { Badge } from '@/Components/common/Badge';
 import {
   Search,
@@ -16,35 +15,58 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  SlidersHorizontal,
+  ArrowUpDown,
+  Check,
+  Scale,
 } from 'lucide-react';
+
+interface FilterOption {
+  value: string;
+  label: string;
+}
 
 export default function Pencarian() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(true);
   const [totalResult, setTotalResult] = useState(0);
 
-  // State untuk nilai filter & pencarian
+  // State pencarian & filter
   const [searchQuery, setSearchQuery] = useState('');
-  const [kategori, setKategori] = useState('');
-  const [tahun, setTahun] = useState('');
-  const [status, setStatus] = useState('');
+  const [selectedKategori, setSelectedKategori] = useState<string[]>([]);
+  const [tahunDari, setTahunDari] = useState('2020');
+  const [tahunSampai, setTahunSampai] = useState('2026');
+  const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [sort, setSort] = useState('relevansi');
 
-  // State tampilan filter (bisa disembunyikan/dikecilkan)
+  // State tampilan
   const [isFilterOpen, setIsFilterOpen] = useState(true);
+  const [activeDropdown, setActiveDropdown] = useState<'kategori' | 'tahun' | 'status' | null>(null);
 
-  // State untuk daftar referensi dropdown
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const [isPerPageOpen, setIsPerPageOpen] = useState(false);
+
+  // Sub-dropdown tahun (dari / sampai)
+  const [openYearSub, setOpenYearSub] = useState<{ dari: boolean; sampai: boolean }>({
+    dari: true,
+    sampai: true,
+  });
+
+  // State referensi dropdown
   const [listKategori, setListKategori] = useState<any[]>([]);
   const [listStatus, setListStatus] = useState<any[]>([]);
   const [listTahun, setListTahun] = useState<string[]>([]);
 
-  // State untuk pagination
+  // State pagination
   const [perPage, setPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
 
-  // 1. Ambil data referensi filter saat komponen dimuat
+  const filterSidebarRef = useRef<HTMLDivElement>(null);
+  const sortRef = useRef<HTMLDivElement>(null);
+  const perPageRef = useRef<HTMLDivElement>(null);
+  const yearSubRef = useRef<HTMLDivElement>(null);
+
+  // 1. Ambil data referensi filter saat dimuat
   useEffect(() => {
     fetch('/api/referensi-filter')
       .then((res) => res.json())
@@ -56,15 +78,29 @@ export default function Pencarian() {
       .catch((err) => console.error('Gagal memuat referensi:', err));
   }, []);
 
-  // 2. Lakukan pencarian berdasarkan parameter URL
+  // 2. Sinkronisasi dengan URL search params saat pertama kali dimuat
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
 
-    // Sinkronkan state dengan URL
-    setSearchQuery(params.get('keyword') || params.get('q') || '');
-    setKategori(params.get('kategori_id') || params.get('kategori') || '');
-    setTahun(params.get('tahun') || '');
-    setStatus(params.get('status_id') || params.get('status') || '');
+    const initialKeyword = params.get('keyword') || params.get('q') || '';
+    setSearchQuery(initialKeyword);
+
+    const catParam = params.get('kategori_id') || params.get('kategori') || '';
+    if (catParam) setSelectedKategori(catParam.split(',').filter(Boolean));
+
+    const statusParam = params.get('status_id') || params.get('status') || '';
+    if (statusParam) setSelectedStatus(statusParam.split(',').filter(Boolean));
+
+    const yearParam = params.get('tahun') || '';
+    if (yearParam.includes('-')) {
+      const [start, end] = yearParam.split('-');
+      setTahunDari(start.trim());
+      setTahunSampai(end.trim());
+    } else if (yearParam) {
+      setTahunDari(yearParam);
+      setTahunSampai(yearParam);
+    }
+
     setSort(params.get('sort') || 'relevansi');
 
     const urlPage = parseInt(params.get('page') || '1');
@@ -73,6 +109,26 @@ export default function Pencarian() {
     setPerPage(urlPerPage);
 
     fetchData(params.toString());
+  }, []);
+
+  // Tutup dropdown sort, pagination, dan filter saat klik di luar
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
+        setIsSortOpen(false);
+      }
+      if (perPageRef.current && !perPageRef.current.contains(e.target as Node)) {
+        setIsPerPageOpen(false);
+      }
+      if (filterSidebarRef.current && !filterSidebarRef.current.contains(e.target as Node)) {
+        setActiveDropdown(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const fetchData = (queryString: string) => {
@@ -92,20 +148,58 @@ export default function Pencarian() {
       });
   };
 
+  // 3. Sinkronisasi status sub-dropdown tahun saat dropdown tahun dibuka
+  useEffect(() => {
+    if (activeDropdown === 'tahun') {
+      setOpenYearSub({ dari: true, sampai: true });
+    }
+  }, [activeDropdown]);
+
   const applyFilters = (overrides: Record<string, any> = {}) => {
     const params = new URLSearchParams();
 
     const currentQuery = overrides.keyword !== undefined ? overrides.keyword : searchQuery;
-    const currentKategori = overrides.kategori_id !== undefined ? overrides.kategori_id : kategori;
-    const currentTahun = overrides.tahun !== undefined ? overrides.tahun : tahun;
-    const currentStatus = overrides.status_id !== undefined ? overrides.status_id : status;
+    const currentKategori =
+      overrides.kategori_id !== undefined
+        ? overrides.kategori_id
+        : selectedKategori.length > 0 &&
+          (kategoriOptions.length === 0 || selectedKategori.length < kategoriOptions.length)
+        ? selectedKategori.join(',')
+        : '';
+
+    let formattedTahun = '';
+    if (overrides.tahun !== undefined) {
+      formattedTahun = overrides.tahun;
+    } else if (tahunDari && tahunSampai) {
+      const y1 = Number(tahunDari);
+      const y2 = Number(tahunSampai);
+      if (!isNaN(y1) && !isNaN(y2)) {
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        formattedTahun = minY === maxY ? String(minY) : `${minY}-${maxY}`;
+      } else {
+        formattedTahun = `${tahunDari}-${tahunSampai}`;
+      }
+    } else if (tahunDari) {
+      formattedTahun = tahunDari;
+    } else if (tahunSampai) {
+      formattedTahun = tahunSampai;
+    }
+
+    const currentStatus =
+      overrides.status_id !== undefined
+        ? overrides.status_id
+        : selectedStatus.length > 0 &&
+          (statusOptions.length === 0 || selectedStatus.length < statusOptions.length)
+        ? selectedStatus.join(',')
+        : '';
     const currentSort = overrides.sort !== undefined ? overrides.sort : sort;
     const currentPerPage = overrides.per_page !== undefined ? overrides.per_page : perPage;
     const page = overrides.page !== undefined ? overrides.page : 1;
 
     if (currentQuery) params.set('keyword', currentQuery);
     if (currentKategori) params.set('kategori_id', currentKategori);
-    if (currentTahun) params.set('tahun', currentTahun);
+    if (formattedTahun) params.set('tahun', formattedTahun);
     if (currentStatus) params.set('status_id', currentStatus);
     if (currentSort) params.set('sort', currentSort);
     if (currentPerPage) params.set('per_page', currentPerPage.toString());
@@ -117,20 +211,25 @@ export default function Pencarian() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setActiveDropdown(null);
     applyFilters({ page: 1 });
   };
 
   const handleApplyFilter = () => {
+    setActiveDropdown(null);
     applyFilters({ page: 1 });
   };
 
   const handleResetFilter = () => {
     setSearchQuery('');
-    setKategori('');
-    setTahun('');
-    setStatus('');
+    setSelectedKategori([]);
+    setTahunDari('2020');
+    setTahunSampai('2026');
+    setSelectedStatus([]);
     setSort('relevansi');
     setPerPage(10);
+    setOpenYearSub({ dari: true, sampai: true });
+    setActiveDropdown(null);
 
     window.history.pushState(null, '', window.location.pathname);
     fetchData('');
@@ -138,6 +237,7 @@ export default function Pencarian() {
 
   const handleSortChange = (newSort: string) => {
     setSort(newSort);
+    setIsSortOpen(false);
     applyFilters({ sort: newSort, page: 1 });
   };
 
@@ -150,6 +250,7 @@ export default function Pencarian() {
 
   const handlePerPageChange = (newPerPage: number) => {
     setPerPage(newPerPage);
+    setIsPerPageOpen(false);
     applyFilters({ per_page: newPerPage, page: 1 });
   };
 
@@ -186,328 +287,669 @@ export default function Pencarian() {
     const variant = getStatusVariant(statusName);
     switch (variant) {
       case 'success':
-        return <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
+        return <CheckCircle className="w-3.5 h-3.5 text-[#16A34A] shrink-0" />;
       case 'danger':
-        return <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />;
+        return <XCircle className="w-3.5 h-3.5 text-[#DC2626] shrink-0" />;
       case 'warning':
-        return <RefreshCw className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
+        return <RefreshCw className="w-3.5 h-3.5 text-[#D97706] shrink-0" />;
       case 'neutral':
-        return <XOctagon className="w-3.5 h-3.5 text-slate-500 shrink-0" />;
+        return <XOctagon className="w-3.5 h-3.5 text-gray-500 shrink-0" />;
       default:
         return null;
     }
   };
+
+  // Fallback opsi agar sesuai dengan screenshot referensi
+  const fallbackKategori: FilterOption[] = [
+    { value: '1', label: 'Undang undang' },
+    { value: '2', label: 'Peraturan Presiden' },
+    { value: '3', label: 'Peraturan Mentri' },
+    { value: '4', label: 'Tap MPR' },
+  ];
+
+  const kategoriOptions: FilterOption[] =
+    listKategori.length > 0
+      ? listKategori.map((k) => ({
+          value: String(k.id),
+          label: k.nama,
+        }))
+      : fallbackKategori;
+
+  const fallbackStatus: FilterOption[] = [
+    { value: '1', label: 'Berlaku' },
+    { value: '2', label: 'Tidak berlaku' },
+  ];
+
+  const statusOptions: FilterOption[] =
+    listStatus.length > 0
+      ? listStatus.map((s) => ({
+          value: String(s.id),
+          label: s.nama,
+        }))
+      : fallbackStatus;
+
+  // Fallback tahun agar selalu tersedia opsi tahun lengkap
+  const currentYear = new Date().getFullYear();
+  const availableYears = Array.from(
+    new Set([
+      ...listTahun.map(String),
+      String(currentYear),
+      String(currentYear - 1),
+      String(currentYear - 2),
+      String(currentYear - 3),
+      String(currentYear - 4),
+      String(currentYear - 5),
+      String(currentYear - 6),
+    ])
+  ).sort((a, b) => Number(b) - Number(a));
+
+  // Teks label trigger Kategori
+  let kategoriLabel = 'Semua kategori';
+  if (
+    selectedKategori.length === 0 ||
+    (kategoriOptions.length > 0 && selectedKategori.length === kategoriOptions.length)
+  ) {
+    kategoriLabel = 'Semua kategori';
+  } else if (selectedKategori.length === 1) {
+    const found = kategoriOptions.find((k) => k.value === selectedKategori[0]);
+    if (found) kategoriLabel = found.label;
+  } else if (selectedKategori.length > 1) {
+    kategoriLabel = `${selectedKategori.length} Kategori`;
+  }
+
+  // Teks label trigger Tahun
+  let tahunLabel = 'Semua Tahun';
+  if (tahunDari && tahunSampai) {
+    const y1 = Number(tahunDari);
+    const y2 = Number(tahunSampai);
+    if (!isNaN(y1) && !isNaN(y2)) {
+      const minY = Math.min(y1, y2);
+      const maxY = Math.max(y1, y2);
+      tahunLabel = minY === maxY ? String(minY) : `${minY} - ${maxY}`;
+    } else {
+      tahunLabel = `${tahunDari} - ${tahunSampai}`;
+    }
+  } else if (tahunDari) {
+    tahunLabel = tahunDari;
+  } else if (tahunSampai) {
+    tahunLabel = tahunSampai;
+  }
+
+  // Teks label trigger Status
+  let statusLabel = 'Semua status';
+  if (
+    selectedStatus.length === 0 ||
+    (statusOptions.length > 0 && selectedStatus.length === statusOptions.length)
+  ) {
+    statusLabel = 'Semua status';
+  } else if (selectedStatus.length === 1) {
+    const found = statusOptions.find((s) => s.value === selectedStatus[0]);
+    if (found) statusLabel = found.label;
+  } else if (selectedStatus.length > 1) {
+    statusLabel = `${selectedStatus.length} Status`;
+  }
 
   return (
     <PublicLayout>
       <Head title="Pencarian Hukum - LawGates" />
 
       <div className="pt-24 pb-16 w-full max-w-[1240px] mx-auto px-3.5 sm:px-6 min-h-screen text-gray-900 font-sans min-w-0 overflow-x-hidden">
-          {/* Header & Breadcrumb */}
-          <div className="mb-6 sm:mb-8">
-            <Breadcrumb
-              items={[
-                { label: 'Beranda', href: '/' },
-                { label: 'Pencarian Hukum' },
-              ]}
-              className="mb-4 sm:mb-6 text-xs sm:text-sm text-gray-500"
+        {/* ── Header & Breadcrumb ── */}
+        <div className="mb-6 sm:mb-8">
+          <Breadcrumb
+            items={[
+              { label: 'Beranda', href: '/' },
+              { label: 'Pencarian Hukum' },
+            ]}
+            className="mb-4 sm:mb-6 text-xs sm:text-sm text-gray-500"
+          />
+          <h1 className="text-2xl sm:text-[32px] font-bold text-gray-900 tracking-tight">
+            Pencarian Hukum
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">
+            Pencarian lengkap untuk berbagai jenis undang-undang dan peraturan
+          </p>
+        </div>
+
+        {/* ── Search Bar Input ── */}
+        <form onSubmit={handleSearchSubmit} className="relative mb-6 sm:mb-8">
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari peraturan yang ada di Indonesia..."
+              className="w-full bg-white border border-gray-200 rounded-2xl py-3.5 sm:py-4 pl-11 sm:pl-12 pr-4 text-xs sm:text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pr-900 shadow-2xs transition-all"
             />
-            <h1 className="text-2xl sm:text-[32px] font-bold text-gray-900 tracking-tight">
-              Pencarian Hukum
-            </h1>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">
-              Cari dan telusuri seluruh peraturan hukum di Indonesia secara mudah dan interaktif.
-            </p>
+            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 absolute left-4 pointer-events-none" />
           </div>
+        </form>
 
-          {/* Search Bar Besar */}
-          <form onSubmit={handleSearchSubmit} className="relative mb-6 sm:mb-8">
-            <div className="relative flex items-center">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari peraturan, undang-undang, nomor, atau kata kunci..."
-                className="w-full bg-white border border-gray-200 rounded-2xl py-3.5 sm:py-4 pl-11 sm:pl-12 pr-28 sm:pr-32 text-xs sm:text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pr-900 shadow-2xs"
-              />
-              <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 absolute left-4 pointer-events-none" />
-              <button
-                type="submit"
-                className="absolute right-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-[#0B132B] hover:bg-opacity-90 text-white font-semibold text-xs sm:text-sm rounded-xl transition-colors cursor-pointer shadow-sm"
-              >
-                Cari
-              </button>
-            </div>
-          </form>
-
-          {/* Grid Layout: Filter Sidebar & Search Results */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
-            {/* Kolom Filter (Collapsible) */}
-            {isFilterOpen && (
-              <div className="lg:col-span-4 xl:col-span-3 w-full">
-                <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 shadow-2xs">
-                  <div className="flex justify-between items-center mb-5 pb-4 border-b border-gray-100">
-                    <button
-                      type="button"
-                      onClick={() => setIsFilterOpen(false)}
-                      className="text-sm font-bold text-gray-900 flex items-center gap-2 hover:text-pr-900 transition-colors cursor-pointer group"
-                      title="Klik untuk menyembunyikan filter"
-                    >
-                      <Filter className="w-4 h-4 text-gray-500 group-hover:text-pr-900 transition-colors" />
-                      <span>Filter Pencarian</span>
-                    </button>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={handleResetFilter}
-                        className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                        title="Reset Filter"
-                        type="button"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    {/* Filter Kategori */}
-                    <div>
-                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                        Kategori Peraturan
-                      </label>
-                      <div className="relative">
-                        <select
-                          value={kategori}
-                          onChange={(e) => setKategori(e.target.value)}
-                          className="w-full text-xs sm:text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-pr-900 py-2.5 pl-3 pr-8 bg-white cursor-pointer appearance-none truncate"
-                        >
-                          <option value="">Semua kategori</option>
-                          {listKategori.map((k) => (
-                            <option key={k.id} value={k.id}>
-                              {k.nama}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                      </div>
-                    </div>
-
-                    {/* Filter Tahun */}
-                    <div>
-                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                        Tahun
-                      </label>
-                      <div className="relative">
-                        <select
-                          value={tahun}
-                          onChange={(e) => setTahun(e.target.value)}
-                          className="w-full text-xs sm:text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-pr-900 py-2.5 pl-3 pr-8 bg-white cursor-pointer appearance-none"
-                        >
-                          <option value="">Semua Tahun</option>
-                          {listTahun.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                      </div>
-                    </div>
-
-                    {/* Filter Status */}
-                    <div>
-                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                        Status Peraturan
-                      </label>
-                      <div className="relative">
-                        <select
-                          value={status}
-                          onChange={(e) => setStatus(e.target.value)}
-                          className="w-full text-xs sm:text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-pr-900 py-2.5 pl-3 pr-8 bg-white cursor-pointer appearance-none"
-                        >
-                          <option value="">Semua Status</option>
-                          {listStatus.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.nama}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleApplyFilter}
-                      type="button"
-                      className="w-full mt-2 bg-[#0B132B] hover:bg-[#07132B] text-white font-semibold text-xs sm:text-sm py-3 rounded-xl transition-colors shadow-sm cursor-pointer"
-                    >
-                      Terapkan Filter
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Kolom Hasil Pencarian */}
-            <div className={isFilterOpen ? 'lg:col-span-8 xl:col-span-9 w-full min-w-0' : 'lg:col-span-12 w-full min-w-0'}>
-              {/* Header Hasil & Pengurutan */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-3">
-                <div className="flex items-center gap-2.5">
-                  {!isFilterOpen && (
-                    <button
-                      type="button"
-                      onClick={() => setIsFilterOpen(true)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs transition-colors cursor-pointer"
-                    >
-                      <SlidersHorizontal className="w-3.5 h-3.5 text-gray-500" />
-                      <span>Buka Filter</span>
-                    </button>
-                  )}
-                  <p className="text-xs sm:text-sm text-gray-600">
-                    Ditemukan{' '}
-                    <span className="font-bold text-yellow-600">{totalResult}</span> hasil{' '}
-                    {searchQuery && <span>untuk "{searchQuery}"</span>}
-                  </p>
+        {/* ── Grid Layout: Filter Sidebar & Search Results ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
+          {/* ── Kolom Filter (Collapsible) ── */}
+          {isFilterOpen && (
+            <div ref={filterSidebarRef} className="lg:col-span-4 xl:col-span-3 w-full">
+              <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-2xs">
+                {/* Header Filter: Tombol Filter (toggle hide) & Reset */}
+                <div className="flex justify-between items-center mb-5 pb-3 border-b border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterOpen(false)}
+                    className="text-sm font-bold text-gray-800 flex items-center gap-2 hover:text-pr-900 transition-colors cursor-pointer group"
+                    title="Klik untuk menyembunyikan filter"
+                  >
+                    <Filter className="w-4 h-4 text-gray-700 group-hover:text-pr-900 transition-colors" />
+                    <span>Filter</span>
+                  </button>
+                  <button
+                    onClick={handleResetFilter}
+                    className="text-gray-500 hover:text-gray-800 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                    title="Reset Filter"
+                    type="button"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
                 </div>
 
-                <div className="flex items-center gap-2 self-end sm:self-auto">
-                  <span className="text-xs sm:text-sm text-gray-500">Urutkan:</span>
-                  <div className="relative">
-                    <select
-                      value={sort}
-                      onChange={(e) => handleSortChange(e.target.value)}
-                      className="text-xs sm:text-sm text-[#0B132B] border border-gray-200 rounded-xl py-1.5 pl-3 pr-8 focus:ring-pr-900 bg-white cursor-pointer font-medium appearance-none"
-                    >
-                      <option value="relevansi">Relevansi</option>
-                      <option value="terbaru">Tahun Terbaru</option>
-                      <option value="terlama">Tahun Terlama</option>
-                    </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-
-              {/* State Loading / Hasil / Empty State */}
-              {isSearching ? (
-                <div className="py-16 text-center text-gray-500 bg-white rounded-2xl border border-gray-200">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-pr-900 mb-3"></div>
-                  <p className="text-xs sm:text-sm font-medium">Mencari peraturan...</p>
-                </div>
-              ) : searchResults.length > 0 ? (
                 <div className="space-y-4">
-                  {searchResults.map((item) => {
-                    const statusName = item.status_peraturan?.nama_status ?? 'Tidak diketahui';
+                  {/* 1. Filter Kategori (Floating Overlay Dropdown) */}
+                  <div className={`relative ${activeDropdown === 'kategori' ? 'z-40' : 'z-20'}`}>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      Kategori
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActiveDropdown((prev) => (prev === 'kategori' ? null : 'kategori'))
+                      }
+                      className="flex items-center justify-between w-full h-[46px] px-3.5 bg-white border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-700 text-left hover:border-gray-300 focus:outline-none transition-all cursor-pointer"
+                    >
+                      <span className="truncate">{kategoriLabel}</span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${
+                          activeDropdown === 'kategori' ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
 
-                    return (
-                      /* Seluruh card dibungkus oleh Link (dapat diklik langsung) */
-                      <Link
-                        href={`/peraturan/${item.unique_id}`}
-                        key={item.id}
-                        className="block bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 hover:shadow-md hover:border-pr-900 transition-all group cursor-pointer"
-                      >
-                        <div className="flex flex-wrap gap-2 items-center mb-3 sm:mb-4">
-                          <Badge
-                            variant={getStatusVariant(statusName)}
-                            className="flex items-center gap-1.5 px-3 py-1 font-semibold rounded-full border border-transparent text-[11px] sm:text-xs"
-                          >
-                            {getStatusIcon(statusName)}
-                            {statusName}
-                          </Badge>
-                          <span className="bg-[#0B132B] text-white text-[11px] sm:text-xs font-semibold px-3 py-1 rounded-full">
-                            {item.jenis_peraturan?.nama ?? 'Peraturan'}
+                    {/* Floating Dropdown Kategori (Menimpa di atas tanpa menggeser tombol TERAPKAN dan input lain) */}
+                    {activeDropdown === 'kategori' && (
+                      <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-gray-200 rounded-xl p-3 space-y-2.5 shadow-2xl z-50 max-h-60 overflow-y-auto custom-scrollbar">
+                        {kategoriOptions.map((item) => {
+                          const isChecked = selectedKategori.includes(item.value);
+                          return (
+                            <button
+                              key={item.value}
+                              type="button"
+                              onClick={() => {
+                                setSelectedKategori((prev) =>
+                                  prev.includes(item.value)
+                                    ? prev.filter((v) => v !== item.value)
+                                    : [...prev, item.value]
+                                );
+                              }}
+                              className="w-full text-left flex items-center gap-3 cursor-pointer group"
+                            >
+                              <div
+                                className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${
+                                  isChecked
+                                    ? 'bg-[#0B1A3A] border-[#0B1A3A] text-white'
+                                    : 'border-gray-300 bg-white group-hover:border-gray-400'
+                                }`}
+                              >
+                                {isChecked && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                              </div>
+                              <span className="text-sm text-gray-700 select-none">{item.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Filter Tahun (Floating Overlay Dropdown 3 Layer) */}
+                  <div className={`relative ${activeDropdown === 'tahun' ? 'z-40' : 'z-10'}`}>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      Tahun
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActiveDropdown((prev) => (prev === 'tahun' ? null : 'tahun'))
+                      }
+                      className="flex items-center justify-between w-full h-[46px] px-3.5 bg-white border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-700 text-left hover:border-gray-300 focus:outline-none transition-all cursor-pointer"
+                    >
+                      <span className="truncate">{tahunLabel}</span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${
+                          activeDropdown === 'tahun' ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {/* Floating Dropdown Tahun (Menimpa di atas tanpa menggeser tombol TERAPKAN) */}
+                    {activeDropdown === 'tahun' && (
+                      <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-gray-200 rounded-xl p-3 shadow-2xl z-50">
+                        {/* Header popup & Reset */}
+                        <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-gray-100 text-xs">
+                          <span className="text-gray-700 font-semibold">Rentang Tahun</span>
+                          {(tahunDari || tahunSampai) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTahunDari('');
+                                setTahunSampai('');
+                              }}
+                              className="text-blue-600 hover:text-blue-700 font-medium transition-colors cursor-pointer"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5">
+                          {/* Kolom Dari */}
+                          <div className="min-w-0">
+                            <div className="text-xs text-gray-700 font-medium mb-1">Dari</div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenYearSub((prev) => ({ ...prev, dari: !prev.dari }))
+                              }
+                              className="flex items-center justify-between w-full h-[36px] px-2.5 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-700 text-left hover:border-gray-300 cursor-pointer"
+                            >
+                              <span className="truncate">{tahunDari || 'Pilih'}</span>
+                              <ChevronDown
+                                className={`w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform ${
+                                  openYearSub.dari ? 'rotate-180' : ''
+                                }`}
+                              />
+                            </button>
+
+                            {openYearSub.dari && (
+                              <div className="mt-1.5 bg-white border border-gray-200 rounded-lg shadow-lg py-1 max-h-36 overflow-y-auto custom-scrollbar">
+                                {availableYears.map((yr) => {
+                                  const isSelected = tahunDari === yr;
+                                  return (
+                                    <button
+                                      key={`dari-${yr}`}
+                                      type="button"
+                                      onClick={() => setTahunDari(yr)}
+                                      className={`w-full px-2.5 py-1 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-blue-50 text-pr-900 font-semibold'
+                                          : 'text-gray-700 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <span>{yr}</span>
+                                      {isSelected && <Check className="w-3 h-3 text-pr-900" />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Kolom Sampai */}
+                          <div className="min-w-0">
+                            <div className="text-xs text-gray-700 font-medium mb-1">Sampai</div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenYearSub((prev) => ({ ...prev, sampai: !prev.sampai }))
+                              }
+                              className="flex items-center justify-between w-full h-[36px] px-2.5 bg-white border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-700 text-left hover:border-gray-300 cursor-pointer"
+                            >
+                              <span className="truncate">{tahunSampai || 'Pilih'}</span>
+                              <ChevronDown
+                                className={`w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform ${
+                                  openYearSub.sampai ? 'rotate-180' : ''
+                                }`}
+                              />
+                            </button>
+
+                            {openYearSub.sampai && (
+                              <div className="mt-1.5 bg-white border border-gray-200 rounded-lg shadow-lg py-1 max-h-36 overflow-y-auto custom-scrollbar">
+                                {availableYears.map((yr) => {
+                                  const isSelected = tahunSampai === yr;
+                                  return (
+                                    <button
+                                      key={`sampai-${yr}`}
+                                      type="button"
+                                      onClick={() => setTahunSampai(yr)}
+                                      className={`w-full px-2.5 py-1 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-blue-50 text-pr-900 font-semibold'
+                                          : 'text-gray-700 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <span>{yr}</span>
+                                      {isSelected && <Check className="w-3 h-3 text-pr-900" />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3. Filter Status (Floating Overlay Dropdown) */}
+                  <div className={`relative ${activeDropdown === 'status' ? 'z-40' : 'z-0'}`}>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                      Status
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActiveDropdown((prev) => (prev === 'status' ? null : 'status'))
+                      }
+                      className="flex items-center justify-between w-full h-[46px] px-3.5 bg-white border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-700 text-left hover:border-gray-300 focus:outline-none transition-all cursor-pointer"
+                    >
+                      <span className="truncate">{statusLabel}</span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${
+                          activeDropdown === 'status' ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {/* Floating Dropdown Status (Menimpa di atas tombol TERAPKAN - tombol TERAPKAN tidak bergeser) */}
+                    {activeDropdown === 'status' && (
+                      <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-gray-200 rounded-xl p-3 space-y-2.5 shadow-2xl z-50 max-h-60 overflow-y-auto custom-scrollbar">
+                        {statusOptions.map((item) => {
+                          const isChecked = selectedStatus.includes(item.value);
+                          return (
+                            <button
+                              key={item.value}
+                              type="button"
+                              onClick={() => {
+                                setSelectedStatus((prev) =>
+                                  prev.includes(item.value)
+                                    ? prev.filter((v) => v !== item.value)
+                                    : [...prev, item.value]
+                                );
+                              }}
+                              className="w-full text-left flex items-center gap-3 cursor-pointer group"
+                            >
+                              <div
+                                className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${
+                                  isChecked
+                                    ? 'bg-[#0B1A3A] border-[#0B1A3A] text-white'
+                                    : 'border-gray-300 bg-white group-hover:border-gray-400'
+                                }`}
+                              >
+                                {isChecked && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                              </div>
+                              <span className="text-sm text-gray-700 select-none">{item.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tombol TERAPKAN (Fixed Position di dalam card - Tidak Bergeser Turun Sama Sekali) */}
+                  <button
+                    onClick={handleApplyFilter}
+                    type="button"
+                    className="w-full h-[46px] sm:h-[48px] bg-[#0B1A3A] hover:bg-[#07132B] text-white font-bold text-sm tracking-wider uppercase rounded-full mt-4 flex items-center justify-center cursor-pointer transition-colors shadow-sm"
+                  >
+                    TERAPKAN
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Kolom Hasil Pencarian (Melebar saat Filter Ditutup) ── */}
+          <div
+            className={
+              isFilterOpen
+                ? 'lg:col-span-8 xl:col-span-9 w-full min-w-0 transition-all duration-200'
+                : 'lg:col-span-12 w-full min-w-0 transition-all duration-200'
+            }
+          >
+            {/* Header Hasil & Pengurutan */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-3">
+              <div className="flex items-center gap-3">
+                {/* Tombol Filter saat Filter Sidebar disembunyikan (Melebar Full Width) */}
+                {!isFilterOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterOpen(true)}
+                    className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs transition-colors cursor-pointer shrink-0"
+                    title="Buka Filter"
+                  >
+                    <Filter className="w-3.5 h-3.5 text-gray-500" />
+                    <span>Filter</span>
+                  </button>
+                )}
+
+                <p className="text-xs sm:text-sm text-gray-600">
+                  Ditemukan{' '}
+                  <span className={`font-bold ${totalResult === 0 ? 'text-rose-500' : 'text-amber-500'}`}>
+                    {totalResult}
+                  </span>{' '}
+                  hasil {searchQuery && <span>untuk "{searchQuery}"</span>}
+                </p>
+              </div>
+
+              {/* Sort Dropdown Pill */}
+              <div ref={sortRef} className="relative self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsSortOpen((prev) => !prev)}
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs transition-colors cursor-pointer"
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5 text-gray-500" />
+                  <span>
+                    {sort === 'terbaru'
+                      ? 'Tahun Terbaru'
+                      : sort === 'terlama'
+                      ? 'Tahun Terlama'
+                      : 'Relavansi'}
+                  </span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
+                      isSortOpen ? 'rotate-180 text-pr-900' : ''
+                    }`}
+                  />
+                </button>
+
+                {isSortOpen && (
+                  <div className="absolute right-0 mt-1.5 w-40 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 z-40">
+                    <button
+                      type="button"
+                      onClick={() => handleSortChange('relevansi')}
+                      className={`w-full px-3 py-1.5 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                        sort === 'relevansi'
+                          ? 'bg-blue-50 text-pr-900 font-semibold'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span>Relavansi</span>
+                      {sort === 'relevansi' && <Check className="w-3 h-3 text-pr-900" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSortChange('terbaru')}
+                      className={`w-full px-3 py-1.5 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                        sort === 'terbaru'
+                          ? 'bg-blue-50 text-pr-900 font-semibold'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span>Tahun Terbaru</span>
+                      {sort === 'terbaru' && <Check className="w-3 h-3 text-pr-900" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSortChange('terlama')}
+                      className={`w-full px-3 py-1.5 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                        sort === 'terlama'
+                          ? 'bg-blue-50 text-pr-900 font-semibold'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span>Tahun Terlama</span>
+                      {sort === 'terlama' && <Check className="w-3 h-3 text-pr-900" />}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* State Loading / Hasil / Empty State */}
+            {isSearching ? (
+              <div className="py-16 text-center text-gray-500 bg-white rounded-2xl border border-gray-200">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-pr-900 mb-3"></div>
+                <p className="text-xs sm:text-sm font-medium">Mencari peraturan...</p>
+              </div>
+            ) : searchResults.length > 0 ? (
+              <div className="space-y-4">
+                {searchResults.map((item) => {
+                  const statusName = item.status_peraturan?.nama_status ?? 'Tidak diketahui';
+
+                  return (
+                    <Link
+                      href={`/peraturan/${item.unique_id}`}
+                      key={item.id}
+                      className="block bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 hover:shadow-md hover:border-pr-900 transition-all group cursor-pointer"
+                    >
+                      <div className="flex flex-wrap gap-2 items-center mb-3 sm:mb-4">
+                        <Badge
+                          variant={getStatusVariant(statusName)}
+                          className="flex items-center gap-1.5 px-3 py-1 font-semibold rounded-full border border-transparent text-[11px] sm:text-xs"
+                        >
+                          {getStatusIcon(statusName)}
+                          {statusName}
+                        </Badge>
+                        <span className="bg-[#0B132B] text-white text-[11px] sm:text-xs font-semibold px-3 py-1 rounded-full">
+                          {item.jenis_peraturan?.nama ?? 'Peraturan'}
+                        </span>
+                      </div>
+
+                      <h3 className="text-[14px] font-bold text-gray-900 mb-3 sm:mb-4 line-clamp-2 leading-snug group-hover:text-pr-900 transition-colors">
+                        {item.judul}
+                      </h3>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-gray-50">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[12px] text-gray-500 font-medium">
+                          <span>Tahun {item.tahun}</span>
+                          <span className="w-px h-3.5 bg-gray-200"></span>
+                          <span className="px-2.5 py-0.5 bg-gray-100 text-gray-600 rounded-full group-hover:bg-gray-200 transition-colors text-[11px]">
+                            {item.instansi || 'Pemerintah Pusat'}
                           </span>
                         </div>
 
-                        <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-4 sm:mb-5 line-clamp-2 leading-snug group-hover:text-pr-900 transition-colors">
-                          {item.judul}
-                        </h3>
-
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-gray-50">
-                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-gray-500 font-medium">
-                            <span>Tahun {item.tahun}</span>
-                            <span className="w-px h-3.5 bg-gray-200"></span>
-                            <span className="px-2.5 py-0.5 bg-gray-100 text-gray-600 rounded-full group-hover:bg-gray-200 transition-colors text-[11px]">
-                              {item.instansi || 'Pemerintah Pusat'}
-                            </span>
-                          </div>
-
-                          <div className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full group-hover:bg-pr-900 group-hover:text-white transition-colors">
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>Lihat Detail</span>
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-
-                  {/* Pagination Controls */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-4 border-t border-gray-100">
-                    <button
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto justify-center"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                      <span>Sebelumnya</span>
-                    </button>
-
-                    <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5">
-                      <div className="flex items-center gap-2 text-xs text-gray-600 font-medium">
-                        <span>Lihat</span>
-                        <div className="relative">
-                          <select
-                            value={perPage}
-                            onChange={(e) => handlePerPageChange(Number(e.target.value))}
-                            className="appearance-none bg-white border border-gray-200 rounded-lg py-1.5 pl-3 pr-7 focus:outline-none focus:ring-2 focus:ring-pr-900 text-xs font-medium shadow-2xs"
-                          >
-                            <option value="10">10</option>
-                            <option value="15">15</option>
-                            <option value="20">20</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                          </select>
-                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                        <div className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gray-100 text-gray-700 text-[12px] font-semibold rounded-full group-hover:bg-pr-900 group-hover:text-white transition-colors">
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Lihat Detail</span>
                         </div>
                       </div>
+                    </Link>
+                  );
+                })}
 
-                      <div className="flex items-center gap-1">
-                        {getPageNumbers().map((page, index) => (
-                          <button
-                            key={index}
-                            onClick={() => (typeof page === 'number' ? handlePageChange(page) : null)}
-                            disabled={page === '...'}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors ${
-                              page === currentPage
-                                ? 'bg-[#0B132B] text-white shadow-sm'
-                                : page === '...'
-                                ? 'text-gray-400 cursor-default'
-                                : 'text-gray-600 hover:bg-gray-100'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        ))}
-                      </div>
+                {/* ── Pagination Controls ── */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto justify-center cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Sebelumnya</span>
+                  </button>
+
+                  <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5">
+                    {/* Per-Page Selector */}
+                    <div ref={perPageRef} className="relative flex items-center gap-2 text-xs text-gray-600 font-medium">
+                      <span>Lihat</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsPerPageOpen((prev) => !prev)}
+                        className="inline-flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg py-1.5 pl-3 pr-2 focus:outline-none focus:ring-2 focus:ring-pr-900 text-xs font-medium shadow-2xs cursor-pointer"
+                      >
+                        <span>{perPage}</span>
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
+                            isPerPageOpen ? 'rotate-180 text-pr-900' : ''
+                          }`}
+                        />
+                      </button>
+
+                      {isPerPageOpen && (
+                        <div className="absolute bottom-[calc(100%+6px)] left-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-40 w-16 text-center">
+                          {[10, 15, 20, 50, 100].map((num) => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => handlePerPageChange(num)}
+                              className={`w-full py-1 text-xs transition-colors cursor-pointer ${
+                                perPage === num
+                                  ? 'bg-blue-50 text-pr-900 font-semibold'
+                                  : 'text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              {num}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
-                    <button
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === lastPage || lastPage === 0}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto justify-center"
-                    >
-                      <span>Selanjutnya</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1">
+                      {getPageNumbers().map((page, index) => (
+                        <button
+                          key={index}
+                          onClick={() => (typeof page === 'number' ? handlePageChange(page) : null)}
+                          disabled={page === '...'}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                            page === currentPage
+                              ? 'bg-[#0B132B] text-white shadow-sm'
+                              : page === '...'
+                              ? 'text-gray-400 cursor-default'
+                              : 'text-gray-600 hover:bg-gray-100'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === lastPage || lastPage === 0}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto justify-center cursor-pointer"
+                  >
+                    <span>Selanjutnya</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
-              ) : (
-                <EmptyState
-                  title="Peraturan tidak ditemukan"
-                  description="Coba gunakan kata kunci yang berbeda atau ubah filter pencarian Anda."
-                />
-              )}
-            </div>
+              </div>
+            ) : (
+              /* ── Empty State Sesuai Screenshot 2 ── */
+              <div className="border border-dashed border-gray-300 rounded-2xl p-12 sm:p-20 text-center flex flex-col items-center justify-center bg-white shadow-2xs">
+                <div className="w-12 h-12 rounded-full border border-gray-200 flex items-center justify-center mb-4 text-gray-400 bg-gray-50/50">
+                  <Scale className="w-6 h-6 stroke-[1.5]" />
+                </div>
+                <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-1.5">
+                  Hasil tidak ditemukan untuk kata kunci tersebut
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-500 max-w-md">
+                  Ups, kata kunci yang kamu cari tidak ada. Coba cek ejaan atau gunakan kata lain.
+                </p>
+              </div>
+            )}
           </div>
         </div>
+      </div>
     </PublicLayout>
   );
 }

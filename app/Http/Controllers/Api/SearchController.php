@@ -51,9 +51,23 @@ class SearchController extends Controller
             $q->whereIn('jenis_peraturan_id', $ids);
         });
 
-        // 3. Filter Tahun
+        // 3. Filter Tahun (Mendukung tahun tunggal atau rentang seperti 2020-2026)
         $query->when($request->filled('tahun'), function ($q) use ($request) {
-            $q->where('tahun', $request->tahun);
+            $tahun = trim((string) $request->tahun);
+            if (str_contains($tahun, '-')) {
+                $parts = array_map('trim', explode('-', $tahun));
+                $start = (int) ($parts[0] ?? 0);
+                $end = (int) ($parts[1] ?? 0);
+                if ($start > 0 && $end > 0) {
+                    $q->whereBetween('tahun', [min($start, $end), max($start, $end)]);
+                } elseif ($start > 0) {
+                    $q->where('tahun', '>=', $start);
+                } elseif ($end > 0) {
+                    $q->where('tahun', '<=', $end);
+                }
+            } else {
+                $q->where('tahun', $tahun);
+            }
         });
 
         // 4. Filter Status
