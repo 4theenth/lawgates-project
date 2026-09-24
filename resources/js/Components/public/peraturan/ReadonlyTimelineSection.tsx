@@ -46,7 +46,7 @@ export function ReadonlyTimelineSection({
       <div className="mb-5">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E9EEF4] text-[#0A192F]">
           <RotateCcw className="w-4 h-4 stroke-[2.2] text-[#0A192F]" />
-          <span className="text-[12px] font-bold tracking-wide uppercase">
+          <span className="text-[14px] font-bold tracking-wide uppercase">
             STATUS & RELASI
           </span>
         </div>
@@ -61,7 +61,7 @@ export function ReadonlyTimelineSection({
           const isLast = index === riwayatPerubahan.length - 1;
 
           const ContentNode = () => (
-            <div className={`w-full rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-[13px] font-medium text-neu-800 break-words leading-snug shadow-2xs transition-all ${item.href ? 'hover:border-pr-900 hover:shadow-md cursor-pointer' : ''}`}>
+            <div className={`w-full rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-[14px] font-semibold text-neu-800 break-words leading-snug shadow-2xs transition-all ${item.href ? 'hover:border-pr-900 hover:shadow-md cursor-pointer' : ''}`}>
               {item.judul || item.kode}
             </div>
           );

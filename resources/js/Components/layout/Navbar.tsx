@@ -31,16 +31,10 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
     if (isIndex || path === '/') {
       return url === '/' || url === '';
     }
-    if (path === '/pencarian' || path === '/regulasi') {
-      return (
-        url === '/pencarian' ||
-        url.startsWith('/pencarian') ||
-        url.startsWith('/peraturan') ||
-        url.startsWith('/bandingkan') ||
-        url.startsWith('/regulasi')
-      );
+    if (path === '#' || !path) {
+      return false;
     }
-    return url === path || url.startsWith(`${path}/`);
+    return url === path || (path !== '/' && url.startsWith(`${path}/`));
   };
 
   const isHome = url === '/';

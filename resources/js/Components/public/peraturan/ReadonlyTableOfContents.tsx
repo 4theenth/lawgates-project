@@ -91,7 +91,7 @@ function TocNode({ item, expandedBabs, toggleLocalBab, onNavigateToStruktur, onN
         type="button"
         onClick={handleClick}
         style={{ marginLeft }}
-        className={`w-full text-left p-2.5 rounded-[10px] ${depth === 0 ? 'bg-[#E8EEF5]' : 'bg-neu-50 border border-neu-100'} text-pr-900 font-bold text-[12px] leading-tight flex items-center justify-between cursor-pointer transition-colors`}
+        className={`w-full text-left p-2.5 rounded-[10px] ${depth === 0 ? 'bg-[#E8EEF5]' : 'bg-neu-50 border border-neu-100'} text-pr-900 font-bold text-[14px] leading-tight flex items-center justify-between cursor-pointer transition-colors`}
       >
         <span className="line-clamp-2">{item.judul}</span>
       </button>
@@ -104,7 +104,7 @@ function TocNode({ item, expandedBabs, toggleLocalBab, onNavigateToStruktur, onN
         <button
           type="button"
           onClick={handleClick}
-          className={`w-full text-left p-2.5 rounded-[10px] ${depth === 0 ? 'bg-[#E8EEF5]' : 'bg-neu-50 border border-neu-100'} text-pr-900 font-bold text-[12px] leading-tight flex items-center justify-between cursor-pointer transition-colors`}
+          className={`w-full text-left p-2.5 rounded-[10px] ${depth === 0 ? 'bg-[#E8EEF5]' : 'bg-neu-50 border border-neu-100'} text-pr-900 font-bold text-[14px] leading-tight flex items-center justify-between cursor-pointer transition-colors`}
         >
           <span className="line-clamp-2">{item.judul}</span>
           <ChevronRight className="w-4 h-4 text-pr-900 shrink-0 ml-2 rotate-90 transition-transform" />
@@ -141,7 +141,7 @@ function TocNode({ item, expandedBabs, toggleLocalBab, onNavigateToStruktur, onN
       type="button"
       onClick={handleClick}
       style={{ marginLeft }}
-      className={`w-full text-left p-2.5 rounded-[10px] ${depth === 0 ? 'bg-[#E8EEF5]' : 'bg-neu-50 border border-neu-100'} text-pr-900 font-bold text-[12px] leading-tight flex items-center justify-between cursor-pointer transition-colors`}
+      className={`w-full text-left p-2.5 rounded-[10px] ${depth === 0 ? 'bg-[#E8EEF5]' : 'bg-neu-50 border border-neu-100'} text-pr-900 font-bold text-[14px] leading-tight flex items-center justify-between cursor-pointer transition-colors`}
     >
       <span className="line-clamp-2">{item.judul}</span>
       <ChevronRight className="w-4 h-4 text-pr-900 shrink-0 ml-2" />
@@ -168,7 +168,7 @@ export function ReadonlyTableOfContents({
     <div className="w-full shrink-0 bg-white rounded-[20px] border border-neu-100 p-4 xl:p-5 shadow-2xs lg:h-[calc(100vh-160px)] flex flex-col">
       <div className="flex items-center gap-3 pb-4 mb-4 border-b border-neu-50 shrink-0">
         <Menu className="w-5 h-5 text-neu-700" />
-        <h3 className="font-sans text-[13px] font-bold text-neu-900 tracking-wide">
+        <h3 className="font-sans text-[14px] font-bold text-neu-900 tracking-wide">
           DAFTAR ISI
         </h3>
       </div>
@@ -182,7 +182,7 @@ export function ReadonlyTableOfContents({
               if (onNavigateToPembukaan) onNavigateToPembukaan();
               if (pembukaanData) toggleLocalBab('pembukaan');
             }}
-            className="w-full text-left p-2.5 rounded-[10px] bg-[#E8EEF5] text-pr-900 font-bold text-[12px] leading-tight flex items-center justify-between cursor-pointer transition-colors"
+            className="w-full text-left p-2.5 rounded-[10px] bg-[#E8EEF5] text-pr-900 font-bold text-[14px] leading-tight flex items-center justify-between cursor-pointer transition-colors"
           >
             <span className="truncate">{pembukaanJudul}</span>
             {pembukaanData && (
