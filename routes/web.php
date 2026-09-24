@@ -32,8 +32,12 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+    $user = auth()->user();
+    if ($user && in_array($user->role, ['admin', 'superadmin'])) {
+        return redirect()->route('admin.dashboard');
+    }
+    return redirect('/');
+})->name('dashboard');
 
 Route::get('/pencarian', function () {
     return Inertia::render('Pencarian');
