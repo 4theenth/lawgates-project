@@ -39,13 +39,13 @@ export function ReadonlyTimelineSection({
       // Hitung posisi agar currentItem berada di tengah container
       const container = scrollContainerRef.current;
       const element = currentItemRef.current;
-      
+
       const containerHeight = container.clientHeight;
       const elementHeight = element.clientHeight;
       const elementOffset = element.offsetTop;
-      
+
       const scrollTo = elementOffset - (containerHeight / 2) + (elementHeight / 2);
-      
+
       container.scrollTo({
         top: scrollTo,
         behavior: 'smooth'
@@ -58,24 +58,30 @@ export function ReadonlyTimelineSection({
       {/* Header Capsule Relasi Sesuai Permintaan */}
       <div className="mb-5">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E9EEF4] text-[#0A192F]">
-          <RotateCcw className="w-3.5 h-3.5 stroke-[2.2] text-[#0A192F]" />
+          <RotateCcw className="w-4 h-4 stroke-[2.2] text-[#0A192F]" />
           <span className="text-[12px] font-bold tracking-wide uppercase">
-            RELASI
+            STATUS & RELASI
           </span>
         </div>
       </div>
 
       {/* Vertical Timeline - Scrollable container responsif */}
-      <div 
+      <div
         ref={scrollContainerRef}
         className="relative pl-1 max-h-[460px] overflow-y-auto pr-1.5 custom-scrollbar"
       >
         {riwayatPerubahan.map((item, index) => {
           const isLast = index === riwayatPerubahan.length - 1;
 
+          const ContentNode = () => (
+            <div className={`w-full rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-[13px] font-medium text-neu-800 break-words leading-snug shadow-2xs transition-all ${item.href ? 'hover:border-pr-900 hover:shadow-md cursor-pointer' : ''}`}>
+              {item.judul || item.kode}
+            </div>
+          );
+
           return (
-            <div 
-              key={item.id} 
+            <div
+              key={item.id}
               ref={item.isCurrent ? currentItemRef : null}
               className="relative flex items-stretch gap-3.5 min-w-0"
             >
@@ -104,13 +110,12 @@ export function ReadonlyTimelineSection({
                   </Link>
                 ) : (
                   <p
-                    className={`text-[13px] leading-snug break-words ${
-                      item.isCurrent
+                    className={`text-[13px] leading-snug break-words ${item.isCurrent
                         ? 'font-bold text-[#0A1931]'
                         : item.isAvailable === false
-                        ? 'font-medium text-gray-500'
-                        : 'font-medium text-gray-800'
-                    }`}
+                          ? 'font-medium text-gray-500'
+                          : 'font-medium text-gray-800'
+                      }`}
                   >
                     {item.judul || item.kode}
                   </p>

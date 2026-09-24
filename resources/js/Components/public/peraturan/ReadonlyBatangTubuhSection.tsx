@@ -65,7 +65,7 @@ function PasalNode({
 
       {isPenjelasanExpanded && pasal.penjelasan && (
         <div className="w-full mt-2 p-3.5 rounded-[8px] bg-blue-50/50 border-l-4 border-l-blue-500 border border-blue-100 text-[12px] text-blue-900 leading-relaxed whitespace-pre-line">
-          <span className="font-semibold block mb-1">Penjelasan {pasal.nomor}:</span>
+          <span className="font-semibold text-[14px] block mb-1">Penjelasan {pasal.nomor}:</span>
           {pasal.penjelasan}
         </div>
       )}
@@ -113,7 +113,7 @@ function BatangTubuhNode({
         onClick={() => onToggleBab(item.id)}
         className="w-full flex items-center justify-between cursor-pointer"
       >
-        <span className={`font-bold tracking-wide uppercase ${isRoot ? 'text-[12px] text-pr-900' : 'text-[11px] text-neu-700'}`}>
+        <span className={`font-bold tracking-wide uppercase ${isRoot ? 'text-[14px] text-pr-900' : 'text-[12px] text-neu-700'}`}>
           {item.judul}
         </span>
         {item.isExpanded ? (
