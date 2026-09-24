@@ -40,7 +40,7 @@ export function ReadonlyPembukaanSection({
         onClick={onTogglePembukaan}
         className="w-full flex items-center justify-between cursor-pointer"
       >
-        <span className="text-[12px] font-bold text-pr-900 tracking-wide uppercase">
+        <span className="text-[14px] font-bold text-pr-900 tracking-wide uppercase">
           PEMBUKAAN
         </span>
         {isOpenPembukaan ? (
@@ -55,7 +55,7 @@ export function ReadonlyPembukaanSection({
           {/* Judul & Sub Judul Pembukaan */}
           <div className="space-y-3">
             {pembukaan.judul && (
-              <div className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] font-semibold text-neu-900">
+              <div className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[14px] font-semibold text-neu-900">
                 {pembukaan.judul}
               </div>
             )}
@@ -75,7 +75,7 @@ export function ReadonlyPembukaanSection({
                 onClick={onToggleMenimbang}
                 className="w-full flex items-center justify-between py-1 cursor-pointer"
               >
-                <span className="text-[12px] font-bold text-neu-800">Menimbang</span>
+                <span className="text-[14px] font-bold text-neu-800">Menimbang</span>
                 {isOpenMenimbang ? (
                   <ChevronUp className="w-4 h-4 text-neu-400" />
                 ) : (
@@ -100,7 +100,7 @@ export function ReadonlyPembukaanSection({
                 onClick={onToggleMengingat}
                 className="w-full flex items-center justify-between py-1 cursor-pointer"
               >
-                <span className="text-[12px] font-bold text-neu-800">Mengingat</span>
+                <span className="text-[14px] font-bold text-neu-800">Mengingat</span>
                 {isOpenMengingat ? (
                   <ChevronUp className="w-4 h-4 text-neu-400" />
                 ) : (
@@ -125,7 +125,7 @@ export function ReadonlyPembukaanSection({
                 onClick={onToggleMemutuskan}
                 className="w-full flex items-center justify-between py-1 cursor-pointer"
               >
-                <span className="text-[12px] font-bold text-neu-800">Memutuskan</span>
+                <span className="text-[14px] font-bold text-neu-800">Memutuskan</span>
                 {isOpenMemutuskan ? (
                   <ChevronUp className="w-4 h-4 text-neu-400" />
                 ) : (
@@ -150,7 +150,7 @@ export function ReadonlyPembukaanSection({
                 onClick={onToggleMenetapkan}
                 className="w-full flex items-center justify-between py-1 cursor-pointer"
               >
-                <span className="text-[12px] font-bold text-neu-800">Menetapkan</span>
+                <span className="text-[14px] font-bold text-neu-800">Menetapkan</span>
                 {isOpenMenetapkan ? (
                   <ChevronUp className="w-4 h-4 text-neu-400" />
                 ) : (

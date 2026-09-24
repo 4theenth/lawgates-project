@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
-import { ComparisonSection } from '@/data/dummyComparison';
+import { ComparisonSection, ComparisonRow } from '@/types/comparison';
+import { diffWordsWithSpace } from 'diff';
 
 export interface ComparisonTableProps {
   leftTitle: string;
@@ -13,35 +14,108 @@ export function ComparisonTable({
   rightTitle,
   sections,
 }: ComparisonTableProps) {
-  const renderCellContent = (
-    value: string | string[] | React.ReactNode,
-    diffType?: 'normal' | 'deleted' | 'added' | 'modified'
+  // Helper render konten cell menggunakan library diff
+  const renderCell = (
+    row: ComparisonRow,
+    isRight: boolean
   ) => {
-    if (React.isValidElement(value)) {
-      return value;
+    const rawVal = isRight ? row.rightValue : row.leftValue;
+    if (React.isValidElement(rawVal)) {
+      return rawVal;
     }
 
-    const textColorClass =
-      diffType === 'deleted'
-        ? 'text-red-600'
-        : diffType === 'added'
-        ? 'text-emerald-600'
-        : 'text-gray-700';
+    const leftStr = Array.isArray(row.leftValue) ? row.leftValue.join("\n") : String(row.leftValue || '');
+    const rightStr = Array.isArray(row.rightValue) ? row.rightValue.join("\n") : String(row.rightValue || '');
+    const currentStr = isRight ? rightStr : leftStr;
 
-    if (Array.isArray(value)) {
+    if (!currentStr || currentStr.trim() === '') {
+      return <span className="text-gray-400 text-xs italic">-</span>;
+    }
+
+    const diffType = isRight ? row.rightDiffType : row.leftDiffType;
+    const isModified = row.leftDiffType === 'modified' || row.rightDiffType === 'modified';
+
+    // 1. Jika baris dimodifikasi (modified): gunakan library diff untuk menandai kata
+    if (isModified && leftStr.trim() !== '' && rightStr.trim() !== '') {
+      // Hitung diff menggunakan library diff
+      const changes = diffWordsWithSpace(leftStr, rightStr);
+
+      if (!isRight) {
+        // Kolom KIRI (Dokumen Acuan Awal): teks merah dengan sorotan kata yang diubah/dihapus
+        return (
+          <div className="text-xs leading-relaxed text-red-600 font-normal whitespace-pre-line">
+            {changes.map((part, index) => {
+              if (part.added) {
+                // Bagian yang hanya ada di kanan tidak ditampilkan di sisi kiri
+                return null;
+              }
+              if (part.removed) {
+                // Kata yang dihapus/diubah dari dokumen acuan awal
+                return (
+                  <span
+                    key={index}
+                    className="bg-red-100/90 text-red-700 font-semibold px-0.5 rounded"
+                  >
+                    {part.value}
+                  </span>
+                );
+              }
+              // Kata yang tetap sama tapi termasuk dalam pasal yang diubah (merah sesuai desain)
+              return <span key={index}>{part.value}</span>;
+            })}
+          </div>
+        );
+      } else {
+        // Kolom KANAN (Dokumen Yang Dibandingkan): teks hijau dengan sorotan kata yang ditambah
+        return (
+          <div className="text-xs leading-relaxed text-emerald-600 font-normal whitespace-pre-line">
+            {changes.map((part, index) => {
+              if (part.removed) {
+                // Bagian yang dihapus dari kiri tidak ditampilkan di sisi kanan
+                return null;
+              }
+              if (part.added) {
+                // Kata yang baru ditambahkan di dokumen pengubah
+                return (
+                  <span
+                    key={index}
+                    className="bg-emerald-100/90 text-emerald-800 font-bold px-0.5 rounded underline decoration-emerald-400"
+                  >
+                    {part.value}
+                  </span>
+                );
+              }
+              // Kata yang tetap sama dalam rumusan baru (hijau sesuai desain)
+              return <span key={index}>{part.value}</span>;
+            })}
+          </div>
+        );
+      }
+    }
+
+    // 2. Jika baris ditambahkan (added) sepenuhnya (misal Pasal 24A)
+    if (diffType === 'added') {
       return (
-        <div className={`space-y-1.5 sm:space-y-2 text-xs leading-relaxed ${textColorClass}`}>
-          {value.map((line, idx) => (
-            <p key={idx}>{line}</p>
-          ))}
+        <div className="text-xs leading-relaxed text-emerald-600 font-normal whitespace-pre-line">
+          {currentStr}
         </div>
       );
     }
 
+    // 3. Jika baris dihapus (deleted) sepenuhnya
+    if (diffType === 'deleted') {
+      return (
+        <div className="text-xs leading-relaxed text-red-600 line-through opacity-85 whitespace-pre-line">
+          {currentStr}
+        </div>
+      );
+    }
+
+    // 4. Baris normal / tidak berubah
     return (
-      <p className={`text-xs leading-relaxed ${textColorClass}`}>
-        {value}
-      </p>
+      <div className="text-xs leading-relaxed text-gray-700 font-normal whitespace-pre-line">
+        {currentStr}
+      </div>
     );
   };
 
@@ -60,7 +134,7 @@ export function ComparisonTable({
 
       <div className="w-full overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[620px] sm:min-w-[700px]">
-          {/* Header Tabel Dark Navy */}
+          {/* Header Tabel Dark Navy Sesuai Desain */}
           <thead>
             <tr className="bg-[#0A1C3E] text-white">
               <th className="sticky left-0 bg-[#0A1C3E] z-20 py-3 sm:py-3.5 px-3.5 sm:px-5 text-xs font-semibold w-[140px] sm:w-[22%] tracking-wide border-r border-white/10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.25)]">
@@ -78,7 +152,7 @@ export function ComparisonTable({
           <tbody>
             {sections.map((section, sIdx) => (
               <React.Fragment key={sIdx}>
-                {/* Judul Kategori Section */}
+                {/* Judul Kategori Section Sesuai Desain */}
                 <tr className="bg-gray-50/90 border-t border-b border-gray-100">
                   <td
                     colSpan={3}
@@ -111,19 +185,27 @@ export function ComparisonTable({
                               {(row.parameter as string).split('|')[1].trim()}
                             </span>
                           </span>
+                        ) : row.leftDiffType === 'modified' || row.leftDiffType === 'deleted' ? (
+                          <span className="text-red-500 font-semibold">
+                            {row.parameter}
+                          </span>
+                        ) : row.rightDiffType === 'added' ? (
+                          <span className="text-emerald-600 font-semibold">
+                            {row.parameter}
+                          </span>
                         ) : (
                           row.parameter
                         )}
                       </td>
 
-                      {/* Kolom Nilai Dokumen 1 */}
+                      {/* Kolom Nilai Dokumen 1 (Acuan Awal) */}
                       <td className="py-3 sm:py-3.5 px-3.5 sm:px-5 align-top">
-                        {renderCellContent(row.leftValue, row.leftDiffType)}
+                        {renderCell(row, false)}
                       </td>
 
-                      {/* Kolom Nilai Dokumen 2 */}
+                      {/* Kolom Nilai Dokumen 2 (Yang Mau Dibandingkan) */}
                       <td className="py-3 sm:py-3.5 px-3.5 sm:px-5 align-top">
-                        {renderCellContent(row.rightValue, row.rightDiffType)}
+                        {renderCell(row, true)}
                       </td>
                     </tr>
                   );

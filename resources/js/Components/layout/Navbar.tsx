@@ -31,7 +31,10 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
     if (isIndex || path === '/') {
       return url === '/' || url === '';
     }
-    return url === path || url.startsWith(`${path}/`);
+    if (path === '#' || !path) {
+      return false;
+    }
+    return url === path || (path !== '/' && url.startsWith(`${path}/`));
   };
 
   const isHome = url === '/';

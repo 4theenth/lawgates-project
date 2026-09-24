@@ -39,12 +39,15 @@ Route::get('/pencarian', function () {
     return Inertia::render('Pencarian');
 });
 
+Route::redirect('/regulasi', '/pencarian');
+
 Route::get('/bandingkan', function () {
     return Inertia::render('Bandingkan');
 });
 
 Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show']);
-Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download']);
+Route::get('/peraturan/{unique_id}/lihat', [PeraturanController::class, 'viewer'])->name('peraturan.viewer');
+Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download'])->name('peraturan.download');
 
 // Referensi filter
 Route::get('/api/referensi-filter', [PeraturanController::class, 'referensiFilter']);
@@ -56,6 +59,7 @@ Route::get('/api/referensi-filter', [PeraturanController::class, 'referensiFilte
 */
 use App\Http\Controllers\Admin\DokumenHukumController;
 use App\Http\Controllers\Admin\KategoriHukumController;
+use App\Http\Controllers\Admin\TeamController;
 
 
 Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(function () {
@@ -81,9 +85,18 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
         return Inertia::render('Admin/DokumenHukum/Create');
     })->name('admin.dokumen-hukum.tambah');
 
+    // Draft Routes
+    Route::get('/dokumen-hukum/draft/{id}', [DokumenHukumController::class, 'showDraft'])->name('admin.dokumen-hukum.draft.show');
+    Route::post('/dokumen-hukum/draft', [DokumenHukumController::class, 'storeDraft'])->name('admin.dokumen-hukum.draft.store');
+    Route::post('/dokumen-hukum/draft/publish', [DokumenHukumController::class, 'publishDraft'])->name('admin.dokumen-hukum.draft.publish');
+    Route::post('/dokumen-hukum/draft/bulk-delete', [DokumenHukumController::class, 'bulkDeleteDraft'])->name('admin.dokumen-hukum.draft.bulk-delete');
+
     // MinIO Sync Routes
     Route::get('/dokumen-hukum/minio/scan', [DokumenHukumController::class, 'scanMinio'])->name('admin.dokumen-hukum.minio.scan');
     Route::post('/dokumen-hukum/minio/import', [DokumenHukumController::class, 'importFromMinio'])->name('admin.dokumen-hukum.minio.import');
+
+    // Users & Team Management Routes
+    Route::get('/users/tim', [TeamController::class, 'index'])->name('admin.users.tim');
 });
 
 /*
