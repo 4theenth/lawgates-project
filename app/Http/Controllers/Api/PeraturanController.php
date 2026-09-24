@@ -101,6 +101,12 @@ class PeraturanController extends Controller
             ]));
         }
 
+        // Jika diminta inline oleh iframe dan file tidak ada, JANGAN redirect()->back()
+        // karena redirect di dalam iframe akan me-load parent page di dalam iframe (nested / double loop)!
+        if (request()->has('inline') && request('inline') == '1') {
+            return response('Dokumen PDF tidak tersedia di server penyimpanan MinIO.', 404);
+        }
+
         return redirect()->back()->with('error', 'Dokumen PDF tidak tersedia di server penyimpanan MinIO.');
     }
 
@@ -115,11 +121,16 @@ class PeraturanController extends Controller
         ->where('unique_id', $unique_id)
         ->firstOrFail();
 
-        $pdfUrl = url("/peraturan/{$unique_id}/download?inline=1");
+        // Cek ketersediaan dokumen: apakah sudah di cache atau ada di MinIO
+        $localPath = DocumentStorageService::getCachedOrDownload($peraturan);
+        $hasPdf = ($localPath && file_exists($localPath) && filesize($localPath) > 1024);
+
+        $pdfUrl = $hasPdf ? url("/peraturan/{$unique_id}/download?inline=1") : null;
 
         return inertia('Viewer/DokumenViewer', [
             'peraturan' => $peraturan,
             'pdfUrl'    => $pdfUrl,
+            'hasPdf'    => $hasPdf,
         ]);
     }
 

@@ -6,7 +6,8 @@ import { useToast } from '@/hooks/useToast';
 
 interface DokumenViewerProps {
   peraturan: any;
-  pdfUrl: string;
+  pdfUrl?: string | null;
+  hasPdf?: boolean;
 }
 
 const formatTanggal = (dateString?: string) => {
@@ -20,7 +21,7 @@ const formatTanggal = (dateString?: string) => {
   }).format(date);
 };
 
-export default function DokumenViewer({ peraturan, pdfUrl }: DokumenViewerProps) {
+export default function DokumenViewer({ peraturan, pdfUrl, hasPdf }: DokumenViewerProps) {
   const { flash } = usePage<any>().props;
   const { toast } = useToast();
 
@@ -31,10 +32,17 @@ export default function DokumenViewer({ peraturan, pdfUrl }: DokumenViewerProps)
     if (flash?.success) {
       toast.success(flash.success);
     }
-  }, [flash]);
+    if (hasPdf === false) {
+      toast.error('Dokumen PDF belum tersedia di penyimpanan MinIO.');
+    }
+  }, [flash, hasPdf]);
 
   // Handler download langsung di halaman yang sama tanpa redirect / tab baru
   const handleDownload = () => {
+    if (!hasPdf || !pdfUrl) {
+      toast.error('Dokumen PDF belum tersedia di penyimpanan MinIO.');
+      return;
+    }
     const link = document.createElement('a');
     link.href = `/peraturan/${peraturan.unique_id}/download`;
     link.setAttribute('download', '');
@@ -65,13 +73,15 @@ export default function DokumenViewer({ peraturan, pdfUrl }: DokumenViewerProps)
             onDownload={handleDownload}
           />
 
-          {/* Frame PDF Viewer Embed: Hanya PDF tanpa toolbar internal */}
+          {/* Layar PDF Viewer: Jika dokumen ada tampilkan PDF, jika belum ada biarkan abu-abu saja */}
           <div className="w-full mt-6 sm:mt-8 bg-[#525659] rounded-2xl sm:rounded-3xl shadow-md border border-gray-200 overflow-hidden relative h-[85vh] min-h-[750px] max-h-[1200px]">
-            <iframe
-              src={`${pdfUrl}#toolbar=0&navpanes=0`}
-              className="w-full h-full border-none block"
-              title={`Dokumen PDF ${peraturan.judul}`}
-            />
+            {hasPdf && pdfUrl && (
+              <iframe
+                src={`${pdfUrl}#toolbar=0&navpanes=0`}
+                className="w-full h-full border-none block"
+                title={`Dokumen PDF ${peraturan.judul}`}
+              />
+            )}
           </div>
         </div>
       </div>
