@@ -33,8 +33,8 @@ export default function Pencarian() {
   // State pencarian & filter
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKategori, setSelectedKategori] = useState<string[]>([]);
-  const [tahunDari, setTahunDari] = useState('2020');
-  const [tahunSampai, setTahunSampai] = useState('2026');
+  const [tahunDari, setTahunDari] = useState('');
+  const [tahunSampai, setTahunSampai] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [sort, setSort] = useState('relevansi');
 
@@ -130,8 +130,8 @@ export default function Pencarian() {
       setTahunDari(yearParam);
       setTahunSampai(yearParam);
     } else {
-      setTahunDari('2020');
-      setTahunSampai('2026');
+      setTahunDari('');
+      setTahunSampai('');
     }
 
     setSort(params.get('sort') || 'relevansi');
@@ -272,8 +272,8 @@ export default function Pencarian() {
     searchQuery.trim() !== '' ||
     selectedKategori.length > 0 ||
     selectedStatus.length > 0 ||
-    tahunDari !== '2020' ||
-    tahunSampai !== '2026' ||
+    tahunDari !== '' ||
+    tahunSampai !== '' ||
     sort !== 'relevansi' ||
     perPage !== 10;
 
@@ -299,8 +299,8 @@ export default function Pencarian() {
 
     setSearchQuery('');
     setSelectedKategori([]);
-    setTahunDari('2020');
-    setTahunSampai('2026');
+    setTahunDari('');
+    setTahunSampai('');
     setSelectedStatus([]);
     setSort('relevansi');
     setPerPage(10);
@@ -439,7 +439,7 @@ export default function Pencarian() {
   }
 
   // Teks label trigger Tahun
-  let tahunLabel = 'Semua Tahun';
+  let tahunLabel = 'Semua tahun';
   if (tahunDari && tahunSampai) {
     const y1 = Number(tahunDari);
     const y2 = Number(tahunSampai);
