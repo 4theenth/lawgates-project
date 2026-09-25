@@ -20,12 +20,7 @@ import { DraftNameModal } from '@/Components/admin/DraftNameModal';
 import { Plus, CircleCheckBig, FileBox } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
-const CATEGORY_OPTIONS = [
-  'Undang - Undang',
-  'Putusan Presiden',
-  'Penetapan MPR',
-  'Undang - Undang Darurat',
-];
+import { getAllKategori, KategoriHukum } from '@/services/kategoriService';
 
 // Sample data awal berkas JSON sesuai tangkapan layar Gambar 2
 const INITIAL_SAMPLE_FILES: UploadedJsonFile[] = [
@@ -64,12 +59,41 @@ const INITIAL_VALIDATED_FILES: ValidatedFileItem[] = [
   },
 ];
 
+const NAMA_KATEGORI_MAP: Record<string, string> = {
+  'UU': 'Undang-Undang',
+  'UUDRT': 'Undang-Undang Darurat',
+  'PP': 'Peraturan Pemerintah',
+  'PERPPU': 'Peraturan Pemerintah Pengganti Undang-Undang',
+  'PERPRES': 'Peraturan Presiden',
+  'PERMEN': 'Peraturan Menteri',
+  'KEPPRES': 'Keputusan Presiden',
+  'STAATSBLAD': 'Staatsblad',
+  'TAP MPR': 'Ketetapan MPR',
+  'TAP MPRS': 'Ketetapan MPRS',
+};
+
 export default function DokumenHukumCreate() {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedCategory, setSelectedCategory] = useState('Undang - Undang');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [kategoriOptions, setKategoriOptions] = useState<KategoriHukum[]>([]);
+  const [detectedCategory, setDetectedCategory] = useState<string | null>(null);
+  const [isNewCategory, setIsNewCategory] = useState(false);
   // Mulai kosong tanpa data contoh bawaan agar sesuai saat pengguna mengunggah JSON
   const [uploadedFiles, setUploadedFiles] = useState<UploadedJsonFile[]>([]);
+
+  // Ambil daftar kategori dari server
+  useEffect(() => {
+    const fetchKategori = async () => {
+      try {
+        const data = await getAllKategori();
+        setKategoriOptions(data);
+      } catch (error) {
+        console.error('Gagal mengambil kategori', error);
+      }
+    };
+    fetchKategori();
+  }, []);
 
   // State untuk proses ekstraksi Langkah 2
   const [processList, setProcessList] = useState<ProcessedFileItem[]>([]);
@@ -173,6 +197,39 @@ export default function DokumenHukumCreate() {
           const text = await file.text();
           const cleanText = text.replace(/^\uFEFF/, '').trim();
           parsedData = JSON.parse(cleanText);
+
+          // Coba deteksi kategori dari file pertama yang valid
+          if (idx === 0 && parsedData?.metadata) {
+            let detected = 
+              parsedData.metadata.tipe_peraturan || 
+              parsedData.metadata.kategori || 
+              parsedData.metadata.jenis;
+            
+            if (detected) {
+              const upperDet = detected.toUpperCase().trim();
+              if (NAMA_KATEGORI_MAP[upperDet]) {
+                detected = NAMA_KATEGORI_MAP[upperDet];
+              }
+
+              // Update data JSON agar form panjang yang akan disimpan ke backend
+              parsedData.metadata.tipe_peraturan = detected;
+
+              setDetectedCategory(detected);
+              // Cek apakah kategori yang terdeteksi sudah ada di database (case insensitive)
+              const existingCat = kategoriOptions.find(
+                (k) => k.nama.toLowerCase() === detected.toLowerCase() || 
+                       k.kode.toLowerCase() === detected.toLowerCase()
+              );
+              setIsNewCategory(!existingCat);
+              
+              if (existingCat) {
+                setSelectedCategory(existingCat.nama);
+              } else {
+                setSelectedCategory(detected);
+              }
+            }
+          }
+
         } catch (e) {
           console.warn('File is not JSON', e);
           fileError = 'Format berkas tidak valid (bukan format JSON yang benar).';
@@ -439,6 +496,9 @@ export default function DokumenHukumCreate() {
     setEditingDraftId(null);
     setEditingDraftName('');
     setInlineError(null);
+    setDetectedCategory(null);
+    setIsNewCategory(false);
+    setSelectedCategory('');
     setCurrentStep(1);
   };
 
@@ -553,7 +613,9 @@ export default function DokumenHukumCreate() {
               onRemoveFile={handleRemoveUploadedFile}
               selectedCategory={selectedCategory}
               onCategoryChange={setSelectedCategory}
-              categoryOptions={CATEGORY_OPTIONS}
+              categoryOptions={kategoriOptions}
+              detectedCategory={detectedCategory}
+              isNewCategory={isNewCategory}
               onStartImport={handleStartImport}
               errorMessage={inlineError}
               onClearError={() => setInlineError(null)}

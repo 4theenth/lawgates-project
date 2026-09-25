@@ -29,10 +29,27 @@ class DocumentImportService
         DB::beginTransaction();
         try {
             // 1. METADATA: Jenis & Status
-            $jenis = JenisPeraturan::firstOrCreate(
-                ['kode' => $data['metadata']['tipe_peraturan']], 
-                ['nama' => $data['metadata']['tipe_peraturan']]
-            );
+            $tipePeraturan = $data['metadata']['tipe_peraturan'];
+            $jenis = JenisPeraturan::whereRaw('LOWER(nama) = ?', [strtolower($tipePeraturan)])
+                                  ->orWhereRaw('LOWER(kode) = ?', [strtolower($tipePeraturan)])
+                                  ->first();
+            
+            if (!$jenis) {
+                // Buat singkatan otomatis untuk kode (misal "Undang-Undang Darurat" -> "UUD")
+                $words = preg_split('/[\s\-]+/', trim($tipePeraturan));
+                $initials = '';
+                foreach ($words as $w) {
+                    if (!empty($w)) {
+                        $initials .= strtoupper(substr($w, 0, 1));
+                    }
+                }
+                $kode = substr($initials, 0, 10) ?: 'KAT';
+
+                $jenis = JenisPeraturan::create([
+                    'kode' => $kode,
+                    'nama' => $tipePeraturan
+                ]);
+            }
 
             $status = Status::firstOrCreate(
                 ['nama_status' => $data['metadata']['status']]
@@ -413,7 +430,10 @@ class DocumentImportService
             $kode = 'STAATSBLAD';
         }
 
-        $jenis = \App\Models\JenisPeraturan::firstOrCreate(['kode' => $kode], ['nama' => $kode]);
+        $jenis = \App\Models\JenisPeraturan::whereRaw('LOWER(kode) = ?', [strtolower($kode)])->first();
+        if (!$jenis) {
+            $jenis = \App\Models\JenisPeraturan::create(['kode' => $kode, 'nama' => $kode]);
+        }
         return $jenis->id;
     }
 }
