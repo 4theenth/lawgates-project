@@ -37,25 +37,33 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
     return url === path || (path !== '/' && url.startsWith(`${path}/`));
   };
 
-  const isHome = url === '/';
-  const isPill = isScrolled || !isHome;
-  const theme = isPill ? NAVBAR_THEME.scrolled : NAVBAR_THEME.default;
+  const isHome = url === '/' || url.startsWith('/?');
+  const isPill = isScrolled;
+  const isLightPage = !isHome;
+  const theme = isLightPage || isPill ? NAVBAR_THEME.scrolled : NAVBAR_THEME.default;
 
   return (
     <>
-      <header className="fixed top-0 left-0 w-full z-50 h-[74px] flex items-center justify-center pointer-events-none bg-transparent">
+      <header
+        className={`fixed top-0 left-0 w-full z-50 h-[74px] flex items-center justify-center transition-all duration-500 ease-in-out ${
+          !isScrolled && isLightPage
+            ? 'bg-white border-b border-gray-100/90 shadow-2xs pointer-events-auto'
+            : 'bg-transparent border-transparent shadow-none pointer-events-none'
+        }`}
+      >
         {/* Floating pill container (transitions width, height, glass background, border, shadow) */}
         <div
-          className={`relative flex items-center justify-between mx-auto transition-all duration-500 ease-in-out pointer-events-auto ${isPill
+          className={`relative flex items-center justify-between mx-auto transition-all duration-500 ease-in-out pointer-events-auto ${
+            isPill
               ? 'h-[59px] w-[calc(100%-24px)] sm:w-[calc(100%-32px)] max-w-[1120px] bg-white/90 sm:bg-white/80 backdrop-blur-[16px] border border-white/60 rounded-full shadow-[0px_4px_24px_-2px_rgba(0,0,0,0.08)] px-4 sm:px-6 lg:px-8'
               : 'h-[74px] w-full max-w-[1202px] px-4 sm:px-6 xl:px-0 bg-transparent border-transparent shadow-none'
-            }`}
+          }`}
         >
           {/* Brand Logo - slides inward toward the center menu when container narrows */}
           <Link href="/" className="flex items-center gap-2 z-10 transition-transform duration-500">
             <ApplicationLogo
               className={`h-[26px] w-auto transition-colors duration-300 ${
-                !isPill ? 'text-white' : 'text-pr-900'
+                !isPill && isHome ? 'text-white' : 'text-pr-900'
               }`}
             />
           </Link>
@@ -78,9 +86,9 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                   </button>
                 </Dropdown.Trigger>
 
-                <Dropdown.Content width="48" contentClasses="p-1 bg-white border border-neu-100 rounded-xl shadow-xl">
+                <Dropdown.Content width="56" contentClasses="p-1.5 bg-white border border-neu-200 rounded-2xl shadow-xl">
                   {/* Header User Info */}
-                  <div className="px-3.5 py-2.5 border-b border-neu-50 select-none">
+                  <div className="px-3.5 py-2.5 border-b border-neu-100 select-none">
                     <p className="text-[13px] font-semibold text-neu-900 truncate">
                       {displayName}
                     </p>
@@ -128,7 +136,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
             ) : (
               <Link
                 href="/login"
-                className="flex items-center gap-2 bg-pr-900 hover:bg-pr-800 border border-pr-800 text-white px-4 py-2 rounded-xl text-xs font-semibold tracking-wider transition-all shadow-sm"
+                className="flex items-center gap-2 bg-pr-900 hover:bg-pr-800 border border-pr-800 text-white px-5 py-2 rounded-full text-xs font-semibold tracking-wider transition-all shadow-sm"
               >
                 <span>LOGIN</span>
                 <LogIn className="w-3.5 h-3.5 text-white" />

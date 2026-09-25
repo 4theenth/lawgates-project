@@ -23,18 +23,7 @@ const formatTanggal = (dateString: string) => {
 };
 
 export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
-  const { flash } = usePage<any>().props;
   const { toast } = useToast();
-
-  // Tampilkan toast jika ada flash message dari backend (misal: gagal download)
-  useEffect(() => {
-    if (flash?.error) {
-      toast.error(flash.error);
-    }
-    if (flash?.success) {
-      toast.success(flash.success);
-    }
-  }, [flash]);
 
   // Scroll to top state
   const [showScrollTop, setShowScrollTop] = useState(false);
