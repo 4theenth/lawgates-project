@@ -343,7 +343,7 @@ class DokumenHukumController extends Controller
                 }
             } catch (\Exception $e) {
                 \Log::error("Import OCR Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-                $errors[] = $e->getMessage();
+                $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
             }
         }
 
@@ -546,7 +546,7 @@ class DokumenHukumController extends Controller
             \Log::error('Update Dokumen Hukum Error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal memperbarui data hukum: ' . $e->getMessage()
+                'message' => 'Gagal memperbarui data hukum. Silakan periksa kembali data yang dimasukkan atau hubungi administrator.'
             ], 500);
         }
     }
@@ -806,7 +806,7 @@ class DokumenHukumController extends Controller
             \Log::error("MinIO Scan Error: " . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal memindai MinIO: ' . $e->getMessage()
+                'message' => 'Gagal memindai penyimpanan dokumen hukum. Silakan periksa konfigurasi penyimpanan atau hubungi administrator.'
             ], 500);
         }
     }
@@ -860,7 +860,7 @@ class DokumenHukumController extends Controller
             \Log::error("MinIO Import Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => 'Terjadi kesalahan sistem saat mengimpor dokumen hukum dari penyimpanan.'
             ], 500);
         }
     }

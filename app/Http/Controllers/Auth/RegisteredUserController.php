@@ -80,7 +80,7 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect('/');
+        return redirect('/')->with('success', 'Pendaftaran berhasil! Selamat datang di LawGates');
     }
 
     /**

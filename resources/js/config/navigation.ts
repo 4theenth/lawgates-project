@@ -55,11 +55,11 @@ export const NAVBAR_THEME = {
   },
   // Kondisi Di-scroll (Background Kaca / Bening)
   scrolled: {
-    logo: 'text-neu-900',
-    activeItem: 'text-pr-900 font-semibold',
-    inactiveItem: 'text-neu-900/80 hover:text-neu-900',
-    activeIndicator: 'border-b border-pr-900',
-    hamburger: 'text-neu-900 hover:text-pr-900',
+    logo: 'text-pr-900',
+    activeItem: 'text-sec-900 font-semibold',
+    inactiveItem: 'text-neu-700 hover:text-neu-900',
+    activeIndicator: 'border-b border-sec-900',
+    hamburger: 'text-neu-900 hover:text-sec-900',
   },
   // Fallback kompatibilitas
   activeItem: 'text-sec-900 font-semibold',
