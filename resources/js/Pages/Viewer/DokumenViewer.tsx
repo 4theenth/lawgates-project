@@ -22,20 +22,13 @@ const formatTanggal = (dateString?: string) => {
 };
 
 export default function DokumenViewer({ peraturan, pdfUrl, hasPdf }: DokumenViewerProps) {
-  const { flash } = usePage<any>().props;
   const { toast } = useToast();
 
   useEffect(() => {
-    if (flash?.error) {
-      toast.error(flash.error);
-    }
-    if (flash?.success) {
-      toast.success(flash.success);
-    }
     if (hasPdf === false) {
       toast.error('Dokumen PDF belum tersedia di penyimpanan MinIO.');
     }
-  }, [flash, hasPdf]);
+  }, [hasPdf]);
 
   // Handler download langsung di halaman yang sama tanpa redirect / tab baru
   const handleDownload = () => {
