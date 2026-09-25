@@ -63,8 +63,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ showToast, removeToast, toast }}>
       {children}
 
-      {/* Floating Container di Atas Tengah Layar */}
-      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2.5 pointer-events-none">
+      {/* Floating Container di Kanan Atas Layar */}
+      <div className="fixed top-5 right-4 sm:right-6 z-[9999] flex flex-col items-end gap-2.5 pointer-events-none max-w-[calc(100vw-2rem)]">
         {toasts.map((item) => (
           <Toast key={item.id} toast={item} onClose={removeToast} />
         ))}

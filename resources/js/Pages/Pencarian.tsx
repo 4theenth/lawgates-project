@@ -33,14 +33,15 @@ export default function Pencarian() {
   // State pencarian & filter
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKategori, setSelectedKategori] = useState<string[]>([]);
-  const [tahunDari, setTahunDari] = useState('2020');
-  const [tahunSampai, setTahunSampai] = useState('2026');
+  const [tahunDari, setTahunDari] = useState('');
+  const [tahunSampai, setTahunSampai] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [sort, setSort] = useState('relevansi');
 
   // State tampilan
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const [activeDropdown, setActiveDropdown] = useState<'kategori' | 'tahun' | 'status' | null>(null);
+  const [isResetSpinning, setIsResetSpinning] = useState(false);
 
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isPerPageOpen, setIsPerPageOpen] = useState(false);
@@ -65,6 +66,7 @@ export default function Pencarian() {
   const sortRef = useRef<HTMLDivElement>(null);
   const perPageRef = useRef<HTMLDivElement>(null);
   const yearSubRef = useRef<HTMLDivElement>(null);
+  const lastFetchedQueryRef = useRef<string | null>(null);
 
   // 1. Ambil data referensi filter saat dimuat
   useEffect(() => {
@@ -78,18 +80,46 @@ export default function Pencarian() {
       .catch((err) => console.error('Gagal memuat referensi:', err));
   }, []);
 
-  // 2. Sinkronisasi dengan URL search params saat pertama kali dimuat
-  useEffect(() => {
+  const updateBrowserUrl = (queryString: string) => {
+    if (typeof window === 'undefined') return;
+    const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+    const currentState = window.history.state;
+    if (currentState && typeof currentState === 'object' && currentState.page) {
+      window.history.replaceState(
+        {
+          ...currentState,
+          page: {
+            ...currentState.page,
+            url: newUrl,
+          },
+        },
+        '',
+        newUrl
+      );
+    } else {
+      window.history.replaceState(currentState, '', newUrl);
+    }
+  };
+
+  const syncWithUrlParams = () => {
     const params = new URLSearchParams(window.location.search);
 
     const initialKeyword = params.get('keyword') || params.get('q') || '';
     setSearchQuery(initialKeyword);
 
     const catParam = params.get('kategori_id') || params.get('kategori') || '';
-    if (catParam) setSelectedKategori(catParam.split(',').filter(Boolean));
+    if (catParam) {
+      setSelectedKategori(catParam.split(',').filter(Boolean));
+    } else {
+      setSelectedKategori([]);
+    }
 
     const statusParam = params.get('status_id') || params.get('status') || '';
-    if (statusParam) setSelectedStatus(statusParam.split(',').filter(Boolean));
+    if (statusParam) {
+      setSelectedStatus(statusParam.split(',').filter(Boolean));
+    } else {
+      setSelectedStatus([]);
+    }
 
     const yearParam = params.get('tahun') || '';
     if (yearParam.includes('-')) {
@@ -99,6 +129,9 @@ export default function Pencarian() {
     } else if (yearParam) {
       setTahunDari(yearParam);
       setTahunSampai(yearParam);
+    } else {
+      setTahunDari('2020');
+      setTahunSampai('2026');
     }
 
     setSort(params.get('sort') || 'relevansi');
@@ -109,6 +142,20 @@ export default function Pencarian() {
     setPerPage(urlPerPage);
 
     fetchData(params.toString());
+  };
+
+  // 2. Sinkronisasi dengan URL search params saat pertama kali dimuat dan navigasi browser (popstate)
+  useEffect(() => {
+    syncWithUrlParams();
+
+    const handlePopState = () => {
+      syncWithUrlParams();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
 
   // Tutup dropdown sort, pagination, dan filter saat klik di luar
@@ -132,6 +179,7 @@ export default function Pencarian() {
   }, []);
 
   const fetchData = (queryString: string) => {
+    lastFetchedQueryRef.current = queryString;
     setIsSearching(true);
     fetch(`/api/search?${queryString}`)
       .then((res) => res.json())
@@ -205,7 +253,7 @@ export default function Pencarian() {
     if (currentPerPage) params.set('per_page', currentPerPage.toString());
     if (page > 1) params.set('page', page.toString());
 
-    window.history.pushState(null, '', `?${params.toString()}`);
+    updateBrowserUrl(params.toString());
     fetchData(params.toString());
   };
 
@@ -220,19 +268,52 @@ export default function Pencarian() {
     applyFilters({ page: 1 });
   };
 
+  const isFormDirty =
+    searchQuery.trim() !== '' ||
+    selectedKategori.length > 0 ||
+    selectedStatus.length > 0 ||
+    tahunDari !== '2020' ||
+    tahunSampai !== '2026' ||
+    sort !== 'relevansi' ||
+    perPage !== 10;
+
+  const isDataFiltered =
+    (lastFetchedQueryRef.current !== null && lastFetchedQueryRef.current !== '') ||
+    (typeof window !== 'undefined' && Boolean(window.location.search && window.location.search !== '?')) ||
+    currentPage > 1;
+
   const handleResetFilter = () => {
+    // Jalankan animasi putar halus setiap kali tombol diklik
+    setIsResetSpinning(false);
+    requestAnimationFrame(() => {
+      setIsResetSpinning(true);
+    });
+
+    if (isSearching) return;
+
+    // Jika form sudah dalam keadaan default DAN data yang tampil sudah data default (tidak ada filter aktif)
+    // Jangan lakukan fetch atau tampilkan loading kembali meskipun tombol di-klik berulang kali
+    if (!isFormDirty && !isDataFiltered) {
+      return;
+    }
+
     setSearchQuery('');
     setSelectedKategori([]);
-    setTahunDari('2020');
-    setTahunSampai('2026');
+    setTahunDari('');
+    setTahunSampai('');
     setSelectedStatus([]);
     setSort('relevansi');
     setPerPage(10);
+    setCurrentPage(1);
     setOpenYearSub({ dari: true, sampai: true });
     setActiveDropdown(null);
 
-    window.history.pushState(null, '', window.location.pathname);
-    fetchData('');
+    updateBrowserUrl('');
+
+    // Hanya ambil data default jika data saat ini memang terfilter/berbeda
+    if (isDataFiltered) {
+      fetchData('');
+    }
   };
 
   const handleSortChange = (newSort: string) => {
@@ -358,7 +439,7 @@ export default function Pencarian() {
   }
 
   // Teks label trigger Tahun
-  let tahunLabel = 'Semua Tahun';
+  let tahunLabel = 'Semua tahun';
   if (tahunDari && tahunSampai) {
     const y1 = Number(tahunDari);
     const y2 = Number(tahunSampai);
@@ -444,11 +525,14 @@ export default function Pencarian() {
                   </button>
                   <button
                     onClick={handleResetFilter}
-                    className="text-gray-500 hover:text-gray-800 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                    className="text-gray-500 hover:text-gray-800 p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-all cursor-pointer"
                     title="Reset Filter"
                     type="button"
                   >
-                    <RotateCcw className="w-4 h-4" />
+                    <RotateCcw
+                      className={`w-4 h-4 ${isResetSpinning ? 'animate-smooth-spin' : ''}`}
+                      onAnimationEnd={() => setIsResetSpinning(false)}
+                    />
                   </button>
                 </div>
 

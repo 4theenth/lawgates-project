@@ -329,8 +329,21 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       const isWaitingImport = rawJudul.toLowerCase().includes('menunggu import');
       const hasUniqueId = Boolean(toPeraturan?.unique_id);
 
-      // Dokumen belum ada / belum ditambahkan ke database jika to_peraturan null, atau menunggu import, atau tidak ada unique_id
-      const isAvailable = Boolean(toPeraturan && !isWaitingImport && hasUniqueId);
+      // Pengecekan ketat: Dokumen benar-benar tersedia HANYA jika memiliki pembukaan DAN pasal,
+      // tidak sedang menunggu import, dan memiliki unique_id yang valid.
+      const hasPembukaan = Boolean(
+        toPeraturan?.has_pembukaan ?? (toPeraturan?.pembukaan_count && toPeraturan.pembukaan_count > 0)
+      );
+      const hasPasal = Boolean(
+        toPeraturan?.has_pasal ?? (toPeraturan?.pasal_count && toPeraturan.pasal_count > 0)
+      );
+
+      const isAvailable = Boolean(
+        toPeraturan &&
+        !isWaitingImport &&
+        hasUniqueId &&
+        (toPeraturan.is_available ?? (hasPembukaan && hasPasal))
+      );
 
       // Bersihkan teks "Menunggu import dokumen: xxx" agar menjadi judul peraturan yang rapi sesuai desain
       let displayJudul = rawJudul || rel.to_peraturan_id || 'Peraturan Terkait';
@@ -473,6 +486,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
               {/* Kolom Tengah: Isi Peraturan (Sticky, Scrollable, Lebih Panjang Sedikit dari Kolom Kiri & Kanan) */}
               <div 
                 id="scrollable-content"
+                scroll-region="true"
                 className="flex-1 min-w-0 w-full space-y-4 lg:sticky lg:top-28 lg:h-[calc(100vh-105px)] lg:overflow-y-auto lg:pr-2.5 custom-scrollbar scroll-smooth pb-12"
               >
                 <ReadonlyPembukaanSection
