@@ -15,6 +15,8 @@ interface ReadonlyTableOfContentsProps {
   onNavigateToPasal?: (id: string) => void;
   onNavigateToPembukaan?: () => void;
   onNavigateToSection?: (id: string) => void;
+  hideHeader?: boolean;
+  className?: string;
 }
 
 function TocPasalNode({ 
@@ -157,6 +159,8 @@ export function ReadonlyTableOfContents({
   onNavigateToPasal,
   onNavigateToPembukaan,
   onNavigateToSection,
+  hideHeader = false,
+  className = '',
 }: ReadonlyTableOfContentsProps) {
   const [expandedBabs, setExpandedBabs] = React.useState<Record<string, boolean>>({});
 
@@ -165,13 +169,15 @@ export function ReadonlyTableOfContents({
   };
 
   return (
-    <div className="w-full shrink-0 bg-white rounded-[20px] border border-neu-100 p-4 xl:p-5 shadow-2xs lg:h-[calc(100vh-160px)] flex flex-col">
-      <div className="flex items-center gap-3 pb-4 mb-4 border-b border-neu-50 shrink-0">
-        <Menu className="w-5 h-5 text-neu-700" />
-        <h3 className="font-sans text-[14px] font-bold text-neu-900 tracking-wide">
-          DAFTAR ISI
-        </h3>
-      </div>
+    <div className={`w-full shrink-0 bg-white rounded-[20px] border border-neu-200 p-4 xl:p-5 lg:h-[calc(100vh-160px)] flex flex-col ${className}`}>
+      {!hideHeader && (
+        <div className="flex items-center gap-3 pb-4 mb-4 border-b border-neu-100 shrink-0">
+          <Menu className="w-5 h-5 text-neu-700" />
+          <h3 className="font-sans text-[14px] font-bold text-neu-900 tracking-wide">
+            DAFTAR ISI
+          </h3>
+        </div>
+      )}
 
       <nav className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
         {/* Navigasi Pembukaan */}
