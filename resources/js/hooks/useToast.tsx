@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { router } from '@inertiajs/react';
 import { Toast, ToastItem, ToastType } from '@/Components/common/Toast';
+
+export type { ToastType };
 
 export interface ToastOptions {
   id?: string;
@@ -7,6 +10,13 @@ export interface ToastOptions {
   message: string;
   description?: string;
   duration?: number;
+}
+
+export interface FlashProps {
+  success?: string;
+  error?: string;
+  warning?: string;
+  info?: string;
 }
 
 interface ToastContextValue {
@@ -24,8 +34,15 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
+export function ToastProvider({
+  children,
+  initialFlash,
+}: {
+  children: React.ReactNode;
+  initialFlash?: FlashProps;
+}) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const processedFlashRef = useRef<string>('');
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -44,20 +61,92 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     ]);
   }, []);
 
-  const toast = {
+  const toast = useMemo(() => ({
     success: (message: string = 'Data berhasil disimpan', description?: string, duration?: number) =>
       showToast({ type: 'success', message, description, duration }),
     delete: (message: string = 'Data berhasil dihapus', description?: string, duration?: number) =>
       showToast({ type: 'delete', message, description, duration }),
     deleted: (message: string = 'Data berhasil dihapus', description?: string, duration?: number) =>
       showToast({ type: 'delete', message, description, duration }),
-    error: (message: string = 'Data gagal disimpan / dihapus', description?: string, duration?: number) =>
-      showToast({ type: 'error', message, description, duration }),
+    error: (message: string = 'Data gagal disimpan / dihapus', description?: string, duration?: number) => {
+      // Sanitasi pesan teknis / stack trace / PHP exception agar tidak pernah bocor ke tampilan user
+      let safeMessage = message;
+      let safeDesc = description;
+      if (
+        typeof safeMessage === 'string' &&
+        (safeMessage.includes('\\') ||
+          safeMessage.includes('League\\Flysystem') ||
+          safeMessage.includes('Exception') ||
+          safeMessage.includes('SQLSTATE') ||
+          safeMessage.includes('Fatal error') ||
+          (safeMessage.toLowerCase().includes('not found') && safeMessage.includes('\\')))
+      ) {
+        console.error('[Technical Error Intercepted]:', safeMessage);
+        safeMessage = 'Terjadi kesalahan sistem saat memproses tindakan Anda.';
+        safeDesc = 'Silakan coba beberapa saat lagi atau hubungi administrator.';
+      }
+      showToast({ type: 'error', message: safeMessage, description: safeDesc, duration });
+    },
     warning: (message: string = 'Perhatian', description?: string, duration?: number) =>
       showToast({ type: 'warning', message, description, duration }),
     info: (message: string = 'Informasi', description?: string, duration?: number) =>
       showToast({ type: 'info', message, description, duration }),
-  };
+  }), [showToast]);
+
+  const handleFlash = useCallback(
+    (flash?: FlashProps) => {
+      if (!flash) return;
+      const key = `${flash.success || ''}:::${flash.error || ''}:::${flash.warning || ''}:::${flash.info || ''}`;
+      if (key === '::::::') return;
+      if (processedFlashRef.current === key) return;
+      processedFlashRef.current = key;
+
+      if (flash.success) {
+        toast.success(flash.success);
+      }
+      if (flash.error) {
+        toast.error(flash.error);
+      }
+      if (flash.warning) {
+        toast.warning(flash.warning);
+      }
+      if (flash.info) {
+        toast.info(flash.info);
+      }
+    },
+    [toast]
+  );
+
+  // Tangani flash pada saat initial page load
+  useEffect(() => {
+    if (initialFlash) {
+      handleFlash(initialFlash);
+    }
+  }, [initialFlash, handleFlash]);
+
+  // Tangani flash otomatis pada setiap visit / redirect Inertia (termasuk logout dan navigasi ke URL yang sama)
+  useEffect(() => {
+    const unregisterSuccess = router.on('success', (event) => {
+      const pageFlash = (event.detail.page.props as any)?.flash as FlashProps | undefined;
+      if (pageFlash && (pageFlash.success || pageFlash.error || pageFlash.warning || pageFlash.info)) {
+        handleFlash(pageFlash);
+      } else {
+        processedFlashRef.current = '';
+      }
+    });
+
+    const unregisterFinish = router.on('finish', () => {
+      // Bersihkan processed key setelah aksi selesai agar flash berikutnya dengan pesan yang sama bisa tampil
+      setTimeout(() => {
+        processedFlashRef.current = '';
+      }, 300);
+    });
+
+    return () => {
+      unregisterSuccess();
+      unregisterFinish();
+    };
+  }, [handleFlash]);
 
   return (
     <ToastContext.Provider value={{ showToast, removeToast, toast }}>

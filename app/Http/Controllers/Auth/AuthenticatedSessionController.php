@@ -35,10 +35,10 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
         if ($user && in_array($user->role, ['admin', 'superadmin'])) {
-            return redirect()->intended(route('admin.dashboard'));
+            return redirect()->intended(route('admin.dashboard'))->with('success', 'Berhasil masuk ke dashboard Admin');
         }
 
-        return redirect()->intended('/');
+        return redirect()->intended('/')->with('success', 'Berhasil masuk ke akun Anda');
     }
 
     /**
@@ -51,6 +51,8 @@ class AuthenticatedSessionController extends Controller
         $request->session()->invalidate();
 
         $request->session()->regenerateToken();
+
+        $request->session()->flash('success', 'Berhasil keluar dari akun');
 
         return redirect('/');
     }
