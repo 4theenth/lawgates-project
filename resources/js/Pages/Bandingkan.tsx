@@ -105,14 +105,14 @@ export default function Bandingkan() {
     <PublicLayout>
       <Head title="Membandingkan Sistem Hukum - LawGates" />
       <div className="w-full bg-[#F8FAFC] min-h-screen">
-        <div className={`pt-20 sm:pt-24 pb-12 sm:pb-16 ${PAGE_CONTAINER} text-gray-900 min-w-0 space-y-6 sm:space-y-7`}>
-          {/* Header Judul Sesuai Desain */}
+        <div className={`pt-20 sm:pt-24 pb-12 sm:pb-16 ${PAGE_CONTAINER} text-neu-900 min-w-0 space-y-6 sm:space-y-7`}>
+          {/* Header Judul Sesuai Desain (16px) */}
           <div>
-            <Breadcrumb items={breadcrumbItems} className="mb-3 text-xs sm:text-sm text-gray-500" />
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0A1931] tracking-tight">
+            <Breadcrumb items={breadcrumbItems} className="mb-3 text-xs text-neu-500" />
+            <h1 className="text-lg font-semibold text-neu-900 tracking-tight">
               Membandingkan Sistem Hukum
             </h1>
-            <p className="mt-1.5 text-xs sm:text-sm text-gray-500">
+            <p className="mt-1 text-xs text-neu-500">
               Pilih sistem hukum yang mau dibandingkan
             </p>
           </div>
@@ -138,9 +138,9 @@ export default function Bandingkan() {
 
           {/* Indikator Loading */}
           {isComparing ? (
-            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-gray-200 shadow-2xs">
-              <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-3" />
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Sedang membandingkan dokumen...</p>
+            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-neu-200">
+              <Loader2 className="w-8 h-8 text-pr-800 animate-spin mb-3" />
+              <p className="text-xs font-normal text-neu-500">Sedang membandingkan dokumen...</p>
             </div>
           ) : comparisonData ? (
             <>
@@ -169,14 +169,14 @@ export default function Bandingkan() {
             </>
           ) : (
             !isLoadingLineage && (
-              <div className="w-full border border-dashed border-gray-300 rounded-2xl bg-white/40 p-12 sm:p-24 flex flex-col items-center justify-center text-center min-h-[380px]">
-                <div className="w-12 h-12 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-400 mb-3.5 shadow-2xs">
-                  <Scale className="w-5 h-5 text-gray-400 stroke-[1.75]" />
+              <div className="w-full border border-dashed border-neu-300 rounded-2xl bg-white/40 p-12 sm:p-24 flex flex-col items-center justify-center text-center min-h-[380px]">
+                <div className="w-12 h-12 rounded-full border border-neu-200 bg-white flex items-center justify-center text-neu-400 mb-3.5">
+                  <Scale className="w-5 h-5 text-neu-400 stroke-[1.75]" />
                 </div>
-                <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-1">
+                <h3 className="text-sm font-medium text-neu-900 mb-1">
                   Belum ada hukum yang dibandingkan
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-400">
+                <p className="text-xs text-neu-400">
                   Silahkan pilih hukum yang ingin dibandingkan
                 </p>
               </div>
