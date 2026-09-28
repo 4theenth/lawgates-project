@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useToast } from '@/hooks/useToast';
+import { Head, router } from '@inertiajs/react';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
-import { ChevronUp, Menu, X } from 'lucide-react';
+import { ChevronUp, X, Maximize2, Move } from 'lucide-react';
 import { ChapterItem, ArticleItem } from '@/Components/admin/import/correctionParser';
 import { ReadonlyTableOfContents } from '@/Components/public/peraturan/ReadonlyTableOfContents';
 import { ReadonlyPembukaanSection } from '@/Components/public/peraturan/ReadonlyPembukaanSection';
 import { ReadonlyBatangTubuhSection } from '@/Components/public/peraturan/ReadonlyBatangTubuhSection';
 import { ReadonlyTimelineSection, ReadonlyTimelineItem } from '@/Components/public/peraturan/ReadonlyTimelineSection';
 import RegulationGraph from '@/Components/peraturan/RegulationGraph';
-import { X, Maximize2, Move } from 'lucide-react';
 
 // Format tanggal ke format Indonesia
 const formatTanggal = (dateString: string) => {
@@ -76,7 +74,9 @@ function DraggableFloatingGraph({ peraturanId, onClose, onExpand }: DraggableFlo
     isDragging.current = false;
     try {
       (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
-    } catch { }
+    } catch {
+      // Ignored pointer capture release if pointer is lost
+    }
   };
 
   if (!isInitialized) return null;
@@ -139,12 +139,8 @@ function DraggableFloatingGraph({ peraturanId, onClose, onExpand }: DraggableFlo
 }
 
 export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
-  const { toast } = useToast();
-
   // Scroll to top state
   const [showScrollTop, setShowScrollTop] = useState(false);
-  // Mobile Table of Contents Drawer State
-  const [isMobileTocOpen, setIsMobileTocOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -516,17 +512,6 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
   // Format dates & active status
   const tanggalPenetapan = peraturan?.tanggal_penetapan ? formatTanggal(peraturan.tanggal_penetapan) : '-';
 
-  // Handler download dokumen di background tanpa reload / tab baru
-  const handleDownload = () => {
-    if (!peraturan?.unique_id) return;
-    const link = document.createElement('a');
-    link.href = `/peraturan/${peraturan.unique_id}/download`;
-    link.setAttribute('download', '');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   // Graph State
   const [showGraph, setShowGraph] = useState(false);
   const [showFloatingPreview, setShowFloatingPreview] = useState(false);
@@ -568,90 +553,103 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
             downloadHref={`/peraturan/${peraturan?.unique_id}/lihat`}
           />
 
-          {/* Layout 3-Kolom: Sesuai Proporsi Form Koreksi Data (Daftar Isi Kiri, Editor Utama Tengah Panjang, Status Kanan) */}
-          <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5 w-full min-w-0">
+          {/* Layout 3-Kolom atau Graph Penuh */}
+          {!showGraph ? (
+            <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5 w-full min-w-0">
 
-            {/* Kolom Kiri: Daftar Isi (Ramping seperti Form Koreksi Data) */}
-            <div className="w-full lg:w-[220px] xl:w-[240px] shrink-0 lg:sticky lg:top-28">
-              <ReadonlyTableOfContents
-                pembukaanJudul="Pembukaan"
-                pembukaanData={pembukaanData}
-                babList={babsState}
-                onNavigateToStruktur={handleNavigateToStruktur}
-                onNavigateToPasal={handleNavigateToPasal}
-                onNavigateToPembukaan={() => {
-                  setIsPembukaanOpen(true);
-                  scrollToElement('section-pembukaan');
-                }}
-                onNavigateToSection={(sectionId) => {
-                  if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
-                  else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
-                  else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
-                  else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
+              {/* Kolom Kiri: Daftar Isi (Ramping seperti Form Koreksi Data) */}
+              <div className="w-full lg:w-[220px] xl:w-[240px] shrink-0 lg:sticky lg:top-28">
+                <ReadonlyTableOfContents
+                  pembukaanJudul="Pembukaan"
+                  pembukaanData={pembukaanData}
+                  babList={babsState}
+                  onNavigateToStruktur={handleNavigateToStruktur}
+                  onNavigateToPasal={handleNavigateToPasal}
+                  onNavigateToPembukaan={() => {
+                    setIsPembukaanOpen(true);
+                    scrollToElement('section-pembukaan');
+                  }}
+                  onNavigateToSection={(sectionId) => {
+                    if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
+                    else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
+                    else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
+                    else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
 
-                  setIsPembukaanOpen(true);
-                  scrollToElement(sectionId);
-                }}
-              />
-            </div>
+                    setIsPembukaanOpen(true);
+                    scrollToElement(sectionId);
+                  }}
+                />
+              </div>
 
-            {/* Kolom Tengah: Isi Peraturan (Sticky, Scrollable, Lebih Panjang Sedikit dari Kolom Kiri & Kanan) */}
-            <div
-              id="scrollable-content"
-              scroll-region="true"
-              className="flex-1 min-w-0 w-full space-y-4 lg:sticky lg:top-28 lg:h-[calc(100vh-105px)] lg:overflow-y-auto lg:pr-2.5 custom-scrollbar scroll-smooth pb-12"
-            >
-              <ReadonlyPembukaanSection
-                pembukaan={pembukaanData}
-                isOpenPembukaan={isPembukaanOpen}
-                isOpenMenimbang={isMenimbangOpen}
-                isOpenMengingat={isMengingatOpen}
-                isOpenMemutuskan={isMemutuskanOpen}
-                isOpenMenetapkan={isMenetapkanOpen}
-                onTogglePembukaan={() => setIsPembukaanOpen(!isPembukaanOpen)}
-                onToggleMenimbang={() => setIsMenimbangOpen(!isMenimbangOpen)}
-                onToggleMengingat={() => setIsMengingatOpen(!isMengingatOpen)}
-                onToggleMemutuskan={() => setIsMemutuskanOpen(!isMemutuskanOpen)}
-                onToggleMenetapkan={() => setIsMenetapkanOpen(!isMenetapkanOpen)}
-              />
-
-              <ReadonlyBatangTubuhSection
-                babList={babsState}
-                onToggleBab={handleToggleBab}
-                onTogglePasal={handleTogglePasal}
-              />
-            </div>
-
-            {/* Kolom Kanan: Riwayat Perubahan & Metadata dengan Tombol RELASI */}
-            <div className="w-full lg:w-[240px] xl:w-[260px] shrink-0 min-w-0 space-y-4 lg:sticky lg:top-28">
-              <ReadonlyTimelineSection
-                riwayatPerubahan={timelineData}
-                onRelasiClick={handleRelasi}
-              />
-            </div>
-          </div>
-          ) : (
-          /* Layout Graph Inline (Menggantikan 3 Kolom) */
-          <div className="w-full mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-            {/* Tombol Close Graph / Kembali */}
-            <div className="flex justify-end mb-4">
-              <button
-                onClick={() => setShowGraph(false)}
-                className="px-4 py-2 bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
+              {/* Kolom Tengah: Isi Peraturan (Sticky, Scrollable, Lebih Panjang Sedikit dari Kolom Kiri & Kanan) */}
+              <div
+                id="scrollable-content"
+                scroll-region="true"
+                className="flex-1 min-w-0 w-full space-y-4 lg:sticky lg:top-28 lg:h-[calc(100vh-105px)] lg:overflow-y-auto lg:pr-2.5 custom-scrollbar scroll-smooth pb-12"
               >
-                <X className="w-4 h-4" />
-                Tutup Peta Relasi & Kembali ke Teks
-              </button>
-            </div>
+                <ReadonlyPembukaanSection
+                  pembukaan={pembukaanData}
+                  isOpenPembukaan={isPembukaanOpen}
+                  isOpenMenimbang={isMenimbangOpen}
+                  isOpenMengingat={isMengingatOpen}
+                  isOpenMemutuskan={isMemutuskanOpen}
+                  isOpenMenetapkan={isMenetapkanOpen}
+                  onTogglePembukaan={() => setIsPembukaanOpen(!isPembukaanOpen)}
+                  onToggleMenimbang={() => setIsMenimbangOpen(!isMenimbangOpen)}
+                  onToggleMengingat={() => setIsMengingatOpen(!isMengingatOpen)}
+                  onToggleMemutuskan={() => setIsMemutuskanOpen(!isMemutuskanOpen)}
+                  onToggleMenetapkan={() => setIsMenetapkanOpen(!isMenetapkanOpen)}
+                />
 
-            <RegulationGraph
-              peraturanId={peraturan?.id}
-              onClose={() => setShowGraph(false)}
-            />
-          </div>
-            )}
+                <ReadonlyBatangTubuhSection
+                  babList={babsState}
+                  onToggleBab={handleToggleBab}
+                  onTogglePasal={handleTogglePasal}
+                />
+              </div>
+
+              {/* Kolom Kanan: Riwayat Perubahan & Metadata dengan Tombol RELASI */}
+              <div className="w-full lg:w-[240px] xl:w-[260px] shrink-0 min-w-0 space-y-4 lg:sticky lg:top-28">
+                <ReadonlyTimelineSection
+                  riwayatPerubahan={timelineData}
+                  onRelasiClick={handleRelasi}
+                />
+              </div>
+            </div>
+          ) : (
+            /* Layout Graph Inline (Menggantikan 3 Kolom) */
+            <div className="w-full mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+              {/* Tombol Close Graph / Kembali */}
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => setShowGraph(false)}
+                  className="px-4 py-2 bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                  Tutup Peta Relasi & Kembali ke Teks
+                </button>
+              </div>
+
+              <RegulationGraph
+                peraturanId={peraturan?.id}
+                onClose={() => setShowGraph(false)}
+              />
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Floating Moveable Graph Preview Window */}
+      {showFloatingPreview && (
+        <DraggableFloatingGraph
+          peraturanId={peraturan?.id}
+          onClose={() => setShowFloatingPreview(false)}
+          onExpand={() => {
+            setShowFloatingPreview(false);
+            setShowGraph(true);
+          }}
+        />
+      )}
 
       {/* Scroll to Top Button */}
       <button

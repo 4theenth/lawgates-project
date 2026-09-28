@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { Maximize2, ZoomIn, ZoomOut, CheckCircle, Calendar, FileText, X } from 'lucide-react';
+import { Maximize2, CheckCircle, Calendar, FileText, X } from 'lucide-react';
 import { router } from '@inertiajs/react';
 
 // ─────────────────────────────────────────────
@@ -54,7 +54,6 @@ const FILL_DIRUJUK = '#1e3a5f';      // Biru navy untuk "Dirujuk Oleh"
 const FILL_MERUJUK = '#16a34a';      // Hijau untuk "Merujuk"
 const LINE_COLOR = '#334155';        // Warna garis penghubung (gelap netral, sesuai Figma)
 const TEXT_MAIN = '#1e293b';         // Warna teks label
-const TEXT_SUB = '#64748b';          // Warna teks sekunder
 
 // Badge
 const BADGE_MERUJUK_BG = '#dcfce7';
