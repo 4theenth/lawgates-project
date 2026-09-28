@@ -302,7 +302,7 @@ class DokumenHukumController extends Controller
         
         $peraturan->forceDelete();
 
-        return redirect()->back()->with('success', 'Dokumen hukum berhasil dihapus.');
+        return redirect()->back();
     }
 
     public function importOcr(Request $request, DocumentImportService $importService)
@@ -611,6 +611,7 @@ class DokumenHukumController extends Controller
                 StrukturDokumen::create([
                     'peraturan_id' => $peraturan->id,
                     'tipe_struktur' => 'PEMBUKAAN',
+                    'label' => 'Pembukaan',
                     'judul_struktur' => $pembukaanText,
                     'urutan' => $urutanStruktur++
                 ]);
@@ -650,7 +651,7 @@ class DokumenHukumController extends Controller
 
                     $pasal = Pasal::create([
                         'peraturan_id' => $peraturan->id,
-                        'struktur_dokumen_id' => $babId,
+                        'struktur_id' => $babId,
                         'nomor_pasal' => $nomor_pasal,
                         'isi_pasal' => $pasalData['isi'] ?? '',
                         'urutan' => $urutanPasal++
@@ -683,6 +684,7 @@ class DokumenHukumController extends Controller
                 StrukturDokumen::create([
                     'peraturan_id' => $peraturan->id,
                     'tipe_struktur' => 'PEMBUKAAN',
+                    'label' => 'Pembukaan',
                     'judul_struktur' => $pembukaanText,
                 ]);
             }
