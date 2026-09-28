@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useToast } from '@/hooks/useToast';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
@@ -9,6 +9,8 @@ import { ReadonlyTableOfContents } from '@/Components/public/peraturan/ReadonlyT
 import { ReadonlyPembukaanSection } from '@/Components/public/peraturan/ReadonlyPembukaanSection';
 import { ReadonlyBatangTubuhSection } from '@/Components/public/peraturan/ReadonlyBatangTubuhSection';
 import { ReadonlyTimelineSection, ReadonlyTimelineItem } from '@/Components/public/peraturan/ReadonlyTimelineSection';
+import RegulationGraph from '@/Components/peraturan/RegulationGraph';
+import { X, Maximize2, Move } from 'lucide-react';
 
 // Format tanggal ke format Indonesia
 const formatTanggal = (dateString: string) => {
@@ -21,6 +23,120 @@ const formatTanggal = (dateString: string) => {
     year: 'numeric'
   }).format(date);
 };
+
+// ─────────────────────────────────────────────
+// Draggable Floating Preview Window (Tabel/Layar Kecil yang Bisa Digerakkan Kemana Saja)
+// ─────────────────────────────────────────────
+
+interface DraggableFloatingGraphProps {
+  peraturanId: number;
+  onClose: () => void;
+  onExpand: () => void;
+}
+
+function DraggableFloatingGraph({ peraturanId, onClose, onExpand }: DraggableFloatingGraphProps) {
+  // Posisi floating window (default di kanan bawah, bisa digeser bebas ke mana saja)
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [isInitialized, setIsInitialized] = useState(false);
+  const isDragging = useRef(false);
+  const dragStartPos = useRef({ startX: 0, startY: 0, initialLeft: 0, initialTop: 0 });
+
+  useEffect(() => {
+    // Set posisi awal di kanan layar
+    const initialX = Math.max(20, window.innerWidth - 440);
+    const initialY = Math.max(80, window.innerHeight - 490);
+    setPos({ x: initialX, y: initialY });
+    setIsInitialized(true);
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    isDragging.current = true;
+    dragStartPos.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialLeft: pos.x,
+      initialTop: pos.y,
+    };
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging.current) return;
+    const deltaX = e.clientX - dragStartPos.current.startX;
+    const deltaY = e.clientY - dragStartPos.current.startY;
+    
+    const newX = Math.max(10, Math.min(window.innerWidth - 390, dragStartPos.current.initialLeft + deltaX));
+    const newY = Math.max(10, Math.min(window.innerHeight - 410, dragStartPos.current.initialTop + deltaY));
+    
+    setPos({ x: newX, y: newY });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    isDragging.current = false;
+    try {
+      (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  if (!isInitialized) return null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: `${pos.x}px`,
+        top: `${pos.y}px`,
+        width: '400px',
+        zIndex: 9999,
+      }}
+      className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200"
+    >
+      {/* Draggable Header Bar (Bisa digeser ke mana saja) */}
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        className="px-4 py-3 bg-gray-50/95 backdrop-blur-sm border-b border-gray-100 flex items-center justify-between cursor-move select-none"
+      >
+        <div className="flex items-center gap-2 text-gray-700">
+          <Move className="w-4 h-4 text-gray-400" />
+          <span className="text-xs font-bold tracking-wider">PREVIEW PETA RELASI</span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          {/* Tombol Kanan Atas untuk Masuk ke Page Graph Penuh */}
+          <button
+            type="button"
+            onClick={onExpand}
+            title="Perbesar & Masuk ke Halaman Graph"
+            className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
+          >
+            <Maximize2 className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            title="Tutup Preview"
+            className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Mini Moveable Graph Content */}
+      <div className="h-[360px] relative bg-white overflow-hidden">
+        <RegulationGraph
+          peraturanId={peraturanId}
+          isMini={true}
+          onExpand={onExpand}
+          onClose={onClose}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
   const { flash } = usePage<any>().props;
@@ -420,8 +536,13 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     document.body.removeChild(link);
   };
 
+  // Graph State
+  const [showGraph, setShowGraph] = useState(false);
+  const [showFloatingPreview, setShowFloatingPreview] = useState(false);
+
   const handleRelasi = () => {
-    scrollToElement('section-pembukaan');
+    // Tampilkan panel preview floating yang bisa digeser kemana saja
+    setShowFloatingPreview(true);
   };
 
   const canCompare = Boolean(
@@ -456,71 +577,104 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
             downloadHref={`/peraturan/${peraturan?.unique_id}/lihat`}
           />
 
-            {/* Layout 3-Kolom: Sesuai Proporsi Form Koreksi Data (Daftar Isi Kiri, Editor Utama Tengah Panjang, Status Kanan) */}
-            <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5 w-full min-w-0">
-              
-              {/* Kolom Kiri: Daftar Isi (Ramping seperti Form Koreksi Data) */}
-              <div className="w-full lg:w-[220px] xl:w-[240px] shrink-0 lg:sticky lg:top-28">
-                <ReadonlyTableOfContents
-                  pembukaanJudul="Pembukaan"
-                  pembukaanData={pembukaanData}
-                  babList={babsState}
-                  onNavigateToStruktur={handleNavigateToStruktur}
-                  onNavigateToPasal={handleNavigateToPasal}
-                  onNavigateToPembukaan={() => {
-                    setIsPembukaanOpen(true);
-                    scrollToElement('section-pembukaan');
-                  }}
-                  onNavigateToSection={(sectionId) => {
-                    if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
-                    else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
-                    else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
-                    else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
-                    
-                    setIsPembukaanOpen(true);
-                    scrollToElement(sectionId);
-                  }}
-                />
-              </div>
-
-              {/* Kolom Tengah: Isi Peraturan (Sticky, Scrollable, Lebih Panjang Sedikit dari Kolom Kiri & Kanan) */}
-              <div 
-                id="scrollable-content"
-                scroll-region="true"
-                className="flex-1 min-w-0 w-full space-y-4 lg:sticky lg:top-28 lg:h-[calc(100vh-105px)] lg:overflow-y-auto lg:pr-2.5 custom-scrollbar scroll-smooth pb-12"
-              >
-                <ReadonlyPembukaanSection
-                  pembukaan={pembukaanData}
-                  isOpenPembukaan={isPembukaanOpen}
-                  isOpenMenimbang={isMenimbangOpen}
-                  isOpenMengingat={isMengingatOpen}
-                  isOpenMemutuskan={isMemutuskanOpen}
-                  isOpenMenetapkan={isMenetapkanOpen}
-                  onTogglePembukaan={() => setIsPembukaanOpen(!isPembukaanOpen)}
-                  onToggleMenimbang={() => setIsMenimbangOpen(!isMenimbangOpen)}
-                  onToggleMengingat={() => setIsMengingatOpen(!isMengingatOpen)}
-                  onToggleMemutuskan={() => setIsMemutuskanOpen(!isMemutuskanOpen)}
-                  onToggleMenetapkan={() => setIsMenetapkanOpen(!isMenetapkanOpen)}
-                />
+            {/* Konten Utama */}
+            {!showGraph ? (
+              /* Layout 3-Kolom: Sesuai Proporsi Form Koreksi Data (Daftar Isi Kiri, Editor Utama Tengah Panjang, Status Kanan) */
+              <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5 w-full min-w-0 mt-6">
                 
-                <ReadonlyBatangTubuhSection
-                  babList={babsState}
-                  onToggleBab={handleToggleBab}
-                  onTogglePasal={handleTogglePasal}
-                />
-              </div>
+                {/* Kolom Kiri: Daftar Isi (Ramping seperti Form Koreksi Data) */}
+                <div className="w-full lg:w-[220px] xl:w-[240px] shrink-0 lg:sticky lg:top-28">
+                  <ReadonlyTableOfContents
+                    pembukaanJudul="Pembukaan"
+                    pembukaanData={pembukaanData}
+                    babList={babsState}
+                    onNavigateToStruktur={handleNavigateToStruktur}
+                    onNavigateToPasal={handleNavigateToPasal}
+                    onNavigateToPembukaan={() => {
+                      setIsPembukaanOpen(true);
+                      scrollToElement('section-pembukaan');
+                    }}
+                    onNavigateToSection={(sectionId) => {
+                      if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
+                      else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
+                      else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
+                      else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
+                      
+                      setIsPembukaanOpen(true);
+                      scrollToElement(sectionId);
+                    }}
+                  />
+                </div>
 
-              {/* Kolom Kanan: Riwayat Perubahan & Metadata dengan Tombol RELASI */}
-              <div className="w-full lg:w-[240px] xl:w-[260px] shrink-0 min-w-0 space-y-4 lg:sticky lg:top-28">
-                <ReadonlyTimelineSection 
-                  riwayatPerubahan={timelineData} 
-                  onRelasiClick={handleRelasi}
-                />
-              </div>
+                {/* Kolom Tengah: Isi Peraturan (Sticky, Scrollable, Lebih Panjang Sedikit dari Kolom Kiri & Kanan) */}
+                <div 
+                  id="scrollable-content"
+                  scroll-region="true"
+                  className="flex-1 min-w-0 w-full space-y-4 lg:sticky lg:top-28 lg:h-[calc(100vh-105px)] lg:overflow-y-auto lg:pr-2.5 custom-scrollbar scroll-smooth pb-12"
+                >
+                  <ReadonlyPembukaanSection
+                    pembukaan={pembukaanData}
+                    isOpenPembukaan={isPembukaanOpen}
+                    isOpenMenimbang={isMenimbangOpen}
+                    isOpenMengingat={isMengingatOpen}
+                    isOpenMemutuskan={isMemutuskanOpen}
+                    isOpenMenetapkan={isMenetapkanOpen}
+                    onTogglePembukaan={() => setIsPembukaanOpen(!isPembukaanOpen)}
+                    onToggleMenimbang={() => setIsMenimbangOpen(!isMenimbangOpen)}
+                    onToggleMengingat={() => setIsMengingatOpen(!isMengingatOpen)}
+                    onToggleMemutuskan={() => setIsMemutuskanOpen(!isMemutuskanOpen)}
+                    onToggleMenetapkan={() => setIsMenetapkanOpen(!isMenetapkanOpen)}
+                  />
+                  
+                  <ReadonlyBatangTubuhSection
+                    babList={babsState}
+                    onToggleBab={handleToggleBab}
+                    onTogglePasal={handleTogglePasal}
+                  />
+                </div>
 
-            </div>
+                {/* Kolom Kanan: Riwayat Perubahan & Metadata dengan Tombol RELASI */}
+                <div className="w-full lg:w-[240px] xl:w-[260px] shrink-0 min-w-0 space-y-4 lg:sticky lg:top-28">
+                  <ReadonlyTimelineSection 
+                    riwayatPerubahan={timelineData} 
+                    onRelasiClick={handleRelasi}
+                  />
+                </div>
+              </div>
+            ) : (
+              /* Layout Graph Inline (Menggantikan 3 Kolom) */
+              <div className="w-full mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+                  {/* Tombol Close Graph / Kembali */}
+                  <div className="flex justify-end mb-4">
+                      <button 
+                          onClick={() => setShowGraph(false)}
+                          className="px-4 py-2 bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
+                      >
+                          <X className="w-4 h-4" />
+                          Tutup Peta Relasi & Kembali ke Teks
+                      </button>
+                  </div>
+                  
+                  <RegulationGraph 
+                      peraturanId={peraturan?.id} 
+                      onClose={() => setShowGraph(false)} 
+                  />
+              </div>
+            )}
           </div>
       </div>
+
+      {/* Floating Draggable Preview Graph Window */}
+      {showFloatingPreview && (
+        <DraggableFloatingGraph
+          peraturanId={peraturan?.id}
+          onClose={() => setShowFloatingPreview(false)}
+          onExpand={() => {
+            setShowFloatingPreview(false);
+            setShowGraph(true);
+          }}
+        />
+      )}
 
       {/* Scroll to Top Button */}
       <button
