@@ -9,7 +9,11 @@ import { PublicLayout, Section } from '../Layouts/PublicLayout';
 import { useScrollPosition } from '../hooks/useScrollPosition';
 import plusPattern from '@/assets/plus.svg';
 
-export default function Home() {
+interface HomeProps {
+  categoryCounts?: Record<string, number>;
+}
+
+export default function Home({ categoryCounts }: HomeProps) {
   const isScrolled = useScrollPosition(50);
 
   const handleSearch = (query: string, filters?: any) => {
@@ -51,7 +55,7 @@ export default function Home() {
         {/* 4. Section Statistik Peraturan & 5. Section Sistem Hukum Terbaru (White Background Container) */}
         <div className="w-full bg-white mt-[66px] pt-px pb-[66px]">
           <Section>
-            <RegulationHierarchyGrid />
+            <RegulationHierarchyGrid counts={categoryCounts} />
           </Section>
 
           <Section>
