@@ -92,6 +92,7 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
 
     const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
     const [loading, setLoading] = useState(true);
+    const [isGraphReady, setIsGraphReady] = useState(false);
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
     const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
@@ -193,7 +194,7 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
     }, []);
 
     const handleNodeClick = useCallback((node: any, event: MouseEvent) => {
-        if (!node || node.isCenter) {
+        if (!node) {
             setClickedNode(null);
             return;
         }
@@ -220,7 +221,6 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
         // Simulasi berjalan lembut selama kursor digerakkan
         graphRef.current.d3ReheatSimulation();
 
-        if (node.isCenter) return;
         const coords = graphRef.current.graph2ScreenCoords(node.x, node.y);
         const margin = 60;
         if (
@@ -274,7 +274,7 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
         // Ukuran node: center jauh lebih besar
         const baseR = isCenter ? 30 : 14;
         // Hover: sedikit membesar
-        const r = (isHovered || isClicked) && !isCenter ? baseR * 1.2 : baseR;
+        const r = (isHovered || isClicked) ? baseR * 1.2 : baseR;
 
         // Warna fill sesuai relCategory (persis Figma)
         const fillColor = isCenter
@@ -290,7 +290,7 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
         ctx.fill();
 
         // Hover/Click: ring halus di luar (efek interaktif)
-        if ((isHovered || isClicked) && !isCenter) {
+        if (isHovered || isClicked) {
             ctx.beginPath();
             ctx.arc(node.x, node.y, r + 4, 0, Math.PI * 2);
             ctx.strokeStyle = fillColor + '40'; // 25% opacity
@@ -359,17 +359,31 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
 
     if (loading) {
         return (
-            <div className={`w-full h-full flex flex-col items-center justify-center bg-white ${isMini ? 'p-4 min-h-[300px]' : 'h-[600px] rounded-2xl border border-gray-100'}`}>
+            <div 
+                className={`w-full relative bg-white flex flex-col items-center justify-center ${isMini ? 'h-full' : 'rounded-2xl border border-gray-200 shadow-sm'}`}
+                style={{ 
+                    fontFamily: "'Inter', system-ui, sans-serif", 
+                    height: isMini ? '100%' : 'calc(100vh - 120px)', 
+                    minHeight: isMini ? '300px' : '500px' 
+                }}
+            >
                 <div className="w-8 h-8 border-4 border-[#0f172a] border-t-transparent rounded-full animate-spin mb-4"></div>
                 <span className="text-gray-500 font-medium text-sm">Memuat Peta Relasi...</span>
             </div>
         );
     }
 
-    if (graphData.nodes.length <= 1) {
+    if (graphData.nodes.length === 0) {
         return (
-            <div className={`w-full h-full flex items-center justify-center bg-white ${isMini ? 'p-4 min-h-[200px]' : 'h-[600px] rounded-2xl border border-gray-100'}`}>
-                <span className="text-gray-500 text-xs text-center">Tidak ada relasi terkait untuk peraturan ini.</span>
+            <div 
+                className={`w-full relative bg-white flex items-center justify-center ${isMini ? 'h-full' : 'rounded-2xl border border-gray-200 shadow-sm'}`}
+                style={{ 
+                    fontFamily: "'Inter', system-ui, sans-serif", 
+                    height: isMini ? '100%' : 'calc(100vh - 120px)', 
+                    minHeight: isMini ? '300px' : '500px' 
+                }}
+            >
+                <span className="text-gray-500 text-xs text-center">Tidak ada data untuk peraturan ini.</span>
             </div>
         );
     }
@@ -445,8 +459,16 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                 </button>
             </div>
 
+            {/* ── Loading Overlay untuk Posisi Layout ── */}
+            {!isGraphReady && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white">
+                    <div className="w-6 h-6 border-4 border-gray-200 border-t-[#0f172a] rounded-full animate-spin mb-3"></div>
+                    <span className="text-gray-400 font-medium text-xs">Menata grafik...</span>
+                </div>
+            )}
+
             {/* ── Force Graph Canvas ── */}
-            <div className="flex-1 w-full relative min-h-0">
+            <div className="flex-1 w-full relative min-h-0" style={{ opacity: isGraphReady ? 1 : 0, transition: 'opacity 0.2s ease-in' }}>
                 <ForceGraph2D
                     ref={graphRef}
                     width={dimensions.width}
@@ -488,8 +510,9 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                         ctx.fill();
                     }}
 
-                    // Simulasi
-                    warmupTicks={30}
+                    // Simulasi: Naikkan warmupTicks agar kalkulasi layout selesai sebelum frame pertama dirender
+                    warmupTicks={100}
+                    cooldownTicks={100} // KUNCI: Samakan dengan warmupTicks agar engine langsung stop & render seketika
                     onEngineStop={() => {
                         if (!graphRef.current) return;
                         
@@ -515,15 +538,20 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                         const idealZoom = (fitSize - padding) / maxDist;
                         const clampedZoom = Math.max(0.3, Math.min(idealZoom, 2.5));
 
-                        // Center di (0,0) dan set zoom agar mengisi kotak penuh
-                        graphRef.current.centerAt(0, 0, 800);
-                        graphRef.current.zoom(clampedZoom, 800);
+                        // Center di (0,0) dan set zoom agar mengisi kotak penuh secara instan (tanpa delay/animasi)
+                        graphRef.current.centerAt(0, 0, 0);
+                        graphRef.current.zoom(clampedZoom, 0);
+
+                        // Tampilkan grafik (fade-in) HANYA setelah posisi dan zoom 100% di-set
+                        requestAnimationFrame(() => {
+                            setIsGraphReady(true);
+                        });
                     }}
                 />
             </div>
 
             {/* ── Tooltip Card (Muncul Saat Klik Node, sesuai Figma) ── */}
-            {clickedNode && !clickedNode.isCenter && (
+            {clickedNode && (
                 <div
                     className="absolute z-50 pointer-events-auto"
                     style={{
@@ -539,11 +567,11 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                                 <div
                                     className="w-2.5 h-2.5 rounded-full"
                                     style={{
-                                        backgroundColor: clickedNode.relCategory === 'Merujuk' ? FILL_MERUJUK : FILL_DIRUJUK,
+                                        backgroundColor: clickedNode.isCenter ? FILL_CENTER : (clickedNode.relCategory === 'Merujuk' ? FILL_MERUJUK : FILL_DIRUJUK),
                                     }}
                                 ></div>
                                 <span className="text-xs font-semibold text-gray-500">
-                                    {clickedNode.relCategory}
+                                    {clickedNode.isCenter ? 'Dokumen Utama' : clickedNode.relCategory}
                                 </span>
                             </div>
                             <button
