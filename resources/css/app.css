@@ -347,3 +347,52 @@
 .animate-smooth-spin {
   animation: smooth-spin-reverse 0.6s cubic-bezier(0.34, 0.15, 0.2, 1) forwards;
 }
+
+/* ── LEAFLET CUSTOM STYLES ───────────────────────────────── */
+.leaflet-interactive {
+  outline: none !important;
+}
+
+/* Transisi warna fill & stroke halus saat interaksi, tanpa mereflow stroke-width */
+path.leaflet-interactive {
+  transition: fill 0.15s ease-out, stroke 0.15s ease-out !important;
+}
+
+/* Matikan transisi seketika saat peta sedang digeser atau di-zoom agar gerakan kamera 100% mulus tanpa getar */
+.leaflet-zoom-anim path.leaflet-interactive,
+.leaflet-pan-anim path.leaflet-interactive {
+  transition: none !important;
+}
+
+.custom-leaflet-popup .leaflet-popup-content-wrapper {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 12px;
+}
+
+.custom-leaflet-popup .leaflet-popup-content {
+  margin: 0 !important;
+  line-height: inherit !important;
+}
+
+.custom-leaflet-popup .leaflet-popup-tip-container {
+  display: none !important;
+}
+
+.custom-map-tooltip {
+  background: #ffffff !important;
+  color: #0a1c3e !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 4px 14px -2px rgba(10, 28, 62, 0.12) !important;
+  padding: 3px 10px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em !important;
+  pointer-events: none !important;
+}
+
+.custom-map-tooltip::before {
+  display: none !important;
+}
