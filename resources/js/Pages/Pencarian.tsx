@@ -130,8 +130,8 @@ export default function Pencarian() {
       setTahunDari(yearParam);
       setTahunSampai(yearParam);
     } else {
-      setTahunDari('2020');
-      setTahunSampai('2026');
+      setTahunDari('');
+      setTahunSampai('');
     }
 
     setSort(params.get('sort') || 'relevansi');
@@ -272,8 +272,8 @@ export default function Pencarian() {
     searchQuery.trim() !== '' ||
     selectedKategori.length > 0 ||
     selectedStatus.length > 0 ||
-    tahunDari !== '2020' ||
-    tahunSampai !== '2026' ||
+    tahunDari !== '' ||
+    tahunSampai !== '' ||
     sort !== 'relevansi' ||
     perPage !== 10;
 

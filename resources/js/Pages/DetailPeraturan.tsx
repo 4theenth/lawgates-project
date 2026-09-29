@@ -3,7 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useToast } from '@/hooks/useToast';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
-import { ChevronUp } from 'lucide-react';
+import { ChevronUp, Menu, X } from 'lucide-react';
 import { ChapterItem, ArticleItem } from '@/Components/admin/import/correctionParser';
 import { ReadonlyTableOfContents } from '@/Components/public/peraturan/ReadonlyTableOfContents';
 import { ReadonlyPembukaanSection } from '@/Components/public/peraturan/ReadonlyPembukaanSection';
@@ -23,21 +23,12 @@ const formatTanggal = (dateString: string) => {
 };
 
 export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
-  const { flash } = usePage<any>().props;
   const { toast } = useToast();
-
-  // Tampilkan toast jika ada flash message dari backend (misal: gagal download)
-  useEffect(() => {
-    if (flash?.error) {
-      toast.error(flash.error);
-    }
-    if (flash?.success) {
-      toast.success(flash.success);
-    }
-  }, [flash]);
 
   // Scroll to top state
   const [showScrollTop, setShowScrollTop] = useState(false);
+  // Mobile Table of Contents Drawer State
+  const [isMobileTocOpen, setIsMobileTocOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -459,8 +450,8 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
             {/* Layout 3-Kolom: Sesuai Proporsi Form Koreksi Data (Daftar Isi Kiri, Editor Utama Tengah Panjang, Status Kanan) */}
             <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5 w-full min-w-0">
               
-              {/* Kolom Kiri: Daftar Isi (Ramping seperti Form Koreksi Data) */}
-              <div className="w-full lg:w-[220px] xl:w-[240px] shrink-0 lg:sticky lg:top-28">
+              {/* Kolom Kiri: Daftar Isi (Desktop Sticky Sidebar, Hidden di Mobile) */}
+              <div className="hidden lg:block lg:w-[220px] xl:w-[240px] shrink-0 lg:sticky lg:top-28">
                 <ReadonlyTableOfContents
                   pembukaanJudul="Pembukaan"
                   pembukaanData={pembukaanData}
@@ -522,15 +513,99 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
           </div>
       </div>
 
+      {/* Mobile Floating Button: Daftar Isi */}
+      <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+        <button
+          type="button"
+          onClick={() => setIsMobileTocOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-pr-900 text-white text-xs font-semibold border border-pr-800 transition-all active:scale-95 cursor-pointer"
+          aria-label="Buka Daftar Isi"
+        >
+          <Menu className="w-4 h-4" />
+          <span>Daftar Isi</span>
+        </button>
+      </div>
+
+      {/* Mobile Bottom Sheet Drawer for Daftar Isi */}
+      {isMobileTocOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/40 transition-opacity" 
+            onClick={() => setIsMobileTocOpen(false)}
+            aria-hidden="true"
+          />
+          {/* Sheet Container */}
+          <div className="relative z-10 w-full max-h-[80vh] bg-white rounded-t-[20px] border-t border-x border-neu-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
+            {/* Drag Handle indicator */}
+            <div className="w-full flex justify-center pt-3 pb-1">
+              <div className="w-12 h-1 bg-neu-300 rounded-full" />
+            </div>
+
+            {/* Sheet Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-neu-100 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <Menu className="w-4 h-4 text-neu-700" />
+                <h3 className="font-sans text-xs font-bold text-neu-900 tracking-wide">
+                  DAFTAR ISI
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMobileTocOpen(false)}
+                className="p-1 rounded-md text-neu-500 hover:text-neu-800 hover:bg-neu-100 transition-colors cursor-pointer"
+                aria-label="Tutup Daftar Isi"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Sheet Content */}
+            <div className="p-4 overflow-y-auto custom-scrollbar flex-1">
+              <ReadonlyTableOfContents
+                pembukaanJudul="Pembukaan"
+                pembukaanData={pembukaanData}
+                babList={babsState}
+                hideHeader={true}
+                className="border-0 p-0 rounded-none h-auto"
+                onNavigateToStruktur={(id) => {
+                  handleNavigateToStruktur(id);
+                  setIsMobileTocOpen(false);
+                }}
+                onNavigateToPasal={(id) => {
+                  handleNavigateToPasal(id);
+                  setIsMobileTocOpen(false);
+                }}
+                onNavigateToPembukaan={() => {
+                  setIsPembukaanOpen(true);
+                  scrollToElement('section-pembukaan');
+                  setIsMobileTocOpen(false);
+                }}
+                onNavigateToSection={(sectionId) => {
+                  if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
+                  else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
+                  else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
+                  else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
+                  
+                  setIsPembukaanOpen(true);
+                  scrollToElement(sectionId);
+                  setIsMobileTocOpen(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Scroll to Top Button */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className={`fixed bottom-8 right-8 p-3 rounded-full bg-[#0A1931] text-white shadow-xl transition-all duration-300 hover:bg-blue-900 hover:scale-110 z-50 flex items-center justify-center ${
+        className={`fixed bottom-6 right-4 sm:right-8 p-3 rounded-full bg-pr-900 border border-pr-800 text-white transition-all duration-300 hover:bg-pr-800 hover:scale-105 active:scale-95 z-40 flex items-center justify-center ${
           showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'
         }`}
         aria-label="Scroll to top"
       >
-        <ChevronUp className="w-6 h-6" />
+        <ChevronUp className="w-5 h-5" />
       </button>
     </PublicLayout>
   );

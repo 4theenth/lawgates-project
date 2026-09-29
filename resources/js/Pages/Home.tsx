@@ -10,7 +10,11 @@ import { PublicLayout, Section } from '../Layouts/PublicLayout';
 import { useScrollPosition } from '../hooks/useScrollPosition';
 import plusPattern from '@/assets/plus.svg';
 
-export default function Home() {
+interface HomeProps {
+  categoryCounts?: Record<string, number>;
+}
+
+export default function Home({ categoryCounts }: HomeProps) {
   const isScrolled = useScrollPosition(50);
 
   const handleSearch = (query: string, filters?: any) => {

@@ -64,8 +64,8 @@ class KategoriHukumController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nama' => ['required', 'string', 'max:255'],
-            'kode' => ['nullable', 'string', 'max:50'],
+            'nama' => ['required', 'string', 'max:255', 'unique:jenis_peraturan,nama'],
+            'kode' => ['nullable', 'string', 'max:50', 'unique:jenis_peraturan,kode'],
             'deskripsi' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -88,8 +88,8 @@ class KategoriHukumController extends Controller
         $kategori = JenisPeraturan::findOrFail($id);
 
         $validated = $request->validate([
-            'nama' => ['required', 'string', 'max:255'],
-            'kode' => ['nullable', 'string', 'max:50'],
+            'nama' => ['required', 'string', 'max:255', 'unique:jenis_peraturan,nama,' . $id],
+            'kode' => ['nullable', 'string', 'max:50', 'unique:jenis_peraturan,kode,' . $id],
             'deskripsi' => ['nullable', 'string', 'max:1000'],
         ]);
 

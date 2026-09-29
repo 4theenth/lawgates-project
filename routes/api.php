@@ -21,6 +21,7 @@ Route::get('/peraturan/{unique_id}/lineage', [\App\Http\Controllers\Api\Comparis
 Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show']);
 
 // Route Baru: Mengambil data referensi untuk Dropdown di Frontend
+Route::get('/kategori-hukum/all', [\App\Http\Controllers\Api\KategoriHukumController::class, 'getAllKategori']);
 Route::get('/referensi-filter', function () {
     return response()->json([
         'kategori' => JenisPeraturan::select('id', 'nama_jenis as nama')->get(), // Pastikan 'nama_jenis' sesuai nama kolommu
