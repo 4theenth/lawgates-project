@@ -160,8 +160,8 @@ export function TeamModal({
                             {isViewOnly
                               ? 'Data anggota tim'
                               : isEditing
-                              ? 'Edit anggota tim'
-                              : 'Tambah tim baru'}
+                                ? 'Edit anggota tim'
+                                : 'Tambah tim baru'}
                           </p>
                         </div>
                       </div>
@@ -190,11 +190,10 @@ export function TeamModal({
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           placeholder="Masukkan nama tim"
-                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border border-neu-200 bg-white text-neu-900 placeholder-neu-400 focus:outline-none transition-all shadow-2xs ${
-                            isViewOnly
-                              ? 'cursor-default'
-                              : 'focus:border-pr-900 focus:ring-1 focus:ring-pr-900'
-                          } ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border border-neu-200 bg-white text-neu-900 placeholder-neu-400 focus:outline-none transition-all shadow-2xs ${isViewOnly
+                            ? 'cursor-default'
+                            : 'focus:border-pr-900 focus:ring-1 focus:ring-pr-900'
+                            } ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
                       </div>
 
@@ -210,15 +209,13 @@ export function TeamModal({
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="Masukkan email tim (contoh: user@domain.com)"
-                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border ${
-                            !isViewOnly && email.trim().length > 0 && !isEmailValid
+                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border ${!isViewOnly && email.trim().length > 0 && !isEmailValid
                               ? 'border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-500'
                               : 'border-neu-200 focus:border-pr-900 focus:ring-1 focus:ring-pr-900'
-                          } bg-white text-neu-900 placeholder-neu-400 focus:outline-none transition-all shadow-2xs ${
-                            isViewOnly
+                            } bg-white text-neu-900 placeholder-neu-400 focus:outline-none transition-all shadow-2xs ${isViewOnly
                               ? 'cursor-default'
                               : ''
-                          } ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            } ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
                         {!isViewOnly && email.trim().length > 0 && !isEmailValid && (
                           <p className="text-[11px] text-red-500 mt-1">
@@ -265,11 +262,10 @@ export function TeamModal({
                                       setRole(r);
                                       setIsRoleOpen(false);
                                     }}
-                                    className={`w-full text-left px-3.5 py-2 text-[13px] transition-colors cursor-pointer ${
-                                      r === role
-                                        ? 'bg-gray-50 text-neu-900 font-medium'
-                                        : 'text-neu-700 hover:bg-gray-50'
-                                    }`}
+                                    className={`w-full text-left px-3.5 py-2 text-[13px] transition-colors cursor-pointer ${r === role
+                                      ? 'bg-gray-50 text-neu-900 font-medium'
+                                      : 'text-neu-700 hover:bg-gray-50'
+                                      }`}
                                   >
                                     {r}
                                   </button>
