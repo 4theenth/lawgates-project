@@ -97,7 +97,11 @@ class Neo4jGraphService
         $query = "
             MATCH (center:Peraturan {id: \$id})
             OPTIONAL MATCH (center)-[r]-(connected:Peraturan)
-            RETURN center, type(r) as rel_type, startNode(r).id AS source_id, endNode(r).id AS target_id, connected
+            RETURN center, type(r) as rel_type, 
+                   COALESCE(startNode(r).id, 'neo_' + toString(id(startNode(r)))) AS source_id, 
+                   COALESCE(endNode(r).id, 'neo_' + toString(id(endNode(r)))) AS target_id, 
+                   connected,
+                   COALESCE(connected.id, 'neo_' + toString(id(connected))) AS connected_id
         ";
 
         $result = $this->client->run($query, ['id' => $peraturanId]);
@@ -135,7 +139,9 @@ class Neo4jGraphService
 
             if ($row->get('connected') !== null && $row->get('rel_type') !== null) {
                 $connectedNode = $row->get('connected');
-                $connectedId = $safeGet($connectedNode, 'id');
+                // ID unik yang seragam dengan source_id & target_id dari query
+                $connectedId = $row->get('connected_id');
+
                 $relType = $row->get('rel_type'); // e.g. DIUBAH_OLEH, MENGUBAH, MENCABUT
 
                 // Determine relation direction relative to center for Figma design matching
