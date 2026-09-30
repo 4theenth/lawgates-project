@@ -302,7 +302,7 @@ class DokumenHukumController extends Controller
         
         $peraturan->forceDelete();
 
-        return redirect()->back()->with('success', 'Dokumen hukum berhasil dihapus.');
+        return redirect()->back();
     }
 
     public function importOcr(Request $request, DocumentImportService $importService)
@@ -343,7 +343,7 @@ class DokumenHukumController extends Controller
                 }
             } catch (\Exception $e) {
                 \Log::error("Import OCR Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-                $errors[] = $e->getMessage();
+                $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
             }
         }
 
@@ -546,7 +546,7 @@ class DokumenHukumController extends Controller
             \Log::error('Update Dokumen Hukum Error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal memperbarui data hukum: ' . $e->getMessage()
+                'message' => 'Gagal memperbarui data hukum. Silakan periksa kembali data yang dimasukkan atau hubungi administrator.'
             ], 500);
         }
     }
@@ -611,6 +611,7 @@ class DokumenHukumController extends Controller
                 StrukturDokumen::create([
                     'peraturan_id' => $peraturan->id,
                     'tipe_struktur' => 'PEMBUKAAN',
+                    'label' => 'Pembukaan',
                     'judul_struktur' => $pembukaanText,
                     'urutan' => $urutanStruktur++
                 ]);
@@ -650,7 +651,7 @@ class DokumenHukumController extends Controller
 
                     $pasal = Pasal::create([
                         'peraturan_id' => $peraturan->id,
-                        'struktur_dokumen_id' => $babId,
+                        'struktur_id' => $babId,
                         'nomor_pasal' => $nomor_pasal,
                         'isi_pasal' => $pasalData['isi'] ?? '',
                         'urutan' => $urutanPasal++
@@ -683,6 +684,7 @@ class DokumenHukumController extends Controller
                 StrukturDokumen::create([
                     'peraturan_id' => $peraturan->id,
                     'tipe_struktur' => 'PEMBUKAAN',
+                    'label' => 'Pembukaan',
                     'judul_struktur' => $pembukaanText,
                 ]);
             }
@@ -806,7 +808,7 @@ class DokumenHukumController extends Controller
             \Log::error("MinIO Scan Error: " . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal memindai MinIO: ' . $e->getMessage()
+                'message' => 'Gagal memindai penyimpanan dokumen hukum. Silakan periksa konfigurasi penyimpanan atau hubungi administrator.'
             ], 500);
         }
     }
@@ -860,7 +862,7 @@ class DokumenHukumController extends Controller
             \Log::error("MinIO Import Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => 'Terjadi kesalahan sistem saat mengimpor dokumen hukum dari penyimpanan.'
             ], 500);
         }
     }

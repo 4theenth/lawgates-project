@@ -129,7 +129,7 @@ class ComparisonController extends Controller
             return response()->json(['success' => false, 'message' => 'Salah satu atau kedua dokumen tidak ditemukan'], 404);
         }
 
-        // Section Informasi Umum
+        // Section Informasi Hukum
         $umumRows = [
             $this->createRow('Kategori', $leftDoc->jenisPeraturan->nama ?? '-', $rightDoc->jenisPeraturan->nama ?? '-'),
             $this->createRow('Tahun', (string)$leftDoc->tahun, (string)$rightDoc->tahun),
@@ -137,7 +137,10 @@ class ComparisonController extends Controller
                 $leftDoc->tanggal_penetapan ? $leftDoc->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-',
                 $rightDoc->tanggal_penetapan ? $rightDoc->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-'
             ),
-            $this->createRow('Tempat Penetapan', $leftDoc->tempat_penetapan ?? '-', $rightDoc->tempat_penetapan ?? '-'),
+            $this->createRow('Tanggal Berlaku', 
+                $leftDoc->tanggal_berlaku ? $leftDoc->tanggal_berlaku->isoFormat('D MMMM YYYY') : ($leftDoc->tanggal_penetapan ? $leftDoc->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-'),
+                $rightDoc->tanggal_berlaku ? $rightDoc->tanggal_berlaku->isoFormat('D MMMM YYYY') : ($rightDoc->tanggal_penetapan ? $rightDoc->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-')
+            ),
             $this->createRow('Pemrakarsa', $leftDoc->instansi ?? '-', $rightDoc->instansi ?? '-'),
             $this->createRow('Status', 
                 $leftDoc->statusPeraturan->nama_status ?? '-',
@@ -171,7 +174,7 @@ class ComparisonController extends Controller
         ];
 
         $sections = [
-            ['title' => 'INFORMASI UMUM', 'rows' => $umumRows],
+            ['title' => 'INFORMASI HUKUM', 'rows' => $umumRows],
             ['title' => 'PEMBUKAAN', 'rows' => $pembukaanRows]
         ];
 
@@ -269,8 +272,13 @@ class ComparisonController extends Controller
             }
         }
 
-        // 2. Ambil seluruh BAB dari dokumen induk
-        $indukBabs = $indukDoc->strukturDokumen->where('tipe_struktur', 'BAB');
+        // 2. Ambil seluruh BAB dari dokumen induk (case-insensitive & label matching)
+        $indukBabs = $indukDoc->strukturDokumen->filter(function($s) {
+            $type = strtoupper(trim($s->tipe_struktur ?? ''));
+            $label = strtoupper(trim($s->label ?? ''));
+            $judul = strtoupper(trim($s->judul_struktur ?? ''));
+            return $type === 'BAB' || str_starts_with($label, 'BAB') || str_starts_with($judul, 'BAB');
+        });
         $sections = [];
 
         if ($indukBabs->isEmpty()) {
@@ -448,8 +456,16 @@ class ComparisonController extends Controller
      */
     private function buildGeneralComparisonSections($leftDoc, $rightDoc)
     {
-        $leftBabs = $leftDoc->strukturDokumen->where('tipe_struktur', 'BAB');
-        $rightBabs = $rightDoc->strukturDokumen->where('tipe_struktur', 'BAB');
+        $filterBab = function($doc) {
+            return $doc->strukturDokumen->filter(function($s) {
+                $type = strtoupper(trim($s->tipe_struktur ?? ''));
+                $label = strtoupper(trim($s->label ?? ''));
+                $judul = strtoupper(trim($s->judul_struktur ?? ''));
+                return $type === 'BAB' || str_starts_with($label, 'BAB') || str_starts_with($judul, 'BAB');
+            });
+        };
+        $leftBabs = $filterBab($leftDoc);
+        $rightBabs = $filterBab($rightDoc);
         $sections = [];
 
         if ($leftBabs->isEmpty() && $rightBabs->isEmpty()) {

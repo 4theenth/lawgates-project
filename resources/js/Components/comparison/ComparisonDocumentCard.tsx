@@ -18,15 +18,15 @@ export function ComparisonDocumentCard({
   const isSuccess = variant === 'success' || document.status?.toLowerCase() === 'berlaku';
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200/90 p-4 sm:p-6 shadow-2xs flex flex-col justify-between space-y-3.5 sm:space-y-4">
+    <div className="bg-white rounded-2xl border border-neu-200 p-4 sm:p-6 flex flex-col justify-between space-y-3.5 sm:space-y-4">
       <div>
         {/* Header Ikon & Status Badge */}
         <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
           <div
-            className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xs shrink-0 ${
+            className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${
               isSuccess
-                ? 'bg-[#E8F8F0] text-emerald-700 border border-emerald-100'
-                : 'bg-[#EDF2F7] text-slate-700 border border-slate-200/60'
+                ? 'bg-suc-50 text-suc-800 border border-suc-200'
+                : 'bg-neu-100 text-neu-700 border border-neu-200'
             }`}
           >
             <Scale className="w-4 h-4 sm:w-5 sm:h-5 stroke-[1.75]" />
@@ -34,10 +34,10 @@ export function ComparisonDocumentCard({
 
           <div className="flex items-center justify-end">
             <span
-              className={`text-[11px] sm:text-xs font-semibold px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full border ${
+              className={`text-xs font-medium px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full border ${
                 isSuccess
-                  ? 'bg-[#E8F8F0] text-emerald-700 border-emerald-200'
-                  : 'bg-[#EDF2F7] text-slate-700 border-slate-200'
+                  ? 'bg-suc-50 text-suc-800 border-suc-200'
+                  : 'bg-neu-100 text-neu-700 border-neu-200'
               }`}
             >
               {document.status}
@@ -45,35 +45,35 @@ export function ComparisonDocumentCard({
           </div>
         </div>
 
-        {/* Kategori & Judul */}
+        {/* Kategori (UUD - 14px) & Judul */}
         <div>
-          <h4 className="text-xs sm:text-sm font-bold text-gray-900 tracking-tight uppercase">
+          <h4 className="text-md font-medium text-neu-900 tracking-tight uppercase">
             {document.category}
           </h4>
-          <p className="text-xs sm:text-sm font-medium text-gray-600 mt-1 leading-snug">
+          <p className="text-sm font-normal text-neu-600 mt-1 leading-snug">
             {document.title}
           </p>
         </div>
 
         {/* Kotak Metadata (Tanggal Ditetapkan & Tempat Penetapan) */}
         <div
-          className={`mt-3 sm:mt-4 rounded-xl p-3 sm:p-4 grid grid-cols-2 gap-2 sm:gap-4 ${
-            isSuccess ? 'bg-[#EBF7F0]' : 'bg-[#EEF1F5]'
+          className={`mt-3 sm:mt-4 rounded-xl p-3 sm:p-4 grid grid-cols-2 gap-2 sm:gap-4 border ${
+            isSuccess ? 'bg-suc-50/60 border-suc-200' : 'bg-neu-50 border-neu-200'
           }`}
         >
           <div>
-            <span className="block text-[10px] sm:text-[11px] text-gray-500 font-medium">
+            <span className="block text-xs font-normal text-neu-500">
               Tanggal Ditetapkan
             </span>
-            <span className="block text-[11px] sm:text-xs font-bold text-gray-900 mt-0.5">
+            <span className="block text-xs font-medium text-neu-900 mt-0.5">
               {document.tanggalPenetapan}
             </span>
           </div>
           <div>
-            <span className="block text-[10px] sm:text-[11px] text-gray-500 font-medium">
+            <span className="block text-xs font-normal text-neu-500">
               Tempat Penetapan
             </span>
-            <span className="block text-[11px] sm:text-xs font-bold text-gray-900 mt-0.5">
+            <span className="block text-xs font-medium text-neu-900 mt-0.5">
               {document.tempatPenetapan}
             </span>
           </div>
@@ -85,18 +85,18 @@ export function ComparisonDocumentCard({
         <button
           type="button"
           onClick={onViewDetail}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-2 sm:px-3 rounded-xl bg-[#E8EDF3] hover:bg-[#DDE4ED] text-gray-800 text-[11px] sm:text-xs font-semibold transition-all shadow-2xs cursor-pointer min-w-0"
+          className="flex-1 inline-flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-2 sm:px-3 rounded-xl bg-neu-100 hover:bg-neu-200 border border-neu-200 text-neu-800 text-xs font-medium transition-colors cursor-pointer min-w-0"
         >
-          <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600 shrink-0" />
+          <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-neu-600 shrink-0" />
           <span className="truncate">Lihat Detail</span>
         </button>
 
         <button
           type="button"
           onClick={onDownload}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-2 sm:px-3 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 text-[11px] sm:text-xs font-semibold transition-all shadow-2xs cursor-pointer min-w-0"
+          className="flex-1 inline-flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-2 sm:px-3 rounded-xl border border-neu-200 bg-white hover:bg-neu-50 text-neu-800 text-xs font-medium transition-colors cursor-pointer min-w-0"
         >
-          <ArrowDownToLine className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600 shrink-0" />
+          <ArrowDownToLine className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-neu-600 shrink-0" />
           <span className="truncate">Download Dokumen</span>
         </button>
       </div>
