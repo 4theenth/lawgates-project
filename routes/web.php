@@ -130,6 +130,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
         return Inertia::render('Admin/Dashboard');
     })->name('admin.dashboard');
 
+    Route::redirect('/categories', '/admin/kategori-hukum');
     Route::get('/kategori-hukum', [KategoriHukumController::class, 'index'])->name('admin.kategori-hukum');
     Route::post('/kategori-hukum', [KategoriHukumController::class, 'store'])->name('admin.kategori-hukum.store');
     Route::put('/kategori-hukum/{id}', [KategoriHukumController::class, 'update'])->name('admin.kategori-hukum.update');
