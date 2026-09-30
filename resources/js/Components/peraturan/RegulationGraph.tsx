@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { Maximize2, CheckCircle, Calendar, FileText, X } from 'lucide-react';
+import { Maximize2, CheckCircle, Calendar, FileText, X, RotateCcw, ZoomIn, ZoomOut, Sparkles, AlertCircle } from 'lucide-react';
 import { router } from '@inertiajs/react';
 
 // ─────────────────────────────────────────────
@@ -17,10 +17,13 @@ interface GraphNode {
     status?: string;
     tanggal_penetapan?: string;
     isCenter: boolean;
+    has_data?: boolean;
     relType?: string;
     relCategory?: string;
     x?: number;
     y?: number;
+    vx?: number;
+    vy?: number;
     fx?: number | null;
     fy?: number | null;
 }
@@ -45,25 +48,77 @@ interface RegulationGraphProps {
 }
 
 // ─────────────────────────────────────────────
-// Design Tokens (Sesuai Figma)
+// Color Tokens & Themes (Modern Light Constellation Style)
 // ─────────────────────────────────────────────
 
-// Warna utama dari desain Figma
-const FILL_CENTER = '#0f172a';       // Biru gelap/navy untuk node pusat
-const FILL_DIRUJUK = '#1e3a5f';      // Biru navy untuk "Dirujuk Oleh"
-const FILL_MERUJUK = '#16a34a';      // Hijau untuk "Merujuk"
-const LINE_COLOR = '#334155';        // Warna garis penghubung (gelap netral, sesuai Figma)
-const TEXT_MAIN = '#1e293b';         // Warna teks label
-
-// Badge
-const BADGE_MERUJUK_BG = '#dcfce7';
-const BADGE_MERUJUK_TEXT = '#166534';
-const BADGE_DIRUJUK_BG = '#e2e8f0';
-const BADGE_DIRUJUK_TEXT = '#334155';
+const ORB_THEMES = {
+    center: {
+        core: '#0284c7',
+        glow: 'rgba(2, 132, 199, 0.35)',
+        halo: 'rgba(2, 132, 199, 0.15)',
+        ring: '#ffffff',
+        line: '#0284c7',
+        text: '#0369a1',
+    },
+    merujuk: {
+        core: '#10b981',
+        glow: 'rgba(16, 185, 129, 0.35)',
+        halo: 'rgba(16, 185, 129, 0.15)',
+        ring: '#ffffff',
+        line: '#059669',
+        text: '#047857',
+    },
+    dirujuk: {
+        core: '#0284c7',
+        glow: 'rgba(2, 132, 199, 0.35)',
+        halo: 'rgba(2, 132, 199, 0.15)',
+        ring: '#ffffff',
+        line: '#0284c7',
+        text: '#0369a1',
+    },
+    diubah: {
+        core: '#f59e0b',
+        glow: 'rgba(245, 158, 11, 0.35)',
+        halo: 'rgba(245, 158, 11, 0.15)',
+        ring: '#ffffff',
+        line: '#d97706',
+        text: '#b45309',
+    },
+    mencabut: {
+        core: '#e11d48',
+        glow: 'rgba(225, 29, 72, 0.35)',
+        halo: 'rgba(225, 29, 72, 0.15)',
+        ring: '#ffffff',
+        line: '#be123c',
+        text: '#9f1239',
+    },
+    default: {
+        core: '#8b5cf6',
+        glow: 'rgba(139, 92, 246, 0.35)',
+        halo: 'rgba(139, 92, 246, 0.15)',
+        ring: '#ffffff',
+        line: '#7c3aed',
+        text: '#6d28d9',
+    },
+};
 
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
+
+const isDocumentAvailable = (node: GraphNode): boolean => {
+    if (node.isCenter) return true;
+    if (node.has_data === true) return true;
+    if (node.has_data === false) return false;
+
+    // Fallback heuristic
+    const uid = node.unique_id || '';
+    const judul = (node.judul || '').toLowerCase();
+    if (!uid || uid.includes('menunggu') || judul.includes('menunggu import')) {
+        return false;
+    }
+    return true;
+};
 
 const formatTanggal = (dateString?: string) => {
     if (!dateString) return '-';
@@ -76,10 +131,55 @@ const formatTanggal = (dateString?: string) => {
     }).format(date);
 };
 
-// Potong teks jika terlalu panjang
-const truncate = (text: string, maxLen: number) => {
-    if (!text) return '';
-    return text.length > maxLen ? text.substring(0, maxLen - 3) + '...' : text;
+// Format short code e.g. "UU 9/2005"
+const getShortCode = (node: GraphNode) => {
+    let prefix = 'REG';
+    const jenis = (node.jenis || '').toLowerCase();
+    if (jenis.includes('undang-undang dasar') || jenis.includes('uud')) prefix = 'UUD';
+    else if (jenis.includes('undang-undang') || jenis.includes('uu')) prefix = 'UU';
+    else if (jenis.includes('pemerintah pengganti') || jenis.includes('perppu')) prefix = 'Perppu';
+    else if (jenis.includes('pemerintah') || jenis.includes('pp')) prefix = 'PP';
+    else if (jenis.includes('presiden') || jenis.includes('perpres')) prefix = 'Perpres';
+    else if (jenis.includes('menteri') || jenis.includes('permen')) prefix = 'Permen';
+    else if (jenis.includes('daerah') || jenis.includes('perda')) prefix = 'Perda';
+
+    const nomor = node.nomor || '-';
+    const tahun = node.tahun || '-';
+    return `${prefix} ${nomor}/${tahun}`;
+};
+
+// Determine theme based on node relationship
+const getNodeTheme = (node: GraphNode) => {
+    if (node.isCenter) return ORB_THEMES.center;
+
+    const rel = (node.relType || node.relCategory || '').toLowerCase();
+    if (rel.includes('cabut')) return ORB_THEMES.mencabut;
+    if (rel.includes('ubah')) return ORB_THEMES.diubah;
+    if (node.relCategory === 'Dirujuk Oleh') return ORB_THEMES.dirujuk;
+    if (node.relCategory === 'Merujuk' || rel.includes('ingat') || rel.includes('rujuk')) return ORB_THEMES.merujuk;
+    return ORB_THEMES.default;
+};
+
+// Helper: draw rounded rectangle
+const drawRoundedRect = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number
+) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
 };
 
 // ─────────────────────────────────────────────
@@ -98,12 +198,27 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
     const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
     const [clickedNode, setClickedNode] = useState<GraphNode | null>(null);
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-    
-    // Melacak apakah grafik sudah pernah di-center saat pertama kali dimuat
+
     const initialCenterDone = useRef(false);
 
+    // Find center node ID
+    const centerNodeId = useMemo(() => {
+        const center = graphData.nodes.find(n => n.isCenter);
+        return center ? center.id : null;
+    }, [graphData.nodes]);
+
+    // Set of active/focused node IDs (Center Node + Clicked/Hovered Node)
+    const activeNodeIds = useMemo(() => {
+        const active = clickedNode || hoverNode;
+        if (!active) return null;
+        const set = new Set<string | number>();
+        set.add(active.id);
+        if (centerNodeId !== null) set.add(centerNodeId);
+        return set;
+    }, [clickedNode, hoverNode, centerNodeId]);
+
     // ─────────────────────────────────────────────
-    // Data Fetching
+    // Data Fetching & Constellation Scattering
     // ─────────────────────────────────────────────
 
     useEffect(() => {
@@ -112,16 +227,23 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                 const response = await fetch(`/api/peraturan/${peraturanId}/graph`);
                 const data = await response.json();
 
-                // Posisi awal acak dekat pusat
-                data.nodes = data.nodes.map((n: any) => ({
-                    ...n,
-                    x: n.isCenter ? 0 : (Math.random() - 0.5) * 80,
-                    y: n.isCenter ? 0 : (Math.random() - 0.5) * 80,
-                }));
+                // Scatter nodes organically in full 360 degrees
+                data.nodes = (data.nodes || []).map((n: any) => {
+                    if (n.isCenter) {
+                        return { ...n, x: 0, y: 0, fx: 0, fy: 0 };
+                    }
+                    const angle = Math.random() * Math.PI * 2;
+                    const randomDist = 130 + Math.random() * 220;
+
+                    return {
+                        ...n,
+                        x: Math.cos(angle) * randomDist,
+                        y: Math.sin(angle) * randomDist,
+                    };
+                });
 
                 setGraphData(data);
                 setLoading(false);
-                // Reset tracker jika data berubah
                 initialCenterDone.current = false;
             } catch (error) {
                 console.error('Gagal memuat data graph:', error);
@@ -147,40 +269,37 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                 });
             }
         });
-        
-        // Set initial size
+
         setDimensions({
             width: containerRef.current.clientWidth,
             height: containerRef.current.clientHeight,
         });
         observer.observe(containerRef.current);
-        
+
         return () => observer.disconnect();
     }, [loading, graphData.nodes.length]);
 
     // ─────────────────────────────────────────────
-    // D3 Force Configuration
+    // D3 Force Configuration (Organic Constellation Mesh)
     // ─────────────────────────────────────────────
 
     useEffect(() => {
         if (!graphRef.current) return;
 
-        // Charge: tolakan lembut antar node agar tidak saling tumpuk
-        graphRef.current.d3Force('charge').strength(-250).distanceMax(600);
+        // Repulsion force to spread nodes
+        graphRef.current.d3Force('charge').strength(-320).distanceMax(800);
 
-        // Link: tarikan pegas yang lembut & kalem (tidak bouncy/memantul)
+        // Dynamic link spring distances
         const linkForce = graphRef.current.d3Force('link');
-        
-        linkForce.distance((link: any) => {
-            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-            const hash = (targetId * 7 + 13) % 60;
-            return 160 + hash; 
-        });
-        
-        // Link strength 0.25 sangat kalem dan luwes tanpa getaran/bouncing
-        linkForce.strength(0.25);
+        if (linkForce) {
+            linkForce.distance((link: any) => {
+                const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                const hash = (Number(targetId || 1) * 73 + 19) % 160;
+                return 140 + hash;
+            });
+            linkForce.strength(0.2);
+        }
 
-        // Matikan force center agar tidak menggeser node lain
         graphRef.current.d3Force('center', null);
     }, [graphData]);
 
@@ -193,11 +312,13 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
         document.body.style.cursor = node ? 'pointer' : 'default';
     }, []);
 
-    const handleNodeClick = useCallback((node: any, event: MouseEvent) => {
+    const handleNodeClick = useCallback((node: any) => {
         if (!node) {
             setClickedNode(null);
             return;
         }
+
+        // SEMUA node bisa diklik untuk melihat fokus & kartu relasi!
         setClickedNode(node);
         if (graphRef.current) {
             const screenCoords = graphRef.current.graph2ScreenCoords(node.x, node.y);
@@ -205,7 +326,6 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
         }
     }, []);
 
-    // Node dragging: saat dilepas, kunci posisinya di tempat terakhir agar STAY di situ
     const handleNodeDragEnd = useCallback((node: any) => {
         node.fx = node.x;
         node.fy = node.y;
@@ -214,36 +334,30 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
         }
     }, []);
 
-    // Saat sedang drag node
     const handleNodeDrag = useCallback((node: any) => {
         if (!graphRef.current) return;
-
-        // Simulasi berjalan lembut selama kursor digerakkan
         graphRef.current.d3ReheatSimulation();
 
         const coords = graphRef.current.graph2ScreenCoords(node.x, node.y);
-        const margin = 60;
+        const margin = 50;
         if (
             coords.x < margin ||
             coords.x > dimensions.width - margin ||
             coords.y < margin ||
             coords.y > dimensions.height - margin
         ) {
-            // Zoom out sedikit supaya node tidak keluar layar
             const currentZoom = graphRef.current.zoom();
-            if (currentZoom > 0.4) {
-                graphRef.current.zoom(currentZoom * 0.97, 100);
+            if (currentZoom > 0.35) {
+                graphRef.current.zoom(currentZoom * 0.98, 100);
             }
         }
     }, [dimensions]);
 
-    // Tooltip tracking: selalu ikuti pergerakan node (karena pan/zoom atau fisika)
+    // Track clicked node position for tooltip positioning
     useEffect(() => {
         let animationFrameId: number;
-
         const updateTooltipPos = () => {
             if (clickedNode && graphRef.current) {
-                // Ambil koordinat terbaru dari node
                 const node = graphData.nodes.find(n => n.id === clickedNode.id) || clickedNode;
                 const coords = graphRef.current.graph2ScreenCoords(node.x, node.y);
                 setTooltipPos(coords);
@@ -251,107 +365,229 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
             animationFrameId = requestAnimationFrame(updateTooltipPos);
         };
 
-        if (clickedNode) {
-            updateTooltipPos();
-        }
+        if (clickedNode) updateTooltipPos();
 
         return () => {
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
         };
     }, [clickedNode, graphData.nodes]);
 
     // ─────────────────────────────────────────────
-    // Canvas: Custom Node Rendering (Sesuai Figma)
+    // Custom Canvas Rendering: Modern Jewel Dots on White / Light Canvas
     // ─────────────────────────────────────────────
 
-    const drawNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    const drawNode = useCallback((node: any, ctx: CanvasRenderingContext2D) => {
         const isCenter = node.isCenter;
         const isHovered = hoverNode?.id === node.id;
         const isClicked = clickedNode?.id === node.id;
+        const isFocused = isHovered || isClicked;
 
-        // Ukuran node: center jauh lebih besar
-        const baseR = isCenter ? 30 : 14;
-        // Hover: sedikit membesar
-        const r = (isHovered || isClicked) ? baseR * 1.2 : baseR;
+        // Dimming when another node is active
+        const isDimmed = activeNodeIds !== null && !activeNodeIds.has(node.id);
+        const alpha = isDimmed ? 0.18 : 1;
 
-        // Warna fill sesuai relCategory (persis Figma)
-        const fillColor = isCenter
-            ? FILL_CENTER
-            : node.relCategory === 'Merujuk'
-                ? FILL_MERUJUK
-                : FILL_DIRUJUK;
+        ctx.save();
+        ctx.globalAlpha = alpha;
 
-        // ── Gambar lingkaran node ──
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = fillColor;
-        ctx.fill();
+        const x = node.x || 0;
+        const y = node.y || 0;
+        const theme = getNodeTheme(node);
 
-        // Hover/Click: ring halus di luar (efek interaktif)
-        if (isHovered || isClicked) {
+        // Breathing pulse animation
+        const pulse = Math.sin(Date.now() / 280) * 1.5;
+
+        if (isCenter) {
+            // ─────────────────────────────────────────
+            // CENTER NODE: Primary Hub Jewel Dot
+            // ─────────────────────────────────────────
+            const coreRadius = 11;
+            const auraRadius = coreRadius + 8 + pulse;
+
+            // Outer Radiant Sky Halo
             ctx.beginPath();
-            ctx.arc(node.x, node.y, r + 4, 0, Math.PI * 2);
-            ctx.strokeStyle = fillColor + '40'; // 25% opacity
-            ctx.lineWidth = 3;
-            ctx.stroke();
-        }
-
-        // ── Teks label (nama peraturan) ──
-        const labelFontSize = isCenter ? 12 : 10;
-        ctx.font = `600 ${labelFontSize}px Inter, system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-
-        const labelY = node.y + r + 8;
-
-        // Teks label: ambil dari data backend (node.judul), bukan hardcoded
-        const labelText = truncate(node.judul || `${node.jenis || ''} Nomor ${node.nomor} Tahun ${node.tahun}`, isCenter ? 55 : 30);
-
-        // Outline putih agar terbaca di atas garis
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#ffffff';
-        ctx.strokeText(labelText, node.x, labelY);
-
-        ctx.fillStyle = TEXT_MAIN;
-        ctx.fillText(labelText, node.x, labelY);
-
-        // ── Badge relasi (hanya untuk node cabang) ──
-        if (!isCenter && node.relCategory) {
-            const badgeText = node.relCategory;
-            const badgeFontSize = 8;
-            ctx.font = `700 ${badgeFontSize}px Inter, system-ui, sans-serif`;
-
-            const tw = ctx.measureText(badgeText).width;
-            const padX = 8;
-            const padY = 4;
-            const bw = tw + padX * 2;
-            const bh = badgeFontSize + padY * 2;
-            const bx = node.x - bw / 2;
-            const by = labelY + labelFontSize + 4;
-            const br = bh / 2; // Radius untuk pill
-
-            // Pill shape
-            ctx.beginPath();
-            ctx.moveTo(bx + br, by);
-            ctx.lineTo(bx + bw - br, by);
-            ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + br);
-            ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - br, by + bh);
-            ctx.lineTo(bx + br, by + bh);
-            ctx.quadraticCurveTo(bx, by + bh, bx, by + br);
-            ctx.quadraticCurveTo(bx, by, bx + br, by);
-            ctx.closePath();
-
-            const isMerujuk = node.relCategory === 'Merujuk';
-            ctx.fillStyle = isMerujuk ? BADGE_MERUJUK_BG : BADGE_DIRUJUK_BG;
+            ctx.arc(x, y, auraRadius, 0, Math.PI * 2);
+            ctx.fillStyle = theme.halo;
             ctx.fill();
 
-            ctx.fillStyle = isMerujuk ? BADGE_MERUJUK_TEXT : BADGE_DIRUJUK_TEXT;
-            ctx.textBaseline = 'middle';
-            ctx.fillText(badgeText, node.x, by + bh / 2);
+            // Inner Ring Aura
+            ctx.beginPath();
+            ctx.arc(x, y, coreRadius + 4, 0, Math.PI * 2);
+            ctx.fillStyle = theme.glow;
+            ctx.fill();
+
+            // Core Solid Electric Indigo Dot
+            ctx.beginPath();
+            ctx.arc(x, y, coreRadius, 0, Math.PI * 2);
+            ctx.fillStyle = theme.core;
+            ctx.fill();
+
+            // Crisp Pure White Outline
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // Monospace Label Below Hub
+            const shortCode = getShortCode(node);
+            ctx.font = '700 10.5px Inter, system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+
+            // Background pill for label clarity
+            const textW = ctx.measureText(shortCode).width;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+            drawRoundedRect(ctx, x - textW / 2 - 6, y + coreRadius + 5, textW + 12, 16, 4);
+            ctx.fill();
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.fillText(shortCode, x, y + coreRadius + 7);
+
+        } else {
+            // ─────────────────────────────────────────
+            // SATELLITE NODE: Luminous Jewel Bead
+            // ─────────────────────────────────────────
+            const coreRadius = isFocused ? 7.5 : 5.5;
+            const auraRadius = isFocused ? coreRadius + 7 + pulse : coreRadius + 3 + pulse;
+
+            // Outer Glowing Halo
+            ctx.beginPath();
+            ctx.arc(x, y, auraRadius, 0, Math.PI * 2);
+            ctx.fillStyle = theme.glow;
+            ctx.fill();
+
+            // Core Solid Jewel Bead
+            ctx.beginPath();
+            ctx.arc(x, y, coreRadius, 0, Math.PI * 2);
+            ctx.fillStyle = theme.core;
+            ctx.fill();
+
+            // High-Contrast Crisp White Border
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = isFocused ? 2 : 1.5;
+            ctx.stroke();
+
+            // Short Label Below Dot
+            const shortCode = getShortCode(node);
+            ctx.font = isFocused ? '700 9.5px Inter, system-ui, sans-serif' : '600 8.5px Inter, system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+
+            const labelY = y + coreRadius + 5;
+            const textW = ctx.measureText(shortCode).width;
+
+            // Clean white pill behind text
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+            drawRoundedRect(ctx, x - textW / 2 - 4, labelY - 1, textW + 8, 14, 3);
+            ctx.fill();
+            ctx.strokeStyle = '#f1f5f9';
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+
+            ctx.fillStyle = isFocused ? '#0f172a' : '#334155';
+            ctx.fillText(shortCode, x, labelY);
         }
-    }, [hoverNode, clickedNode]);
+
+        ctx.restore();
+    }, [hoverNode, clickedNode, activeNodeIds]);
+
+    // ─────────────────────────────────────────────
+    // Custom Link Render: Hairline Links & Midpoint Relation Badge
+    // ─────────────────────────────────────────────
+
+    const drawLinkOverlay = useCallback((link: any, ctx: CanvasRenderingContext2D) => {
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+
+        const isClickedLink = clickedNode && (
+            (sourceId === clickedNode.id && targetId === centerNodeId) ||
+            (targetId === clickedNode.id && sourceId === centerNodeId)
+        );
+
+        if (!isClickedLink) return;
+
+        const startX = link.source.x || 0;
+        const startY = link.source.y || 0;
+        const endX = link.target.x || 0;
+        const endY = link.target.y || 0;
+
+        const midX = (startX + endX) / 2;
+        const midY = (startY + endY) / 2;
+
+        const theme = getNodeTheme(clickedNode);
+        const relText = (clickedNode.relType || clickedNode.relCategory || 'MERUJUK').replace(/_/g, ' ').toUpperCase();
+
+        ctx.save();
+        ctx.globalAlpha = 1;
+
+        // Draw Relation Badge Pill at Link Midpoint
+        ctx.font = '700 8.5px Inter, system-ui, sans-serif';
+        const textW = ctx.measureText(relText).width;
+        const pillW = textW + 16;
+        const pillH = 18;
+        const px = midX - pillW / 2;
+        const py = midY - pillH / 2;
+
+        // Drop shadow for badge
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 2;
+
+        // White Pill with Colored Border
+        drawRoundedRect(ctx, px, py, pillW, pillH, 9);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = theme.line;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = theme.text;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(relText, midX, midY);
+
+        ctx.restore();
+    }, [clickedNode, centerNodeId]);
+
+    // Link Color & Width Logic
+    const getLinkColor = useCallback((link: any) => {
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+
+        const isClickedLink = clickedNode && (
+            (sourceId === clickedNode.id && targetId === centerNodeId) ||
+            (targetId === clickedNode.id && sourceId === centerNodeId)
+        );
+
+        if (isClickedLink) {
+            const theme = getNodeTheme(clickedNode);
+            return theme.line;
+        }
+
+        if (activeNodeIds !== null) {
+            const isConnected = activeNodeIds.has(sourceId) && activeNodeIds.has(targetId);
+            if (!isConnected) return 'rgba(226, 232, 240, 0.3)';
+        }
+
+        return 'rgba(148, 163, 184, 0.38)'; // Hairline slate line
+    }, [clickedNode, activeNodeIds, centerNodeId]);
+
+    const getLinkWidth = useCallback((link: any) => {
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+
+        const isClickedLink = clickedNode && (
+            (sourceId === clickedNode.id && targetId === centerNodeId) ||
+            (targetId === clickedNode.id && sourceId === centerNodeId)
+        );
+
+        return isClickedLink ? 2.5 : 0.85;
+    }, [clickedNode, centerNodeId]);
 
     // ─────────────────────────────────────────────
     // Rendering
@@ -359,31 +595,31 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
 
     if (loading) {
         return (
-            <div 
-                className={`w-full relative bg-white flex flex-col items-center justify-center ${isMini ? 'h-full' : 'rounded-2xl border border-gray-200 shadow-sm'}`}
-                style={{ 
-                    fontFamily: "'Inter', system-ui, sans-serif", 
-                    height: isMini ? '100%' : 'calc(100vh - 120px)', 
-                    minHeight: isMini ? '300px' : '500px' 
+            <div
+                className={`w-full relative bg-[#fafafa] flex flex-col items-center justify-center ${isMini ? 'h-full' : 'rounded-2xl border border-slate-200/80 shadow-sm'}`}
+                style={{
+                    fontFamily: "'Inter', system-ui, sans-serif",
+                    height: isMini ? '100%' : 'calc(100vh - 120px)',
+                    minHeight: isMini ? '300px' : '500px'
                 }}
             >
-                <div className="w-8 h-8 border-4 border-[#0f172a] border-t-transparent rounded-full animate-spin mb-4"></div>
-                <span className="text-gray-500 font-medium text-sm">Memuat Peta Relasi...</span>
+                <div className="w-9 h-9 border-3 border-slate-300 border-t-slate-800 rounded-full animate-spin mb-4"></div>
+                <span className="text-slate-600 font-semibold text-xs tracking-wider">MEMUAT PETA RELASI...</span>
             </div>
         );
     }
 
     if (graphData.nodes.length === 0) {
         return (
-            <div 
-                className={`w-full relative bg-white flex items-center justify-center ${isMini ? 'h-full' : 'rounded-2xl border border-gray-200 shadow-sm'}`}
-                style={{ 
-                    fontFamily: "'Inter', system-ui, sans-serif", 
-                    height: isMini ? '100%' : 'calc(100vh - 120px)', 
-                    minHeight: isMini ? '300px' : '500px' 
+            <div
+                className={`w-full relative bg-[#fafafa] flex items-center justify-center ${isMini ? 'h-full' : 'rounded-2xl border border-slate-200/80 shadow-sm'}`}
+                style={{
+                    fontFamily: "'Inter', system-ui, sans-serif",
+                    height: isMini ? '100%' : 'calc(100vh - 120px)',
+                    minHeight: isMini ? '300px' : '500px'
                 }}
             >
-                <span className="text-gray-500 text-xs text-center">Tidak ada data untuk peraturan ini.</span>
+                <span className="text-slate-400 text-xs font-medium">Tidak ada data relasi hukum untuk peraturan ini.</span>
             </div>
         );
     }
@@ -391,84 +627,105 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
     return (
         <div
             ref={containerRef}
-            className={`w-full relative bg-white overflow-hidden flex flex-col ${isMini ? 'h-full' : 'rounded-2xl border border-gray-200 shadow-sm'}`}
-            style={{ 
-                fontFamily: "'Inter', system-ui, sans-serif", 
-                height: isMini ? '100%' : 'calc(100vh - 120px)', 
-                minHeight: isMini ? '300px' : '500px' 
+            className={`w-full relative bg-[#fafafa] overflow-hidden flex flex-col ${isMini ? 'h-full' : 'rounded-2xl border border-slate-200/80 shadow-sm'}`}
+            style={{
+                fontFamily: "'Inter', system-ui, sans-serif",
+                height: isMini ? '100%' : 'calc(100vh - 120px)',
+                minHeight: isMini ? '300px' : '500px',
+                backgroundImage: 'radial-gradient(#cbd5e1 1.2px, transparent 1.2px)',
+                backgroundSize: '24px 24px',
             }}
         >
-            {/* ── Legend (Kiri Atas, sesuai Figma) ── */}
+            {/* ── Top Floating Legend & Info Bar ── */}
             <div className={`absolute top-0 left-0 w-full ${isMini ? 'p-3' : 'p-5'} flex justify-between items-start pointer-events-none z-10`}>
-                <div className="bg-white/95 backdrop-blur-sm rounded-lg p-2 pointer-events-auto space-y-1.5 shadow-2xs border border-gray-100">
+                <div className="bg-white/90 backdrop-blur-md rounded-xl p-2.5 pointer-events-auto flex items-center gap-4 shadow-sm border border-slate-200/80">
                     <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: FILL_MERUJUK }}></div>
-                        <span className={`${isMini ? 'text-[11px]' : 'text-sm'} font-medium text-gray-700`}>Merujuk</span>
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#10b981] shadow-xs ring-2 ring-emerald-100"></span>
+                        <span className={`${isMini ? 'text-[11px]' : 'text-xs'} font-semibold text-slate-700`}>Merujuk</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: FILL_DIRUJUK }}></div>
-                        <span className={`${isMini ? 'text-[11px]' : 'text-sm'} font-medium text-gray-700`}>Dirujuk Oleh</span>
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#0284c7] shadow-xs ring-2 ring-sky-100"></span>
+                        <span className={`${isMini ? 'text-[11px]' : 'text-xs'} font-semibold text-slate-700`}>Dirujuk Oleh</span>
                     </div>
+                    {!isMini && (
+                        <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 text-slate-400 text-[11px] font-medium">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                            <span className="text-slate-600 font-medium">{graphData.nodes.length} Entitas Relasi</span>
+                        </div>
+                    )}
                 </div>
 
+                {/* Floating Fullscreen / Reset Toolbar */}
                 {!isMini && (
-                    <span className="text-sm font-bold text-gray-500 tracking-widest mt-1">RELASI</span>
-                )}
-
-                {/* Fullscreen Button (hanya tampil jika bukan mini, karena mini sudah ada di header floating) */}
-                {!isMini && (
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (containerRef.current) {
-                                if (document.fullscreenElement) document.exitFullscreen();
-                                else containerRef.current.requestFullscreen();
-                            }
-                        }}
-                        title="Fullscreen"
-                        className="p-2 bg-white hover:bg-gray-50 shadow-sm border border-gray-200 rounded-lg pointer-events-auto transition-colors text-gray-600 hover:text-gray-900 cursor-pointer"
-                    >
-                        <Maximize2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2 pointer-events-auto">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (graphRef.current) {
+                                    graphRef.current.centerAt(0, 0, 400);
+                                    graphRef.current.zoom(1.1, 400);
+                                }
+                            }}
+                            title="Reset Posisi Kamera"
+                            className="p-2.5 bg-white/90 backdrop-blur-md hover:bg-slate-50 shadow-sm border border-slate-200/80 rounded-xl text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+                        >
+                            <RotateCcw className="w-4 h-4" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (containerRef.current) {
+                                    if (document.fullscreenElement) document.exitFullscreen();
+                                    else containerRef.current.requestFullscreen();
+                                }
+                            }}
+                            title="Fullscreen"
+                            className="p-2.5 bg-white/90 backdrop-blur-md hover:bg-slate-50 shadow-sm border border-slate-200/80 rounded-xl text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+                        >
+                            <Maximize2 className="w-4 h-4" />
+                        </button>
+                    </div>
                 )}
             </div>
 
-            {/* ── Zoom Buttons (Kanan Bawah) ── */}
-            <div className={`absolute ${isMini ? 'bottom-4 right-3' : 'bottom-6 right-6'} flex flex-col bg-white border border-gray-200 shadow-sm rounded-lg pointer-events-auto z-10 overflow-hidden`}>
+            {/* ── Bottom Right Floating Zoom Pill ── */}
+            <div className={`absolute ${isMini ? 'bottom-3 right-3' : 'bottom-6 right-6'} flex flex-col bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-md rounded-xl pointer-events-auto z-10 overflow-hidden`}>
                 <button
                     type="button"
                     onClick={() => {
                         if (graphRef.current) {
-                            graphRef.current.zoom(graphRef.current.zoom() * 1.5, 300);
+                            graphRef.current.zoom(graphRef.current.zoom() * 1.4, 300);
                         }
                     }}
-                    className="px-2.5 py-1.5 hover:bg-gray-50 transition-colors border-b border-gray-100 text-gray-600 text-xs font-medium cursor-pointer"
+                    title="Zoom In"
+                    className="p-2 hover:bg-slate-100 transition-colors border-b border-slate-200/60 text-slate-600 cursor-pointer"
                 >
-                    +
+                    <ZoomIn className="w-4 h-4" />
                 </button>
                 <button
                     type="button"
                     onClick={() => {
                         if (graphRef.current) {
-                            graphRef.current.zoom(graphRef.current.zoom() / 1.5, 300);
+                            graphRef.current.zoom(graphRef.current.zoom() / 1.4, 300);
                         }
                     }}
-                    className="px-2.5 py-1.5 hover:bg-gray-50 transition-colors text-gray-600 text-xs font-medium cursor-pointer"
+                    title="Zoom Out"
+                    className="p-2 hover:bg-slate-100 transition-colors text-slate-600 cursor-pointer"
                 >
-                    −
+                    <ZoomOut className="w-4 h-4" />
                 </button>
             </div>
 
-            {/* ── Loading Overlay untuk Posisi Layout ── */}
+            {/* ── Smooth Initial Loading Overlay ── */}
             {!isGraphReady && (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white">
-                    <div className="w-6 h-6 border-4 border-gray-200 border-t-[#0f172a] rounded-full animate-spin mb-3"></div>
-                    <span className="text-gray-400 font-medium text-xs">Menata grafik...</span>
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/90 backdrop-blur-xs">
+                    <div className="w-7 h-7 border-3 border-slate-200 border-t-slate-800 rounded-full animate-spin mb-3"></div>
+                    <span className="text-slate-500 font-semibold text-xs tracking-wider">Menata konstelasi relasi...</span>
                 </div>
             )}
 
-            {/* ── Force Graph Canvas ── */}
-            <div className="flex-1 w-full relative min-h-0" style={{ opacity: isGraphReady ? 1 : 0, transition: 'opacity 0.2s ease-in' }}>
+            {/* ── Force Graph Canvas Engine ── */}
+            <div className="flex-1 w-full relative min-h-0" style={{ opacity: isGraphReady ? 1 : 0, transition: 'opacity 0.25s ease-in' }}>
                 <ForceGraph2D
                     ref={graphRef}
                     width={dimensions.width}
@@ -477,72 +734,63 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                     nodeRelSize={1}
                     d3VelocityDecay={0.65}
 
-                    // Link styling: warna gelap netral, sesuai Figma
-                    linkColor={() => LINE_COLOR}
-                    linkWidth={1.5}
-                    linkDirectionalArrowLength={0}
+                    // Links
+                    linkColor={getLinkColor}
+                    linkWidth={getLinkWidth}
+                    linkCurvature={0.06}
+                    linkCanvasObjectMode={() => 'after'}
+                    linkCanvasObject={drawLinkOverlay}
 
-                    // Zoom (scroll zoom tetap aktif)
-                    minZoom={0.3}
+                    // Zoom & Pan
+                    minZoom={0.2}
                     maxZoom={4}
-
-                    // Pan: aktif agar bisa geser-geser layar
                     enablePanInteraction={true}
+                    enableNodeDrag={true}
 
-                    // Interaksi
+                    // Interactivity Handlers
                     onNodeHover={handleNodeHover}
                     onNodeClick={handleNodeClick}
                     onNodeDrag={handleNodeDrag}
                     onNodeDragEnd={handleNodeDragEnd}
                     onBackgroundClick={() => setClickedNode(null)}
-                    enableNodeDrag={true}
 
-                    // Custom node render
+                    // Custom Orb Node Render
                     nodeCanvasObject={drawNode}
 
-                    // KUNCI: Area sentuh node (tanpa ini, klik & drag TIDAK akan bekerja
-                    // karena library tidak tahu batas lingkaran custom kita)
+                    // Pointer Touch Boundary Area for Easy Clicking (Generous 28px hit radius for all nodes)
                     nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
-                        const r = node.isCenter ? 45 : 22;
                         ctx.fillStyle = color;
                         ctx.beginPath();
-                        ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+                        ctx.arc(node.x || 0, node.y || 0, 28, 0, Math.PI * 2);
                         ctx.fill();
                     }}
 
-                    // Simulasi: Naikkan warmupTicks agar kalkulasi layout selesai sebelum frame pertama dirender
+                    // Warmup & Auto-fit framing
                     warmupTicks={100}
-                    cooldownTicks={100} // KUNCI: Samakan dengan warmupTicks agar engine langsung stop & render seketika
+                    cooldownTicks={100}
                     onEngineStop={() => {
                         if (!graphRef.current) return;
-                        
-                        // Hanya lakukan auto-center sekali saat pertama kali graph dimuat!
                         if (initialCenterDone.current) return;
                         initialCenterDone.current = true;
 
-                        // Hitung jarak terjauh node dari pusat (0,0)
                         let maxDist = 0;
                         graphData.nodes.forEach((node: any) => {
                             const dist = Math.sqrt((node.x || 0) ** 2 + (node.y || 0) ** 2);
                             if (dist > maxDist) maxDist = dist;
                         });
 
-                        // Tambah ruang untuk label + badge (~40px)
-                        maxDist += 40;
+                        maxDist += 80;
 
-                        // Hitung zoom agar graph mengisi seluruh kotak (padding minimal)
                         const halfW = dimensions.width / 2;
                         const halfH = dimensions.height / 2;
                         const fitSize = Math.min(halfW, halfH);
-                        const padding = isMini ? 25 : 40;
+                        const padding = isMini ? 30 : 50;
                         const idealZoom = (fitSize - padding) / maxDist;
-                        const clampedZoom = Math.max(0.3, Math.min(idealZoom, 2.5));
+                        const clampedZoom = Math.max(0.35, Math.min(idealZoom, 1.4));
 
-                        // Center di (0,0) dan set zoom agar mengisi kotak penuh secara instan (tanpa delay/animasi)
                         graphRef.current.centerAt(0, 0, 0);
                         graphRef.current.zoom(clampedZoom, 0);
 
-                        // Tampilkan grafik (fade-in) HANYA setelah posisi dan zoom 100% di-set
                         requestAnimationFrame(() => {
                             setIsGraphReady(true);
                         });
@@ -550,28 +798,28 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                 />
             </div>
 
-            {/* ── Tooltip Card (Muncul Saat Klik Node, sesuai Figma) ── */}
+            {/* ── Floating Interactive Detail Tooltip (Beside Clicked Node) ── */}
             {clickedNode && (
                 <div
-                    className="absolute z-50 pointer-events-auto"
+                    className="absolute z-50 pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
                     style={{
-                        left: Math.min(tooltipPos.x + 20, dimensions.width - 340),
-                        top: Math.max(tooltipPos.y - 30, 10),
+                        left: Math.min(Math.max(tooltipPos.x + 24, 16), dimensions.width - 330),
+                        top: Math.min(Math.max(tooltipPos.y - 30, 16), dimensions.height - 240),
                         maxWidth: 320,
                     }}
                 >
-                    <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-4 w-[300px]">
-                        {/* Header: badge + close */}
-                        <div className="flex items-start justify-between mb-3">
+                    <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/90 p-4.5 w-[310px] text-slate-900">
+                        {/* Header: Badge + Close */}
+                        <div className="flex items-start justify-between mb-2.5">
                             <div className="flex items-center gap-2">
-                                <div
+                                <span
                                     className="w-2.5 h-2.5 rounded-full"
                                     style={{
-                                        backgroundColor: clickedNode.isCenter ? FILL_CENTER : (clickedNode.relCategory === 'Merujuk' ? FILL_MERUJUK : FILL_DIRUJUK),
+                                        backgroundColor: getNodeTheme(clickedNode).core,
                                     }}
-                                ></div>
-                                <span className="text-xs font-semibold text-gray-500">
-                                    {clickedNode.isCenter ? 'Dokumen Utama' : clickedNode.relCategory}
+                                ></span>
+                                <span className="text-[11px] font-bold tracking-wider uppercase text-slate-500">
+                                    {clickedNode.isCenter ? 'Dokumen Utama' : (clickedNode.relType || clickedNode.relCategory || 'Merujuk')}
                                 </span>
                             </div>
                             <button
@@ -579,44 +827,54 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                                     e.stopPropagation();
                                     setClickedNode(null);
                                 }}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                             >
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
 
                         {/* Title */}
-                        <h4 className="text-sm font-bold text-gray-900 mb-3 leading-snug line-clamp-3">
+                        <h4 className="text-sm font-bold text-slate-900 mb-3 leading-snug line-clamp-3">
                             {clickedNode.judul ||
                                 `${clickedNode.jenis || 'Undang-Undang'} Nomor ${clickedNode.nomor} Tahun ${clickedNode.tahun}`}
                         </h4>
 
                         {/* Status & Tanggal */}
                         <div className="flex flex-wrap gap-2 mb-4">
-                            <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md text-xs font-medium border border-emerald-200">
-                                <CheckCircle className="w-3 h-3" />
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold border border-emerald-200/80">
+                                <CheckCircle className="w-3.5 h-3.5" />
                                 {clickedNode.status || 'Berlaku'}
                             </div>
-                            <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 text-gray-600 rounded-md text-xs font-medium border border-gray-200">
-                                <Calendar className="w-3 h-3" />
-                                Ditetapkan: {formatTanggal(clickedNode.tanggal_penetapan)}
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium border border-slate-200/80">
+                                <Calendar className="w-3.5 h-3.5" />
+                                {formatTanggal(clickedNode.tanggal_penetapan)}
                             </div>
                         </div>
 
-                        {/* CTA Button */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (onClose) onClose();
-                                if (clickedNode.unique_id) {
-                                    router.visit(`/peraturan/${clickedNode.unique_id}`);
-                                }
-                            }}
-                            className="w-full flex items-center justify-center gap-2 py-2 bg-[#0f172a] hover:bg-[#1e293b] text-white rounded-lg text-sm font-semibold transition-colors"
-                        >
-                            <FileText className="w-3.5 h-3.5" />
-                            Lihat Dokumen
-                        </button>
+                        {/* CTA Button: Active if document exists, Disabled if document not yet in database */}
+                        {isDocumentAvailable(clickedNode) ? (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onClose) onClose();
+                                    if (clickedNode.unique_id) {
+                                        router.visit(`/peraturan/${clickedNode.unique_id}`);
+                                    }
+                                }}
+                                className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold tracking-wide transition-all shadow-sm hover:shadow cursor-pointer"
+                            >
+                                <FileText className="w-3.5 h-3.5" />
+                                LIHAT DOKUMEN HUKUM
+                            </button>
+                        ) : (
+                            <button
+                                disabled
+                                className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-100 text-slate-400 border border-slate-200 rounded-xl text-xs font-bold tracking-wide cursor-not-allowed select-none"
+                            >
+                                <AlertCircle className="w-3.5 h-3.5 text-slate-400" />
+                                DOKUMEN BELUM TERSEDIA
+                            </button>
+                        )}
                     </div>
                 </div>
             )}

@@ -212,8 +212,8 @@ export default function Pencarian() {
         ? overrides.kategori_id
         : selectedKategori.length > 0 &&
           (kategoriOptions.length === 0 || selectedKategori.length < kategoriOptions.length)
-        ? selectedKategori.join(',')
-        : '';
+          ? selectedKategori.join(',')
+          : '';
 
     let formattedTahun = '';
     if (overrides.tahun !== undefined) {
@@ -239,8 +239,8 @@ export default function Pencarian() {
         ? overrides.status_id
         : selectedStatus.length > 0 &&
           (statusOptions.length === 0 || selectedStatus.length < statusOptions.length)
-        ? selectedStatus.join(',')
-        : '';
+          ? selectedStatus.join(',')
+          : '';
     const currentSort = overrides.sort !== undefined ? overrides.sort : sort;
     const currentPerPage = overrides.per_page !== undefined ? overrides.per_page : perPage;
     const page = overrides.page !== undefined ? overrides.page : 1;
@@ -391,9 +391,9 @@ export default function Pencarian() {
   const kategoriOptions: FilterOption[] =
     listKategori.length > 0
       ? listKategori.map((k) => ({
-          value: String(k.id),
-          label: k.nama,
-        }))
+        value: String(k.id),
+        label: k.nama,
+      }))
       : fallbackKategori;
 
   const fallbackStatus: FilterOption[] = [
@@ -404,9 +404,9 @@ export default function Pencarian() {
   const statusOptions: FilterOption[] =
     listStatus.length > 0
       ? listStatus.map((s) => ({
-          value: String(s.id),
-          label: s.nama,
-        }))
+        value: String(s.id),
+        label: s.nama,
+      }))
       : fallbackStatus;
 
   // Fallback tahun agar selalu tersedia opsi tahun lengkap
@@ -551,9 +551,8 @@ export default function Pencarian() {
                     >
                       <span className="truncate">{kategoriLabel}</span>
                       <ChevronDown
-                        className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${
-                          activeDropdown === 'kategori' ? 'rotate-180' : ''
-                        }`}
+                        className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${activeDropdown === 'kategori' ? 'rotate-180' : ''
+                          }`}
                       />
                     </button>
 
@@ -576,11 +575,10 @@ export default function Pencarian() {
                               className="w-full text-left flex items-center gap-3 cursor-pointer group"
                             >
                               <div
-                                className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${
-                                  isChecked
+                                className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${isChecked
                                     ? 'bg-[#0B1A3A] border-[#0B1A3A] text-white'
                                     : 'border-gray-300 bg-white group-hover:border-gray-400'
-                                }`}
+                                  }`}
                               >
                                 {isChecked && <Check className="w-3 h-3 text-white stroke-[3]" />}
                               </div>
@@ -606,9 +604,8 @@ export default function Pencarian() {
                     >
                       <span className="truncate">{tahunLabel}</span>
                       <ChevronDown
-                        className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${
-                          activeDropdown === 'tahun' ? 'rotate-180' : ''
-                        }`}
+                        className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${activeDropdown === 'tahun' ? 'rotate-180' : ''
+                          }`}
                       />
                     </button>
 
@@ -645,9 +642,8 @@ export default function Pencarian() {
                             >
                               <span className="truncate">{tahunDari || 'Pilih'}</span>
                               <ChevronDown
-                                className={`w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform ${
-                                  openYearSub.dari ? 'rotate-180' : ''
-                                }`}
+                                className={`w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform ${openYearSub.dari ? 'rotate-180' : ''
+                                  }`}
                               />
                             </button>
 
@@ -660,11 +656,10 @@ export default function Pencarian() {
                                       key={`dari-${yr}`}
                                       type="button"
                                       onClick={() => setTahunDari(yr)}
-                                      className={`w-full px-2.5 py-1 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                                        isSelected
+                                      className={`w-full px-2.5 py-1 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${isSelected
                                           ? 'bg-blue-50 text-pr-900 font-semibold'
                                           : 'text-gray-700 hover:bg-gray-50'
-                                      }`}
+                                        }`}
                                     >
                                       <span>{yr}</span>
                                       {isSelected && <Check className="w-3 h-3 text-pr-900" />}
@@ -687,9 +682,8 @@ export default function Pencarian() {
                             >
                               <span className="truncate">{tahunSampai || 'Pilih'}</span>
                               <ChevronDown
-                                className={`w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform ${
-                                  openYearSub.sampai ? 'rotate-180' : ''
-                                }`}
+                                className={`w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform ${openYearSub.sampai ? 'rotate-180' : ''
+                                  }`}
                               />
                             </button>
 
@@ -702,11 +696,10 @@ export default function Pencarian() {
                                       key={`sampai-${yr}`}
                                       type="button"
                                       onClick={() => setTahunSampai(yr)}
-                                      className={`w-full px-2.5 py-1 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                                        isSelected
+                                      className={`w-full px-2.5 py-1 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${isSelected
                                           ? 'bg-blue-50 text-pr-900 font-semibold'
                                           : 'text-gray-700 hover:bg-gray-50'
-                                      }`}
+                                        }`}
                                     >
                                       <span>{yr}</span>
                                       {isSelected && <Check className="w-3 h-3 text-pr-900" />}
@@ -735,9 +728,8 @@ export default function Pencarian() {
                     >
                       <span className="truncate">{statusLabel}</span>
                       <ChevronDown
-                        className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${
-                          activeDropdown === 'status' ? 'rotate-180' : ''
-                        }`}
+                        className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${activeDropdown === 'status' ? 'rotate-180' : ''
+                          }`}
                       />
                     </button>
 
@@ -760,11 +752,10 @@ export default function Pencarian() {
                               className="w-full text-left flex items-center gap-3 cursor-pointer group"
                             >
                               <div
-                                className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${
-                                  isChecked
+                                className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${isChecked
                                     ? 'bg-[#0B1A3A] border-[#0B1A3A] text-white'
                                     : 'border-gray-300 bg-white group-hover:border-gray-400'
-                                }`}
+                                  }`}
                               >
                                 {isChecked && <Check className="w-3 h-3 text-white stroke-[3]" />}
                               </div>
@@ -834,13 +825,12 @@ export default function Pencarian() {
                     {sort === 'terbaru'
                       ? 'Tahun Terbaru'
                       : sort === 'terlama'
-                      ? 'Tahun Terlama'
-                      : 'Relavansi'}
+                        ? 'Tahun Terlama'
+                        : 'Relavansi'}
                   </span>
                   <ChevronDown
-                    className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
-                      isSortOpen ? 'rotate-180 text-pr-900' : ''
-                    }`}
+                    className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isSortOpen ? 'rotate-180 text-pr-900' : ''
+                      }`}
                   />
                 </button>
 
@@ -849,11 +839,10 @@ export default function Pencarian() {
                     <button
                       type="button"
                       onClick={() => handleSortChange('relevansi')}
-                      className={`w-full px-3 py-1.5 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                        sort === 'relevansi'
+                      className={`w-full px-3 py-1.5 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${sort === 'relevansi'
                           ? 'bg-blue-50 text-pr-900 font-semibold'
                           : 'text-gray-700 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <span>Relavansi</span>
                       {sort === 'relevansi' && <Check className="w-3 h-3 text-pr-900" />}
@@ -861,11 +850,10 @@ export default function Pencarian() {
                     <button
                       type="button"
                       onClick={() => handleSortChange('terbaru')}
-                      className={`w-full px-3 py-1.5 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                        sort === 'terbaru'
+                      className={`w-full px-3 py-1.5 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${sort === 'terbaru'
                           ? 'bg-blue-50 text-pr-900 font-semibold'
                           : 'text-gray-700 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <span>Tahun Terbaru</span>
                       {sort === 'terbaru' && <Check className="w-3 h-3 text-pr-900" />}
@@ -873,11 +861,10 @@ export default function Pencarian() {
                     <button
                       type="button"
                       onClick={() => handleSortChange('terlama')}
-                      className={`w-full px-3 py-1.5 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                        sort === 'terlama'
+                      className={`w-full px-3 py-1.5 text-left text-xs transition-colors flex items-center justify-between cursor-pointer ${sort === 'terlama'
                           ? 'bg-blue-50 text-pr-900 font-semibold'
                           : 'text-gray-700 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <span>Tahun Terlama</span>
                       {sort === 'terlama' && <Check className="w-3 h-3 text-pr-900" />}
@@ -960,9 +947,8 @@ export default function Pencarian() {
                       >
                         <span>{perPage}</span>
                         <ChevronDown
-                          className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
-                            isPerPageOpen ? 'rotate-180 text-pr-900' : ''
-                          }`}
+                          className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isPerPageOpen ? 'rotate-180 text-pr-900' : ''
+                            }`}
                         />
                       </button>
 
@@ -973,11 +959,10 @@ export default function Pencarian() {
                               key={num}
                               type="button"
                               onClick={() => handlePerPageChange(num)}
-                              className={`w-full py-1 text-xs transition-colors cursor-pointer ${
-                                perPage === num
+                              className={`w-full py-1 text-xs transition-colors cursor-pointer ${perPage === num
                                   ? 'bg-blue-50 text-pr-900 font-semibold'
                                   : 'text-gray-700 hover:bg-gray-50'
-                              }`}
+                                }`}
                             >
                               {num}
                             </button>
@@ -993,13 +978,12 @@ export default function Pencarian() {
                           key={index}
                           onClick={() => (typeof page === 'number' ? handlePageChange(page) : null)}
                           disabled={page === '...'}
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                            page === currentPage
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors cursor-pointer ${page === currentPage
                               ? 'bg-[#0B132B] text-white shadow-sm'
                               : page === '...'
-                              ? 'text-gray-400 cursor-default'
-                              : 'text-gray-600 hover:bg-gray-100'
-                          }`}
+                                ? 'text-gray-400 cursor-default'
+                                : 'text-gray-600 hover:bg-gray-100'
+                            }`}
                         >
                           {page}
                         </button>

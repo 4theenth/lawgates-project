@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
@@ -44,7 +44,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
   const [pageSize, setPageSize] = useState(filters?.pageSize ? parseInt(filters.pageSize) : 10);
 
   // Helper untuk melakukan fetch data ke backend
-  const fetchData = (overrides: any = {}) => {
+  const fetchData = useCallback((overrides: any = {}) => {
     const query: any = {};
     const finalTab = overrides.status !== undefined ? overrides.status : activeTab;
     if (finalTab !== 'all') query.status = finalTab;
@@ -73,7 +73,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
         preserveScroll: true,
         replace: true
     });
-  };
+  }, [activeTab, searchQuery, selectedCategories, sortColumn, sortDirection, pageSize, currentPage]);
 
   // Mencegah trigger di initial render
   const isInitialRender = useRef(true);
@@ -90,7 +90,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
     }, 300);
     
     return () => clearTimeout(debounce);
-  }, [searchQuery]);
+  }, [searchQuery, fetchData]);
 
 
   // In-place Modal Overlay states (Nimpa bukan buka halaman baru)
@@ -170,7 +170,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
   };
 
   // Helper konversi tanggal bahasa Indonesia ke timestamp
-  const parseIndonesianDate = (dateStr: string): number => {
+  const _parseIndonesianDate = (dateStr: string): number => {
     if (!dateStr) return 0;
     const indoMonths: Record<string, number> = {
       januari: 0,
@@ -249,7 +249,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
   };
 
   // Handler simpan tambah / edit dokumen
-  const handleSaveDocument = (data: Omit<DokumenHukumItem, 'id'> & { id?: string }) => {
+  const handleSaveDocument = (_data: Omit<DokumenHukumItem, 'id'> & { id?: string }) => {
     toast.success('Data hukum berhasil disimpan');
   };
 
@@ -330,7 +330,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
   const activePaginator = isDraftTab ? drafts : peraturans;
   const paginatedDocuments = peraturans?.data || [];
   const paginatedDrafts = drafts?.data || [];
-  const totalItems = activePaginator?.total || 0;
+  const _totalItems = activePaginator?.total || 0;
   const totalPages = activePaginator?.last_page || 1;
   const hasData = isDraftTab ? paginatedDrafts.length > 0 : paginatedDocuments.length > 0;
 

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
-import { ChevronUp, X, Maximize2, Move } from 'lucide-react';
+import { ChevronUp, X, Maximize2 } from 'lucide-react';
 import { ChapterItem, ArticleItem } from '@/Components/admin/import/correctionParser';
 import { ReadonlyTableOfContents } from '@/Components/public/peraturan/ReadonlyTableOfContents';
 import { ReadonlyPembukaanSection } from '@/Components/public/peraturan/ReadonlyPembukaanSection';
@@ -44,12 +44,13 @@ function FloatingGraphPreview({ peraturanId, onClose, onExpand }: FloatingGraphP
   return (
     <div
       style={{ width: '480px' }}
-      className="absolute bottom-[75px] right-0 z-[9999] bg-white rounded-2xl shadow-[0_12px_40px_-12px_rgba(0,0,0,0.25)] border border-gray-200 overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300 pointer-events-auto origin-bottom-right"
+      className="absolute bottom-[75px] right-0 z-[9999] bg-white rounded-2xl shadow-[0_12px_40px_-12px_rgba(0,0,0,0.25)] border border-slate-200 overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300 pointer-events-auto origin-bottom-right"
     >
       {/* Header Bar */}
-      <div className="px-4 py-3 bg-gray-50/95 backdrop-blur-sm border-b border-gray-100 flex items-center justify-between select-none">
-        <div className="flex items-center gap-2 text-gray-700">
-          <span className="text-xs font-bold tracking-wider">PREVIEW PETA RELASI</span>
+      <div className="px-4 py-3 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200/80 flex items-center justify-between select-none">
+        <div className="flex items-center gap-2 text-slate-800">
+          <span className="w-2 h-2 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.6)]"></span>
+          <span className="text-xs font-bold tracking-wider text-slate-800">PREVIEW PETA RELASI</span>
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -57,7 +58,7 @@ function FloatingGraphPreview({ peraturanId, onClose, onExpand }: FloatingGraphP
             type="button"
             onClick={onExpand}
             title="Perbesar & Masuk ke Halaman Graph"
-            className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
           >
             <Maximize2 className="w-4 h-4" />
           </button>
@@ -65,7 +66,7 @@ function FloatingGraphPreview({ peraturanId, onClose, onExpand }: FloatingGraphP
             type="button"
             onClick={onClose}
             title="Tutup Preview"
-            className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -73,7 +74,7 @@ function FloatingGraphPreview({ peraturanId, onClose, onExpand }: FloatingGraphP
       </div>
 
       {/* Graph Content */}
-      <div className="h-[400px] relative bg-white overflow-hidden">
+      <div className="h-[400px] relative bg-[#fafafa] overflow-hidden">
         <RegulationGraph
           peraturanId={peraturanId}
           isMini={true}

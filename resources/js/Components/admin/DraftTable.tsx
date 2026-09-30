@@ -158,9 +158,8 @@ export function DraftTable({
               return (
                 <tr
                   key={draft.id}
-                  className={`hover:bg-neu-50/60 transition-colors ${
-                    isChecked ? 'bg-pr-50/20' : ''
-                  }`}
+                  className={`hover:bg-neu-50/60 transition-colors ${isChecked ? 'bg-pr-50/20' : ''
+                    }`}
                 >
                   {/* Checkbox */}
                   <td className="py-3.5 px-4 text-center">
@@ -199,11 +198,10 @@ export function DraftTable({
                         }
                         setActiveActionId(activeActionId === draft.id ? null : draft.id);
                       }}
-                      className={`p-1 rounded-lg transition-colors inline-flex items-center justify-center ${
-                        isActionDisabled
+                      className={`p-1 rounded-lg transition-colors inline-flex items-center justify-center ${isActionDisabled
                           ? 'text-neu-400 cursor-not-allowed disabled:cursor-not-allowed'
                           : 'text-neu-600 hover:text-neu-900 hover:bg-neu-100 cursor-pointer'
-                      }`}
+                        }`}
                       title={isActionDisabled ? undefined : 'Menu Aksi'}
                     >
                       <MoreVertical className="w-4 h-4" />

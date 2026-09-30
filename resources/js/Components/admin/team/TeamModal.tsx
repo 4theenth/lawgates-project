@@ -152,8 +152,8 @@ export function TeamModal({
                             {isViewOnly
                               ? 'Data anggota tim'
                               : isEditing
-                              ? 'Edit anggota tim'
-                              : 'Tambah tim baru'}
+                                ? 'Edit anggota tim'
+                                : 'Tambah tim baru'}
                           </p>
                         </div>
                       </div>
@@ -182,11 +182,10 @@ export function TeamModal({
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           placeholder="Masukkan nama tim"
-                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border border-neu-200 bg-white text-neu-900 placeholder-neu-400 focus:outline-none transition-all shadow-2xs ${
-                            isViewOnly
+                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border border-neu-200 bg-white text-neu-900 placeholder-neu-400 focus:outline-none transition-all shadow-2xs ${isViewOnly
                               ? 'cursor-default'
                               : 'focus:border-pr-900 focus:ring-1 focus:ring-pr-900'
-                          }`}
+                            }`}
                         />
                       </div>
 
@@ -202,11 +201,10 @@ export function TeamModal({
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="Masukkan email tim"
-                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border border-neu-200 bg-white text-neu-900 placeholder-neu-400 focus:outline-none transition-all shadow-2xs ${
-                            isViewOnly
+                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border border-neu-200 bg-white text-neu-900 placeholder-neu-400 focus:outline-none transition-all shadow-2xs ${isViewOnly
                               ? 'cursor-default'
                               : 'focus:border-pr-900 focus:ring-1 focus:ring-pr-900'
-                          }`}
+                            }`}
                         />
                       </div>
 
@@ -248,11 +246,10 @@ export function TeamModal({
                                       setRole(r);
                                       setIsRoleOpen(false);
                                     }}
-                                    className={`w-full text-left px-3.5 py-2 text-[13px] transition-colors cursor-pointer ${
-                                      r === role
+                                    className={`w-full text-left px-3.5 py-2 text-[13px] transition-colors cursor-pointer ${r === role
                                         ? 'bg-gray-50 text-neu-900 font-medium'
                                         : 'text-neu-700 hover:bg-gray-50'
-                                    }`}
+                                      }`}
                                   >
                                     {r}
                                   </button>
