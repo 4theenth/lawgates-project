@@ -1,8 +1,10 @@
+import { Link } from '@inertiajs/react';
 import { CountUp } from '../common/CountUp';
 import hierarchyCardBg from '@/assets/regulation-hierarchy-card.webp';
 
 interface HierarchyCardItem {
   id: string;
+  slug: string;
   badge: string;
   title: string;
   description: string;
@@ -12,6 +14,7 @@ interface HierarchyCardItem {
 const hierarchyData: HierarchyCardItem[] = [
   {
     id: 'uud',
+    slug: 'uud',
     badge: 'Tingkat Tertinggi',
     title: 'UUD',
     description: 'Undang-Undang Dasar 1945',
@@ -19,6 +22,7 @@ const hierarchyData: HierarchyCardItem[] = [
   },
   {
     id: 'tap-mpr',
+    slug: 'tap-mpr',
     badge: 'Konstitusional',
     title: 'TAP MPR',
     description: 'Ketetapan MPR',
@@ -26,6 +30,7 @@ const hierarchyData: HierarchyCardItem[] = [
   },
   {
     id: 'uu-perpu',
+    slug: 'undang-undang',
     badge: 'Primer',
     title: 'UU / PERPU',
     description: 'Peraturan Pemerintah Pengganti Undang-Undang',
@@ -33,6 +38,7 @@ const hierarchyData: HierarchyCardItem[] = [
   },
   {
     id: 'pp',
+    slug: 'peraturan-pemerintah',
     badge: 'Pelaksana',
     title: 'PP',
     description: 'Peraturan Pemerintah',
@@ -40,6 +46,7 @@ const hierarchyData: HierarchyCardItem[] = [
   },
   {
     id: 'perpres',
+    slug: 'peraturan-presiden',
     badge: 'Eksekutif',
     title: 'PERPRES',
     description: 'Peraturan Presiden',
@@ -47,6 +54,7 @@ const hierarchyData: HierarchyCardItem[] = [
   },
   {
     id: 'perda',
+    slug: 'peraturan-daerah',
     badge: 'Otonomi Daerah',
     title: 'PERDA',
     description: 'Peraturan Daerah',
@@ -54,6 +62,7 @@ const hierarchyData: HierarchyCardItem[] = [
   },
   {
     id: 'permen-perban',
+    slug: 'permen-perban',
     badge: 'Sektoral',
     title: 'PERMEN & PERBAN',
     description: 'Peraturan Menteri & Peraturan Badan / Lembaga',
@@ -61,6 +70,7 @@ const hierarchyData: HierarchyCardItem[] = [
   },
   {
     id: 'putusan-mk-ma',
+    slug: 'putusan-mk-ma',
     badge: 'Yurisprudensi',
     title: 'PUTUSAN MK & MA',
     description: 'Putusan Mahkamah Konstitusi & Putusan Mahkamah Agung',
@@ -68,7 +78,11 @@ const hierarchyData: HierarchyCardItem[] = [
   },
 ];
 
-export function RegulationHierarchyGrid() {
+interface RegulationHierarchyGridProps {
+  counts?: Record<string, number>;
+}
+
+export function RegulationHierarchyGrid({ counts }: RegulationHierarchyGridProps) {
   return (
     <section className="mt-[66px] w-full">
       {/* Section Header */}
@@ -87,160 +101,169 @@ export function RegulationHierarchyGrid() {
       <div className="w-full overflow-visible">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 xl:gap-[30px] gap-y-[28px]">
 
-          {hierarchyData.map((item) => (
-            <div
-              key={item.id}
-              className="
-                group
-                relative
-                w-full
-                h-[280px]
-                p-[5px]
-                bg-white
-                border
-                border-[#E9E9E9]
-                rounded-[20px]
-                overflow-hidden
-                shadow-sm
-                hover:shadow-md
-                transition-all
-                duration-300
-                cursor-pointer
-              "
-            >
+          {hierarchyData.map((item) => {
+            const displayCount = counts?.[item.slug] ?? counts?.[item.id] ?? item.count;
 
-              {/* FOTO - Lebar penuh sejajar folder di dalam rim kartu 5px */}
-              <div
+            return (
+              <Link
+                key={item.id}
+                href={`/kategori/${item.slug || item.id}`}
                 className="
-                  absolute
-                  inset-x-[5px]
-                  top-[5px]
-                  h-[140px]
-                  rounded-t-[15px]
+                  group
+                  relative
+                  w-full
+                  h-[280px]
+                  p-[5px]
+                  bg-white
+                  border
+                  border-[#E9E9E9]
+                  rounded-[20px]
                   overflow-hidden
-                  z-0
-                "
-              >
-                <img
-                  src={hierarchyCardBg}
-                  alt={item.title}
-                  className="
-                    absolute
-                    inset-0
-                    w-full
-                    h-full
-                    object-cover
-                    transition-transform
-                    duration-500
-                    group-hover:scale-105
-                  "
-                />
-
-                {/* Badge */}
-                <span
-                  className="
-                    absolute
-                    top-[8px]
-                    right-[8px]
-                    z-10
-                    px-[8px]
-                    py-[3px]
-                    rounded-[10px]
-                    bg-white
-                    text-pr-900
-                    text-[8px]
-                    font-semibold
-                    leading-[12px]
-                    shadow-sm
-                  "
-                >
-                  {item.badge}
-                </span>
-              </div>
-
-              {/* CARD BODY - Folder abu-abu neu besar memenuhi bagian bawah */}
-              <div
-                className="
-                  absolute
-                  inset-x-[5px]
-                  top-[111px]
-                  bottom-[5px]
-                  z-20
-                  bg-pr-50
-                  rounded-b-[15px]
-                  px-[16px]
-                  py-[16px]
-                  flex
-                  flex-col
-                  justify-between
+                  shadow-sm
+                  hover:shadow-md
+                  hover:border-pr-900/30
+                  transition-all
+                  duration-300
+                  cursor-pointer
+                  block
                 "
               >
 
-                {/* Title + Description */}
-                <div className="relative z-30">
-
-                  <h3
-                    className="
-                      text-[13px]
-                      font-semibold
-                      text-pr-900
-                      leading-[18px]
-                    "
-                  >
-                    {item.title}
-                  </h3>
-
-                  <p
-                    className="
-                      mt-[3px]
-                      text-[10px]
-                      font-normal
-                      text-neu-600
-                      leading-[14px]
-                      line-clamp-2
-                    "
-                  >
-                    {item.description}
-                  </p>
-
-                </div>
-
-                {/* Count */}
+                {/* FOTO - Lebar penuh sejajar folder di dalam rim kartu 5px */}
                 <div
                   className="
-                    relative
-                    z-30
-                    text-[22px]
-                    font-bold
-                    text-pr-900
-                    leading-[130%]
+                    absolute
+                    inset-x-[5px]
+                    top-[5px]
+                    h-[140px]
+                    rounded-t-[15px]
+                    overflow-hidden
+                    z-0
                   "
                 >
-                  <CountUp end={item.count} />
+                  <img
+                    src={hierarchyCardBg}
+                    alt={item.title}
+                    className="
+                      absolute
+                      inset-0
+                      w-full
+                      h-full
+                      object-cover
+                      transition-transform
+                      duration-500
+                      group-hover:scale-105
+                    "
+                  />
+
+                  {/* Badge */}
+                  <span
+                    className="
+                      absolute
+                      top-[8px]
+                      right-[8px]
+                      z-10
+                      px-[8px]
+                      py-[3px]
+                      rounded-[10px]
+                      bg-white
+                      text-pr-900
+                      text-[8px]
+                      font-semibold
+                      leading-[12px]
+                      shadow-sm
+                    "
+                  >
+                    {item.badge}
+                  </span>
                 </div>
 
-              </div>
-
-              {/* CARD NOTCH / TAB SHAPE - Tab folder yang naik di sisi kiri */}
-              <div className="absolute left-[5px] top-[85px] z-10 w-[140px] sm:w-[155px] h-[27px] pointer-events-none">
-                <svg
-                  width="140"
-                  height="27"
-                  viewBox="0 0 140 27"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="w-full h-full text-pr-50"
-                  preserveAspectRatio="none"
+                {/* CARD BODY - Folder abu-abu neu besar memenuhi bagian bawah */}
+                <div
+                  className="
+                    absolute
+                    inset-x-[5px]
+                    top-[111px]
+                    bottom-[5px]
+                    z-20
+                    bg-pr-50
+                    rounded-b-[15px]
+                    px-[16px]
+                    py-[16px]
+                    flex
+                    flex-col
+                    justify-between
+                  "
                 >
-                  <path
-                    d="M0 27V11C0 4.92487 4.92487 0 11 0H105.167C109.856 0 114.029 2.97146 115.562 7.40178L119.438 18.5982C120.971 23.0285 125.144 26 129.833 26H140V27H0Z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </div>
 
-            </div>
-          ))}
+                  {/* Title + Description */}
+                  <div className="relative z-30">
+
+                    <h3
+                      className="
+                        text-[13px]
+                        font-semibold
+                        text-pr-900
+                        leading-[18px]
+                        group-hover:text-pr-700
+                        transition-colors
+                      "
+                    >
+                      {item.title}
+                    </h3>
+
+                    <p
+                      className="
+                        mt-[3px]
+                        text-[10px]
+                        font-normal
+                        text-neu-600
+                        leading-[14px]
+                        line-clamp-2
+                      "
+                    >
+                      {item.description}
+                    </p>
+
+                  </div>
+
+                  {/* Count */}
+                  <div
+                    className="
+                      relative
+                      z-30
+                      text-[22px]
+                      font-bold
+                      text-pr-900
+                      leading-[130%]
+                    "
+                  >
+                    <CountUp end={displayCount} />
+                  </div>
+
+                </div>
+
+                {/* CARD NOTCH / TAB SHAPE - Tab folder yang naik di sisi kiri */}
+                <div className="absolute left-[5px] top-[85px] z-10 w-[140px] sm:w-[155px] h-[27px] pointer-events-none">
+                  <svg
+                    width="140"
+                    height="27"
+                    viewBox="0 0 140 27"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-full h-full text-pr-50"
+                    preserveAspectRatio="none"
+                  >
+                    <path
+                      d="M0 27V11C0 4.92487 4.92487 0 11 0H105.167C109.856 0 114.029 2.97146 115.562 7.40178L119.438 18.5982C120.971 23.0285 125.144 26 129.833 26H140V27H0Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </div>
+
+              </Link>
+            );
+          })}
 
         </div>
       </div>

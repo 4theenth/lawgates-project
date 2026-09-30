@@ -1,5 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, ChevronDown, FileCode2, XCircle, AlertCircle } from 'lucide-react';
+import { UploadCloud, FileCode2, XCircle, AlertCircle } from 'lucide-react';
+import { CreatableKategoriSelect } from './CreatableKategoriSelect';
+import { KategoriDetectionBadge } from './KategoriDetectionBadge';
+import { KategoriHukum } from '@/services/kategoriService';
 
 export interface UploadedJsonFile {
   id: string;
@@ -16,7 +19,9 @@ interface StepUploadJsonProps {
   onRemoveFile: (id: string) => void;
   selectedCategory: string;
   onCategoryChange: (category: string) => void;
-  categoryOptions: string[];
+  categoryOptions: KategoriHukum[];
+  detectedCategory?: string | null;
+  isNewCategory?: boolean;
   onStartImport: () => void;
   errorMessage?: string | null;
   onClearError?: () => void;
@@ -29,11 +34,12 @@ export function StepUploadJson({
   selectedCategory,
   onCategoryChange,
   categoryOptions,
+  detectedCategory,
+  isNewCategory = false,
   onStartImport,
   errorMessage,
   onClearError,
 }: StepUploadJsonProps) {
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -126,50 +132,19 @@ export function StepUploadJson({
       ) : (
         /* KONDISI 2: Sudah Ada File Terpilih (1-10 File) */
         <div className="space-y-6 w-full min-w-0">
-          {/* Dropdown Kategori Hukum */}
-          <div className="relative w-full">
-            <label className="block font-sans text-[13px] font-medium text-neu-800 mb-1.5">
-              Kategori Hukum
-            </label>
-
-            <button
-              type="button"
-              onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-[10px] border border-neu-200 bg-white hover:border-neu-300 transition-colors text-left shadow-2xs cursor-pointer"
-            >
-              <span className="text-[14px] text-neu-900 font-medium">
-                {selectedCategory}
-              </span>
-              <ChevronDown
-                className={`w-4 h-4 text-neu-400 transition-transform ${
-                  isCategoryOpen ? 'rotate-180' : ''
-                }`}
-              />
-            </button>
-
-            {/* Dropdown Pilihan Kategori */}
-            {isCategoryOpen && (
-              <div className="absolute left-0 top-full mt-1.5 w-full bg-white rounded-[10px] border border-neu-100 shadow-xl p-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
-                {categoryOptions.map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => {
-                      onCategoryChange(opt);
-                      setIsCategoryOpen(false);
-                    }}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-lg text-[12px] transition-colors cursor-pointer ${
-                      opt === selectedCategory
-                        ? 'font-semibold text-pr-900 bg-gray-50'
-                        : 'text-neu-700 hover:bg-gray-50 hover:text-black'
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Dropdown Kategori Hukum Dinamis */}
+          <CreatableKategoriSelect
+            kategoris={categoryOptions}
+            value={selectedCategory}
+            onChange={onCategoryChange}
+            detectedKategori={detectedCategory}
+            disabled={files.length === 0}
+          />
+          
+          <KategoriDetectionBadge 
+            detected={detectedCategory || null} 
+            isNew={isNewCategory} 
+          />
 
           {/* Pesan Error Inline (Sesuai AC 3) */}
           {errorMessage && (
@@ -222,10 +197,13 @@ export function StepUploadJson({
                     }`}
                   >
                     {/* Ikon & Nama File */}
-                    <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1 mr-3">
                       <FileCode2 className="w-6 h-6 text-pr-900 shrink-0 stroke-[1.75]" />
-                      <div className="min-w-0">
-                        <h4 className="font-sans text-[13px] font-medium text-neu-900 leading-tight truncate">
+                      <div className="min-w-0 flex-1">
+                        <h4
+                          className="font-sans text-[13px] font-medium text-neu-900 leading-tight truncate"
+                          title={file.name}
+                        >
                           {file.name}
                         </h4>
                         <div className="font-sans text-[11px] text-neu-500 mt-1 flex items-center gap-2">

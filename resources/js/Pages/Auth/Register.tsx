@@ -193,16 +193,13 @@ export default function Register() {
                 access_token: tokenResponse.access_token,
                 remember: true
             }, {
-                onSuccess: () => {
-                    toast.success('Berhasil', 'Berhasil mendaftar / masuk dengan Google');
-                },
                 onError: () => {
-                    toast.error('Gagal', 'Terjadi kesalahan saat verifikasi login Google');
+                    toast.error('Terjadi kesalahan saat verifikasi login Google');
                 }
             });
         },
         onError: () => {
-            toast.error('Gagal', 'Pendaftaran dengan Google dibatalkan atau gagal');
+            toast.error('Pendaftaran dengan Google dibatalkan atau gagal');
         }
     });
 

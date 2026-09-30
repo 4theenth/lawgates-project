@@ -80,13 +80,14 @@ export function AdminHeader({
 
             {/* Menu Items */}
             <div className="py-1">
-              <Dropdown.Link
-                href={route('profile.edit')}
-                className="flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors"
+              <button
+                type="button"
+                onClick={(e) => e.preventDefault()}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors text-left cursor-default select-none"
               >
                 <User className="w-3.5 h-3.5 text-neu-500" />
                 <span>Pengaturan Profil</span>
-              </Dropdown.Link>
+              </button>
 
               <Dropdown.Link
                 href={route('logout')}

@@ -45,7 +45,14 @@ class PeraturanController extends Controller
             'pasal' => function($q) { 
                 $q->with(['penjelasan', 'children.penjelasan'])->orderBy('urutan', 'asc'); 
             },
-            'lawRelations.toPeraturan',
+            'lawRelations.toPeraturan' => function($q) {
+                $q->withCount([
+                    'pasal',
+                    'strukturDokumen as pembukaan_count' => function($sq) {
+                        $sq->where('tipe_struktur', 'PEMBUKAAN');
+                    }
+                ]);
+            },
             'lawRelations.relationType'
         ])
         ->where('unique_id', $unique_id)
@@ -115,7 +122,14 @@ class PeraturanController extends Controller
         $peraturan = Peraturan::with([
             'jenisPeraturan',
             'statusPeraturan',
-            'lawRelations.toPeraturan',
+            'lawRelations.toPeraturan' => function($q) {
+                $q->withCount([
+                    'pasal',
+                    'strukturDokumen as pembukaan_count' => function($sq) {
+                        $sq->where('tipe_struktur', 'PEMBUKAAN');
+                    }
+                ]);
+            },
             'lawRelations.relationType'
         ])
         ->where('unique_id', $unique_id)

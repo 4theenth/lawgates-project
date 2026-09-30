@@ -63,16 +63,13 @@ export default function Login({ status, canResetPassword = true }: LoginProps) {
                 access_token: tokenResponse.access_token,
                 remember: true
             }, {
-                onSuccess: () => {
-                    toast.success('Berhasil', 'Berhasil login dengan Google');
-                },
                 onError: () => {
-                    toast.error('Gagal', 'Terjadi kesalahan saat verifikasi login Google');
+                    toast.error('Terjadi kesalahan saat verifikasi login Google');
                 }
             });
         },
         onError: () => {
-            toast.error('Gagal', 'Login dengan Google dibatalkan atau gagal');
+            toast.error('Login dengan Google dibatalkan atau gagal');
         }
     });
 

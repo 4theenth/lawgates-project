@@ -6,58 +6,100 @@ import {
     PropsWithChildren,
     SetStateAction,
     useContext,
+    useEffect,
+    useRef,
     useState,
 } from 'react';
 
-const DropDownContext = createContext<{
+interface DropdownContextType {
     open: boolean;
     setOpen: Dispatch<SetStateAction<boolean>>;
     toggleOpen: () => void;
-}>({
+}
+
+const DropDownContext = createContext<DropdownContextType>({
     open: false,
     setOpen: () => {},
     toggleOpen: () => {},
 });
 
-const Dropdown = ({ children }: PropsWithChildren) => {
+interface DropdownProps extends PropsWithChildren {
+    closeOnScroll?: boolean;
+}
+
+const Dropdown = ({ children, closeOnScroll = true }: DropdownProps) => {
     const [open, setOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const toggleOpen = () => {
         setOpen((previousState) => !previousState);
     };
 
+    // Close on outside click, window scroll, and Escape key
+    useEffect(() => {
+        if (!open) return;
+
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+            if (
+                containerRef.current &&
+                !containerRef.current.contains(event.target as Node)
+            ) {
+                setOpen(false);
+            }
+        };
+
+        const handleScroll = () => {
+            if (closeOnScroll) {
+                setOpen(false);
+            }
+        };
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside, true);
+        document.addEventListener('touchstart', handleClickOutside, true);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        window.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside, true);
+            document.removeEventListener('touchstart', handleClickOutside, true);
+            window.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [open, closeOnScroll]);
+
     return (
         <DropDownContext.Provider value={{ open, setOpen, toggleOpen }}>
-            <div className="relative">{children}</div>
+            <div ref={containerRef} className="relative">
+                {children}
+            </div>
         </DropDownContext.Provider>
     );
 };
 
 const Trigger = ({ children }: PropsWithChildren) => {
-    const { open, setOpen, toggleOpen } = useContext(DropDownContext);
+    const { toggleOpen } = useContext(DropDownContext);
 
     return (
-        <>
-            <div onClick={toggleOpen}>{children}</div>
-
-            {open && (
-                <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setOpen(false)}
-                ></div>
-            )}
-        </>
+        <div onClick={toggleOpen} className="cursor-pointer">
+            {children}
+        </div>
     );
 };
 
 const Content = ({
     align = 'right',
     width = '48',
-    contentClasses = 'py-1 bg-white',
+    contentClasses = 'py-1 bg-white border border-neu-200 rounded-xl shadow-lg',
     children,
 }: PropsWithChildren<{
     align?: 'left' | 'right';
-    width?: '48';
+    width?: '48' | '56' | '64' | string;
     contentClasses?: string;
 }>) => {
     const { open, setOpen } = useContext(DropDownContext);
@@ -70,38 +112,34 @@ const Content = ({
         alignmentClasses = 'ltr:origin-top-right rtl:origin-top-left end-0';
     }
 
-    let widthClasses = '';
-
-    if (width === '48') {
-        widthClasses = 'w-48';
+    let widthClasses = 'w-48';
+    if (width === '56') {
+        widthClasses = 'w-56';
+    } else if (width === '64') {
+        widthClasses = 'w-64';
+    } else if (width.startsWith('w-')) {
+        widthClasses = width;
     }
 
     return (
-        <>
-            <Transition
-                show={open}
-                enter="transition ease-out duration-200"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="transition ease-in duration-75"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
+        <Transition
+            show={open}
+            enter="transition ease-out duration-200"
+            enterFrom="opacity-0 scale-95"
+            enterTo="opacity-100 scale-100"
+            leave="transition ease-in duration-75"
+            leaveFrom="opacity-100 scale-100"
+            leaveTo="opacity-0 scale-95"
+        >
+            <div
+                className={`absolute z-50 mt-2 pointer-events-auto ${alignmentClasses} ${widthClasses}`}
+                onClick={() => setOpen(false)}
             >
-                <div
-                    className={`absolute z-50 mt-2 rounded-md shadow-lg ${alignmentClasses} ${widthClasses}`}
-                    onClick={() => setOpen(false)}
-                >
-                    <div
-                        className={
-                            `rounded-md ring-1 ring-black ring-opacity-5 ` +
-                            contentClasses
-                        }
-                    >
-                        {children}
-                    </div>
+                <div className={contentClasses}>
+                    {children}
                 </div>
-            </Transition>
-        </>
+            </div>
+        </Transition>
     );
 };
 
