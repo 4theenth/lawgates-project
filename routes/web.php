@@ -155,6 +155,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     Route::post('/dokumen-hukum/minio/import', [DokumenHukumController::class, 'importFromMinio'])->name('admin.dokumen-hukum.minio.import');
 
     // Users & Team Management Routes
+    Route::get('/team', [TeamController::class, 'index'])->name('admin.team');
     Route::get('/users/tim', [TeamController::class, 'index'])->name('admin.users.tim');
 });
 
