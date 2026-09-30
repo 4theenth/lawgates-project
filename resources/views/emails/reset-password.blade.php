@@ -43,15 +43,6 @@
                     <!-- Body Content -->
                     <tr>
                         <td style="padding: 32px;">
-                            <!-- Icon / Badge -->
-                            <div style="text-align: center; margin-bottom: 24px;">
-                                <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background-color: rgba(212, 175, 55, 0.1); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 16px;">
-                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                    </svg>
-                                </div>
-                            </div>
 
                             <h1 style="margin: 0 0 12px 0; font-size: 24px; font-weight: 700; color: #ffffff; text-align: center; letter-spacing: -0.02em;">
                                 Permintaan Atur Ulang Kata Sandi
