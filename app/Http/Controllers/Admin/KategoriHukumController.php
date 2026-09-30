@@ -64,9 +64,16 @@ class KategoriHukumController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nama' => ['required', 'string', 'max:255', 'unique:jenis_peraturan,nama'],
+            'nama' => ['required', 'string', 'max:50', 'unique:jenis_peraturan,nama'],
             'kode' => ['nullable', 'string', 'max:50', 'unique:jenis_peraturan,kode'],
             'deskripsi' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'nama.required' => 'Nama kategori tidak boleh kosong.',
+            'nama.max' => 'Nama kategori maksimal 50 karakter.',
+            'nama.unique' => 'Nama kategori sudah ada.',
+            'kode.unique' => 'Kode kategori sudah digunakan.',
+            'kode.max' => 'Kode kategori maksimal 50 karakter.',
+            'deskripsi.max' => 'Deskripsi maksimal 1000 karakter.',
         ]);
 
         if (empty($validated['kode'])) {
@@ -88,9 +95,16 @@ class KategoriHukumController extends Controller
         $kategori = JenisPeraturan::findOrFail($id);
 
         $validated = $request->validate([
-            'nama' => ['required', 'string', 'max:255', 'unique:jenis_peraturan,nama,' . $id],
+            'nama' => ['required', 'string', 'max:50', 'unique:jenis_peraturan,nama,' . $id],
             'kode' => ['nullable', 'string', 'max:50', 'unique:jenis_peraturan,kode,' . $id],
             'deskripsi' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'nama.required' => 'Nama kategori tidak boleh kosong.',
+            'nama.max' => 'Nama kategori maksimal 50 karakter.',
+            'nama.unique' => 'Nama kategori sudah ada.',
+            'kode.unique' => 'Kode kategori sudah digunakan.',
+            'kode.max' => 'Kode kategori maksimal 50 karakter.',
+            'deskripsi.max' => 'Deskripsi maksimal 1000 karakter.',
         ]);
 
         $kategori->update($validated);
@@ -110,6 +124,6 @@ class KategoriHukumController extends Controller
 
         $kategori->delete();
 
-        return redirect()->back()->with('success', 'Kategori hukum berhasil dihapus.');
+        return redirect()->back()->with('deleted', 'Kategori hukum berhasil dihapus.');
     }
 }
