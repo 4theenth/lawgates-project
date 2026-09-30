@@ -24,6 +24,7 @@ import {
   normalizeProvinceKey,
   ProvinceDetail,
 } from './indonesiaMapData';
+import { MAP_THEME } from '../../config/mapTheme';
 
 // ── Sub-komponen untuk kontrol kamera Leaflet (FitBounds, PanTo, Zoom) ─────
 function MapController({
@@ -230,13 +231,7 @@ export function IndonesiaLegalMap() {
         const key = normalizeProvinceKey(featureName);
         const isSelected = key === provKey;
 
-        layer.setStyle({
-          fillColor: isSelected ? '#0A1C3E' : '#000000',
-          color: isSelected ? '#0A1C3E' : '#0F2C59',
-          weight: isSelected ? 2 : 0.75,
-          fillOpacity: isSelected ? 1 : 0.001,
-          opacity: isSelected ? 1 : 0.3,
-        });
+        layer.setStyle(isSelected ? MAP_THEME.province.selected : MAP_THEME.province.default);
 
         if (isSelected) {
           layer.bringToFront();
@@ -262,13 +257,7 @@ export function IndonesiaLegalMap() {
     // Kembalikan semua provinsi ke style default transparan
     if (geoJsonRef.current) {
       geoJsonRef.current.eachLayer((layer: any) => {
-        layer.setStyle({
-          fillColor: '#000000',
-          color: '#0F2C59',
-          weight: 0.75,
-          fillOpacity: 0.001,
-          opacity: 0.3,
-        });
+        layer.setStyle(MAP_THEME.province.default);
       });
     }
   }, []);
@@ -284,14 +273,7 @@ export function IndonesiaLegalMap() {
     const key = normalizeProvinceKey(provName);
     const isSelected = key === selectedProvinceRef.current;
 
-    return {
-      fillColor: isSelected ? '#0A1C3E' : '#000000',
-      weight: isSelected ? 2 : 0.75,
-      opacity: isSelected ? 1 : 0.3,
-      color: isSelected ? '#0A1C3E' : '#0F2C59',
-      fillOpacity: isSelected ? 1 : 0.001,
-      className: 'cursor-pointer',
-    };
+    return isSelected ? MAP_THEME.province.selected : MAP_THEME.province.default;
   };
 
   // Event handler untuk setiap fitur GeoJSON (Hover & Klik)
@@ -308,13 +290,7 @@ export function IndonesiaLegalMap() {
         const target = e.target;
         // Hanya ubah ke warna hover jika provinsi ini BELUM terpilih
         if (provKey !== selectedProvinceRef.current) {
-          target.setStyle({
-            fillColor: '#0A1C3E',
-            color: '#0A1C3E',
-            weight: 1.5,
-            fillOpacity: 0.25,
-            opacity: 0.8,
-          });
+          target.setStyle(MAP_THEME.province.hover);
           // Tampilkan nama provinsi saat hover murni sebelum di-select
           setHoveredProvinceName(provName);
         }
@@ -326,22 +302,10 @@ export function IndonesiaLegalMap() {
 
         // Jika bukan provinsi yang sedang terpilih, kembalikan ke default transparan
         if (provKey !== selectedProvinceRef.current) {
-          target.setStyle({
-            fillColor: '#000000',
-            color: '#0F2C59',
-            weight: 0.75,
-            fillOpacity: 0.001,
-            opacity: 0.3,
-          });
+          target.setStyle(MAP_THEME.province.default);
         } else {
-          // Jika ini provinsi yang terpilih, blok solid warna pr-900!
-          target.setStyle({
-            fillColor: '#0A1C3E',
-            color: '#0A1C3E',
-            weight: 2,
-            fillOpacity: 1,
-            opacity: 1,
-          });
+          // Jika ini provinsi yang terpilih, pertahankan style selected
+          target.setStyle(MAP_THEME.province.selected);
         }
       },
       click: (e) => {
@@ -695,7 +659,7 @@ export function IndonesiaLegalMap() {
                     <button
                       type="button"
                       onClick={() => handleNavigatePeraturan(activeProvince.name)}
-                      className="w-full bg-[#E8EDF4] hover:bg-[#DCE3ED] text-pr-900 text-[12px] font-normal py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      className="w-full bg-pr-50 hover:bg-pr-100 text-pr-900 text-[12px] font-medium py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       <span>Lihat Detail</span>
