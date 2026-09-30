@@ -100,11 +100,10 @@ export function DetailPeraturanHeader({
       <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 pt-1">
         {/* Status Badge */}
         <div
-          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-            isBerlaku
+          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isBerlaku
               ? 'bg-[#EBF8F2] text-[#059669] border border-[#059669]/20'
               : 'bg-red-50 text-red-700 border border-red-200'
-          }`}
+            }`}
         >
           {isBerlaku && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
           <span>{statusPeraturan}</span>
