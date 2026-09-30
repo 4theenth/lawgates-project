@@ -73,10 +73,10 @@ class GoogleAuthController extends Controller
             Auth::login($user, $remember);
 
             if (in_array($user->role, ['admin', 'superadmin'])) {
-                return redirect()->intended(route('admin.dashboard'));
+                return redirect()->intended(route('admin.dashboard'))->with('success', 'Berhasil masuk ke dashboard Admin');
             }
 
-            return redirect()->intended('/');
+            return redirect()->intended('/')->with('success', 'Berhasil masuk dengan akun Google');
         }
 
         // 2. Alur login dengan Google
@@ -113,9 +113,9 @@ class GoogleAuthController extends Controller
         Auth::login($user, $remember);
 
         if (in_array($user->role, ['admin', 'superadmin'])) {
-            return redirect()->intended(route('admin.dashboard'));
+            return redirect()->intended(route('admin.dashboard'))->with('success', 'Berhasil masuk ke dashboard Admin');
         }
 
-        return redirect()->intended('/');
+        return redirect()->intended('/')->with('success', 'Berhasil masuk dengan akun Google');
     }
 }

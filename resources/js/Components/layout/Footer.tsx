@@ -31,10 +31,10 @@ const EXPLORE_MENUS = [
 
 export function Footer() {
   return (
-    <footer className="relative w-full bg-pr-900 text-white overflow-hidden z-10 select-none">
+    <footer className="relative w-full min-h-[386px] bg-pr-900 text-white overflow-hidden z-10 select-none">
       {/* Endless Clouds SVG Pattern Overlay */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.08] invert"
+        className="absolute inset-0 pointer-events-none opacity-15"
         style={{
           backgroundImage: `url("${endlessClouds}")`,
           backgroundRepeat: 'repeat',
@@ -43,8 +43,8 @@ export function Footer() {
       />
 
       {/* Main Container */}
-      <div className="relative z-10 w-full max-w-[1202px] mx-auto px-4 sm:px-6 xl:px-0 pt-14 pb-8">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-10 lg:gap-12">
+      <div className="relative z-10 w-full max-w-[1202px] mx-auto px-4 sm:px-6 xl:px-0 pt-[41px] pb-8 flex flex-col justify-between min-h-[386px]">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 min-h-[240px]">
           
           {/* Kolom Kiri: Brand & Deskripsi */}
           <div className="md:col-span-6 lg:col-span-5 space-y-4">

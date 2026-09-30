@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { HeroSection } from '../Components/landing/HeroSection';
 import { StatsOverview } from '../Components/landing/StatsOverview';
 import { AboutOverview } from '../Components/landing/AboutOverview';
+import { IndonesiaLegalMap } from '../Components/landing/IndonesiaLegalMap';
 import { RegulationHierarchyGrid } from '../Components/landing/RegulationHierarchyGrid';
 import { RecentRegulations } from '../Components/landing/RecentRegulations';
 import { ServicesOverview } from '../Components/landing/ServicesOverview';
@@ -9,7 +10,11 @@ import { PublicLayout, Section } from '../Layouts/PublicLayout';
 import { useScrollPosition } from '../hooks/useScrollPosition';
 import plusPattern from '@/assets/plus.svg';
 
-export default function Home() {
+interface HomeProps {
+  categoryCounts?: Record<string, number>;
+}
+
+export default function Home({ categoryCounts }: HomeProps) {
   const isScrolled = useScrollPosition(50);
 
   const handleSearch = (query: string, filters?: any) => {
@@ -48,16 +53,24 @@ export default function Home() {
         <AboutOverview />
       </Section>
 
-        {/* 4. Section Statistik Peraturan & 5. Section Sistem Hukum Terbaru (White Background Container) */}
-        <div className="w-full bg-white mt-[66px] pt-px pb-[66px]">
-          <Section>
-            <RegulationHierarchyGrid />
-          </Section>
+      {/* 4. Section Peta Hukum Indonesia (White Background Container) */}
+      <div className="w-full bg-white mt-[66px] pt-px pb-[66px]">
+        <Section>
+          <IndonesiaLegalMap />
+        </Section>
+      </div>
 
-          <Section>
-            <RecentRegulations />
-          </Section>
-        </div>
+      {/* 5. Section Statistik Peraturan (Pattern Background) */}
+      <Section>
+        <RegulationHierarchyGrid />
+      </Section>
+
+      {/* 6. Section Sistem Hukum Terbaru (White Background Container) */}
+      <div className="w-full bg-white mt-[66px] pt-px pb-[66px]">
+        <Section>
+          <RecentRegulations />
+        </Section>
+      </div>
 
       {/* 6. Section Layanan LawGates */}
       <Section className="mb-8 sm:mb-12">
