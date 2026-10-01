@@ -90,24 +90,14 @@ function MapController({
   }, [map, onDeselect, onDragStateChange]);
 
   // Efek perpindahan kamera saat provinsi dipilih:
-  // Menggunakan panTo atau flyTo halus langsung ke titik daratan (popupPos)
-  // Menghilangkan efek getar (jitter) yang sebelumnya terjadi karena zoom bouncing
+  // Menggunakan panTo yang sangat mulus dan stabil tanpa lonjakan zoom mendadak
   useEffect(() => {
     if (popupPos) {
-      const currentZoom = map.getZoom();
-      if (currentZoom < 5.2) {
-        map.flyTo(popupPos, 5.4, {
-          animate: true,
-          duration: 0.6,
-          easeLinearity: 0.25,
-        });
-      } else {
-        map.panTo(popupPos, {
-          animate: true,
-          duration: 0.45,
-          easeLinearity: 0.25,
-        });
-      }
+      map.panTo(popupPos, {
+        animate: true,
+        duration: 0.5,
+        easeLinearity: 0.25,
+      });
     }
   }, [popupPos, map]);
 
@@ -116,7 +106,7 @@ function MapController({
     if (resetTrigger > 0 && geoJsonBounds) {
       map.flyToBounds(geoJsonBounds, {
         padding: [15, 15],
-        duration: 0.6,
+        duration: 0.5,
         easeLinearity: 0.25,
       });
     }
@@ -176,13 +166,7 @@ export function IndonesiaLegalMap() {
         const key = normalizeProvinceKey(featureName);
         const isSelected = activeKey !== null && key === activeKey;
 
-        layer.setStyle({
-          fillColor: isSelected ? '#0A1C3E' : '#000000',
-          color: isSelected ? '#0A1C3E' : '#0F2C59',
-          weight: isSelected ? 2 : 0.75,
-          fillOpacity: isSelected ? 1 : 0.001,
-          opacity: isSelected ? 1 : 0.3,
-        });
+        layer.setStyle(isSelected ? MAP_THEME.province.selected : MAP_THEME.province.default);
 
         if (isSelected) {
           layer.bringToFront();
@@ -368,10 +352,10 @@ export function IndonesiaLegalMap() {
               zoomControl={false}
               attributionControl={false}
               maxBounds={[
-                [12, 92],
-                [-14, 143],
+                [16, 86],
+                [-18, 150],
               ]}
-              maxBoundsViscosity={0.8}
+              maxBoundsViscosity={0.6}
               className="w-full h-full bg-[#96C1DF] z-0 focus:outline-none"
             >
               <MapController
@@ -407,14 +391,16 @@ export function IndonesiaLegalMap() {
               {/* Floating Popup Card saat provinsi dipilih dengan Garis Pin Stem (Sesuai Figma) */}
               {activeProvince && popupPos && (
                 <Popup
+                  key={activeProvince.id}
                   position={popupPos}
                   closeButton={false}
                   autoPan={true}
-                  autoPanPadding={[24, 24]}
+                  autoPanPadding={[40, 40]}
+                  keepInView={true}
                   offset={[0, 0]}
                   className="custom-leaflet-popup"
                 >
-                  <div className="flex flex-col items-center">
+                  <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
                     <div className="bg-white rounded-xl shadow-xl border border-neu-200/90 p-3.5 min-w-[200px] select-none">
                       {/* Header Card: NAMA PROVINSI 14px neu-900 | 3090 neu-900 */}
                       <div className="flex items-center justify-between gap-3 pb-2 border-b border-neu-100">
