@@ -229,6 +229,33 @@ class DokumenHukumController extends Controller
         ]);
     }
 
+    public function checkDraftDuplicate(Request $request)
+    {
+        $filename = $request->query('filename');
+        if (!$filename) {
+            return response()->json(['exists' => false]);
+        }
+
+        // Cari draft yang mungkin mengandung file ini (menggunakan LIKE agar kompatibel dengan berbagai format JSON storage)
+        $draft = DraftDokumen::where('files_data', 'like', '%' . $filename . '%')->first();
+
+        if ($draft) {
+            $filesData = is_string($draft->files_data) ? json_decode($draft->files_data, true) : $draft->files_data;
+            if (is_array($filesData)) {
+                foreach ($filesData as $f) {
+                    if (($f['name'] ?? '') === $filename) {
+                        return response()->json([
+                            'exists' => true,
+                            'draft_name' => $draft->nama_draft
+                        ]);
+                    }
+                }
+            }
+        }
+
+        return response()->json(['exists' => false]);
+    }
+
     public function publishDraft(Request $request, DocumentImportService $importService)
     {
         $request->validate([
@@ -370,15 +397,27 @@ class DokumenHukumController extends Controller
             ->where('tipe_struktur', 'PEMBUKAAN')
             ->first();
 
-        // Ambil menimbang dan mengingat (dari teks struktur atau dari chunks jika ada)
-        // Di sini asumsikan ada di database
-        $menimbang = '';
-        $mengingat = '';
-        $memutuskan = '';
-        if ($pembukaan) {
+        // Ambil KONSIDERANS, DASAR_HUKUM, DIKTUM
+        $konsiderans = StrukturDokumen::where('peraturan_id', $peraturan->id)
+            ->where('tipe_struktur', 'KONSIDERANS')
+            ->first();
+
+        $dasarHukum = StrukturDokumen::where('peraturan_id', $peraturan->id)
+            ->where('tipe_struktur', 'DASAR_HUKUM')
+            ->first();
+            
+        $diktumMemutuskan = StrukturDokumen::where('peraturan_id', $peraturan->id)
+            ->where('tipe_struktur', 'DIKTUM')
+            ->where('label', 'ilike', 'memutuskan')
+            ->first();
+
+        $menimbang = $konsiderans ? $konsiderans->judul_struktur : '';
+        $mengingat = $dasarHukum ? $dasarHukum->judul_struktur : '';
+        $memutuskan = $diktumMemutuskan ? $diktumMemutuskan->judul_struktur : '';
+
+        if ($pembukaan && (!$menimbang && !$mengingat && !$memutuskan)) {
             $pembukaanTeks = $pembukaan->judul_struktur ?? '';
-            // Ekstrak dari teks pembukaan jika digabung, atau mungkin sudah dipisah di DB
-            // Untuk sementara kita masukkan teks lengkap jika ada
+            // Ekstrak dari teks pembukaan jika digabung (fallback)
             if (preg_match('/Menimbang\s*:(.*?)(?:Mengingat\s*:|Memutuskan\s*:|$)/is', $pembukaanTeks, $m)) {
                 $menimbang = trim($m[1]);
             }
@@ -387,9 +426,6 @@ class DokumenHukumController extends Controller
             }
             if (preg_match('/Memutuskan\s*:(.*?)$/is', $pembukaanTeks, $m)) {
                 $memutuskan = trim($m[1]);
-            }
-            if (!$menimbang && !$mengingat && !$memutuskan) {
-                $menimbang = $pembukaanTeks;
             }
         }
 
@@ -591,12 +627,6 @@ class DokumenHukumController extends Controller
         $menimbang = $pembukaanData['menimbang'] ?? '';
         $mengingat = $pembukaanData['mengingat'] ?? '';
         $memutuskan = $pembukaanData['memutuskan'] ?? '';
-        
-        $pembukaanText = '';
-        if ($menimbang) $pembukaanText .= "Menimbang :\n$menimbang\n";
-        if ($mengingat) $pembukaanText .= "Mengingat :\n$mengingat\n";
-        if ($memutuskan) $pembukaanText .= "Memutuskan :\n$memutuskan\n";
-        $pembukaanText = trim($pembukaanText);
 
         if ($isImport) {
             // Hapus yang lama dari proses import sebelumnya
@@ -607,12 +637,30 @@ class DokumenHukumController extends Controller
             $urutanStruktur = 1;
             $urutanPasal = 1;
             
-            if ($pembukaanText) {
+            if ($menimbang) {
                 StrukturDokumen::create([
                     'peraturan_id' => $peraturan->id,
-                    'tipe_struktur' => 'PEMBUKAAN',
-                    'label' => 'Pembukaan',
-                    'judul_struktur' => $pembukaanText,
+                    'tipe_struktur' => 'KONSIDERANS',
+                    'label' => 'Menimbang',
+                    'judul_struktur' => $menimbang,
+                    'urutan' => $urutanStruktur++
+                ]);
+            }
+            if ($mengingat) {
+                StrukturDokumen::create([
+                    'peraturan_id' => $peraturan->id,
+                    'tipe_struktur' => 'DASAR_HUKUM',
+                    'label' => 'Mengingat',
+                    'judul_struktur' => $mengingat,
+                    'urutan' => $urutanStruktur++
+                ]);
+            }
+            if ($memutuskan) {
+                StrukturDokumen::create([
+                    'peraturan_id' => $peraturan->id,
+                    'tipe_struktur' => 'DIKTUM',
+                    'label' => 'Memutuskan',
+                    'judul_struktur' => $memutuskan,
                     'urutan' => $urutanStruktur++
                 ]);
             }
@@ -669,24 +717,45 @@ class DokumenHukumController extends Controller
             }
         } else {
             // Normal update for existing documents
-            $pembukaan = StrukturDokumen::where('peraturan_id', $peraturan->id)
-                ->where('tipe_struktur', 'PEMBUKAAN')
-                ->first();
-                
+            // Update Menimbang
+            $konsiderans = StrukturDokumen::where('peraturan_id', $peraturan->id)->where('tipe_struktur', 'KONSIDERANS')->first();
+            if ($konsiderans) {
+                if ($menimbang) { $konsiderans->judul_struktur = $menimbang; $konsiderans->save(); } else { $konsiderans->delete(); }
+            } else if ($menimbang) {
+                StrukturDokumen::create(['peraturan_id' => $peraturan->id, 'tipe_struktur' => 'KONSIDERANS', 'label' => 'Menimbang', 'judul_struktur' => $menimbang]);
+            }
+            
+            // Update Mengingat
+            $dasarHukum = StrukturDokumen::where('peraturan_id', $peraturan->id)->where('tipe_struktur', 'DASAR_HUKUM')->first();
+            if ($dasarHukum) {
+                if ($mengingat) { $dasarHukum->judul_struktur = $mengingat; $dasarHukum->save(); } else { $dasarHukum->delete(); }
+            } else if ($mengingat) {
+                StrukturDokumen::create(['peraturan_id' => $peraturan->id, 'tipe_struktur' => 'DASAR_HUKUM', 'label' => 'Mengingat', 'judul_struktur' => $mengingat]);
+            }
+            
+            // Update Memutuskan
+            $diktum = StrukturDokumen::where('peraturan_id', $peraturan->id)->where('tipe_struktur', 'DIKTUM')->where('label', 'ilike', 'memutuskan')->first();
+            if ($diktum) {
+                if ($memutuskan) { $diktum->judul_struktur = $memutuskan; $diktum->save(); } else { $diktum->delete(); }
+            } else if ($memutuskan) {
+                StrukturDokumen::create(['peraturan_id' => $peraturan->id, 'tipe_struktur' => 'DIKTUM', 'label' => 'Memutuskan', 'judul_struktur' => $memutuskan]);
+            }
+            
+            // Hapus concatenated string di PEMBUKAAN jika sebelumnya tersimpan secara tidak sengaja
+            $pembukaan = StrukturDokumen::where('peraturan_id', $peraturan->id)->where('tipe_struktur', 'PEMBUKAAN')->first();
             if ($pembukaan) {
-                if ($pembukaanText) {
-                    $pembukaan->judul_struktur = $pembukaanText;
-                    $pembukaan->save();
-                } else {
-                    $pembukaan->delete();
+                $pembukaanTeks = $pembukaan->judul_struktur;
+                if ($pembukaanTeks) {
+                    $cleanP = preg_replace('/Menimbang\s*:.*?(?:Mengingat\s*:|Memutuskan\s*:|$)/is', '', $pembukaanTeks);
+                    $cleanP = preg_replace('/Mengingat\s*:.*?(?:Memutuskan\s*:|$)/is', '', $cleanP);
+                    $cleanP = preg_replace('/Memutuskan\s*:.*?$/is', '', $cleanP);
+                    $cleanP = trim($cleanP);
+                    
+                    if ($cleanP !== $pembukaanTeks) {
+                        $pembukaan->judul_struktur = $cleanP;
+                        $pembukaan->save();
+                    }
                 }
-            } else if ($pembukaanText) {
-                StrukturDokumen::create([
-                    'peraturan_id' => $peraturan->id,
-                    'tipe_struktur' => 'PEMBUKAAN',
-                    'label' => 'Pembukaan',
-                    'judul_struktur' => $pembukaanText,
-                ]);
             }
 
             $babList = $data['babList'] ?? [];
@@ -810,6 +879,68 @@ class DokumenHukumController extends Controller
                 'success' => false,
                 'message' => 'Gagal memindai penyimpanan dokumen hukum. Silakan periksa konfigurasi penyimpanan atau hubungi administrator.'
             ], 500);
+        }
+    }
+    public function previewPdfMinio(Request $request)
+    {
+        $filename = $request->query('filename');
+        $judul = $request->query('judul');
+
+        if (!$filename && !$judul) {
+            return response('Nama file atau judul tidak valid.', 400);
+        }
+
+        $baseName = str_replace('.json', '', $filename ?? '');
+        $textToSearch = $judul ?? $filename ?? '';
+        
+        // Extract numbers (like nomor 6, tahun 2011)
+        preg_match_all('/\d+/', $textToSearch, $matches);
+        $numbers = $matches[0] ?? [];
+
+        try {
+            $allFiles = \Illuminate\Support\Facades\Storage::disk('minio')->allFiles('documents');
+            
+            $pdfPath = collect($allFiles)->first(function($file) use ($baseName, $numbers, $textToSearch) {
+                if (!str_ends_with(strtolower($file), '.pdf')) return false;
+                
+                // 1. Exact or partial match with filename
+                if ($baseName && str_contains(strtolower($file), strtolower($baseName))) {
+                    return true;
+                }
+                
+                // 2. Fuzzy match based on extracted numbers from judul/filename
+                if (count($numbers) >= 2) {
+                    $hasAllNumbers = true;
+                    foreach ($numbers as $num) {
+                        if (!preg_match("/\b{$num}\b/", $file)) {
+                            $hasAllNumbers = false;
+                            break;
+                        }
+                    }
+                    if ($hasAllNumbers) {
+                        // Check if it shares some prefix context to avoid false positives (e.g. "uu", "undang")
+                        $typeStr = strtolower(substr($textToSearch, 0, 4)); 
+                        if ($typeStr && str_contains(strtolower($file), $typeStr)) {
+                            return true;
+                        }
+                    }
+                }
+                
+                return false;
+            });
+
+            if (!$pdfPath) {
+                return response('Dokumen PDF sementara tidak ditemukan di server penyimpanan MinIO.', 404);
+            }
+
+            $fileContent = \Illuminate\Support\Facades\Storage::disk('minio')->get($pdfPath);
+
+            return response($fileContent, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="document.pdf"'
+            ]);
+        } catch (\Exception $e) {
+            return response('Gagal mengambil dokumen dari MinIO: ' . $e->getMessage(), 500);
         }
     }
 

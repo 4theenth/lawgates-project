@@ -6,7 +6,7 @@ import {
   TransitionChild,
 } from '@headlessui/react';
 import { CategoryItem } from './CategoryTable';
-import { X, Gavel } from 'lucide-react';
+import { X, Gavel, Loader2, AlertCircle } from 'lucide-react';
 
 interface CategoryModalProps {
   show: boolean;
@@ -14,6 +14,7 @@ interface CategoryModalProps {
   onSave: (data: { id?: string; nama: string; deskripsi: string; kode?: string }) => void;
   categoryData?: CategoryItem | null;
   isLoading?: boolean;
+  serverError?: string | null;
 }
 
 export function CategoryModal({
@@ -22,11 +23,13 @@ export function CategoryModal({
   onSave,
   categoryData,
   isLoading = false,
+  serverError = null,
 }: CategoryModalProps) {
   const isEditing = Boolean(categoryData);
 
   const [nama, setNama] = useState('');
   const [deskripsi, setDeskripsi] = useState('');
+  const [clientError, setClientError] = useState<string | null>(null);
 
   useEffect(() => {
     if (categoryData) {
@@ -36,19 +39,41 @@ export function CategoryModal({
       setNama('');
       setDeskripsi('');
     }
+    setClientError(null);
   }, [categoryData, show]);
+
+  const handleNamaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setNama(val);
+    if (clientError) {
+      setClientError(null);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nama.trim()) return;
+    const trimmedNama = nama.trim();
 
+    if (!trimmedNama) {
+      setClientError('Nama kategori tidak boleh kosong.');
+      return;
+    }
+
+    if (trimmedNama.length > 50) {
+      setClientError('Nama kategori maksimal 50 karakter.');
+      return;
+    }
+
+    setClientError(null);
     onSave({
       id: categoryData?.id,
-      nama: nama.trim(),
+      nama: trimmedNama,
       deskripsi: deskripsi.trim(),
       kode: categoryData?.kode,
     });
   };
+
+  const displayedError = clientError || serverError;
 
   return (
     <Transition show={show}>
@@ -94,7 +119,9 @@ export function CategoryModal({
                             {isEditing ? 'Edit Kategori Hukum' : 'Tambah Kategori Hukum'}
                           </h2>
                           <p className="text-[12px] text-neu-500 mt-0.5 leading-normal">
-                            Edit kategori hukum yang akan digunakan saat menambahkan data hukum nantinya
+                            {isEditing
+                              ? 'Perbarui data kategori hukum yang dipilih'
+                              : 'Tambahkan kategori hukum baru untuk standardisasi data peraturan'}
                           </p>
                         </div>
                       </div>
@@ -111,18 +138,48 @@ export function CategoryModal({
 
                     {/* Form Fields Body */}
                     <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5 bg-white">
+                      {displayedError && (
+                        <div className="p-3 rounded-[10px] bg-dan-50 border border-dan-200 text-dan-800 text-[12px] flex items-start gap-2 animate-in fade-in duration-200">
+                          <AlertCircle className="w-4 h-4 text-dan-800 shrink-0 mt-0.5" />
+                          <span className="leading-snug">{displayedError}</span>
+                        </div>
+                      )}
+
                       <div>
-                        <label className="block text-[13px] font-medium text-neu-800 mb-1.5">
-                          Nama Kategori <span className="text-dan-800">*</span>
-                        </label>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-[13px] font-medium text-neu-800">
+                            Nama Kategori <span className="text-dan-800">*</span>
+                          </label>
+                          <span
+                            className={`text-[11px] font-medium ${
+                              nama.length > 50 ? 'text-dan-800' : 'text-neu-400'
+                            }`}
+                          >
+                            {nama.length}/50
+                          </span>
+                        </div>
                         <input
                           type="text"
                           required
+                          maxLength={50}
                           value={nama}
-                          onChange={(e) => setNama(e.target.value)}
+                          onChange={handleNamaChange}
                           placeholder="Contoh: Undang Undang"
-                          className="w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border border-neu-200 bg-white text-neu-900 placeholder-neu-400 focus:outline-none focus:border-pr-900 focus:ring-1 focus:ring-pr-900 transition-all shadow-2xs"
+                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border ${
+                            displayedError
+                              ? 'border-dan-500 bg-dan-50/20 text-neu-900 focus:border-dan-700 focus:ring-dan-700'
+                              : 'border-neu-200 bg-white text-neu-900 focus:border-pr-900 focus:ring-pr-900'
+                          } placeholder-neu-400 focus:outline-none focus:ring-1 transition-all shadow-2xs`}
                         />
+                        {displayedError ? (
+                          <p className="mt-1.5 text-[12px] text-dan-800 font-medium">
+                            {displayedError}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-[11px] text-neu-400">
+                            Maksimal 50 karakter
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -144,16 +201,24 @@ export function CategoryModal({
                       <button
                         type="button"
                         onClick={onClose}
-                        className="px-5 py-2 text-[13px] font-medium text-neu-800 bg-white border border-neu-200 hover:bg-neu-50 rounded-[10px] transition-colors cursor-pointer shadow-2xs"
+                        disabled={isLoading}
+                        className="px-5 py-2 text-[13px] font-medium text-neu-800 bg-white border border-neu-200 hover:bg-neu-50 rounded-[10px] transition-colors cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Batal
                       </button>
                       <button
                         type="submit"
-                        disabled={isLoading || !nama.trim()}
-                        className="px-5 py-2 text-[13px] font-medium bg-pr-900 hover:bg-pr-800 text-white rounded-[10px] transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isLoading || !nama.trim() || nama.trim().length > 50}
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2 text-[13px] font-medium bg-pr-900 hover:bg-pr-800 text-white rounded-[10px] transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {isLoading ? 'Menyimpan...' : 'Simpan Kategori'}
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Menyimpan...</span>
+                          </>
+                        ) : (
+                          <span>Simpan Kategori</span>
+                        )}
                       </button>
                     </div>
                   </form>

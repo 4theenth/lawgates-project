@@ -44,10 +44,9 @@ export function CorrectionBatangTubuhSection({
                   type="text"
                   value={bab.judul}
                   onChange={(e) => onChangeBabJudul?.(bab.id, e.target.value)}
-                  className="flex-1 min-w-0 bg-transparent text-[12px] font-bold text-pr-900 tracking-wide uppercase focus:outline-none focus:bg-[#F8FAFC] focus:px-3 focus:py-2 focus:-mx-3 focus:-my-2 focus:rounded-[8px] transition-all"
+                  className="flex-1 min-w-0 bg-[#F8FAFC] border border-neu-100 px-3 py-2 rounded-[8px] text-[12px] font-bold text-pr-900 tracking-wide uppercase focus:outline-none focus:bg-white focus:border-pr-900 transition-all"
                   placeholder="Judul BAB"
                 />
-                <Edit2 className="w-3.5 h-3.5 text-neu-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pointer-events-none" />
               </div>
               <button
                 type="button"
@@ -67,6 +66,7 @@ export function CorrectionBatangTubuhSection({
             <div className="space-y-4 pt-1">
               {bab.deskripsi && (
                 <AutoResizeTextarea
+                  enableAutoFormat
                   value={bab.deskripsi}
                   onChange={(e) => onChangeBabDeskripsi(bab.id, e.target.value)}
                   className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[100px]"
@@ -103,6 +103,7 @@ export function CorrectionBatangTubuhSection({
                   {(pasal.isExpanded || !pasal.nomor || pasal.nomor.trim() === '-' || pasal.nomor.trim() === '') && (
                     <div className="space-y-2">
                       <AutoResizeTextarea
+                        enableAutoFormat
                         value={pasal.isi}
                         onChange={(e) => onChangePasalIsi(bab.id, pasal.id, e.target.value)}
                         className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[150px]"
@@ -114,6 +115,7 @@ export function CorrectionBatangTubuhSection({
                           Penjelasan (Opsional)
                         </span>
                         <AutoResizeTextarea
+                          enableAutoFormat
                           value={pasal.penjelasan || ''}
                           onChange={(e) => onChangePasalPenjelasan?.(bab.id, pasal.id, e.target.value)}
                           className="w-full mt-1 p-3.5 rounded-[8px] bg-blue-50/50 border-l-4 border-l-blue-500 border border-blue-200 text-[12px] text-blue-900 leading-relaxed focus:outline-none focus:bg-white focus:border-blue-500 transition-all resize-none min-h-[100px]"

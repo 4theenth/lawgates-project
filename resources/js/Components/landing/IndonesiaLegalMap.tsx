@@ -7,26 +7,30 @@ import {
   Eye,
   Plus,
   Minus,
+  RotateCcw,
   Check,
   CircleCheckBig,
   ChevronRight,
-  RotateCcw,
 } from 'lucide-react';
 import { router } from '@inertiajs/react';
-import { MapContainer, GeoJSON, useMap, Popup } from 'react-leaflet';
+import { MapContainer, GeoJSON, TileLayer, useMap, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 import {
   INDONESIA_GEOJSON,
+  INDONESIA_LAND_BORDERS,
+  NEIGHBORING_COUNTRIES,
   PROVINCES_DATA,
   PROVINCE_LAND_COORDINATES,
   normalizeProvinceKey,
   ProvinceDetail,
 } from './indonesiaMapData';
+import { MAP_THEME } from '../../config/mapTheme';
 
-// ── Sub-komponen untuk kontrol kamera Leaflet (FitBounds, PanTo, Zoom) ─────
+// ── Sub-komponen untuk kontrol kamera Leaflet (FitBounds, Zoom ke Provinsi, Reset) ──
 function MapController({
+  selectedBounds,
   popupPos,
   resetTrigger,
   onMapReady,
@@ -34,6 +38,7 @@ function MapController({
   onDeselect,
   onDragStateChange,
 }: {
+  selectedBounds: L.LatLngBounds | null;
   popupPos: L.LatLngExpression | null;
   resetTrigger: number;
   onMapReady: (map: L.Map) => void;
@@ -88,34 +93,29 @@ function MapController({
     };
   }, [map, onDeselect, onDragStateChange]);
 
-  // Efek perpindahan kamera saat provinsi dipilih:
-  // Menggunakan panTo atau flyTo halus langsung ke titik daratan (popupPos)
-  // Menghilangkan efek getar (jitter) yang sebelumnya terjadi karena zoom bouncing
+  // Efek zoom kamera saat provinsi dipilih (Klik/Select)
   useEffect(() => {
-    if (popupPos) {
-      const currentZoom = map.getZoom();
-      if (currentZoom < 5.2) {
-        map.flyTo(popupPos, 5.4, {
-          animate: true,
-          duration: 0.6,
-          easeLinearity: 0.25,
-        });
-      } else {
-        map.panTo(popupPos, {
-          animate: true,
-          duration: 0.45,
-          easeLinearity: 0.25,
-        });
-      }
+    if (selectedBounds) {
+      map.flyToBounds(selectedBounds, {
+        maxZoom: 6.8,
+        padding: [60, 60],
+        duration: 0.8,
+        easeLinearity: 0.25,
+      });
+    } else if (popupPos) {
+      map.flyTo(popupPos, 6.5, {
+        duration: 0.8,
+        easeLinearity: 0.25,
+      });
     }
-  }, [popupPos, map]);
+  }, [selectedBounds, popupPos, map]);
 
   // Reset kamera ke seluruh wilayah Indonesia (fitBounds agar selalu pas & proporsional)
   useEffect(() => {
     if (resetTrigger > 0 && geoJsonBounds) {
       map.flyToBounds(geoJsonBounds, {
         padding: [15, 15],
-        duration: 0.6,
+        duration: 0.5,
         easeLinearity: 0.25,
       });
     }
@@ -133,6 +133,7 @@ export function IndonesiaLegalMap() {
   const [geoJsonBounds, setGeoJsonBounds] = useState<L.LatLngBounds | null>(null);
 
   // ── 2. State Hover Tunggal (Mencegah tooltip nyangkut saat drag/panning) ─
+  const [hoveredProvinceKey, setHoveredProvinceKey] = useState<string | null>(null);
   const [hoveredProvinceName, setHoveredProvinceName] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const isDraggingRef = useRef(false);
@@ -140,12 +141,14 @@ export function IndonesiaLegalMap() {
   const handleDragStateChange = useCallback((isDragging: boolean) => {
     isDraggingRef.current = isDragging;
     if (isDragging) {
+      setHoveredProvinceKey(null);
       setHoveredProvinceName(null);
     }
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (isDraggingRef.current) {
+      setHoveredProvinceKey(null);
       setHoveredProvinceName(null);
       return;
     }
@@ -168,22 +171,22 @@ export function IndonesiaLegalMap() {
   const selectedProvinceRef = useRef<string | null>(selectedProvinceId);
 
   // Fungsi utilitas untuk memperbarui warna seluruh layer wilayah secara instan
-  const updateLayerStyles = useCallback((activeKey: string | null) => {
+  const updateLayerStyles = useCallback((activeKey: string | null, hoveredKey: string | null) => {
     if (geoJsonRef.current) {
       geoJsonRef.current.eachLayer((layer: any) => {
         const featureName = layer.feature?.properties?.PROVINSI || '';
         const key = normalizeProvinceKey(featureName);
         const isSelected = activeKey !== null && key === activeKey;
-
-        layer.setStyle({
-          fillColor: isSelected ? '#0A1C3E' : '#FFFFFF',
-          color: isSelected ? '#0A1C3E' : '#CBD5E1',
-          weight: isSelected ? 2.5 : 1,
-          fillOpacity: 1,
-        });
+        const isHovered = !isSelected && hoveredKey !== null && key === hoveredKey;
 
         if (isSelected) {
+          layer.setStyle(MAP_THEME.province.selected);
           layer.bringToFront();
+        } else if (isHovered) {
+          layer.setStyle(MAP_THEME.province.hover);
+          layer.bringToFront();
+        } else {
+          layer.setStyle(MAP_THEME.province.default);
         }
       });
     }
@@ -191,8 +194,8 @@ export function IndonesiaLegalMap() {
 
   useEffect(() => {
     selectedProvinceRef.current = selectedProvinceId;
-    updateLayerStyles(selectedProvinceId);
-  }, [selectedProvinceId, updateLayerStyles]);
+    updateLayerStyles(selectedProvinceId, hoveredProvinceKey);
+  }, [selectedProvinceId, hoveredProvinceKey, updateLayerStyles]);
 
   // Pastikan data aktif hanya ada jika ada provinsi yang terpilih
   const activeProvince: ProvinceDetail | null = selectedProvinceId
@@ -229,12 +232,7 @@ export function IndonesiaLegalMap() {
         const key = normalizeProvinceKey(featureName);
         const isSelected = key === provKey;
 
-        layer.setStyle({
-          fillColor: isSelected ? '#0A1C3E' : '#FFFFFF',
-          color: isSelected ? '#0A1C3E' : '#CBD5E1',
-          weight: isSelected ? 2.5 : 1,
-          fillOpacity: 1,
-        });
+        layer.setStyle(isSelected ? MAP_THEME.province.selected : MAP_THEME.province.default);
 
         if (isSelected) {
           layer.bringToFront();
@@ -257,39 +255,31 @@ export function IndonesiaLegalMap() {
     setSearchQuery('');
     setResetTrigger((prev) => prev + 1);
 
-    // Kembalikan semua provinsi ke warna putih
+    // Kembalikan semua provinsi ke style default transparan
     if (geoJsonRef.current) {
       geoJsonRef.current.eachLayer((layer: any) => {
-        layer.setStyle({
-          fillColor: '#FFFFFF',
-          color: '#CBD5E1',
-          weight: 1,
-          fillOpacity: 1,
-        });
+        layer.setStyle(MAP_THEME.province.default);
       });
     }
   }, []);
 
-  // Navigasi ke pencarian regulasi provinsi
+  // Navigasi ke detail kategori regulasi provinsi yang dipilih
   const handleNavigatePeraturan = (provName: string) => {
-    router.get('/pencarian', { keyword: provName });
+    const slug = normalizeProvinceKey(provName);
+    router.get(`/kategori/${slug}`);
   };
 
   // Styling default setiap polygon provinsi
-  const getFeatureStyle = (feature: any) => {
+  const getFeatureStyle = useCallback((feature: any) => {
     const provName = feature?.properties?.PROVINSI || '';
     const key = normalizeProvinceKey(provName);
-    const isSelected = key === selectedProvinceRef.current;
+    const isSelected = key === selectedProvinceId;
+    const isHovered = !isSelected && key === hoveredProvinceKey;
 
-    return {
-      fillColor: isSelected ? '#0A1C3E' : '#FFFFFF',
-      weight: isSelected ? 2.5 : 1,
-      opacity: 1,
-      color: isSelected ? '#0A1C3E' : '#CBD5E1',
-      fillOpacity: 1,
-      className: 'cursor-pointer',
-    };
-  };
+    if (isSelected) return MAP_THEME.province.selected;
+    if (isHovered) return MAP_THEME.province.hover;
+    return MAP_THEME.province.default;
+  }, [selectedProvinceId, hoveredProvinceKey]);
 
   // Event handler untuk setiap fitur GeoJSON (Hover & Klik)
   const onEachFeature = (feature: any, layer: L.Layer) => {
@@ -305,41 +295,28 @@ export function IndonesiaLegalMap() {
         const target = e.target;
         // Hanya ubah ke warna hover jika provinsi ini BELUM terpilih
         if (provKey !== selectedProvinceRef.current) {
-          target.setStyle({
-            fillColor: '#C4CCD6', // Soft neutral gray-blue highlight
-            color: '#0A1C3E',
-            weight: 1.8,
-            fillOpacity: 1,
-          });
-          // Tampilkan nama provinsi saat hover murni sebelum di-select
+          target.setStyle(MAP_THEME.province.hover);
+          target.bringToFront();
+          setHoveredProvinceKey(provKey);
           setHoveredProvinceName(provName);
         }
       },
       mouseout: (e) => {
         const target = e.target;
-        // Hapus nama provinsi seketika saat kursor keluar!
-        setHoveredProvinceName(null);
-
-        // Jika bukan provinsi yang sedang terpilih, kembalikan ke putih
+        // Jika bukan provinsi yang sedang terpilih, kembalikan ke default transparan
         if (provKey !== selectedProvinceRef.current) {
-          target.setStyle({
-            fillColor: '#FFFFFF',
-            color: '#CBD5E1',
-            weight: 1,
-            fillOpacity: 1,
-          });
+          target.setStyle(MAP_THEME.province.default);
         } else {
-          // Jika ini provinsi yang terpilih, pastikan tetap Navy solid (Primary/900)!
-          target.setStyle({
-            fillColor: '#0A1C3E',
-            color: '#0A1C3E',
-            weight: 2.5,
-            fillOpacity: 1,
-          });
+          // Jika ini provinsi yang terpilih, pertahankan style selected
+          target.setStyle(MAP_THEME.province.selected);
+          target.bringToFront();
         }
+        setHoveredProvinceKey((prev) => (prev === provKey ? null : prev));
+        setHoveredProvinceName((prev) => (prev === provName ? null : prev));
       },
       click: (e) => {
         L.DomEvent.stopPropagation(e);
+        setHoveredProvinceKey(null);
         setHoveredProvinceName(null);
         handleSelectProvince(provKey);
       },
@@ -348,25 +325,38 @@ export function IndonesiaLegalMap() {
 
   return (
     <section className="mt-[66px] w-full">
+      {/* ── Transisi Halus Saat Kursor Berpindah Antar Daerah (Smooth Switch) ── */}
+      <style>{`
+        .custom-leaflet-map path.leaflet-interactive {
+          transition: fill 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                      fill-opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                      stroke 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                      stroke-width 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+      `}</style>
+
       {/* ── Section Header ────────────────────────────────────────── */}
       <div className="mb-8">
         <h2 className="text-2xl sm:text-[26px] font-bold text-neu-900 tracking-tight">
           Peta Hukum Indonesia
         </h2>
-        <p className="text-neu-600 text-md sm:text-sm mt-1 max-w-2xl leading-relaxed">
+        <p className="text-neu-600 text-md sm:text-[14px] mt-1 max-w-2xl leading-relaxed">
           Klik salah satu provinsi untuk melihat jumlah peraturan dan hukum yang berlaku di wilayah tersebut.
-        </p>
+        </p>  
       </div>
 
-      {/* ── Grid Container (Peta Kiri + Sidebar Kanan) Sejajar Garis Bawah (h-[496px]) ── */}
+      {/* ── Grid Container (Peta Kiri + Sidebar Kanan) Sejajar Garis Bawah ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full items-stretch">
-        {/* ── MAP CONTAINER (Left) ── width sesuai grid, height 496px, rounded 20px ── */}
-        <div className="lg:col-span-8 xl:col-span-8 w-full h-[496px] bg-[#D9D9D9] rounded-[20px] border border-neu-200/80 overflow-hidden relative shadow-sm">
+        {/* ── MAP CONTAINER (Left) ── responsive height, rounded 20px ── */}
+        <div className="lg:col-span-8 xl:col-span-8 w-full h-[400px] sm:h-[460px] lg:h-[520px] bg-[#71D4E9] rounded-[20px] border border-neu-200/80 overflow-hidden relative shadow-sm">
           {/* Leaflet Map Canvas Wrapper dengan event mouse move & leave untuk hover tooltip */}
           <div
             className="w-full h-full relative"
             onMouseMove={handleMouseMove}
-            onMouseLeave={() => setHoveredProvinceName(null)}
+            onMouseLeave={() => {
+              setHoveredProvinceKey(null);
+              setHoveredProvinceName(null);
+            }}
           >
             {/* Tooltip Tunggal: HANYA muncul saat kursor lewat murni dan LANGSUNG lenyap saat kursor keluar / drag */}
             {hoveredProvinceName && mousePos && !isDraggingRef.current && (
@@ -398,13 +388,14 @@ export function IndonesiaLegalMap() {
               zoomControl={false}
               attributionControl={false}
               maxBounds={[
-                [12, 92],
-                [-14, 143],
+                [16, 86],
+                [-18, 150],
               ]}
-              maxBoundsViscosity={0.8}
-              className="w-full h-full bg-[#D9D9D9] z-0 focus:outline-none"
+              maxBoundsViscosity={0.6}
+              className="w-full h-full bg-[#71D4E9] z-0 focus:outline-none custom-leaflet-map"
             >
               <MapController
+                selectedBounds={selectedBounds}
                 popupPos={popupPos}
                 resetTrigger={resetTrigger}
                 geoJsonBounds={geoJsonBounds}
@@ -415,7 +406,28 @@ export function IndonesiaLegalMap() {
                 }}
               />
 
-              {/* Layer GeoJSON 38 Provinsi Resmi Indonesia */}
+              {/* Basemap Google Maps Terrain (Hanya Menampilkan Nama Negara, Tanpa Nama Kota/Daerah & Tanpa Nama Laut/Samudra) */}
+              <TileLayer
+                url="https://{s}.google.com/vt/lyrs=p&apistyle=s.e:l%7Cp.v:off,s.t:2%7Cs.e:l%7Cp.v:on&x={x}&y={y}&z={z}"
+                subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                maxZoom={20}
+              />
+
+              {/* Layer Wilayah Negara Tetangga (Mati warnanya menjadi netral neu-50 agar Indonesia menonjol) */}
+              <GeoJSON
+                data={NEIGHBORING_COUNTRIES as any}
+                style={{
+                  fillColor: MAP_THEME.neighbors.fillColor,
+                  fillOpacity: MAP_THEME.neighbors.fillOpacity,
+                  weight: MAP_THEME.neighbors.weight,
+                  color: MAP_THEME.neighbors.color,
+                  opacity: MAP_THEME.neighbors.opacity,
+                  smoothFactor: 0,
+                } as any}
+                interactive={false}
+              />
+
+              {/* Layer GeoJSON 38 Provinsi Resmi Indonesia (Untuk Interaksi Hover & Seleksi) */}
               <GeoJSON
                 ref={(instance) => {
                   geoJsonRef.current = instance;
@@ -428,23 +440,40 @@ export function IndonesiaLegalMap() {
                 onEachFeature={onEachFeature}
               />
 
+              {/* Layer Garis Batas Daratan Antar Provinsi (Hanya di perbatasan darat antar provinsi, tanpa garis pantai) */}
+              <GeoJSON
+                data={INDONESIA_LAND_BORDERS as any}
+                style={{
+                  color: MAP_THEME.borders.color,
+                  weight: MAP_THEME.borders.weight,
+                  opacity: MAP_THEME.borders.opacity,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                  smoothFactor: 0,
+                } as any}
+                interactive={false}
+              />
+
               {/* Floating Popup Card saat provinsi dipilih dengan Garis Pin Stem (Sesuai Figma) */}
               {activeProvince && popupPos && (
                 <Popup
+                  key={activeProvince.id}
                   position={popupPos}
                   closeButton={false}
-                  autoPan={false}
+                  autoPan={true}
+                  autoPanPadding={[40, 40]}
+                  keepInView={true}
                   offset={[0, 0]}
                   className="custom-leaflet-popup"
                 >
-                  <div className="flex flex-col items-center">
+                  <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
                     <div className="bg-white rounded-xl shadow-xl border border-neu-200/90 p-3.5 min-w-[200px] select-none">
-                      {/* Header Card: NAMA PROVINSI 14px neu-900 | 3090 pr-900 */}
+                      {/* Header Card: NAMA PROVINSI 14px neu-900 | 3090 neu-900 */}
                       <div className="flex items-center justify-between gap-3 pb-2 border-b border-neu-100">
-                        <span className="text-[14px] font-bold text-neu-900 tracking-wide">
+                        <span className="text-[12px] font-bold text-neu-900 tracking-wide">
                           {activeProvince.name}
                         </span>
-                        <span className="text-[14px] font-bold text-pr-900">
+                        <span className="text-[14px] font-bold text-neu-900">
                           {activeProvince.total.toLocaleString('id-ID')}
                         </span>
                       </div>
@@ -477,7 +506,7 @@ export function IndonesiaLegalMap() {
                     </div>
 
                     {/* Garis Pin Stem Menunjuk Wilayah Terpilih */}
-                    <div className="w-[1.5px] h-6 bg-pr-900" />
+                    <div className="w-[1.5px] h-6 bg-neu-900" />
                   </div>
                 </Popup>
               )}
@@ -487,12 +516,12 @@ export function IndonesiaLegalMap() {
           {/* Indicator Info (Pojok Kiri Bawah) */}
           <div className="absolute bottom-4 left-4 z-[400] flex items-center gap-2 bg-white/95 backdrop-blur-sm px-3.5 py-1.5 rounded-full border border-neu-200 shadow-sm text-xs text-neu-700 select-none pointer-events-none">
             <span className="w-2.5 h-2.5 rounded-full bg-pr-900 inline-block" />
-            <span className="text-[11px] sm:text-xs font-medium">
+            <span className="text-[12px] sm:text-xs font-medium">
               klik provinsi yang ingin dipilih
             </span>
           </div>
 
-          {/* Zoom Controls Custom Figma (Pojok Kanan Bawah) */}
+          {/* Zoom & Reset Controls Custom Figma (Pojok Kanan Bawah) */}
           <div className="absolute bottom-4 right-4 z-[400] flex flex-col bg-white rounded-[14px] shadow-md border border-neu-200/80 overflow-hidden select-none">
             <button
               type="button"
@@ -515,25 +544,25 @@ export function IndonesiaLegalMap() {
             <button
               type="button"
               onClick={handleResetMap}
-              title="Reset Tampilan Peta"
-              className="p-1.5 hover:bg-neu-100 text-neu-500 transition-colors flex items-center justify-center cursor-pointer"
+              title="Kembali ke Tampilan Awal"
+              className="p-2 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
             >
-              <RotateCcw className="w-3 h-3" />
+              <RotateCcw className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* ── SIDEBAR PANEL (Right) ── 2 separate forms, height 496px total, border-neu-50 ── */}
-        <div className="lg:col-span-4 xl:col-span-4 w-full h-[496px] flex flex-col gap-3.5">
+        {/* ── SIDEBAR PANEL (Right) ── responsive height, auto-fit content cleanly ── */}
+        <div className="lg:col-span-4 xl:col-span-4 w-full lg:h-[520px] flex flex-col gap-3">
           {/* ── FORM 1: Top Search Box ── */}
-          <div className="bg-white rounded-[20px] border border-neu-50 p-4 sm:p-5 shadow-sm shrink-0">
+          <div className="bg-white rounded-[20px] border border-neu-50 p-4 shrink-0">
             {/* Header: Pilih Provinsi + Earth Icon */}
-            <div className="flex items-center justify-between pb-3">
-              <h3 className="font-bold text-neu-900 text-[14px]">
+            <div className="flex items-center justify-between pb-2.5">
+              <h3 className="font-medium text-neu-900 text-[14px]">
                 Pilih Provinsi
               </h3>
-              <div className="w-8 h-8 rounded-full border border-neu-200 flex items-center justify-center text-neu-700 bg-white">
-                <Earth className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-full  flex items-center justify-center text-neu-700 bg-white">
+                <Earth className="w-[20px] h-[20px]" />
               </div>
             </div>
 
@@ -548,7 +577,7 @@ export function IndonesiaLegalMap() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
                 placeholder="Cari provinsi"
-                className="w-full pl-9 pr-4 py-2 bg-white border border-neu-200 rounded-xl text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none focus:ring-1 focus:ring-pr-900 focus:border-pr-900 transition-all"
+                className="w-full pl-9 pr-4 py-2 bg-white border border-neu-100 rounded-xl text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none focus:ring-1 focus:ring-pr-900 focus:border-pr-900 transition-all"
               />
 
               {/* Dropdown Pencarian Otomatis */}
@@ -579,36 +608,36 @@ export function IndonesiaLegalMap() {
           </div>
 
           {/* ── FORM 2: Bottom Info Box ── */}
-          <div className="flex-1 min-h-0 bg-white rounded-[20px] border border-neu-50 p-4 sm:p-5 shadow-sm flex flex-col justify-between overflow-y-auto">
+          <div className="flex-1 bg-white rounded-[20px] border border-neu-50 p-4  flex flex-col justify-between overflow-y-auto">
             {activeProvince ? (
-              <div className="space-y-3.5 animate-in fade-in duration-300">
+              <div className="space-y-2.5 animate-in fade-in duration-300">
                 {/* Header Row: Logo Timbangan + NAMA PROVINSI + Total Regulasi */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-neu-50 flex items-center justify-center text-pr-900">
-                      <Scale className="w-5 h-5" />
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-[35px] h-[35px] rounded-lg bg-pr-50 flex items-center justify-center text-pr-900 shrink-0">
+                      <Scale className="w-[20px] h-[20px]" />
                     </div>
-                    <span className="font-bold text-[12px] sm:text-[14px] text-neu-900 tracking-wide">
+                    <span className="font-bold text-[13px] sm:text-[14px] text-pr-900 tracking-wide truncate">
                       {activeProvince.name}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-pr-900">
+                  <div className="flex items-center gap-1.5 text-pr-900 shrink-0 ml-2">
                     <FileText className="w-4 h-4 text-pr-900" />
-                    <span className="font-bold text-[12px] sm:text-[14px]">
+                    <span className="font-bold text-[13px] sm:text-[14px]">
                       {activeProvince.total.toLocaleString('id-ID')}
                     </span>
                   </div>
                 </div>
 
                 {/* Garis Pembatas di Bawah Nama Provinsi */}
-                <div className="w-full h-[1px] bg-neu-100" />
+                <div className="w-full h-[1px] bg-neu-50" />
 
                 {/* Progress Bar Status Peraturan */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {/* Berlaku */}
                   <div>
-                    <div className="flex items-center justify-between text-[12px] mb-1.5">
+                    <div className="flex items-center justify-between text-[11px] sm:text-[12px] mb-1">
                       <span className="text-neu-900 font-medium">Berlaku</span>
                       <span className="text-neu-900 font-bold">
                         {activeProvince.berlaku.toLocaleString('id-ID')}
@@ -628,7 +657,7 @@ export function IndonesiaLegalMap() {
 
                   {/* Tidak Berlaku */}
                   <div>
-                    <div className="flex items-center justify-between text-[12px] mb-1.5">
+                    <div className="flex items-center justify-between text-[11px] sm:text-[12px] mb-1">
                       <span className="text-neu-900 font-medium">Tidak Berlaku</span>
                       <span className="text-neu-900 font-bold">
                         {activeProvince.tidakBerlaku.toLocaleString('id-ID')}
@@ -651,7 +680,7 @@ export function IndonesiaLegalMap() {
                 <div className="w-full h-[1px] bg-neu-100" />
 
                 {/* Peraturan Daerah Preview */}
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between text-[12px]">
                     <span className="font-bold text-neu-900">Peraturan Daerah</span>
                     <button
@@ -665,15 +694,15 @@ export function IndonesiaLegalMap() {
                   </div>
 
                   {/* Card Detail Perda */}
-                  <div className="p-3.5 rounded-2xl border border-neu-100 bg-white space-y-2.5 shadow-sm">
+                  <div className="p-3 rounded-xl  bg-white space-y-2 shadow-sm">
                     {/* Badge Status */}
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-suc-50 text-suc-800 border border-suc-200 text-[11px] font-semibold">
-                      <CircleCheckBig className="w-3.5 h-3.5 text-suc-800" />
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-suc-50 text-suc-800 border border-suc-200 text-[10px] font-semibold">
+                      <CircleCheckBig className="w-3 h-3 text-suc-800" />
                       <span>{activeProvince.samplePerda.status}</span>
                     </div>
 
                     {/* Judul Perda */}
-                    <p className="text-[12px] text-neu-800 font-medium line-clamp-2 leading-relaxed">
+                    <p className="text-[11px] sm:text-[12px] text-neu-800 font-medium line-clamp-2 leading-relaxed">
                       {activeProvince.samplePerda.nomor}{' '}
                       {activeProvince.samplePerda.tentang}
                     </p>
@@ -682,7 +711,7 @@ export function IndonesiaLegalMap() {
                     <button
                       type="button"
                       onClick={() => handleNavigatePeraturan(activeProvince.name)}
-                      className="w-full bg-[#E8EDF4] hover:bg-[#DCE3ED] text-pr-900 text-xs font-semibold py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      className="w-full bg-pr-50 hover:bg-pr-100 text-pr-900 text-[12px] font-medium py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       <span>Lihat Detail</span>
@@ -693,13 +722,13 @@ export function IndonesiaLegalMap() {
             ) : (
               /* KONDISI 2: BELUM ADA PROVINSI DIPILIH (EMPTY STATE) */
               <div className="flex flex-col items-center justify-center text-center my-auto py-8 px-4">
-                <div className="w-14 h-14 rounded-[20px] bg-white border border-neu-100 flex items-center justify-center text-neu-400 mb-3.5">
-                  <Earth className="w-7 h-7" strokeWidth={1.5} />
+                <div className="w-12 h-12 rounded-[18px] bg-white border border-neu-100 flex items-center justify-center text-neu-400 mb-3">
+                  <Earth className="w-6 h-6" strokeWidth={1.5} />
                 </div>
-                <h4 className="font-bold text-[14px] text-neu-900 mb-1">
+                <h4 className="font-medium text-[14px] text-neu-900 mb-1">
                   Belum ada provinsi yang dipilih
                 </h4>
-                <p className="text-[12px] text-neu-500 max-w-[240px] leading-relaxed">
+                <p className="text-[12px] text-neu-200 max-w-[240px] leading-relaxed">
                   Silakan klik salah satu provinsi pada peta atau pencarian untuk menampilkan jumlah peraturan
                 </p>
               </div>
@@ -707,11 +736,11 @@ export function IndonesiaLegalMap() {
 
             {/* Tombol Footer: Lihat Lainnya (Aktif jika ada provinsi) */}
             {activeProvince && (
-              <div className="pt-3">
+              <div className="pt-2.5">
                 <button
                   type="button"
                   onClick={() => handleNavigatePeraturan(activeProvince.name)}
-                  className="w-full bg-pr-900 hover:bg-pr-800 text-white rounded-xl py-2.5 px-4 text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer"
+                  className="w-full bg-pr-900 hover:bg-pr-800 text-white rounded-xl py-2 px-4 text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer"
                 >
                   <Eye className="w-4 h-4" />
                   <span>Lihat Lainnya</span>

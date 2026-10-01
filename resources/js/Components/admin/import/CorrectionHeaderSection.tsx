@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { AutoResizeTextarea } from './AutoResizeTextarea';
 
 interface CorrectionHeaderSectionProps {
   standarId: string;
@@ -77,7 +78,8 @@ export function CorrectionHeaderSection({
 
         {isOpenJudul && (
           <div className="mt-3">
-            <textarea
+            <AutoResizeTextarea
+              enableAutoFormat
               rows={3}
               value={judul}
               onChange={(e) => onChangeJudul(e.target.value)}

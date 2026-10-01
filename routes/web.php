@@ -130,6 +130,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
         return Inertia::render('Admin/Dashboard');
     })->name('admin.dashboard');
 
+    Route::redirect('/categories', '/admin/kategori-hukum');
     Route::get('/kategori-hukum', [KategoriHukumController::class, 'index'])->name('admin.kategori-hukum');
     Route::post('/kategori-hukum', [KategoriHukumController::class, 'store'])->name('admin.kategori-hukum.store');
     Route::put('/kategori-hukum/{id}', [KategoriHukumController::class, 'update'])->name('admin.kategori-hukum.update');
@@ -147,12 +148,14 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     // Draft Routes
     Route::get('/dokumen-hukum/draft/{id}', [DokumenHukumController::class, 'showDraft'])->name('admin.dokumen-hukum.draft.show');
     Route::post('/dokumen-hukum/draft', [DokumenHukumController::class, 'storeDraft'])->name('admin.dokumen-hukum.draft.store');
+    Route::get('/dokumen-hukum/draft-check-duplicate', [DokumenHukumController::class, 'checkDraftDuplicate'])->name('admin.dokumen-hukum.draft.check');
     Route::post('/dokumen-hukum/draft/publish', [DokumenHukumController::class, 'publishDraft'])->name('admin.dokumen-hukum.draft.publish');
     Route::post('/dokumen-hukum/draft/bulk-delete', [DokumenHukumController::class, 'bulkDeleteDraft'])->name('admin.dokumen-hukum.draft.bulk-delete');
 
     // MinIO Sync Routes
     Route::get('/dokumen-hukum/minio/scan', [DokumenHukumController::class, 'scanMinio'])->name('admin.dokumen-hukum.minio.scan');
     Route::post('/dokumen-hukum/minio/import', [DokumenHukumController::class, 'importFromMinio'])->name('admin.dokumen-hukum.minio.import');
+    Route::get('/dokumen-hukum/preview-pdf-minio', [DokumenHukumController::class, 'previewPdfMinio'])->name('admin.dokumen-hukum.preview-pdf-minio');
 
     // Users & Team Management Routes
     Route::get('/team', [TeamController::class, 'index'])->name('admin.team');
