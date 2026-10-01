@@ -56,6 +56,8 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
   const [editingCat, setEditingCat] = useState<CategoryItem | null>(null);
   const [deletingCat, setDeletingCat] = useState<CategoryItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const breadcrumbs = [
     { label: 'Dashboard', href: '/admin/dashboard' },
@@ -155,6 +157,8 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
     kode?: string;
   }) => {
     setIsSubmitting(true);
+    setServerError(null);
+
     if (data.id) {
       router.put(
         `/admin/kategori-hukum/${data.id}`,
@@ -168,11 +172,17 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
           onSuccess: () => {
             setIsSubmitting(false);
             setEditingCat(null);
-            toast.success('Kategori hukum berhasil diperbarui!');
+            setServerError(null);
           },
-          onError: () => {
+          onError: (errors: Record<string, string>) => {
             setIsSubmitting(false);
-            toast.error('Gagal memperbarui kategori hukum.');
+            const errorMsg =
+              errors.nama ||
+              errors.deskripsi ||
+              errors.kode ||
+              'Gagal memperbarui kategori hukum.';
+            setServerError(errorMsg);
+            toast.error(errorMsg);
           },
         }
       );
@@ -189,11 +199,17 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
           onSuccess: () => {
             setIsSubmitting(false);
             setIsAddModalOpen(false);
-            toast.success('Kategori hukum berhasil ditambahkan!');
+            setServerError(null);
           },
-          onError: () => {
+          onError: (errors: Record<string, string>) => {
             setIsSubmitting(false);
-            toast.error('Gagal menambahkan kategori hukum.');
+            const errorMsg =
+              errors.nama ||
+              errors.deskripsi ||
+              errors.kode ||
+              'Gagal menambahkan kategori hukum.';
+            setServerError(errorMsg);
+            toast.error(errorMsg);
           },
         }
       );
@@ -204,14 +220,19 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
   const handleConfirmDelete = () => {
     if (!deletingCat) return;
 
+    setIsDeleting(true);
     router.delete(`/admin/kategori-hukum/${deletingCat.id}`, {
       preserveScroll: true,
       onSuccess: () => {
+        setIsDeleting(false);
         setDeletingCat(null);
-        toast.delete('Kategori hukum berhasil dihapus!');
       },
-      onError: () => {
-        toast.error('Gagal menghapus kategori hukum.');
+      onError: (errors: Record<string, string>) => {
+        setIsDeleting(false);
+        const errorMsg =
+          (errors && Object.values(errors)[0]) ||
+          'Gagal menghapus kategori hukum.';
+        toast.error(errorMsg);
       },
     });
   };
@@ -243,7 +264,10 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => {
+              setServerError(null);
+              setIsAddModalOpen(true);
+            }}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -288,7 +312,10 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={handleSort}
-            onEdit={(cat) => setEditingCat(cat)}
+            onEdit={(cat) => {
+              setServerError(null);
+              setEditingCat(cat);
+            }}
             onDelete={(cat) => setDeletingCat(cat)}
           />
         ) : (
@@ -316,9 +343,11 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
         show={isAddModalOpen || Boolean(editingCat)}
         categoryData={editingCat}
         isLoading={isSubmitting}
+        serverError={serverError}
         onClose={() => {
           setIsAddModalOpen(false);
           setEditingCat(null);
+          setServerError(null);
         }}
         onSave={handleSaveCategory}
       />
@@ -328,7 +357,10 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
         show={Boolean(deletingCat)}
         title="Hapus Kategori Hukum?"
         itemName={deletingCat?.kategori}
-        onClose={() => setDeletingCat(null)}
+        isLoading={isDeleting}
+        onClose={() => {
+          if (!isDeleting) setDeletingCat(null);
+        }}
         onConfirm={handleConfirmDelete}
       />
     </AdminLayout>

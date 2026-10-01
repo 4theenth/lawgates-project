@@ -130,6 +130,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
         return Inertia::render('Admin/Dashboard');
     })->name('admin.dashboard');
 
+    Route::redirect('/categories', '/admin/kategori-hukum');
     Route::get('/kategori-hukum', [KategoriHukumController::class, 'index'])->name('admin.kategori-hukum');
     Route::post('/kategori-hukum', [KategoriHukumController::class, 'store'])->name('admin.kategori-hukum.store');
     Route::put('/kategori-hukum/{id}', [KategoriHukumController::class, 'update'])->name('admin.kategori-hukum.update');
@@ -155,6 +156,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     Route::post('/dokumen-hukum/minio/import', [DokumenHukumController::class, 'importFromMinio'])->name('admin.dokumen-hukum.minio.import');
 
     // Users & Team Management Routes
+    Route::get('/team', [TeamController::class, 'index'])->name('admin.team');
     Route::get('/users/tim', [TeamController::class, 'index'])->name('admin.users.tim');
 });
 

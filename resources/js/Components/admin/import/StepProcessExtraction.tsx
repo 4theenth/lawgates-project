@@ -33,8 +33,8 @@ export function StepProcessExtraction({
   const overallPercent =
     totalFiles > 0
       ? Math.round(
-          files.reduce((acc, f) => acc + f.progressPercent, 0) / totalFiles
-        )
+        files.reduce((acc, f) => acc + f.progressPercent, 0) / totalFiles
+      )
       : 0;
 
   // Parameter Circular Progress SVG
@@ -105,13 +105,12 @@ export function StepProcessExtraction({
                 {/* Progress Bar Item */}
                 <div className="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-300 ${
-                      isSelesai
+                    className={`h-full rounded-full transition-all duration-300 ${isSelesai
                         ? 'bg-[#2E7D32]'
                         : isGagal
-                        ? 'bg-[#E53E3E]'
-                        : 'bg-pr-900'
-                    }`}
+                          ? 'bg-[#E53E3E]'
+                          : 'bg-pr-900'
+                      }`}
                     style={{ width: `${file.progressPercent}%` }}
                   />
                 </div>

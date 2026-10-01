@@ -14,6 +14,7 @@ export interface ToastOptions {
 
 export interface FlashProps {
   success?: string;
+  deleted?: string;
   error?: string;
   warning?: string;
   info?: string;
@@ -96,13 +97,20 @@ export function ToastProvider({
   const handleFlash = useCallback(
     (flash?: FlashProps) => {
       if (!flash) return;
-      const key = `${flash.success || ''}:::${flash.error || ''}:::${flash.warning || ''}:::${flash.info || ''}`;
-      if (key === '::::::') return;
+      const key = `${flash.success || ''}:::${flash.deleted || ''}:::${flash.error || ''}:::${flash.warning || ''}:::${flash.info || ''}`;
+      if (key === '::::::::') return;
       if (processedFlashRef.current === key) return;
       processedFlashRef.current = key;
 
-      if (flash.success) {
-        toast.success(flash.success);
+      if (flash.deleted) {
+        toast.delete(flash.deleted);
+      } else if (flash.success) {
+        const lower = flash.success.toLowerCase();
+        if (lower.includes('dihapus') || lower.includes('delete') || lower.includes('terhapus')) {
+          toast.delete(flash.success);
+        } else {
+          toast.success(flash.success);
+        }
       }
       if (flash.error) {
         toast.error(flash.error);
@@ -128,7 +136,10 @@ export function ToastProvider({
   useEffect(() => {
     const unregisterSuccess = router.on('success', (event) => {
       const pageFlash = (event.detail.page.props as any)?.flash as FlashProps | undefined;
-      if (pageFlash && (pageFlash.success || pageFlash.error || pageFlash.warning || pageFlash.info)) {
+      if (
+        pageFlash &&
+        (pageFlash.success || pageFlash.deleted || pageFlash.error || pageFlash.warning || pageFlash.info)
+      ) {
         handleFlash(pageFlash);
       } else {
         processedFlashRef.current = '';

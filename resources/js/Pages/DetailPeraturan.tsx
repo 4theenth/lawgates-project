@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useToast } from '@/hooks/useToast';
+import { Head, router } from '@inertiajs/react';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
-import { ChevronUp, Menu, X } from 'lucide-react';
+import { ChevronUp, X, Maximize2 } from 'lucide-react';
 import { ChapterItem, ArticleItem } from '@/Components/admin/import/correctionParser';
 import { ReadonlyTableOfContents } from '@/Components/public/peraturan/ReadonlyTableOfContents';
 import { ReadonlyPembukaanSection } from '@/Components/public/peraturan/ReadonlyPembukaanSection';
 import { ReadonlyBatangTubuhSection } from '@/Components/public/peraturan/ReadonlyBatangTubuhSection';
 import { ReadonlyTimelineSection, ReadonlyTimelineItem } from '@/Components/public/peraturan/ReadonlyTimelineSection';
+import RegulationGraph from '@/Components/peraturan/RegulationGraph';
 
 // Format tanggal ke format Indonesia
 const formatTanggal = (dateString: string) => {
@@ -22,13 +22,73 @@ const formatTanggal = (dateString: string) => {
   }).format(date);
 };
 
-export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
-  const { toast } = useToast();
+// ─────────────────────────────────────────────
+// Floating Preview Window (Tengah Layar, Tetap)
+// ─────────────────────────────────────────────
 
+interface FloatingGraphPreviewProps {
+  peraturanId: number;
+  onClose: () => void;
+  onExpand: () => void;
+}
+
+function FloatingGraphPreview({ peraturanId, onClose, onExpand }: FloatingGraphPreviewProps) {
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    setIsInitialized(true);
+  }, []);
+
+  if (!isInitialized) return null;
+
+  return (
+    <div
+      style={{ width: '480px' }}
+      className="absolute bottom-[75px] right-0 z-[9999] bg-white rounded-2xl shadow-[0_12px_40px_-12px_rgba(0,0,0,0.25)] border border-slate-200 overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300 pointer-events-auto origin-bottom-right"
+    >
+      {/* Header Bar */}
+      <div className="px-4 py-3 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200/80 flex items-center justify-between select-none">
+        <div className="flex items-center gap-2 text-slate-800">
+          <span className="w-2 h-2 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.6)]"></span>
+          <span className="text-xs font-bold tracking-wider text-slate-800">PREVIEW PETA RELASI</span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onExpand}
+            title="Perbesar & Masuk ke Halaman Graph"
+            className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+          >
+            <Maximize2 className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            title="Tutup Preview"
+            className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Graph Content */}
+      <div className="h-[400px] relative bg-[#fafafa] overflow-hidden">
+        <RegulationGraph
+          peraturanId={peraturanId}
+          isMini={true}
+          onExpand={onExpand}
+          onClose={onClose}
+        />
+      </div>
+    </div>
+  );
+}
+
+export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
   // Scroll to top state
   const [showScrollTop, setShowScrollTop] = useState(false);
-  // Mobile Table of Contents Drawer State
-  const [isMobileTocOpen, setIsMobileTocOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -44,9 +104,9 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     const rawStrukturList = peraturan.struktur_dokumen || [];
     const ignoredTipes = ['PEMBUKAAN', 'KONSIDERANS', 'DASAR_HUKUM', 'DIKTUM'];
     const strukturList = rawStrukturList.filter((str: any) => !ignoredTipes.includes(str.tipe_struktur));
-    
+
     const rawPasalList = peraturan.pasal || [];
-    
+
     // First pass: create all ArticleItems and a map for quick lookup
     const pasalMap = new Map<string, any>();
     rawPasalList.forEach((p: any) => {
@@ -56,7 +116,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
         isi: p.isi_pasal,
         penjelasan: p.penjelasan?.isi_penjelasan,
         isExpanded: true,
-        pasalList: [] 
+        pasalList: []
       });
     });
 
@@ -77,11 +137,11 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     });
 
     const map = new Map<string, ChapterItem>();
-    
+
     // Third pass: instantiate all ChapterItems
     strukturList.forEach((str: any) => {
       const pasalsInStruktur = rootPasals.filter((p: any) => p.struktur_id === str.id);
-      
+
       let judul = str.label || '';
       let deskripsi = '';
       if (str.judul_struktur) {
@@ -125,7 +185,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
   }, [peraturan]);
 
   const [babsState, setBabsState] = useState<ChapterItem[]>([]);
-  
+
   useEffect(() => {
     setBabsState(initialBabList);
   }, [initialBabList]);
@@ -140,7 +200,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     };
     setBabsState(prev => toggleNode(prev, babId));
   };
-  
+
   const handleTogglePasal = (babId: string, pasalId: string) => {
     const togglePasalInList = (pasalList: ArticleItem[], targetPasalId: string): { list: ArticleItem[], updated: boolean } => {
       let updated = false;
@@ -164,7 +224,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     const togglePasalNode = (nodes: ChapterItem[], targetPasalId: string): ChapterItem[] => {
       return nodes.map(n => {
         const { list: newPasalList, updated } = togglePasalInList(n.pasalList || [], targetPasalId);
-        
+
         if (updated) return { ...n, pasalList: newPasalList };
         if (n.children && n.children.length > 0) return { ...n, children: togglePasalNode(n.children, targetPasalId) };
         return n;
@@ -259,7 +319,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       });
       return { nodes: newNodes, found: foundInList };
     };
-    
+
     setBabsState(prev => expandStrukturPath(prev, pasalId).nodes);
     scrollToElement(`section-${pasalId}`);
   };
@@ -400,19 +460,13 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
   // Format dates & active status
   const tanggalPenetapan = peraturan?.tanggal_penetapan ? formatTanggal(peraturan.tanggal_penetapan) : '-';
 
-  // Handler download dokumen di background tanpa reload / tab baru
-  const handleDownload = () => {
-    if (!peraturan?.unique_id) return;
-    const link = document.createElement('a');
-    link.href = `/peraturan/${peraturan.unique_id}/download`;
-    link.setAttribute('download', '');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  // Graph State
+  const [showGraph, setShowGraph] = useState(false);
+  const [showFloatingPreview, setShowFloatingPreview] = useState(false);
 
   const handleRelasi = () => {
-    scrollToElement('section-pembukaan');
+    // Tampilkan panel preview floating yang bisa digeser kemana saja
+    setShowFloatingPreview(true);
   };
 
   const canCompare = Boolean(
@@ -429,7 +483,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
       <div className="w-full min-w-0 overflow-x-hidden">
         <div className={`pt-20 sm:pt-24 pb-8 sm:pb-12 ${PAGE_CONTAINER} text-gray-900 min-w-0`}>
-          
+
           {/* Header Metadata Sesuai Desain Reusable */}
           <DetailPeraturanHeader
             breadcrumbItems={[
@@ -447,11 +501,12 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
             downloadHref={`/peraturan/${peraturan?.unique_id}/lihat`}
           />
 
-            {/* Layout 3-Kolom: Sesuai Proporsi Form Koreksi Data (Daftar Isi Kiri, Editor Utama Tengah Panjang, Status Kanan) */}
+          {/* Layout 3-Kolom atau Graph Penuh */}
+          {!showGraph ? (
             <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5 w-full min-w-0">
-              
-              {/* Kolom Kiri: Daftar Isi (Desktop Sticky Sidebar, Hidden di Mobile) */}
-              <div className="hidden lg:block lg:w-[220px] xl:w-[240px] shrink-0 lg:sticky lg:top-28">
+
+              {/* Kolom Kiri: Daftar Isi (Ramping seperti Form Koreksi Data) */}
+              <div className="w-full lg:w-[220px] xl:w-[240px] shrink-0 lg:sticky lg:top-28">
                 <ReadonlyTableOfContents
                   pembukaanJudul="Pembukaan"
                   pembukaanData={pembukaanData}
@@ -467,7 +522,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                     else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
                     else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
                     else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
-                    
+
                     setIsPembukaanOpen(true);
                     scrollToElement(sectionId);
                   }}
@@ -475,7 +530,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
               </div>
 
               {/* Kolom Tengah: Isi Peraturan (Sticky, Scrollable, Lebih Panjang Sedikit dari Kolom Kiri & Kanan) */}
-              <div 
+              <div
                 id="scrollable-content"
                 scroll-region="true"
                 className="flex-1 min-w-0 w-full space-y-4 lg:sticky lg:top-28 lg:h-[calc(100vh-105px)] lg:overflow-y-auto lg:pr-2.5 custom-scrollbar scroll-smooth pb-12"
@@ -493,7 +548,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                   onToggleMemutuskan={() => setIsMemutuskanOpen(!isMemutuskanOpen)}
                   onToggleMenetapkan={() => setIsMenetapkanOpen(!isMenetapkanOpen)}
                 />
-                
+
                 <ReadonlyBatangTubuhSection
                   babList={babsState}
                   onToggleBab={handleToggleBab}
@@ -502,107 +557,55 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
               </div>
 
               {/* Kolom Kanan: Riwayat Perubahan & Metadata dengan Tombol RELASI */}
-              <div className="w-full lg:w-[240px] xl:w-[260px] shrink-0 min-w-0 space-y-4 lg:sticky lg:top-28">
-                <ReadonlyTimelineSection 
-                  riwayatPerubahan={timelineData} 
+              <div className="w-full lg:w-[240px] xl:w-[260px] shrink-0 min-w-0 space-y-4 lg:sticky lg:top-28 relative">
+                <ReadonlyTimelineSection
+                  riwayatPerubahan={timelineData}
                   onRelasiClick={handleRelasi}
                 />
+
+                {/* Floating Graph Preview Window (Berada tepat di atas tombol Relasi) */}
+                {showFloatingPreview && (
+                  <FloatingGraphPreview
+                    peraturanId={peraturan?.id}
+                    onClose={() => setShowFloatingPreview(false)}
+                    onExpand={() => {
+                      setShowFloatingPreview(false);
+                      setShowGraph(true);
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Layout Graph Inline (Menggantikan 3 Kolom) */
+            <div className="w-full mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+              {/* Tombol Close Graph / Kembali */}
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={() => setShowGraph(false)}
+                  className="px-4 py-2 bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                  Tutup Peta Relasi & Kembali ke Teks
+                </button>
               </div>
 
-            </div>
-          </div>
-      </div>
-
-      {/* Mobile Floating Button: Daftar Isi */}
-      <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
-        <button
-          type="button"
-          onClick={() => setIsMobileTocOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-pr-900 text-white text-xs font-semibold border border-pr-800 transition-all active:scale-95 cursor-pointer"
-          aria-label="Buka Daftar Isi"
-        >
-          <Menu className="w-4 h-4" />
-          <span>Daftar Isi</span>
-        </button>
-      </div>
-
-      {/* Mobile Bottom Sheet Drawer for Daftar Isi */}
-      {isMobileTocOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black/40 transition-opacity" 
-            onClick={() => setIsMobileTocOpen(false)}
-            aria-hidden="true"
-          />
-          {/* Sheet Container */}
-          <div className="relative z-10 w-full max-h-[80vh] bg-white rounded-t-[20px] border-t border-x border-neu-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
-            {/* Drag Handle indicator */}
-            <div className="w-full flex justify-center pt-3 pb-1">
-              <div className="w-12 h-1 bg-neu-300 rounded-full" />
-            </div>
-
-            {/* Sheet Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-neu-100 shrink-0">
-              <div className="flex items-center gap-2.5">
-                <Menu className="w-4 h-4 text-neu-700" />
-                <h3 className="font-sans text-xs font-bold text-neu-900 tracking-wide">
-                  DAFTAR ISI
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsMobileTocOpen(false)}
-                className="p-1 rounded-md text-neu-500 hover:text-neu-800 hover:bg-neu-100 transition-colors cursor-pointer"
-                aria-label="Tutup Daftar Isi"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Sheet Content */}
-            <div className="p-4 overflow-y-auto custom-scrollbar flex-1">
-              <ReadonlyTableOfContents
-                pembukaanJudul="Pembukaan"
-                pembukaanData={pembukaanData}
-                babList={babsState}
-                hideHeader={true}
-                className="border-0 p-0 rounded-none h-auto"
-                onNavigateToStruktur={(id) => {
-                  handleNavigateToStruktur(id);
-                  setIsMobileTocOpen(false);
-                }}
-                onNavigateToPasal={(id) => {
-                  handleNavigateToPasal(id);
-                  setIsMobileTocOpen(false);
-                }}
-                onNavigateToPembukaan={() => {
-                  setIsPembukaanOpen(true);
-                  scrollToElement('section-pembukaan');
-                  setIsMobileTocOpen(false);
-                }}
-                onNavigateToSection={(sectionId) => {
-                  if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
-                  else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
-                  else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
-                  else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
-                  
-                  setIsPembukaanOpen(true);
-                  scrollToElement(sectionId);
-                  setIsMobileTocOpen(false);
-                }}
+              <RegulationGraph
+                peraturanId={peraturan?.id}
+                onClose={() => setShowGraph(false)}
               />
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
+
+
 
       {/* Scroll to Top Button */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className={`fixed bottom-6 right-4 sm:right-8 p-3 rounded-full bg-pr-900 border border-pr-800 text-white transition-all duration-300 hover:bg-pr-800 hover:scale-105 active:scale-95 z-40 flex items-center justify-center ${
-          showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'
-        }`}
+        className={`fixed bottom-6 right-4 sm:right-8 p-3 rounded-full bg-pr-900 border border-pr-800 text-white transition-all duration-300 hover:bg-pr-800 hover:scale-105 active:scale-95 z-40 flex items-center justify-center ${showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'
+          }`}
         aria-label="Scroll to top"
       >
         <ChevronUp className="w-5 h-5" />

@@ -200,11 +200,11 @@ export default function DokumenHukumCreate() {
 
           // Coba deteksi kategori dari file pertama yang valid
           if (idx === 0 && parsedData?.metadata) {
-            let detected = 
-              parsedData.metadata.tipe_peraturan || 
-              parsedData.metadata.kategori || 
+            let detected =
+              parsedData.metadata.tipe_peraturan ||
+              parsedData.metadata.kategori ||
               parsedData.metadata.jenis;
-            
+
             if (detected) {
               const upperDet = detected.toUpperCase().trim();
               if (NAMA_KATEGORI_MAP[upperDet]) {
@@ -217,11 +217,11 @@ export default function DokumenHukumCreate() {
               setDetectedCategory(detected);
               // Cek apakah kategori yang terdeteksi sudah ada di database (case insensitive)
               const existingCat = kategoriOptions.find(
-                (k) => k.nama.toLowerCase() === detected.toLowerCase() || 
-                       k.kode.toLowerCase() === detected.toLowerCase()
+                (k) => k.nama.toLowerCase() === detected.toLowerCase() ||
+                  k.kode.toLowerCase() === detected.toLowerCase()
               );
               setIsNewCategory(!existingCat);
-              
+
               if (existingCat) {
                 setSelectedCategory(existingCat.nama);
               } else {
@@ -440,18 +440,18 @@ export default function DokumenHukumCreate() {
       const payload = new FormData();
       validatedFiles.forEach((file, index) => {
         // Stringify JSON data since FormData only takes strings/blobs
-        const parsedDataStr = typeof file.parsedData === 'object' 
-            ? JSON.stringify(file.parsedData)
-            : file.parsedData;
+        const parsedDataStr = typeof file.parsedData === 'object'
+          ? JSON.stringify(file.parsedData)
+          : file.parsedData;
         payload.append(`files[${index}][parsedData]`, parsedDataStr);
 
         if (file.correctionData) {
-            payload.append(`files[${index}][correctionData]`, JSON.stringify(file.correctionData));
+          payload.append(`files[${index}][correctionData]`, JSON.stringify(file.correctionData));
         }
-        
+
         // Append actual file if available
         if (file.rawFile) {
-            payload.append(`files[${index}][rawFile]`, file.rawFile);
+          payload.append(`files[${index}][rawFile]`, file.rawFile);
         }
       });
 
@@ -584,11 +584,10 @@ export default function DokumenHukumCreate() {
             type="button"
             disabled={uploadedFiles.length >= 10}
             onClick={() => headerFileInputRef.current?.click()}
-            className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[10px] text-[14px] font-medium transition-colors shadow-2xs ${
-              uploadedFiles.length >= 10
+            className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[10px] text-[14px] font-medium transition-colors shadow-2xs ${uploadedFiles.length >= 10
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : 'bg-pr-900 text-white hover:bg-pr-800 cursor-pointer'
-            }`}
+              }`}
           >
             <Plus className="w-4 h-4" />
             <span>Tambah File</span>

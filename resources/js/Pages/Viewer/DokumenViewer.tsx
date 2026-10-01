@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Head, usePage } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
 import { useToast } from '@/hooks/useToast';
@@ -28,7 +28,7 @@ export default function DokumenViewer({ peraturan, pdfUrl, hasPdf }: DokumenView
     if (hasPdf === false) {
       toast.error('Dokumen PDF belum tersedia di penyimpanan MinIO.');
     }
-  }, [hasPdf]);
+  }, [hasPdf, toast]);
 
   // Handler download langsung di halaman yang sama tanpa redirect / tab baru
   const handleDownload = () => {

@@ -19,6 +19,7 @@ Route::get('/peraturan/compare', [\App\Http\Controllers\Api\ComparisonController
 Route::get('/peraturan/{unique_id}/lineage', [\App\Http\Controllers\Api\ComparisonController::class, 'getLineage']);
 
 Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show']);
+Route::get('/peraturan/{id}/graph', [\App\Http\Controllers\Api\GraphController::class, 'show']);
 
 // Route Baru: Mengambil data referensi untuk Dropdown di Frontend
 Route::get('/kategori-hukum/all', [\App\Http\Controllers\Api\KategoriHukumController::class, 'getAllKategori']);
