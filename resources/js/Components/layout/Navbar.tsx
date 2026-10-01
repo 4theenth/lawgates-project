@@ -45,28 +45,31 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 w-full z-50 h-[74px] flex items-center justify-center transition-all duration-500 ease-in-out ${!isScrolled && isLightPage
+        className={`fixed top-0 left-0 w-full z-50 h-[74px] flex items-center justify-center transition-all duration-200 ease-out ${
+          !isScrolled && isLightPage
             ? 'bg-white border-b border-gray-100/90 shadow-2xs pointer-events-auto'
             : 'bg-transparent border-transparent shadow-none pointer-events-none'
           }`}
       >
         {/* Floating pill container (transitions width, height, glass background, border, shadow) */}
         <div
-          className={`relative flex items-center justify-between mx-auto transition-all duration-500 ease-in-out pointer-events-auto ${isPill
-              ? 'h-[59px] w-[calc(100%-24px)] sm:w-[calc(100%-32px)] max-w-[1120px] bg-white/90 sm:bg-white/80 backdrop-blur-[16px] border border-white/60 rounded-full shadow-[0px_4px_24px_-2px_rgba(0,0,0,0.08)] px-4 sm:px-6 lg:px-8'
+          className={`relative flex items-center justify-between mx-auto rounded-full transition-all duration-200 ease-out pointer-events-auto ${
+            isPill
+              ? 'h-[59px] w-[calc(100%-24px)] sm:w-[calc(100%-32px)] max-w-[1120px] bg-white/90 sm:bg-white/80 backdrop-blur-[16px] border border-white/60 shadow-[0px_4px_24px_-2px_rgba(0,0,0,0.08)] px-4 sm:px-6 lg:px-8'
               : 'h-[74px] w-full max-w-[1202px] px-4 sm:px-6 xl:px-0 bg-transparent border-transparent shadow-none'
             }`}
         >
           {/* Brand Logo - slides inward toward the center menu when container narrows */}
-          <Link href="/" className="flex items-center gap-2 z-10 transition-transform duration-500">
+          <Link href="/" className="flex items-center gap-2 z-10 transition-transform duration-200 ease-out">
             <ApplicationLogo
-              className={`h-[26px] w-auto transition-colors duration-300 ${!isPill && isHome ? 'text-white' : 'text-pr-900'
-                }`}
+              className={`h-[26px] w-auto transition-colors duration-150 ease-out ${
+                !isPill && isHome ? 'text-white' : 'text-pr-900'
+              }`}
             />
           </Link>
 
           {/* Desktop Auth Section (Login Button OR User Profile Dropdown) */}
-          <div className="hidden md:flex items-center gap-4 z-10 transition-transform duration-500">
+          <div className="hidden md:flex items-center gap-4 z-10 transition-transform duration-200 ease-out">
             {user ? (
               <Dropdown>
                 <Dropdown.Trigger>
@@ -178,7 +181,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                 onClick={item.disabled ? (e) => e.preventDefault() : undefined}
                 target={item.disabled ? undefined : "_blank"}
                 rel="noopener noreferrer"
-                className={`transition-colors duration-300 relative py-1 ${NAVBAR_THEME.fontSize} ${theme.inactiveItem}`}
+                className={`transition-colors duration-150 ease-out relative py-1 ${NAVBAR_THEME.fontSize} ${theme.inactiveItem}`}
               >
                 {item.title}
               </a>
@@ -187,7 +190,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                 key={item.id}
                 href={item.disabled ? '#' : item.path}
                 onClick={item.disabled ? (e) => e.preventDefault() : undefined}
-                className={`transition-colors duration-300 relative py-1 ${NAVBAR_THEME.fontSize} ${active
+                className={`transition-colors duration-150 ease-out relative py-1 ${NAVBAR_THEME.fontSize} ${active
                   ? theme.activeItem
                   : theme.inactiveItem
                   }`}
