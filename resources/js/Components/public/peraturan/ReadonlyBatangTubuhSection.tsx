@@ -58,13 +58,13 @@ function PasalNode({
       </div>
 
       {pasal.isExpanded && (
-        <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line">
+        <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
           {pasal.isi}
         </div>
       )}
 
       {isPenjelasanExpanded && pasal.penjelasan && (
-        <div className="w-full mt-2 p-3.5 rounded-[8px] bg-blue-50/50 border-l-4 border-l-blue-500 border border-blue-100 text-[12px] text-blue-900 leading-relaxed whitespace-pre-line">
+        <div className="w-full mt-2 p-3.5 rounded-[8px] bg-blue-50/50 border-l-4 border-l-blue-500 border border-blue-100 text-[12px] text-blue-900 leading-relaxed whitespace-pre-line text-justify">
           <span className="font-semibold text-[14px] block mb-1">Penjelasan {pasal.nomor}:</span>
           {pasal.penjelasan}
         </div>
@@ -126,7 +126,7 @@ function BatangTubuhNode({
       {item.isExpanded && (
         <div className="space-y-4 pt-1">
           {item.deskripsi && (
-            <div className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed whitespace-pre-line">
+            <div className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed whitespace-pre-line text-justify">
               {item.deskripsi}
             </div>
           )}

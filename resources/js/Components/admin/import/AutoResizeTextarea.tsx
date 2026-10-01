@@ -39,7 +39,7 @@ export const AutoResizeTextarea: React.FC<AutoResizeTextareaProps> = ({ value, c
       {...props}
       ref={textareaRef}
       value={value}
-      className={`${className} overflow-hidden ${enableAutoFormat ? 'pr-10' : ''}`}
+      className={`${className} overflow-hidden text-justify ${enableAutoFormat ? 'pr-10' : ''}`}
       rows={props.rows || 1}
     />
   );
