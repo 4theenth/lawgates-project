@@ -20,6 +20,7 @@ import 'leaflet/dist/leaflet.css';
 import {
   INDONESIA_GEOJSON,
   INDONESIA_LAND_BORDERS,
+  NEIGHBORING_COUNTRIES,
   PROVINCES_DATA,
   PROVINCE_LAND_COORDINATES,
   normalizeProvinceKey,
@@ -27,8 +28,9 @@ import {
 } from './indonesiaMapData';
 import { MAP_THEME } from '../../config/mapTheme';
 
-// ── Sub-komponen untuk kontrol kamera Leaflet (FitBounds, PanTo, Zoom) ─────
+// ── Sub-komponen untuk kontrol kamera Leaflet (FitBounds, Zoom ke Provinsi, Reset) ──
 function MapController({
+  selectedBounds,
   popupPos,
   resetTrigger,
   onMapReady,
@@ -36,6 +38,7 @@ function MapController({
   onDeselect,
   onDragStateChange,
 }: {
+  selectedBounds: L.LatLngBounds | null;
   popupPos: L.LatLngExpression | null;
   resetTrigger: number;
   onMapReady: (map: L.Map) => void;
@@ -90,17 +93,22 @@ function MapController({
     };
   }, [map, onDeselect, onDragStateChange]);
 
-  // Efek perpindahan kamera saat provinsi dipilih:
-  // Menggunakan panTo yang sangat mulus dan stabil tanpa lonjakan zoom mendadak
+  // Efek zoom kamera saat provinsi dipilih (Klik/Select)
   useEffect(() => {
-    if (popupPos) {
-      map.panTo(popupPos, {
-        animate: true,
-        duration: 0.5,
+    if (selectedBounds) {
+      map.flyToBounds(selectedBounds, {
+        maxZoom: 6.8,
+        padding: [60, 60],
+        duration: 0.8,
+        easeLinearity: 0.25,
+      });
+    } else if (popupPos) {
+      map.flyTo(popupPos, 6.5, {
+        duration: 0.8,
         easeLinearity: 0.25,
       });
     }
-  }, [popupPos, map]);
+  }, [selectedBounds, popupPos, map]);
 
   // Reset kamera ke seluruh wilayah Indonesia (fitBounds agar selalu pas & proporsional)
   useEffect(() => {
@@ -125,6 +133,7 @@ export function IndonesiaLegalMap() {
   const [geoJsonBounds, setGeoJsonBounds] = useState<L.LatLngBounds | null>(null);
 
   // ── 2. State Hover Tunggal (Mencegah tooltip nyangkut saat drag/panning) ─
+  const [hoveredProvinceKey, setHoveredProvinceKey] = useState<string | null>(null);
   const [hoveredProvinceName, setHoveredProvinceName] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const isDraggingRef = useRef(false);
@@ -132,12 +141,14 @@ export function IndonesiaLegalMap() {
   const handleDragStateChange = useCallback((isDragging: boolean) => {
     isDraggingRef.current = isDragging;
     if (isDragging) {
+      setHoveredProvinceKey(null);
       setHoveredProvinceName(null);
     }
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (isDraggingRef.current) {
+      setHoveredProvinceKey(null);
       setHoveredProvinceName(null);
       return;
     }
@@ -160,17 +171,22 @@ export function IndonesiaLegalMap() {
   const selectedProvinceRef = useRef<string | null>(selectedProvinceId);
 
   // Fungsi utilitas untuk memperbarui warna seluruh layer wilayah secara instan
-  const updateLayerStyles = useCallback((activeKey: string | null) => {
+  const updateLayerStyles = useCallback((activeKey: string | null, hoveredKey: string | null) => {
     if (geoJsonRef.current) {
       geoJsonRef.current.eachLayer((layer: any) => {
         const featureName = layer.feature?.properties?.PROVINSI || '';
         const key = normalizeProvinceKey(featureName);
         const isSelected = activeKey !== null && key === activeKey;
-
-        layer.setStyle(isSelected ? MAP_THEME.province.selected : MAP_THEME.province.default);
+        const isHovered = !isSelected && hoveredKey !== null && key === hoveredKey;
 
         if (isSelected) {
+          layer.setStyle(MAP_THEME.province.selected);
           layer.bringToFront();
+        } else if (isHovered) {
+          layer.setStyle(MAP_THEME.province.hover);
+          layer.bringToFront();
+        } else {
+          layer.setStyle(MAP_THEME.province.default);
         }
       });
     }
@@ -178,8 +194,8 @@ export function IndonesiaLegalMap() {
 
   useEffect(() => {
     selectedProvinceRef.current = selectedProvinceId;
-    updateLayerStyles(selectedProvinceId);
-  }, [selectedProvinceId, updateLayerStyles]);
+    updateLayerStyles(selectedProvinceId, hoveredProvinceKey);
+  }, [selectedProvinceId, hoveredProvinceKey, updateLayerStyles]);
 
   // Pastikan data aktif hanya ada jika ada provinsi yang terpilih
   const activeProvince: ProvinceDetail | null = selectedProvinceId
@@ -247,19 +263,23 @@ export function IndonesiaLegalMap() {
     }
   }, []);
 
-  // Navigasi ke pencarian regulasi provinsi
+  // Navigasi ke detail kategori regulasi provinsi yang dipilih
   const handleNavigatePeraturan = (provName: string) => {
-    router.get('/pencarian', { keyword: provName });
+    const slug = normalizeProvinceKey(provName);
+    router.get(`/kategori/${slug}`);
   };
 
   // Styling default setiap polygon provinsi
-  const getFeatureStyle = (feature: any) => {
+  const getFeatureStyle = useCallback((feature: any) => {
     const provName = feature?.properties?.PROVINSI || '';
     const key = normalizeProvinceKey(provName);
-    const isSelected = key === selectedProvinceRef.current;
+    const isSelected = key === selectedProvinceId;
+    const isHovered = !isSelected && key === hoveredProvinceKey;
 
-    return isSelected ? MAP_THEME.province.selected : MAP_THEME.province.default;
-  };
+    if (isSelected) return MAP_THEME.province.selected;
+    if (isHovered) return MAP_THEME.province.hover;
+    return MAP_THEME.province.default;
+  }, [selectedProvinceId, hoveredProvinceKey]);
 
   // Event handler untuk setiap fitur GeoJSON (Hover & Klik)
   const onEachFeature = (feature: any, layer: L.Layer) => {
@@ -276,25 +296,27 @@ export function IndonesiaLegalMap() {
         // Hanya ubah ke warna hover jika provinsi ini BELUM terpilih
         if (provKey !== selectedProvinceRef.current) {
           target.setStyle(MAP_THEME.province.hover);
-          // Tampilkan nama provinsi saat hover murni sebelum di-select
+          target.bringToFront();
+          setHoveredProvinceKey(provKey);
           setHoveredProvinceName(provName);
         }
       },
       mouseout: (e) => {
         const target = e.target;
-        // Hapus nama provinsi seketika saat kursor keluar!
-        setHoveredProvinceName(null);
-
         // Jika bukan provinsi yang sedang terpilih, kembalikan ke default transparan
         if (provKey !== selectedProvinceRef.current) {
           target.setStyle(MAP_THEME.province.default);
         } else {
           // Jika ini provinsi yang terpilih, pertahankan style selected
           target.setStyle(MAP_THEME.province.selected);
+          target.bringToFront();
         }
+        setHoveredProvinceKey((prev) => (prev === provKey ? null : prev));
+        setHoveredProvinceName((prev) => (prev === provName ? null : prev));
       },
       click: (e) => {
         L.DomEvent.stopPropagation(e);
+        setHoveredProvinceKey(null);
         setHoveredProvinceName(null);
         handleSelectProvince(provKey);
       },
@@ -303,6 +325,16 @@ export function IndonesiaLegalMap() {
 
   return (
     <section className="mt-[66px] w-full">
+      {/* ── Transisi Halus Saat Kursor Berpindah Antar Daerah (Smooth Switch) ── */}
+      <style>{`
+        .custom-leaflet-map path.leaflet-interactive {
+          transition: fill 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                      fill-opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                      stroke 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                      stroke-width 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+      `}</style>
+
       {/* ── Section Header ────────────────────────────────────────── */}
       <div className="mb-8">
         <h2 className="text-2xl sm:text-[26px] font-bold text-neu-900 tracking-tight">
@@ -316,12 +348,15 @@ export function IndonesiaLegalMap() {
       {/* ── Grid Container (Peta Kiri + Sidebar Kanan) Sejajar Garis Bawah ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full items-stretch">
         {/* ── MAP CONTAINER (Left) ── responsive height, rounded 20px ── */}
-        <div className="lg:col-span-8 xl:col-span-8 w-full h-[400px] sm:h-[460px] lg:h-[520px] bg-[#96C1DF] rounded-[20px] border border-neu-200/80 overflow-hidden relative shadow-sm">
+        <div className="lg:col-span-8 xl:col-span-8 w-full h-[400px] sm:h-[460px] lg:h-[520px] bg-[#71D4E9] rounded-[20px] border border-neu-200/80 overflow-hidden relative shadow-sm">
           {/* Leaflet Map Canvas Wrapper dengan event mouse move & leave untuk hover tooltip */}
           <div
             className="w-full h-full relative"
             onMouseMove={handleMouseMove}
-            onMouseLeave={() => setHoveredProvinceName(null)}
+            onMouseLeave={() => {
+              setHoveredProvinceKey(null);
+              setHoveredProvinceName(null);
+            }}
           >
             {/* Tooltip Tunggal: HANYA muncul saat kursor lewat murni dan LANGSUNG lenyap saat kursor keluar / drag */}
             {hoveredProvinceName && mousePos && !isDraggingRef.current && (
@@ -357,9 +392,10 @@ export function IndonesiaLegalMap() {
                 [-18, 150],
               ]}
               maxBoundsViscosity={0.6}
-              className="w-full h-full bg-[#96C1DF] z-0 focus:outline-none"
+              className="w-full h-full bg-[#71D4E9] z-0 focus:outline-none custom-leaflet-map"
             >
               <MapController
+                selectedBounds={selectedBounds}
                 popupPos={popupPos}
                 resetTrigger={resetTrigger}
                 geoJsonBounds={geoJsonBounds}
@@ -370,10 +406,25 @@ export function IndonesiaLegalMap() {
                 }}
               />
 
-              {/* Basemap Fisik Alami: Pulau Hijau & Laut Bersih Tanpa Label Nama Kota/Laut */}
+              {/* Basemap Google Maps Terrain (Hanya Menampilkan Nama Negara, Tanpa Nama Kota/Daerah & Tanpa Nama Laut/Samudra) */}
               <TileLayer
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}"
-                maxZoom={12}
+                url="https://{s}.google.com/vt/lyrs=p&apistyle=s.e:l%7Cp.v:off,s.t:2%7Cs.e:l%7Cp.v:on&x={x}&y={y}&z={z}"
+                subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                maxZoom={20}
+              />
+
+              {/* Layer Wilayah Negara Tetangga (Mati warnanya menjadi netral neu-50 agar Indonesia menonjol) */}
+              <GeoJSON
+                data={NEIGHBORING_COUNTRIES as any}
+                style={{
+                  fillColor: MAP_THEME.neighbors.fillColor,
+                  fillOpacity: MAP_THEME.neighbors.fillOpacity,
+                  weight: MAP_THEME.neighbors.weight,
+                  color: MAP_THEME.neighbors.color,
+                  opacity: MAP_THEME.neighbors.opacity,
+                  smoothFactor: 0,
+                } as any}
+                interactive={false}
               />
 
               {/* Layer GeoJSON 38 Provinsi Resmi Indonesia (Untuk Interaksi Hover & Seleksi) */}
@@ -398,7 +449,8 @@ export function IndonesiaLegalMap() {
                   opacity: MAP_THEME.borders.opacity,
                   lineCap: 'round',
                   lineJoin: 'round',
-                }}
+                  smoothFactor: 0,
+                } as any}
                 interactive={false}
               />
 
