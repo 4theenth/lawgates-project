@@ -229,6 +229,33 @@ class DokumenHukumController extends Controller
         ]);
     }
 
+    public function checkDraftDuplicate(Request $request)
+    {
+        $filename = $request->query('filename');
+        if (!$filename) {
+            return response()->json(['exists' => false]);
+        }
+
+        // Cari draft yang mungkin mengandung file ini (menggunakan LIKE agar kompatibel dengan berbagai format JSON storage)
+        $draft = DraftDokumen::where('files_data', 'like', '%' . $filename . '%')->first();
+
+        if ($draft) {
+            $filesData = is_string($draft->files_data) ? json_decode($draft->files_data, true) : $draft->files_data;
+            if (is_array($filesData)) {
+                foreach ($filesData as $f) {
+                    if (($f['name'] ?? '') === $filename) {
+                        return response()->json([
+                            'exists' => true,
+                            'draft_name' => $draft->nama_draft
+                        ]);
+                    }
+                }
+            }
+        }
+
+        return response()->json(['exists' => false]);
+    }
+
     public function publishDraft(Request $request, DocumentImportService $importService)
     {
         $request->validate([
