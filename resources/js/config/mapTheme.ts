@@ -21,23 +21,23 @@ export const MAP_THEME = {
     default: {
       fillColor: '#000000',
       fillOpacity: 0.001,
-      weight: 0.75,
-      color: '#0F2C59',
-      opacity: 0.3,
+      weight: 1.5,
+      color: '#0A1C3E', // --color-pr-900
+      opacity: 0.85,
       className: 'cursor-pointer',
     },
     hover: {
       fillColor: '#0A1C3E', // --color-pr-900
       color: '#0A1C3E',     // --color-pr-900
-      weight: 1.5,
+      weight: 2,
       fillOpacity: 0.25,
-      opacity: 0.8,
+      opacity: 1,
       className: 'cursor-pointer',
     },
     selected: {
       fillColor: '#0A1C3E', // --color-pr-900
       color: '#0A1C3E',     // --color-pr-900
-      weight: 2,
+      weight: 2.5,
       fillOpacity: 1,
       opacity: 1,
       className: 'cursor-pointer',
