@@ -1,4 +1,5 @@
 import rawGeoJson from '@/assets/indonesia-38-provinces.json';
+import rawLandBorders from '@/assets/indonesia-land-borders.json';
 
 export interface ProvinceDetail {
   id: string;
@@ -24,6 +25,7 @@ export function normalizeProvinceKey(name: string): string {
 }
 
 export const INDONESIA_GEOJSON = rawGeoJson;
+export const INDONESIA_LAND_BORDERS = rawLandBorders;
 
 // Koordinat daratan pasti (solid landmass) untuk setiap provinsi
 // Mencegah titik pin jatuh di perairan atau teluk laut (seperti Teluk Tomini pada Sulawesi Tengah)

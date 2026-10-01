@@ -16,28 +16,35 @@ export const MAP_THEME = {
     unselectedFill: '#000000',
   },
 
+  // Konfigurasi garis batas darat antar provinsi (hanya perbatasan darat antar provinsi)
+  borders: {
+    color: '#FFFFFF', // Putih Bersih (Standar peta satelit/fisik modern, kontras & rapi di atas daratan hijau)
+    weight: 1.5,
+    opacity: 0.9,
+  },
+
   // Gaya layer polygon provinsi Leaflet
   province: {
     default: {
       fillColor: '#000000',
       fillOpacity: 0.001,
-      weight: 1.5,
-      color: '#0A1C3E', // --color-pr-900
-      opacity: 0.85,
+      weight: 0,
+      color: 'transparent',
+      opacity: 0,
       className: 'cursor-pointer',
     },
     hover: {
       fillColor: '#0A1C3E', // --color-pr-900
       color: '#0A1C3E',     // --color-pr-900
-      weight: 2,
-      fillOpacity: 0.25,
-      opacity: 1,
+      weight: 1.5,
+      fillOpacity: 0.2,
+      opacity: 0.8,
       className: 'cursor-pointer',
     },
     selected: {
       fillColor: '#0A1C3E', // --color-pr-900
       color: '#0A1C3E',     // --color-pr-900
-      weight: 2.5,
+      weight: 2,
       fillOpacity: 1,
       opacity: 1,
       className: 'cursor-pointer',

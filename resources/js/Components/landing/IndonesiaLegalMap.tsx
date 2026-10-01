@@ -19,6 +19,7 @@ import 'leaflet/dist/leaflet.css';
 
 import {
   INDONESIA_GEOJSON,
+  INDONESIA_LAND_BORDERS,
   PROVINCES_DATA,
   PROVINCE_LAND_COORDINATES,
   normalizeProvinceKey,
@@ -375,7 +376,7 @@ export function IndonesiaLegalMap() {
                 maxZoom={12}
               />
 
-              {/* Layer GeoJSON 38 Provinsi Resmi Indonesia */}
+              {/* Layer GeoJSON 38 Provinsi Resmi Indonesia (Untuk Interaksi Hover & Seleksi) */}
               <GeoJSON
                 ref={(instance) => {
                   geoJsonRef.current = instance;
@@ -386,6 +387,19 @@ export function IndonesiaLegalMap() {
                 data={INDONESIA_GEOJSON as any}
                 style={getFeatureStyle}
                 onEachFeature={onEachFeature}
+              />
+
+              {/* Layer Garis Batas Daratan Antar Provinsi (Hanya di perbatasan darat antar provinsi, tanpa garis pantai) */}
+              <GeoJSON
+                data={INDONESIA_LAND_BORDERS as any}
+                style={{
+                  color: MAP_THEME.borders.color,
+                  weight: MAP_THEME.borders.weight,
+                  opacity: MAP_THEME.borders.opacity,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                }}
+                interactive={false}
               />
 
               {/* Floating Popup Card saat provinsi dipilih dengan Garis Pin Stem (Sesuai Figma) */}
