@@ -44,10 +44,10 @@ export function Footer() {
 
       {/* Main Container */}
       <div className="relative z-10 w-full max-w-[1202px] mx-auto px-4 sm:px-6 xl:px-0 pt-[41px] pb-8 flex flex-col justify-between min-h-[386px]">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 min-h-[240px]">
+        <div className="flex flex-col md:flex-row justify-between gap-10 md:gap-4 min-h-[240px]">
           
           {/* Kolom Kiri: Brand & Deskripsi */}
-          <div className="md:col-span-6 lg:col-span-5 space-y-4">
+          <div className="w-full md:flex-1 space-y-4 pr-4">
             <Link href="/" className="inline-flex items-center" aria-label="Beranda LawGates">
               <ApplicationLogo className="h-[26px] sm:h-[28px] w-auto text-white" />
             </Link>
@@ -79,8 +79,9 @@ export function Footer() {
           </div>
 
           {/* Kolom Tengah: Jelajahi */}
-          <div className="md:col-span-3 lg:col-span-3 space-y-4">
-            <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
+          <div className="w-full md:flex-1 flex md:justify-center">
+            <div className="space-y-4 w-full md:w-auto">
+              <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
               JELAJAHI
             </h4>
             <ul className="space-y-3">
@@ -102,15 +103,17 @@ export function Footer() {
                   )}
                 </li>
               ))}
-            </ul>
+              </ul>
+            </div>
           </div>
 
           {/* Kolom Kanan: Kontak */}
-          <div className="md:col-span-3 lg:col-span-4 space-y-4">
-            <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
-              KONTAK
-            </h4>
-            <ul className="space-y-3.5">
+          <div className="w-full md:flex-1 flex md:justify-end">
+            <div className="space-y-4 w-full md:w-auto">
+              <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
+                KONTAK
+              </h4>
+              <ul className="space-y-3.5">
               <li className="inline-flex items-center gap-3 text-[14px] text-white/80 cursor-default select-none">
                 <Mail className="w-4 h-4 text-white/60 shrink-0 stroke-[1.75]" />
                 <span>lawgates@gmail.com</span>
@@ -124,6 +127,7 @@ export function Footer() {
                 <span>081365638</span>
               </li>
             </ul>
+            </div>
           </div>
 
         </div>

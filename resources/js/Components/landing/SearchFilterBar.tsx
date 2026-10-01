@@ -71,7 +71,7 @@ function MultiSelectDropdown({
       </button>
 
       {isOpen && (
-        <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-[#07132B] border border-pr-700/90 rounded-[14px] shadow-[0_16px_40px_rgba(0,0,0,0.85)] backdrop-blur-2xl py-2 px-1.5 z-50 max-h-56 overflow-y-auto custom-scrollbar">
+        <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-pr-900 border  rounded-[14px]  py-2 px-1.5 z-50 max-h-56 overflow-y-auto custom-scrollbar">
           {/* Daftar Opsi dengan Checkbox (Hanya opsi sebenarnya, tidak ada opsi 'Semua') */}
           {options.map((item) => {
             const isChecked = selectedValues.includes(item.value);
@@ -183,7 +183,7 @@ function YearRangeDropdown({
       </button>
 
       {isOpen && (
-        <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-[#07132B] border border-pr-700/90 rounded-[14px] shadow-[0_16px_40px_rgba(0,0,0,0.85)] backdrop-blur-2xl p-2.5 sm:p-3 z-50">
+        <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-pr-900 border border-pr-700/90 rounded-[14px]  backdrop-blur-2xl p-2.5 sm:p-3 z-50">
           {/* Header & Reset Action */}
           <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/10 text-[12px]">
             <span className="text-neu-200 font-semibold text-[12px]">Rentang Tahun</span>
@@ -191,7 +191,7 @@ function YearRangeDropdown({
               <button
                 type="button"
                 onClick={onReset}
-                className="text-sec-400 hover:text-sec-300 text-[12px] font-medium transition-colors cursor-pointer"
+                className="text-sec-900  text-[12px] font-medium transition-colors cursor-pointer"
               >
                 Reset
               </button>
@@ -206,7 +206,7 @@ function YearRangeDropdown({
               <button
                 type="button"
                 onClick={() => toggleSub('dari')}
-                className="flex items-center justify-between w-full h-[32px] px-2 bg-[#0B1A3A] border border-pr-700/80 rounded-[8px] text-white text-[12px] font-normal transition-all hover:border-pr-600 cursor-pointer"
+                className="flex items-center justify-between w-full h-[32px] px-2 bg-pr-900 border border-pr-700/80 rounded-[8px] text-white text-[12px] font-normal transition-all hover:border-pr-600 cursor-pointer"
               >
                 <span className="truncate">{tahunDari || 'Pilih'}</span>
                 <Icon
@@ -217,7 +217,7 @@ function YearRangeDropdown({
               </button>
 
               {openSub.dari && (
-                <div className="mt-1.5 bg-[#050C1D] border border-pr-700/80 rounded-[8px] max-h-36 overflow-y-auto custom-scrollbar py-1">
+                <div className="mt-1.5 bg-pr-900 border border-pr-700/80 rounded-[8px] max-h-36 overflow-y-auto custom-scrollbar py-1">
                   {options.map((yr) => {
                     const isSelected = tahunDari === yr;
                     return (
@@ -226,12 +226,12 @@ function YearRangeDropdown({
                         type="button"
                         onClick={() => onChangeDari(yr)}
                         className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer ${isSelected
-                            ? 'bg-sec-900/20 text-sec-400 font-semibold'
+                            ? 'bg-sec-900/20 text-sec-900 font-semibold'
                             : 'text-neu-200 hover:bg-white/10 hover:text-white'
                           }`}
                       >
                         <span className="truncate">{yr}</span>
-                        {isSelected && <Icon name="check" className="w-3 h-3 text-sec-400 shrink-0" />}
+                        {isSelected && <Icon name="check" className="w-3 h-3 text-sec-900 shrink-0" />}
                       </button>
                     );
                   })}
@@ -245,7 +245,7 @@ function YearRangeDropdown({
               <button
                 type="button"
                 onClick={() => toggleSub('sampai')}
-                className="flex items-center justify-between w-full h-[32px] px-2 bg-[#0B1A3A] border border-pr-700/80 rounded-[8px] text-white text-[12px] font-normal transition-all hover:border-pr-600 cursor-pointer"
+                className="flex items-center justify-between w-full h-[32px] px-2 bg-pr-900 border border-pr-700/80 rounded-[8px] text-white text-[12px] font-normal transition-all hover:border-pr-600 cursor-pointer"
               >
                 <span className="truncate">{tahunSampai || 'Pilih'}</span>
                 <Icon
@@ -256,7 +256,7 @@ function YearRangeDropdown({
               </button>
 
               {openSub.sampai && (
-                <div className="mt-1.5 bg-[#050C1D] border border-pr-700/80 rounded-[8px] max-h-36 overflow-y-auto custom-scrollbar py-1">
+                <div className="mt-1.5 bg-pr-900 border border-pr-700/80 rounded-[8px] max-h-36 overflow-y-auto custom-scrollbar py-1">
                   {options.map((yr) => {
                     const isSelected = tahunSampai === yr;
                     return (
@@ -265,12 +265,12 @@ function YearRangeDropdown({
                         type="button"
                         onClick={() => onChangeSampai(yr)}
                         className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer ${isSelected
-                            ? 'bg-sec-900/20 text-sec-400 font-semibold'
+                            ? 'bg-sec-900/20 text-sec-900 font-semibold'
                             : 'text-neu-200 hover:bg-white/10 hover:text-white'
                           }`}
                       >
                         <span className="truncate">{yr}</span>
-                        {isSelected && <Icon name="check" className="w-3 h-3 text-sec-400 shrink-0" />}
+                        {isSelected && <Icon name="check" className="w-3 h-3 text-sec-900 shrink-0" />}
                       </button>
                     );
                   })}
@@ -408,7 +408,7 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
     <div className="relative w-full max-w-[699px] h-[54px] sm:h-[60px]">
       <div
         ref={filterContainerRef}
-        className="absolute top-0 left-0 w-full flex flex-col bg-pr-900 border border-pr-700 rounded-[25px] sm:rounded-[28px] p-2 sm:p-[10px] shadow-2xl backdrop-blur-[40px] z-30 transition-all duration-300 ease-out"
+        className="absolute top-0 left-0 w-full flex flex-col bg-pr-900  rounded-[25px] sm:rounded-[28px] p-2 sm:p-[10px] shadow-2xl backdrop-blur-[40px] z-30 transition-all duration-300 ease-out"
       >
         {/* ── Search Row ── */}
         <form

@@ -18,7 +18,7 @@ const statsData: StatItem[] = [
     title: 'HUKUM BERLAKU',
     count: 3769083,
     subtitle: 'Total Hukum Berlaku',
-    icon: <CircleCheckBigIcon className="w-[20px] h-[20px] text-suc-900" />,
+    icon: <CircleCheckBigIcon className="w-[24px] h-[24px] text-suc-900" />,
     valueColor: 'text-suc-900',
   },
   {
@@ -26,7 +26,7 @@ const statsData: StatItem[] = [
     title: 'HUKUM TIDAK BERLAKU',
     count: 129000,
     subtitle: 'Total Hukum Tidak Berlaku',
-    icon: <Icon name="circle-x" className="w-[20px] h-[20px] text-dan-900" />,
+    icon: <Icon name="circle-x" className="w-[24px] h-[24px] text-dan-900" />,
     valueColor: 'text-dan-900',
   },
   {
@@ -34,7 +34,7 @@ const statsData: StatItem[] = [
     title: 'HUKUM DIUBAH',
     count: 278000,
     subtitle: 'Total Hukum Diubah',
-    icon: <Icon name="recycle" className="w-[20px] h-[20px] text-sec-800" />,
+    icon: <Icon name="recycle" className="w-[24px] h-[24px] text-sec-800" />,
     valueColor: 'text-sec-800',
   },
   {
@@ -42,7 +42,7 @@ const statsData: StatItem[] = [
     title: 'HUKUM DICABUT',
     count: 12000,
     subtitle: 'Total Hukum Dicabut',
-    icon: <Icon name="gavel" className="w-[20px] h-[20px] text-neu-900" />,
+    icon: <Icon name="gavel" className="w-[24px] h-[24px] text-neu-900" />,
     valueColor: 'text-neu-900',
   },
 ];
@@ -54,15 +54,15 @@ export function StatsOverview() {
         {statsData.map((item) => (
           <div
             key={item.id}
-            className="bg-white rounded-2xl p-5 shadow-xl border border-neu-100 flex flex-col justify-between hover:-translate-y-1 transition-all duration-300 h-[116px]"
+            className="bg-white rounded-2xl p-5 shadow-md border border-neu-50 flex flex-col justify-between hover:-translate-y-1 transition-all duration-200 h-[116px]"
           >
             <div className="flex justify-between items-center mb-1">
-              <span className="text-[11px] font-bold text-neu-500 tracking-wider">
+              <span className="text-[12px] font-bold text-neu-600 tracking-wider">
                 {item.title}
               </span>
               {item.icon}
             </div>
-            <div className={`text-2xl lg:text-[26px] font-extrabold leading-tight tracking-tight ${item.valueColor}`}>
+            <div className={`text-[26px] font-semibold leading-tight tracking-tight ${item.valueColor}`}>
               <CountUp end={item.count} />
             </div>
             <div className="text-xs text-neu-500 font-medium">
