@@ -193,7 +193,7 @@ export function CorrectionDetailView({
         />
 
         {/* KOLOM TENGAH: EDITOR DOKUMEN HUKUM */}
-        <div className="flex-1 min-w-0 w-full space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar" id="editor-scroll-container">
+        <div className="flex-1 min-w-0 w-full space-y-4 h-[calc(100vh-140px)] min-h-[500px] overflow-y-auto pr-2 custom-scrollbar" id="editor-scroll-container">
           {/* Standar ID & Judul Peraturan */}
           <CorrectionHeaderSection
             standarId={data.standarId}
@@ -280,7 +280,7 @@ export function CorrectionDetailView({
         </div>
 
         {/* KOLOM KANAN: RIWAYAT PERUBAHAN & METADATA */}
-        <div className="w-full lg:w-[260px] xl:w-[280px] shrink-0 min-w-0 space-y-4">
+        <div className="w-full lg:w-[260px] xl:w-[280px] shrink-0 min-w-0 space-y-4 h-[calc(100vh-140px)] min-h-[500px] overflow-y-auto custom-scrollbar pr-1">
           {/* Card 1: Riwayat Perubahan (Scrollable dengan counter) */}
           <CorrectionTimelineSection
             riwayatPerubahan={data.riwayatPerubahan || []}

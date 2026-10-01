@@ -67,6 +67,7 @@ export function CorrectionBatangTubuhSection({
             <div className="space-y-4 pt-1">
               {bab.deskripsi && (
                 <AutoResizeTextarea
+                  enableAutoFormat
                   value={bab.deskripsi}
                   onChange={(e) => onChangeBabDeskripsi(bab.id, e.target.value)}
                   className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[100px]"
@@ -103,6 +104,7 @@ export function CorrectionBatangTubuhSection({
                   {(pasal.isExpanded || !pasal.nomor || pasal.nomor.trim() === '-' || pasal.nomor.trim() === '') && (
                     <div className="space-y-2">
                       <AutoResizeTextarea
+                        enableAutoFormat
                         value={pasal.isi}
                         onChange={(e) => onChangePasalIsi(bab.id, pasal.id, e.target.value)}
                         className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[150px]"
@@ -114,6 +116,7 @@ export function CorrectionBatangTubuhSection({
                           Penjelasan (Opsional)
                         </span>
                         <AutoResizeTextarea
+                          enableAutoFormat
                           value={pasal.penjelasan || ''}
                           onChange={(e) => onChangePasalPenjelasan?.(bab.id, pasal.id, e.target.value)}
                           className="w-full mt-1 p-3.5 rounded-[8px] bg-blue-50/50 border-l-4 border-l-blue-500 border border-blue-200 text-[12px] text-blue-900 leading-relaxed focus:outline-none focus:bg-white focus:border-blue-500 transition-all resize-none min-h-[100px]"

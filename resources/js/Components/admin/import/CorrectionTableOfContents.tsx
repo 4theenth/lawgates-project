@@ -45,7 +45,7 @@ export function CorrectionTableOfContents({
   };
 
   return (
-    <div className="w-full lg:w-[220px] xl:w-[240px] shrink-0 bg-white rounded-[20px] border border-neu-100 p-4 xl:p-5 shadow-2xs">
+    <div className="w-full lg:w-[220px] xl:w-[240px] shrink-0 bg-white rounded-[20px] border border-neu-100 p-4 xl:p-5 shadow-2xs h-[calc(100vh-140px)] min-h-[500px] overflow-y-auto custom-scrollbar">
       <div className="flex items-center gap-3 pb-4 mb-4 border-b border-neu-50">
         <Menu className="w-5 h-5 text-neu-700" />
         <h3 className="font-sans text-[13px] font-bold text-neu-900 tracking-wide">
