@@ -154,6 +154,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     // MinIO Sync Routes
     Route::get('/dokumen-hukum/minio/scan', [DokumenHukumController::class, 'scanMinio'])->name('admin.dokumen-hukum.minio.scan');
     Route::post('/dokumen-hukum/minio/import', [DokumenHukumController::class, 'importFromMinio'])->name('admin.dokumen-hukum.minio.import');
+    Route::get('/dokumen-hukum/preview-pdf-minio', [DokumenHukumController::class, 'previewPdfMinio'])->name('admin.dokumen-hukum.preview-pdf-minio');
 
     // Users & Team Management Routes
     Route::get('/team', [TeamController::class, 'index'])->name('admin.team');

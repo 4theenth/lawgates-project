@@ -854,6 +854,68 @@ class DokumenHukumController extends Controller
             ], 500);
         }
     }
+    public function previewPdfMinio(Request $request)
+    {
+        $filename = $request->query('filename');
+        $judul = $request->query('judul');
+
+        if (!$filename && !$judul) {
+            return response('Nama file atau judul tidak valid.', 400);
+        }
+
+        $baseName = str_replace('.json', '', $filename ?? '');
+        $textToSearch = $judul ?? $filename ?? '';
+        
+        // Extract numbers (like nomor 6, tahun 2011)
+        preg_match_all('/\d+/', $textToSearch, $matches);
+        $numbers = $matches[0] ?? [];
+
+        try {
+            $allFiles = \Illuminate\Support\Facades\Storage::disk('minio')->allFiles('documents');
+            
+            $pdfPath = collect($allFiles)->first(function($file) use ($baseName, $numbers, $textToSearch) {
+                if (!str_ends_with(strtolower($file), '.pdf')) return false;
+                
+                // 1. Exact or partial match with filename
+                if ($baseName && str_contains(strtolower($file), strtolower($baseName))) {
+                    return true;
+                }
+                
+                // 2. Fuzzy match based on extracted numbers from judul/filename
+                if (count($numbers) >= 2) {
+                    $hasAllNumbers = true;
+                    foreach ($numbers as $num) {
+                        if (!preg_match("/\b{$num}\b/", $file)) {
+                            $hasAllNumbers = false;
+                            break;
+                        }
+                    }
+                    if ($hasAllNumbers) {
+                        // Check if it shares some prefix context to avoid false positives (e.g. "uu", "undang")
+                        $typeStr = strtolower(substr($textToSearch, 0, 4)); 
+                        if ($typeStr && str_contains(strtolower($file), $typeStr)) {
+                            return true;
+                        }
+                    }
+                }
+                
+                return false;
+            });
+
+            if (!$pdfPath) {
+                return response('Dokumen PDF sementara tidak ditemukan di server penyimpanan MinIO.', 404);
+            }
+
+            $fileContent = \Illuminate\Support\Facades\Storage::disk('minio')->get($pdfPath);
+
+            return response($fileContent, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="document.pdf"'
+            ]);
+        } catch (\Exception $e) {
+            return response('Gagal mengambil dokumen dari MinIO: ' . $e->getMessage(), 500);
+        }
+    }
 
     public function importFromMinio(Request $request, DocumentImportService $importService)
     {
