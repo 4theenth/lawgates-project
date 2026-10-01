@@ -11,6 +11,8 @@ import { CorrectionPembukaanSection } from './CorrectionPembukaanSection';
 import { CorrectionBatangTubuhSection } from './CorrectionBatangTubuhSection';
 import { CorrectionTimelineSection } from './CorrectionTimelineSection';
 import { CorrectionMetadataSection } from './CorrectionMetadataSection';
+import { Wand2, FileText } from 'lucide-react';
+import { cleanOcrText } from '../../../utils/ocrTextCleaner';
 
 // Re-export types and utilities for backward compatibility
 export type {
@@ -136,6 +138,37 @@ export function CorrectionDetailView({
     }));
   };
 
+  const handleMagicWandAll = () => {
+    setData((prev) => {
+      const newData = { ...prev };
+      
+      if (newData.judul) newData.judul = cleanOcrText(newData.judul);
+      
+      if (newData.pembukaan) {
+        if (newData.pembukaan.judul) newData.pembukaan.judul = cleanOcrText(newData.pembukaan.judul);
+        if (newData.pembukaan.subJudul) newData.pembukaan.subJudul = cleanOcrText(newData.pembukaan.subJudul);
+        if (newData.pembukaan.menimbang) newData.pembukaan.menimbang = cleanOcrText(newData.pembukaan.menimbang);
+        if (newData.pembukaan.mengingat) newData.pembukaan.mengingat = cleanOcrText(newData.pembukaan.mengingat);
+        if (newData.pembukaan.memutuskan) newData.pembukaan.memutuskan = cleanOcrText(newData.pembukaan.memutuskan);
+      }
+      
+      if (newData.babList) {
+        newData.babList = newData.babList.map(bab => ({
+          ...bab,
+          judul: cleanOcrText(bab.judul || ''),
+          deskripsi: cleanOcrText(bab.deskripsi || ''),
+          pasalList: bab.pasalList.map(pasal => ({
+            ...pasal,
+            isi: cleanOcrText(pasal.isi || ''),
+            penjelasan: cleanOcrText(pasal.penjelasan || '')
+          }))
+        }));
+      }
+      
+      return newData;
+    });
+  };
+
   return (
     <div className="space-y-6 pb-20">
       {/* 1. Header Navigasi & Aksi (Simpan / Batal) */}
@@ -152,6 +185,33 @@ export function CorrectionDetailView({
         </div>
 
         <div className="flex items-center gap-3 self-end sm:self-auto">
+          <button
+            type="button"
+            onClick={() => {
+              if (mode === 'edit' && file.id) {
+                window.open(`/peraturan/${file.id}/download?inline=1`, '_blank');
+              } else if (file.name || data.judul) {
+                window.open(`/admin/dokumen-hukum/preview-pdf-minio?filename=${encodeURIComponent(file.name || '')}&judul=${encodeURIComponent(data.judul || '')}`, '_blank');
+              } else {
+                alert('Nama file tidak ditemukan untuk pencarian PDF MinIO.');
+              }
+            }}
+            title="Lihat dokumen PDF asli"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] border border-neu-200 bg-white text-pr-900 hover:bg-pr-50 text-[14px] font-medium transition-colors cursor-pointer"
+          >
+            <FileText className="w-4 h-4" />
+            Lihat PDF
+          </button>
+
+          <button
+            type="button"
+            onClick={handleMagicWandAll}
+            title="Sesuaikan format seluruh teks (Magic Wand)"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] border border-neu-200 bg-white text-pr-900 hover:bg-pr-50 text-[14px] font-medium transition-colors cursor-pointer"
+          >
+            <Wand2 className="w-4 h-4" />
+            Sesuaikan Semua
+          </button>
 
           {mode === 'edit' && onCancel && (
             <button
