@@ -18,7 +18,7 @@ export const MAP_THEME = {
 
   // Konfigurasi garis batas darat antar provinsi (hanya perbatasan darat antar provinsi)
   borders: {
-    color: '#FFFFFF', // Putih Bersih (Standar peta satelit/fisik modern, kontras & rapi di atas daratan hijau)
+    color: '#909090', // --color-neu-400 (Netral abu-abu halus dari design tokens app.css)
     weight: 1.5,
     opacity: 0.9,
   },
