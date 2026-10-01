@@ -49,11 +49,11 @@ export function RecentRegulations() {
     <section className=" mt-[66px] w-full">
       {/* Section Header */}
       <div className="mb-8">
-        <h2 className="text-2xl sm:text-[28px] font-bold text-neu-900 tracking-tight">
+        <h2 className="text-2xl sm:text-[26px] font-semibold text-neu-900 tracking-tight">
           Sistem Hukum Terbaru
         </h2>
 
-        <p className="text-neu-500 text-xs sm:text-sm mt-1">
+        <p className="text-neu-500 text-xs sm:text-[14px] mt-1 font-normal">
           Pembaruan Hukum Harian
         </p>
       </div>
@@ -65,7 +65,7 @@ export function RecentRegulations() {
             FEATURED REGULATION
         ========================== */}
         <div className="lg:col-span-7">
-          <div className="relative w-full h-[380px] rounded-[20px] overflow-hidden border border-pr-800 shadow-md group">
+          <div className="relative w-full h-[380px] rounded-[20px] overflow-hidden  group">
 
             {/* Main Featured Regulation Image */}
             <img
@@ -115,7 +115,7 @@ export function RecentRegulations() {
               <h3
                 className="
                   text-sm
-                  sm:text-[15px]
+                  sm:text-[18px]
                   font-semibold
                   text-white
                   leading-snug
@@ -142,7 +142,7 @@ export function RecentRegulations() {
         <div className="lg:col-span-5 flex flex-col lg:h-[380px]">
 
           {/* Header */}
-          <h3 className="text-[15px] font-semibold text-neu-700 leading-tight mb-2 shrink-0">
+          <h3 className="text-[14px] font-medium text-neu-900 leading-tight mb-2 shrink-0">
             Terbaru Lainnya
           </h3>
 
@@ -190,11 +190,11 @@ export function RecentRegulations() {
 
                   <div className="flex items-center gap-2 mt-1">
 
-                    <span className="px-1.5 py-0.5 rounded-[4px] bg-neu-50 text-pr-900 text-[10px] font-semibold leading-tight">
+                    <span className="px-1.5 py-0.5 rounded-[4px] bg-neu-50 text-pr-900 text-[10px] font-medium leading-tight">
                       {item.category}
                     </span>
 
-                    <span className="text-[11px] text-neu-500 font-normal leading-tight">
+                    <span className="text-[12px] text-neu-600 font-normal leading-tight">
                       {item.date}
                     </span>
 
