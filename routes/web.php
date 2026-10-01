@@ -1,22 +1,172 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use Illuminate\Foundation\Application;
+use App\Models\JenisPeraturan;
+use App\Models\Peraturan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\Api\PeraturanController;
+use App\Http\Controllers\KategoriController;
+
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+*/
+
+// Route Testing Murni Backend (Merender file Blade)
+Route::get('/test-peraturan/{id}', function ($id) {
+    $peraturan = Peraturan::with(['pasal' => function ($query) {
+        $query->orderBy('urutan', 'asc');
+    }])->findOrFail($id);
+
+    return view('test-peraturan', compact('peraturan'));
+});
+
+/*
+|--------------------------------------------------------------------------
+| Frontend Routes (Merender komponen React via Inertia)
+|--------------------------------------------------------------------------
+*/
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
+    // Hitung jumlah data peraturan per kategori secara dinamis dari database admin
+    $categoryCounts = [
+        'uud' => 0,
+        'tap-mpr' => 0,
+        'undang-undang' => 0,
+        'uu-perpu' => 0,
+        'peraturan-pemerintah' => 0,
+        'pp' => 0,
+        'perpres' => 0,
+        'peraturan-presiden' => 0,
+        'perda' => 0,
+        'peraturan-daerah' => 0,
+        'permen-perban' => 0,
+        'putusan-mk-ma' => 0,
+    ];
+
+    $countsPerJenis = Peraturan::selectRaw('jenis_peraturan_id, count(*) as total')
+        ->groupBy('jenis_peraturan_id')
+        ->pluck('total', 'jenis_peraturan_id');
+
+    $allJenis = JenisPeraturan::all();
+    foreach ($allJenis as $jenis) {
+        $total = (int) ($countsPerJenis[$jenis->id] ?? 0);
+        $kode = strtolower($jenis->kode ?? '');
+        $nama = strtolower($jenis->nama ?? '');
+
+        if (str_contains($nama, 'dasar') || $kode === 'uud') {
+            $categoryCounts['uud'] += $total;
+        } elseif (str_contains($nama, 'mpr') || str_contains($kode, 'mpr')) {
+            $categoryCounts['tap-mpr'] += $total;
+        } elseif (str_contains($nama, 'undang') || $kode === 'uu' || str_contains($nama, 'perpu')) {
+            $categoryCounts['undang-undang'] += $total;
+            $categoryCounts['uu-perpu'] += $total;
+        } elseif (str_contains($nama, 'pemerintah') || $kode === 'pp') {
+            $categoryCounts['peraturan-pemerintah'] += $total;
+            $categoryCounts['pp'] += $total;
+        } elseif (str_contains($nama, 'presiden') || $kode === 'perpres') {
+            $categoryCounts['peraturan-presiden'] += $total;
+            $categoryCounts['perpres'] += $total;
+        } elseif (str_contains($nama, 'daerah') || $kode === 'perda') {
+            $categoryCounts['peraturan-daerah'] += $total;
+            $categoryCounts['perda'] += $total;
+        } elseif (str_contains($nama, 'menteri') || str_contains($nama, 'lembaga') || str_contains($nama, 'badan') || str_contains($kode, 'permen')) {
+            $categoryCounts['permen-perban'] += $total;
+        } elseif (str_contains($nama, 'putusan') || str_contains($nama, 'mahkamah') || str_contains($kode, 'mk') || str_contains($kode, 'ma')) {
+            $categoryCounts['putusan-mk-ma'] += $total;
+        }
+    }
+
+    return Inertia::render('Home', [
+        'categoryCounts' => $categoryCounts,
     ]);
 });
 
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+    $user = auth()->user();
+    if ($user && in_array($user->role, ['admin', 'superadmin'])) {
+        return redirect()->route('admin.dashboard');
+    }
+    return redirect('/');
+})->name('dashboard');
+
+Route::get('/pencarian', function () {
+    return Inertia::render('Pencarian');
+});
+
+Route::redirect('/regulasi', '/pencarian');
+
+Route::get('/bandingkan', function () {
+    return Inertia::render('Bandingkan');
+});
+
+Route::get('/kategori/{slug}', [KategoriController::class, 'show'])->name('kategori.show');
+
+Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show']);
+Route::get('/peraturan/{unique_id}/lihat', [PeraturanController::class, 'viewer'])->name('peraturan.viewer');
+Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download'])->name('peraturan.download');
+
+// Referensi filter
+Route::get('/api/referensi-filter', [PeraturanController::class, 'referensiFilter']);
+
+/*
+|--------------------------------------------------------------------------
+| Admin Routes
+|--------------------------------------------------------------------------
+*/
+use App\Http\Controllers\Admin\DokumenHukumController;
+use App\Http\Controllers\Admin\KategoriHukumController;
+use App\Http\Controllers\Admin\TeamController;
+
+
+Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(function () {
+    Route::get('/', function () {
+        return redirect()->route('admin.dashboard');
+    });
+
+    Route::get('/dashboard', function () {
+        return Inertia::render('Admin/Dashboard');
+    })->name('admin.dashboard');
+
+    Route::redirect('/categories', '/admin/kategori-hukum');
+    Route::get('/kategori-hukum', [KategoriHukumController::class, 'index'])->name('admin.kategori-hukum');
+    Route::post('/kategori-hukum', [KategoriHukumController::class, 'store'])->name('admin.kategori-hukum.store');
+    Route::put('/kategori-hukum/{id}', [KategoriHukumController::class, 'update'])->name('admin.kategori-hukum.update');
+    Route::delete('/kategori-hukum/{id}', [KategoriHukumController::class, 'destroy'])->name('admin.kategori-hukum.destroy');
+
+    Route::get('/dokumen-hukum', [DokumenHukumController::class, 'index'])->name('admin.dokumen-hukum');
+    Route::delete('/dokumen-hukum/{unique_id}', [DokumenHukumController::class, 'destroy'])->name('admin.dokumen-hukum.destroy');
+    Route::post('/dokumen-hukum/import', [DokumenHukumController::class, 'importOcr'])->name('admin.dokumen-hukum.import');
+    Route::get('/dokumen-hukum/{unique_id}/detail-edit', [DokumenHukumController::class, 'getDetailForEdit'])->name('admin.dokumen-hukum.detail-edit');
+    Route::put('/dokumen-hukum/{unique_id}', [DokumenHukumController::class, 'update'])->name('admin.dokumen-hukum.update');
+    Route::get('/dokumen-hukum/tambah', function () {
+        return Inertia::render('Admin/DokumenHukum/Create');
+    })->name('admin.dokumen-hukum.tambah');
+
+    // Draft Routes
+    Route::get('/dokumen-hukum/draft/{id}', [DokumenHukumController::class, 'showDraft'])->name('admin.dokumen-hukum.draft.show');
+    Route::post('/dokumen-hukum/draft', [DokumenHukumController::class, 'storeDraft'])->name('admin.dokumen-hukum.draft.store');
+    Route::get('/dokumen-hukum/draft-check-duplicate', [DokumenHukumController::class, 'checkDraftDuplicate'])->name('admin.dokumen-hukum.draft.check');
+    Route::post('/dokumen-hukum/draft/publish', [DokumenHukumController::class, 'publishDraft'])->name('admin.dokumen-hukum.draft.publish');
+    Route::post('/dokumen-hukum/draft/bulk-delete', [DokumenHukumController::class, 'bulkDeleteDraft'])->name('admin.dokumen-hukum.draft.bulk-delete');
+
+    // MinIO Sync Routes
+    Route::get('/dokumen-hukum/minio/scan', [DokumenHukumController::class, 'scanMinio'])->name('admin.dokumen-hukum.minio.scan');
+    Route::post('/dokumen-hukum/minio/import', [DokumenHukumController::class, 'importFromMinio'])->name('admin.dokumen-hukum.minio.import');
+    Route::get('/dokumen-hukum/preview-pdf-minio', [DokumenHukumController::class, 'previewPdfMinio'])->name('admin.dokumen-hukum.preview-pdf-minio');
+
+    // Users & Team Management Routes
+    Route::get('/team', [TeamController::class, 'index'])->name('admin.team');
+    Route::get('/users/tim', [TeamController::class, 'index'])->name('admin.users.tim');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Profile Routes
+|--------------------------------------------------------------------------
+*/
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

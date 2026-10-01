@@ -1,0 +1,79 @@
+<svg width="1440" height="700" viewBox="0 0 1440 700" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gold stroke 15% opacity (#D4AF3726) -->
+    <linearGradient id="goldGridStroke" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.15" />
+      <stop offset="50%" stop-color="#D4AF37" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#D4AF37" stop-opacity="0.15" />
+    </linearGradient>
+
+    <!-- Accent stroke 25% opacity (#D4AF3740) -->
+    <linearGradient id="goldAccentStroke" x1="0" y1="0" x2="220" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.30" />
+      <stop offset="100%" stop-color="#D4AF37" stop-opacity="0.05" />
+    </linearGradient>
+  </defs>
+
+  <!-- ============================================================== -->
+  <!-- 7 VERTICAL RECTANGLES / LINES                                 -->
+  <!-- Specs: width 1, height 900, angle 0deg, color #D4AF3726        -->
+  <!-- ============================================================== -->
+  <g stroke="#D4AF37" stroke-opacity="0.15" stroke-width="1">
+    <line x1="120"  y1="0" x2="120"  y2="900" />
+    <line x1="320"  y1="0" x2="320"  y2="900" />
+    <line x1="520"  y1="0" x2="520"  y2="900" />
+    <line x1="720"  y1="0" x2="720"  y2="900" />
+    <line x1="920"  y1="0" x2="920"  y2="900" />
+    <line x1="1120" y1="0" x2="1120" y2="900" />
+    <line x1="1320" y1="0" x2="1320" y2="900" />
+  </g>
+
+  <!-- ============================================================== -->
+  <!-- 7 DIAGONAL LINES (Intersecting at 10 deg angle)              -->
+  <!-- Specs: length 1600, angle 10deg, border 1px #D4AF3726         -->
+  <!-- 1600 * tan(10deg) ≈ 282px rising to the right               -->
+  <!-- ============================================================== -->
+  <g stroke="#D4AF37" stroke-opacity="0.15" stroke-width="1">
+    <!-- Line 1 -->
+    <line x1="-100" y1="220" x2="1550" y2="-70" />
+    <!-- Line 2 -->
+    <line x1="-100" y1="285" x2="1550" y2="-5" />
+    <!-- Line 3 -->
+    <line x1="-100" y1="350" x2="1550" y2="60" />
+    <!-- Line 4 -->
+    <line x1="-100" y1="415" x2="1550" y2="125" />
+    <!-- Line 5 -->
+    <line x1="-100" y1="480" x2="1550" y2="190" />
+    <!-- Line 6 -->
+    <line x1="-100" y1="545" x2="1550" y2="255" />
+    <!-- Line 7 -->
+    <line x1="-100" y1="610" x2="1550" y2="320" />
+  </g>
+
+  <!-- ============================================================== -->
+  <!-- 3 ACCENT LINES AT TOP-LEFT (near LawGates logo)               -->
+  <!-- Specs: width 220, angles: 25deg, 65deg, 105deg, color #D4AF3740-->
+  <!-- ============================================================== -->
+  <g transform="translate(60, 40)" stroke="#D4AF37" stroke-opacity="0.25" stroke-width="1">
+    <!-- 25 deg -->
+    <line x1="0" y1="0" x2="199.39" y2="93.00" />
+    <!-- 65 deg -->
+    <line x1="0" y1="0" x2="93.00"  y2="199.39" />
+    <!-- 105 deg -->
+    <line x1="0" y1="0" x2="-56.94" y2="212.50" />
+  </g>
+
+  <!-- ============================================================== -->
+  <!-- 3 ACCENT LINES AT TOP-RIGHT (near LOGIN button)              -->
+  <!-- Specs: width 220, angles: -25deg, -65deg, -105deg, color #D4AF3740-->
+  <!-- ============================================================== -->
+  <g transform="translate(1380, 50)" stroke="#D4AF37" stroke-opacity="0.25" stroke-width="1">
+    <!-- -25 deg (inwards to left) -->
+    <line x1="0" y1="0" x2="-199.39" y2="93.00" />
+    <!-- -65 deg -->
+    <line x1="0" y1="0" x2="-93.00"  y2="199.39" />
+    <!-- -105 deg -->
+    <line x1="0" y1="0" x2="56.94"   y2="212.50" />
+  </g>
+
+</svg>

@@ -41,7 +41,13 @@ class PasswordResetLinkController extends Controller
         );
 
         if ($status == Password::RESET_LINK_SENT) {
-            return back()->with('status', __($status));
+            return back()->with('status', 'Kami telah mengirimkan link reset kata sandi ke email Anda.');
+        }
+
+        if ($status === Password::INVALID_USER) {
+            throw ValidationException::withMessages([
+                'email' => ['Email tidak terdaftar'],
+            ]);
         }
 
         throw ValidationException::withMessages([
