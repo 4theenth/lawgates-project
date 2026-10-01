@@ -8,10 +8,11 @@
  */
 
 export const MAP_THEME = {
-  // Token Warna (Sinkron dengan design tokens app.css)
+  // Token Warna (Sinkron dengan design tokens app.css & standar kartografi atlas)
   colors: {
     primary: '#0A1C3E', // --color-pr-900
     primaryBorder: '#0F2C59',
+    atlasBorder: '#B2644D', // Cokelat Terakota Atlas
     ocean: '#96C1DF',
     unselectedFill: '#000000',
   },
@@ -22,8 +23,8 @@ export const MAP_THEME = {
       fillColor: '#000000',
       fillOpacity: 0.001,
       weight: 1.5,
-      color: '#0A1C3E', // --color-pr-900
-      opacity: 0.85,
+      color: '#B2644D', // Cokelat Terakota Atlas (natural, serasi dengan relief peta)
+      opacity: 0.9,
       className: 'cursor-pointer',
     },
     hover: {
