@@ -19,7 +19,6 @@ import 'leaflet/dist/leaflet.css';
 
 import {
   INDONESIA_GEOJSON,
-  INDONESIA_LAND_BORDERS,
   PROVINCES_DATA,
   PROVINCE_LAND_COORDINATES,
   normalizeProvinceKey,
@@ -370,13 +369,13 @@ export function IndonesiaLegalMap() {
                 }}
               />
 
-              {/* Basemap Fisik Alami Bersih: Relief Topografi Tanpa Label Kota/Laut/Negara */}
+              {/* Basemap Fisik Alami: Pulau Hijau & Laut Bersih Tanpa Label Nama Kota/Laut */}
               <TileLayer
                 url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}"
                 maxZoom={12}
               />
 
-              {/* Layer GeoJSON 38 Provinsi Resmi Indonesia (Untuk Interaksi Hover & Klik) */}
+              {/* Layer GeoJSON 38 Provinsi Resmi Indonesia */}
               <GeoJSON
                 ref={(instance) => {
                   geoJsonRef.current = instance;
@@ -387,19 +386,6 @@ export function IndonesiaLegalMap() {
                 data={INDONESIA_GEOJSON as any}
                 style={getFeatureStyle}
                 onEachFeature={onEachFeature}
-              />
-
-              {/* Layer Garis Batas Daratan Antar Provinsi (Hanya perbatasan darat antar provinsi, tanpa garis pantai) */}
-              <GeoJSON
-                data={INDONESIA_LAND_BORDERS as any}
-                style={{
-                  color: MAP_THEME.borders.color,
-                  weight: MAP_THEME.borders.weight,
-                  opacity: MAP_THEME.borders.opacity,
-                  lineCap: 'round',
-                  lineJoin: 'round',
-                }}
-                interactive={false}
               />
 
               {/* Floating Popup Card saat provinsi dipilih dengan Garis Pin Stem (Sesuai Figma) */}
