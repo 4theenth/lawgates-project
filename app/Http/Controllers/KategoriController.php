@@ -82,62 +82,129 @@ class KategoriController extends Controller
     ];
 
     /**
+     * Predefined 38 provinsi Indonesia untuk kategori regulasi daerah
+     */
+    protected array $provinces = [
+        'aceh' => 'Aceh',
+        'sumatera-utara' => 'Sumatera Utara',
+        'sumatera-barat' => 'Sumatera Barat',
+        'riau' => 'Riau',
+        'kepulauan-riau' => 'Kepulauan Riau',
+        'jambi' => 'Jambi',
+        'sumatera-selatan' => 'Sumatera Selatan',
+        'kepulauan-bangka-belitung' => 'Kepulauan Bangka Belitung',
+        'bengkulu' => 'Bengkulu',
+        'lampung' => 'Lampung',
+        'dki-jakarta' => 'DKI Jakarta',
+        'jawa-barat' => 'Jawa Barat',
+        'banten' => 'Banten',
+        'jawa-tengah' => 'Jawa Tengah',
+        'di-yogyakarta' => 'DI Yogyakarta',
+        'daerah-istimewa-yogyakarta' => 'DI Yogyakarta',
+        'jawa-timur' => 'Jawa Timur',
+        'bali' => 'Bali',
+        'nusa-tenggara-barat' => 'Nusa Tenggara Barat',
+        'nusa-tenggara-timur' => 'Nusa Tenggara Timur',
+        'kalimantan-barat' => 'Kalimantan Barat',
+        'kalimantan-tengah' => 'Kalimantan Tengah',
+        'kalimantan-selatan' => 'Kalimantan Selatan',
+        'kalimantan-timur' => 'Kalimantan Timur',
+        'kalimantan-utara' => 'Kalimantan Utara',
+        'sulawesi-utara' => 'Sulawesi Utara',
+        'gorontalo' => 'Gorontalo',
+        'sulawesi-tengah' => 'Sulawesi Tengah',
+        'sulawesi-barat' => 'Sulawesi Barat',
+        'sulawesi-selatan' => 'Sulawesi Selatan',
+        'sulawesi-tenggara' => 'Sulawesi Tenggara',
+        'maluku' => 'Maluku',
+        'maluku-utara' => 'Maluku Utara',
+        'papua' => 'Papua',
+        'papua-barat' => 'Papua Barat',
+        'papua-tengah' => 'Papua Tengah',
+        'papua-pegunungan' => 'Papua Pegunungan',
+        'papua-selatan' => 'Papua Selatan',
+        'papua-barat-daya' => 'Papua Barat Daya',
+    ];
+
+    /**
      * Show regulation list for a specific category slug
      */
     public function show(Request $request, string $slug)
     {
         $normalizedSlug = Str::slug($slug);
+        $cleanSlug = preg_replace('/^perda-/', '', $normalizedSlug);
+        $matchedProvince = $this->provinces[$cleanSlug] ?? $this->provinces[$normalizedSlug] ?? null;
 
-        // 1. Cari di predefined config berdasarkan key atau alias
-        $matchedPredefined = null;
-        $canonicalKey = null;
+        if ($matchedProvince) {
+            $categoryName = $matchedProvince;
+            $categoryBadge = 'Peraturan Daerah';
+            $categoryDescription = 'Himpunan peraturan dan regulasi hukum wilayah ' . $matchedProvince;
+            $canonicalKey = 'perda';
+            $matchedJenis = null;
 
-        foreach ($this->predefinedCategories as $key => $meta) {
-            if ($key === $normalizedSlug || in_array($normalizedSlug, $meta['aliases'] ?? [])) {
-                $matchedPredefined = $meta;
-                $canonicalKey = $key;
-                break;
-            }
-        }
+            // Query peraturan untuk provinsi ini (berdasarkan judul, tempat penetapan, atau instansi)
+            $peraturanQuery = Peraturan::with(['jenisPeraturan', 'statusPeraturan'])
+                ->where(function ($q) use ($matchedProvince) {
+                    $q->where('judul', 'ilike', '%' . $matchedProvince . '%')
+                      ->orWhere('tempat_penetapan', 'ilike', '%' . $matchedProvince . '%')
+                      ->orWhere('instansi', 'ilike', '%' . $matchedProvince . '%');
+                });
 
-        // 2. Cari di database `jenis_peraturan`
-        $matchedJenis = JenisPeraturan::where(function ($q) use ($normalizedSlug, $slug, $matchedPredefined) {
-            $q->whereRaw('LOWER(kode) = ?', [strtolower($slug)])
-              ->orWhereRaw('LOWER(REPLACE(nama, \'-\', \' \')) = ?', [str_replace('-', ' ', strtolower($slug))])
-              ->orWhereRaw('LOWER(nama) = ?', [strtolower($slug)]);
+            $totalCategoryCount = (clone $peraturanQuery)->count();
+        } else {
+            // 1. Cari di predefined config berdasarkan key atau alias
+            $matchedPredefined = null;
+            $canonicalKey = null;
 
-            if ($matchedPredefined) {
-                $q->orWhere('nama', 'ilike', '%' . $matchedPredefined['nama'] . '%')
-                  ->orWhere('kode', 'ilike', '%' . ($matchedPredefined['singkatan'] ?? '') . '%');
-
-                foreach ($matchedPredefined['aliases'] as $alias) {
-                    $q->orWhereRaw('LOWER(kode) = ?', [strtolower($alias)])
-                      ->orWhereRaw('LOWER(nama) = ?', [str_replace('-', ' ', strtolower($alias))]);
+            foreach ($this->predefinedCategories as $key => $meta) {
+                if ($key === $normalizedSlug || in_array($normalizedSlug, $meta['aliases'] ?? [])) {
+                    $matchedPredefined = $meta;
+                    $canonicalKey = $key;
+                    break;
                 }
             }
-        })->first();
 
-        // Tentukan nama dan info kategori
-        $categoryName = $matchedJenis?->nama
-            ?? $matchedPredefined['display_name']
-            ?? ucwords(str_replace('-', ' ', $slug));
+            // 2. Cari di database `jenis_peraturan`
+            $matchedJenis = JenisPeraturan::where(function ($q) use ($normalizedSlug, $slug, $matchedPredefined) {
+                $q->whereRaw('LOWER(kode) = ?', [strtolower($slug)])
+                  ->orWhereRaw('LOWER(REPLACE(nama, \'-\', \' \')) = ?', [str_replace('-', ' ', strtolower($slug))])
+                  ->orWhereRaw('LOWER(nama) = ?', [strtolower($slug)]);
 
-        // Format khusus untuk kesesuaian dengan tampilan ("Undang Undang")
-        if ($canonicalKey === 'undang-undang') {
-            $categoryName = 'Undang Undang';
-        }
+                if ($matchedPredefined) {
+                    $q->orWhere('nama', 'ilike', '%' . $matchedPredefined['nama'] . '%')
+                      ->orWhere('kode', 'ilike', '%' . ($matchedPredefined['singkatan'] ?? '') . '%');
 
-        $categoryBadge = $matchedPredefined['badge'] ?? ($matchedJenis?->kode ?? 'Regulasi');
-        $categoryDescription = $matchedJenis?->deskripsi ?? ($matchedPredefined['deskripsi'] ?? '');
+                    foreach ($matchedPredefined['aliases'] as $alias) {
+                        $q->orWhereRaw('LOWER(kode) = ?', [strtolower($alias)])
+                          ->orWhereRaw('LOWER(nama) = ?', [str_replace('-', ' ', strtolower($alias))]);
+                    }
+                }
+            })->first();
 
-        // 3. Query Peraturan
-        $peraturanQuery = Peraturan::with(['jenisPeraturan', 'statusPeraturan']);
+            // Tentukan nama dan info kategori
+            $categoryName = $matchedJenis?->nama
+                ?? $matchedPredefined['display_name']
+                ?? ucwords(str_replace('-', ' ', $slug));
 
-        if ($matchedJenis) {
-            $peraturanQuery->where('jenis_peraturan_id', $matchedJenis->id);
-        } else {
-            // Jika kategori belum terdaftar di tabel jenis_peraturan (seperti data baru/kosong)
-            $peraturanQuery->whereRaw('1 = 0');
+            // Format khusus untuk kesesuaian dengan tampilan ("Undang Undang")
+            if ($canonicalKey === 'undang-undang') {
+                $categoryName = 'Undang Undang';
+            }
+
+            $categoryBadge = $matchedPredefined['badge'] ?? ($matchedJenis?->kode ?? 'Regulasi');
+            $categoryDescription = $matchedJenis?->deskripsi ?? ($matchedPredefined['deskripsi'] ?? '');
+
+            // 3. Query Peraturan
+            $peraturanQuery = Peraturan::with(['jenisPeraturan', 'statusPeraturan']);
+
+            if ($matchedJenis) {
+                $peraturanQuery->where('jenis_peraturan_id', $matchedJenis->id);
+            } else {
+                // Jika kategori belum terdaftar di tabel jenis_peraturan (seperti data baru/kosong)
+                $peraturanQuery->whereRaw('1 = 0');
+            }
+
+            $totalCategoryCount = $matchedJenis ? Peraturan::where('jenis_peraturan_id', $matchedJenis->id)->count() : 0;
         }
 
         // Filter keyword pencarian
@@ -192,8 +259,6 @@ class KategoriController extends Controller
             ->distinct()
             ->orderBy('tahun', 'desc')
             ->pluck('tahun');
-
-        $totalCategoryCount = $matchedJenis ? Peraturan::where('jenis_peraturan_id', $matchedJenis->id)->count() : 0;
 
         return Inertia::render('DetailKategori', [
             'kategori' => [
