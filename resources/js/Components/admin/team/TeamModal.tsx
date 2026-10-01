@@ -5,8 +5,12 @@ import {
   Transition,
   TransitionChild,
 } from '@headlessui/react';
-import { X, UserPlus, UserCog, User, ChevronDown, ChevronUp, Send } from 'lucide-react';
+import { X, UserPlus, UserCog, User, ChevronDown, ChevronUp, Send, Loader2 } from 'lucide-react';
 import { TeamMember, TeamMemberRole, TeamMemberStatus, TEAM_ROLES } from '@/constants/team';
+
+// Helper validasi format email ketat (user@domain.com)
+const isValidEmail = (val: string) =>
+  /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val.trim());
 
 export type TeamModalMode = 'create' | 'edit' | 'view';
 
@@ -45,6 +49,10 @@ export function TeamModal({
   // Dropdown states
   const [isRoleOpen, setIsRoleOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
+
+  // Validasi Client-side ketat
+  const isEmailValid = isValidEmail(email);
+  const isFormValid = name.trim().length > 0 && isEmailValid;
 
   const roleRef = useRef<HTMLDivElement | null>(null);
   const statusRef = useRef<HTMLDivElement | null>(null);
@@ -87,8 +95,8 @@ export function TeamModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isViewOnly) return;
-    if (!name.trim() || !email.trim()) return;
+    if (isViewOnly || isLoading) return;
+    if (!name.trim() || !isValidEmail(email)) return;
 
     onSave?.({
       id: memberData?.id,
@@ -152,8 +160,8 @@ export function TeamModal({
                             {isViewOnly
                               ? 'Data anggota tim'
                               : isEditing
-                              ? 'Edit anggota tim'
-                              : 'Tambah tim baru'}
+                                ? 'Edit anggota tim'
+                                : 'Tambah tim baru'}
                           </p>
                         </div>
                       </div>
@@ -178,15 +186,14 @@ export function TeamModal({
                         <input
                           type="text"
                           required={!isViewOnly}
-                          disabled={isViewOnly}
+                          disabled={isViewOnly || isLoading}
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           placeholder="Masukkan nama tim"
-                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border border-neu-200 bg-white text-neu-900 placeholder-neu-400 focus:outline-none transition-all shadow-2xs ${
-                            isViewOnly
-                              ? 'cursor-default'
-                              : 'focus:border-pr-900 focus:ring-1 focus:ring-pr-900'
-                          }`}
+                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border border-neu-200 bg-white text-neu-900 placeholder-neu-400 focus:outline-none transition-all shadow-2xs ${isViewOnly
+                            ? 'cursor-default'
+                            : 'focus:border-pr-900 focus:ring-1 focus:ring-pr-900'
+                            } ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
                       </div>
 
@@ -198,16 +205,23 @@ export function TeamModal({
                         <input
                           type="email"
                           required={!isViewOnly}
-                          disabled={isViewOnly}
+                          disabled={isViewOnly || isLoading}
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          placeholder="Masukkan email tim"
-                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border border-neu-200 bg-white text-neu-900 placeholder-neu-400 focus:outline-none transition-all shadow-2xs ${
-                            isViewOnly
+                          placeholder="Masukkan email tim (contoh: user@domain.com)"
+                          className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border ${!isViewOnly && email.trim().length > 0 && !isEmailValid
+                              ? 'border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                              : 'border-neu-200 focus:border-pr-900 focus:ring-1 focus:ring-pr-900'
+                            } bg-white text-neu-900 placeholder-neu-400 focus:outline-none transition-all shadow-2xs ${isViewOnly
                               ? 'cursor-default'
-                              : 'focus:border-pr-900 focus:ring-1 focus:ring-pr-900'
-                          }`}
+                              : ''
+                            } ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
+                        {!isViewOnly && email.trim().length > 0 && !isEmailValid && (
+                          <p className="text-[11px] text-red-500 mt-1">
+                            Format email tidak valid (contoh: user@domain.com)
+                          </p>
+                        )}
                       </div>
 
                       {/* Field 3: Role */}
@@ -248,11 +262,10 @@ export function TeamModal({
                                       setRole(r);
                                       setIsRoleOpen(false);
                                     }}
-                                    className={`w-full text-left px-3.5 py-2 text-[13px] transition-colors cursor-pointer ${
-                                      r === role
-                                        ? 'bg-gray-50 text-neu-900 font-medium'
-                                        : 'text-neu-700 hover:bg-gray-50'
-                                    }`}
+                                    className={`w-full text-left px-3.5 py-2 text-[13px] transition-colors cursor-pointer ${r === role
+                                      ? 'bg-gray-50 text-neu-900 font-medium'
+                                      : 'text-neu-700 hover:bg-gray-50'
+                                      }`}
                                   >
                                     {r}
                                   </button>
@@ -350,7 +363,8 @@ export function TeamModal({
                         <button
                           type="button"
                           onClick={onClose}
-                          className="px-5 py-2 text-[13px] font-medium text-neu-800 bg-white border border-neu-200 hover:bg-neu-50 rounded-[10px] transition-colors cursor-pointer shadow-2xs"
+                          disabled={isLoading}
+                          className="px-5 py-2 text-[13px] font-medium text-neu-800 bg-white border border-neu-200 hover:bg-neu-50 rounded-[10px] transition-colors cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Batal
                         </button>
@@ -359,20 +373,25 @@ export function TeamModal({
                           /* Tombol Simpan untuk Edit Tim (Sesuai Gambar 1) */
                           <button
                             type="submit"
-                            disabled={isLoading || !name.trim() || !email.trim()}
-                            className="px-6 py-2 text-[13px] font-medium bg-[#1E293B] hover:bg-[#0F172A] text-white rounded-[10px] transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={isLoading || !isFormValid}
+                            className="inline-flex items-center gap-2 px-6 py-2 text-[13px] font-medium bg-[#1E293B] hover:bg-[#0F172A] text-white rounded-[10px] transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           >
+                            {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                             <span>{isLoading ? 'Menyimpan...' : 'Simpan'}</span>
                           </button>
                         ) : (
                           /* Tombol Kirim Undangan untuk Tambah Tim */
                           <button
                             type="submit"
-                            disabled={isLoading || !name.trim() || !email.trim()}
+                            disabled={isLoading || !isFormValid}
                             className="inline-flex items-center gap-2 px-5 py-2 text-[13px] font-medium bg-[#1E293B] hover:bg-[#0F172A] text-white rounded-[10px] transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            <Send className="w-3.5 h-3.5 -rotate-12" />
-                            <span>{isLoading ? 'Menyimpan...' : 'Kirim Undangan'}</span>
+                            {isLoading ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Send className="w-3.5 h-3.5 -rotate-12" />
+                            )}
+                            <span>{isLoading ? 'Mengirim Undangan...' : 'Kirim Undangan'}</span>
                           </button>
                         )}
                       </div>

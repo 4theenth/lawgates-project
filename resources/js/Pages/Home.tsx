@@ -48,34 +48,34 @@ export default function Home({ categoryCounts }: HomeProps) {
         <HeroSection isScrolled={isScrolled} onSearch={handleSearch} />
         <StatsOverview />
 
-      {/* 3. Section Tentang Kami & 3 Metrik Besar (Dark Banner) */}
-      <Section>
-        <AboutOverview />
-      </Section>
-
-      {/* 4. Section Peta Hukum Indonesia (White Background Container) */}
-      <div className="w-full bg-white mt-[66px] pt-px pb-[66px]">
+        {/* 3. Section Tentang Kami & 3 Metrik Besar (Dark Banner) */}
         <Section>
-          <IndonesiaLegalMap />
+          <AboutOverview />
         </Section>
-      </div>
 
-      {/* 5. Section Statistik Peraturan (Pattern Background) */}
-      <Section>
-        <RegulationHierarchyGrid />
-      </Section>
+        {/* 4. Section Peta Hukum Indonesia (White Background Container) */}
+        <div className="w-full bg-white mt-[66px] pt-px pb-[66px]">
+          <Section>
+            <IndonesiaLegalMap />
+          </Section>
+        </div>
 
-      {/* 6. Section Sistem Hukum Terbaru (White Background Container) */}
-      <div className="w-full bg-white mt-[66px] pt-px pb-[66px]">
+        {/* 5. Section Statistik Peraturan (Pattern Background) */}
         <Section>
-          <RecentRegulations />
+          <RegulationHierarchyGrid />
         </Section>
-      </div>
 
-      {/* 6. Section Layanan LawGates */}
-      <Section className="mb-8 sm:mb-12">
-        <ServicesOverview />
-      </Section>
+        {/* 6. Section Sistem Hukum Terbaru (White Background Container) */}
+        <div className="w-full bg-white mt-[66px] pt-px pb-[66px]">
+          <Section>
+            <RecentRegulations />
+          </Section>
+        </div>
+
+        {/* 6. Section Layanan LawGates */}
+        <Section className="mb-8 sm:mb-12">
+          <ServicesOverview />
+        </Section>
       </div>
     </PublicLayout>
   );

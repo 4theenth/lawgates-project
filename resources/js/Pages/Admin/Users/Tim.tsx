@@ -21,26 +21,46 @@ import {
 } from '@/constants/team';
 
 interface TimPageProps {
+  pendingMembers?: {
+    data: TeamMember[];
+    current_page?: number;
+    last_page?: number;
+    total?: number;
+    per_page?: number;
+  };
+  activeMembers?: {
+    data: TeamMember[];
+    current_page?: number;
+    last_page?: number;
+    total?: number;
+    per_page?: number;
+  };
   filters?: {
     tab?: TeamStatusTabId | 'all';
     search?: string;
   };
 }
 
-export default function Tim({ filters }: TimPageProps) {
+export default function Tim({ pendingMembers, activeMembers, filters }: TimPageProps) {
   const { toast } = useToast();
 
-  // ── Data State (Dummy Dataset sesuai screenshot) ─────────────
-  // Section 1: 4 item tepat (Mangadi, Kevin, Monica, Yudis Purba)
+  // ── Data State (Props dari API dengan Fallback Dummy Dataset) ──
+  // Section 1: Tim Pending & Expired
   const [pendingList, setPendingList] = useState<TeamMember[]>(
-    DUMMY_PENDING_EXPIRED_MEMBERS
+    pendingMembers?.data && pendingMembers.data.length > 0
+      ? pendingMembers.data
+      : DUMMY_PENDING_EXPIRED_MEMBERS
   );
 
-  // Section 2: 4 item tepat (Kayika Dewa, Danan, Satria, Adi Wirata)
-  // Menyatukan status Aktif dan Non Aktif menjadi "Tim Terdaftar"
+  // Section 2: Tim Terdaftar (Aktif & Non Aktif)
   const [registeredList, setRegisteredList] = useState<TeamMember[]>(
-    DUMMY_REGISTERED_MEMBERS
+    activeMembers?.data && activeMembers.data.length > 0
+      ? activeMembers.data
+      : DUMMY_REGISTERED_MEMBERS
   );
+
+  // ── Loading state saat proses kirim undangan berlangsung ──────
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ── Modal States (Tambah Tim / Edit Tim / Lihat Tim & Delete) ─
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -220,7 +240,7 @@ export default function Tim({ filters }: TimPageProps) {
     setIsModalOpen(true);
   };
 
-  const handleSaveMember = (data: {
+  const handleSaveMember = async (data: {
     id?: string;
     name: string;
     email: string;
@@ -232,6 +252,11 @@ export default function Tim({ filters }: TimPageProps) {
         toast.error('Data gagal disimpan / dihapus', 'Nama dan email tim wajib diisi.');
         return;
       }
+
+      setIsSubmitting(true);
+
+      // Loading state untuk mencegah double submit dan memberi visual feedback
+      await new Promise((resolve) => setTimeout(resolve, 600));
 
       if (data.id) {
         // Mode Edit Tim (termasuk ubah status Aktif / Non Aktif)
@@ -256,6 +281,19 @@ export default function Tim({ filters }: TimPageProps) {
         toast.success('Data berhasil disimpan');
       } else {
         // Mode Tambah Tim (Undang Tim baru dengan status pending)
+        // Validasi duplikasi: Cek apakah email sudah terdaftar
+        const isDuplicate = [...pendingList, ...registeredList].some(
+          (m) => m.email.toLowerCase() === data.email.trim().toLowerCase()
+        );
+
+        if (isDuplicate) {
+          toast.error(
+            'Undangan Gagal Dikirim',
+            'Email ini sudah terdaftar sebagai Admin.'
+          );
+          return;
+        }
+
         const newMember: TeamMember = {
           id: `team-${Date.now()}`,
           name: data.name,
@@ -267,10 +305,12 @@ export default function Tim({ filters }: TimPageProps) {
         setPendingList((prev) => [newMember, ...prev]);
         setIsModalOpen(false);
         setEditingMember(null);
-        toast.success('Data berhasil disimpan');
+        toast.success('Undangan berhasil dikirim!');
       }
     } catch {
       toast.error('Data gagal disimpan / dihapus');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -401,7 +441,9 @@ export default function Tim({ filters }: TimPageProps) {
       <TeamModal
         show={isModalOpen}
         mode={modalMode}
+        isLoading={isSubmitting}
         onClose={() => {
+          if (isSubmitting) return;
           setIsModalOpen(false);
           setEditingMember(null);
         }}
