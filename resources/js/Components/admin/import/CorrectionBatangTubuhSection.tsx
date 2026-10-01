@@ -44,10 +44,9 @@ export function CorrectionBatangTubuhSection({
                   type="text"
                   value={bab.judul}
                   onChange={(e) => onChangeBabJudul?.(bab.id, e.target.value)}
-                  className="flex-1 min-w-0 bg-transparent text-[12px] font-bold text-pr-900 tracking-wide uppercase focus:outline-none focus:bg-[#F8FAFC] focus:px-3 focus:py-2 focus:-mx-3 focus:-my-2 focus:rounded-[8px] transition-all"
+                  className="flex-1 min-w-0 bg-[#F8FAFC] border border-neu-100 px-3 py-2 rounded-[8px] text-[12px] font-bold text-pr-900 tracking-wide uppercase focus:outline-none focus:bg-white focus:border-pr-900 transition-all"
                   placeholder="Judul BAB"
                 />
-                <Edit2 className="w-3.5 h-3.5 text-neu-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pointer-events-none" />
               </div>
               <button
                 type="button"

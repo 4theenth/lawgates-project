@@ -257,6 +257,23 @@ export default function DokumenHukumCreate() {
         }
       }
 
+      if (!isDuplicate) {
+        try {
+          const draftCheckRes = await fetch(`/admin/dokumen-hukum/draft-check-duplicate?filename=${encodeURIComponent(file.name)}`, {
+            headers: { Accept: 'application/json' },
+          });
+          if (draftCheckRes.status === 200) {
+            const draftResJson = await draftCheckRes.json();
+            if (draftResJson.exists) {
+              setInlineError(`Data yang mau diupload ("${file.name}") sudah tersimpan di dalam draft "${draftResJson.draft_name}". Silakan periksa menu Draft.`);
+              isDuplicate = true;
+            }
+          }
+        } catch (err) {
+          console.error("Gagal mengecek duplikasi draft", err);
+        }
+      }
+
       if (isDuplicate) {
         continue;
       }
