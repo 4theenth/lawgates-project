@@ -370,9 +370,9 @@ export function IndonesiaLegalMap() {
                 }}
               />
 
-              {/* Basemap Atlas: National Geographic World Map */}
+              {/* Basemap Fisik Alami Bersih: Relief Topografi Tanpa Label Kota/Laut/Negara */}
               <TileLayer
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}"
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}"
                 maxZoom={12}
               />
 
