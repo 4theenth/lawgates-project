@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import CreatableSelect from 'react-select/creatable';
+import { StylesConfig, SingleValue } from 'react-select';
 import { KategoriHukum } from '@/services/kategoriService';
 
 interface Option {
@@ -35,7 +36,7 @@ export const CreatableKategoriSelect: React.FC<Props> = ({
     return options.find((opt) => opt.value === value) || (value ? { value, label: value } : null);
   }, [options, value]);
 
-  const handleChange = (newValue: any) => {
+  const handleChange = (newValue: SingleValue<Option>) => {
     if (newValue) {
       onChange(newValue.value);
     } else {
@@ -45,6 +46,74 @@ export const CreatableKategoriSelect: React.FC<Props> = ({
 
   const handleCreate = (inputValue: string) => {
     onChange(inputValue);
+  };
+
+  const customStyles: StylesConfig<Option, false> = {
+    control: (base, state) => ({
+      ...base,
+      minHeight: '46px',
+      borderRadius: '10px',
+      borderColor: detectedKategori ? '#17a2b8' : state.isFocused ? '#374151' : '#E5E7EB',
+      boxShadow: state.isFocused ? '0 0 0 1px #374151' : '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+      '&:hover': {
+        borderColor: state.isFocused ? '#374151' : '#D1D5DB',
+      },
+      backgroundColor: disabled ? '#F9FAFB' : '#FFFFFF',
+      cursor: 'text',
+      transition: 'border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
+    }),
+    valueContainer: (base) => ({
+      ...base,
+      padding: '2px 16px',
+    }),
+    singleValue: (base) => ({
+      ...base,
+      fontSize: '14px',
+      color: '#111827',
+      fontWeight: 500,
+    }),
+    input: (base) => ({
+      ...base,
+      fontSize: '14px',
+      color: '#111827',
+      margin: 0,
+      padding: 0,
+    }),
+    placeholder: (base) => ({
+      ...base,
+      fontSize: '14px',
+      color: '#9CA3AF',
+    }),
+    menu: (base) => ({
+      ...base,
+      borderRadius: '10px',
+      border: '1px solid #F3F4F6',
+      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+      overflow: 'hidden',
+      zIndex: 30,
+      marginTop: '6px',
+    }),
+    menuList: (base) => ({
+      ...base,
+      padding: '6px',
+    }),
+    option: (base, state) => ({
+      ...base,
+      fontSize: '12px',
+      padding: '10px 14px',
+      borderRadius: '8px',
+      backgroundColor: state.isSelected 
+        ? '#F9FAFB' 
+        : state.isFocused 
+          ? '#F9FAFB' 
+          : 'transparent',
+      color: state.isSelected ? '#111827' : '#374151',
+      fontWeight: state.isSelected ? 600 : 400,
+      cursor: 'pointer',
+      '&:active': {
+        backgroundColor: '#F3F4F6',
+      },
+    }),
   };
 
   return (
@@ -60,75 +129,9 @@ export const CreatableKategoriSelect: React.FC<Props> = ({
         onCreateOption={handleCreate}
         isDisabled={disabled}
         placeholder="Pilih atau ketik kategori baru..."
-        formatCreateLabel={(inputValue) => `+ Tambah kategori "${inputValue}"`}
+        formatCreateLabel={(inputValue: string) => `+ Tambah kategori "${inputValue}"`}
         noOptionsMessage={() => "Tidak ada kategori ditemukan"}
-        styles={{
-          control: (base, state) => ({
-            ...base,
-            minHeight: '46px',
-            borderRadius: '10px',
-            borderColor: detectedKategori ? '#17a2b8' : state.isFocused ? '#374151' : '#E5E7EB',
-            boxShadow: state.isFocused ? '0 0 0 1px #374151' : '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-            '&:hover': {
-              borderColor: state.isFocused ? '#374151' : '#D1D5DB',
-            },
-            backgroundColor: disabled ? '#F9FAFB' : '#FFFFFF',
-            cursor: 'text',
-            transition: 'border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out'
-          }),
-          valueContainer: (base) => ({
-            ...base,
-            padding: '2px 16px',
-          }),
-          singleValue: (base) => ({
-            ...base,
-            fontSize: '14px',
-            color: '#111827',
-            fontWeight: 500,
-          }),
-          input: (base) => ({
-            ...base,
-            fontSize: '14px',
-            color: '#111827',
-            margin: 0,
-            padding: 0,
-          }),
-          placeholder: (base) => ({
-            ...base,
-            fontSize: '14px',
-            color: '#9CA3AF',
-          }),
-          menu: (base) => ({
-            ...base,
-            borderRadius: '10px',
-            border: '1px solid #F3F4F6',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-            overflow: 'hidden',
-            zIndex: 30,
-            marginTop: '6px',
-          }),
-          menuList: (base) => ({
-            ...base,
-            padding: '6px',
-          }),
-          option: (base, state) => ({
-            ...base,
-            fontSize: '12px',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            backgroundColor: state.isSelected 
-              ? '#F9FAFB' 
-              : state.isFocused 
-                ? '#F9FAFB' 
-                : 'transparent',
-            color: state.isSelected ? '#111827' : '#374151',
-            fontWeight: state.isSelected ? 600 : 400,
-            cursor: 'pointer',
-            '&:active': {
-              backgroundColor: '#F3F4F6',
-            },
-          }),
-        }}
+        styles={customStyles}
       />
     </div>
   );

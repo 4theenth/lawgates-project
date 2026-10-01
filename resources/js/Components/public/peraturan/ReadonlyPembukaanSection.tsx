@@ -61,7 +61,7 @@ export function ReadonlyPembukaanSection({
             )}
             
             {pembukaan.subJudul && (
-              <div className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed whitespace-pre-line">
+              <div className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed whitespace-pre-line text-justify">
                 {pembukaan.subJudul}
               </div>
             )}
@@ -84,7 +84,7 @@ export function ReadonlyPembukaanSection({
               </button>
               {isOpenMenimbang && pembukaan.menimbang && (
                 <div className="mt-2">
-                  <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line">
+                  <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
                     {pembukaan.menimbang}
                   </div>
                 </div>
@@ -109,7 +109,7 @@ export function ReadonlyPembukaanSection({
               </button>
               {isOpenMengingat && pembukaan.mengingat && (
                 <div className="mt-2">
-                  <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line">
+                  <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
                     {pembukaan.mengingat}
                   </div>
                 </div>
@@ -134,7 +134,7 @@ export function ReadonlyPembukaanSection({
               </button>
               {isOpenMemutuskan && pembukaan.memutuskan && (
                 <div className="mt-2">
-                  <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line">
+                  <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
                     {pembukaan.memutuskan}
                   </div>
                 </div>
@@ -159,7 +159,7 @@ export function ReadonlyPembukaanSection({
               </button>
               {isOpenMenetapkan && (pembukaan as any).menetapkan && (
                 <div className="mt-2">
-                  <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line">
+                  <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
                     {(pembukaan as any).menetapkan}
                   </div>
                 </div>

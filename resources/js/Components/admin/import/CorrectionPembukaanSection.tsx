@@ -62,6 +62,7 @@ export function CorrectionPembukaanSection({
             />
             {pembukaan.subJudul !== undefined && (
               <AutoResizeTextarea
+                enableAutoFormat
                 value={pembukaan.subJudul}
                 onChange={(e) => onChangePembukaan('subJudul', e.target.value)}
                 className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[60px]"
@@ -87,6 +88,7 @@ export function CorrectionPembukaanSection({
             {isOpenMenimbang && (
               <div className="mt-2">
                 <AutoResizeTextarea
+                  enableAutoFormat
                   value={pembukaan.menimbang}
                   onChange={(e) => onChangePembukaan('menimbang', e.target.value)}
                   className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[100px]"
@@ -113,6 +115,7 @@ export function CorrectionPembukaanSection({
             {isOpenMengingat && (
               <div className="mt-2">
                 <AutoResizeTextarea
+                  enableAutoFormat
                   value={pembukaan.mengingat}
                   onChange={(e) => onChangePembukaan('mengingat', e.target.value)}
                   className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[100px]"
@@ -139,6 +142,7 @@ export function CorrectionPembukaanSection({
             {isOpenMemutuskan && (
               <div className="mt-2">
                 <AutoResizeTextarea
+                  enableAutoFormat
                   value={pembukaan.memutuskan}
                   onChange={(e) => onChangePembukaan('memutuskan', e.target.value)}
                   className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[80px]"
