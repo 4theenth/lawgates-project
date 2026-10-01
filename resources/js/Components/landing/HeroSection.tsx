@@ -12,17 +12,30 @@ export function HeroSection({ isScrolled, onSearch }: HeroSectionProps) {
     <section className="relative w-full flex flex-col items-center justify-start pt-[165px] pb-[235px] px-4 sm:px-6 lg:px-8 bg-[#050B14]">
       {/* ── BACKGROUND FILLS (Isolated overflow-hidden to prevent clipping dropdowns) ── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div
-          className="absolute inset-0 z-0 pointer-events-none"
-          style={{
-            background: `
-              radial-gradient(ellipse 48% 65% at 82% 20%, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.15) 40%, rgba(255, 255, 255, 0) 75%),
-              radial-gradient(ellipse 55% 75% at 16% 16%, rgba(212, 175, 55, 0.80) 0%, rgba(212, 175, 55, 0.55) 30%, rgba(212, 175, 55, 0.22) 60%, rgba(212, 175, 55, 0) 85%),
-              radial-gradient(circle 450px at 10% 40%, rgba(212, 175, 55, 0.35) 0%, rgba(212, 175, 55, 0) 70%),
-              linear-gradient(180deg, #050B14 0%, #0B1020 100%)
-            `,
-          }}
-        />
+        {/* ── BACKGROUND FILLS (Z-0) ── */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          {/* 1. Base Linear */}
+          <div 
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'linear-gradient(180deg, #050B14 0%, #0B1020 100%)' }}
+          />
+          
+          {/* 2. Yellow Slanted Radial (Miring / Rotated) */}
+          <div
+            className="absolute origin-center pointer-events-none w-[1600px] h-[350px] md:w-[110vw] md:h-[60vw] top-[110%] left-[100%] md:top-[16%] md:left-[16%] -translate-x-1/2 -translate-y-1/2 rotate-[35deg] md:rotate-[35deg]"
+            style={{
+              background: 'radial-gradient(ellipse closest-side, rgba(212, 175, 55, 0.55) 0%, rgba(212, 175, 55, 0) 90%)'
+            }}
+          />
+
+          {/* 3. White Radial */}
+          <div
+            className="absolute origin-center pointer-events-none w-[1600px] h-[350px] md:w-[80vw] md:h-[80vw] top-[-15%] left-[0%] md:top-[20%] md:left-[82%] -translate-x-1/2 -translate-y-1/2 rotate-[35deg] md:rotate-[0deg]"
+            style={{
+              background: 'radial-gradient(ellipse closest-side, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 90%)'
+            }}
+          />
+        </div>
 
         {/* ── IMAGE FILL: Perspective Grid Lines ── */}
         <img
@@ -58,7 +71,7 @@ export function HeroSection({ isScrolled, onSearch }: HeroSectionProps) {
       {/* ── HERO CONTENT (Figma: width 709, height 89, gap 7px) ── */}
       <div className="relative z-30 text-center w-full max-w-[850px] mx-auto flex flex-col items-center">
         {/* Main Heading (1 line on desktop and tablet, no wrap to 2nd line) */}
-        <h1 className="w-full text-[24px] xs:text-[28px] sm:text-[32px] font-bold text-white leading-[130%] tracking-tight text-center md:whitespace-nowrap">
+        <h1 className="w-full text-[16px] xs:text-[22px] sm:text-[32px] font-bold text-white leading-[130%] tracking-tight text-center md:whitespace-nowrap">
           Jelajahi Hukum <span className="text-sec-900">Indonesia</span> Dengan Law Gates
         </h1>
 

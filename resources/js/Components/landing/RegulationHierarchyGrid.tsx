@@ -87,11 +87,11 @@ export function RegulationHierarchyGrid({ counts }: RegulationHierarchyGridProps
     <section className="mt-[66px] w-full">
       {/* Section Header */}
       <div className="mb-8">
-        <h2 className="text-2xl sm:text-[26px] font-bold text-neu-900 tracking-tight">
+        <h2 className="text-2xl sm:text-[26px] font-semibold text-neu-900 tracking-tight">
           Statistik Peraturan
         </h2>
 
-        <p className="text-neu-600 text-md sm:text-sm mt-1 max-w-2xl leading-relaxed">
+        <p className="text-neu-600 text-md sm:text-[14px] mt-1 max-w-2xl leading-relaxed">
           Akses ribuan hingga jutaan peraturan dan relasi dari UUD 1945,
           Undang-Undang, Perppu, PP, Perpres, hingga Perda.
         </p>
