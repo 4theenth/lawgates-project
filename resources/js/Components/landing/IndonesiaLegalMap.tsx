@@ -28,19 +28,13 @@ import {
 } from './indonesiaMapData';
 import { MAP_THEME } from '../../config/mapTheme';
 
-// ── Sub-komponen untuk kontrol kamera Leaflet (FitBounds, Zoom ke Provinsi, Reset) ──
+// ── Sub-komponen untuk kontrol kamera Leaflet (FitBounds & Drag Listener) ──
 function MapController({
-  selectedBounds,
-  popupPos,
-  resetTrigger,
   onMapReady,
   geoJsonBounds,
   onDeselect,
   onDragStateChange,
 }: {
-  selectedBounds: L.LatLngBounds | null;
-  popupPos: L.LatLngExpression | null;
-  resetTrigger: number;
   onMapReady: (map: L.Map) => void;
   geoJsonBounds: L.LatLngBounds | null;
   onDeselect: () => void;
@@ -64,62 +58,28 @@ function MapController({
     }
   }, [geoJsonBounds, map]);
 
-  // Pantau drag/pan & klik latar belakang
+  // Pantau drag murni (TIDAK menyertakan movestart agar animasi zoom tidak disangka drag)
   useEffect(() => {
     const handleDragStart = () => {
       onDragStateChange(true);
     };
     const handleDragEnd = () => {
-      setTimeout(() => {
-        onDragStateChange(false);
-      }, 100);
+      onDragStateChange(false);
     };
     const handleBackgroundClick = () => {
       onDeselect();
     };
 
     map.on('dragstart', handleDragStart);
-    map.on('movestart', handleDragStart);
     map.on('dragend', handleDragEnd);
-    map.on('moveend', handleDragEnd);
     map.on('click', handleBackgroundClick);
 
     return () => {
       map.off('dragstart', handleDragStart);
-      map.off('movestart', handleDragStart);
       map.off('dragend', handleDragEnd);
-      map.off('moveend', handleDragEnd);
       map.off('click', handleBackgroundClick);
     };
   }, [map, onDeselect, onDragStateChange]);
-
-  // Efek zoom kamera saat provinsi dipilih (Klik/Select)
-  useEffect(() => {
-    if (selectedBounds) {
-      map.flyToBounds(selectedBounds, {
-        maxZoom: 6.8,
-        padding: [60, 60],
-        duration: 0.8,
-        easeLinearity: 0.25,
-      });
-    } else if (popupPos) {
-      map.flyTo(popupPos, 6.5, {
-        duration: 0.8,
-        easeLinearity: 0.25,
-      });
-    }
-  }, [selectedBounds, popupPos, map]);
-
-  // Reset kamera ke seluruh wilayah Indonesia (fitBounds agar selalu pas & proporsional)
-  useEffect(() => {
-    if (resetTrigger > 0 && geoJsonBounds) {
-      map.flyToBounds(geoJsonBounds, {
-        padding: [15, 15],
-        duration: 0.5,
-        easeLinearity: 0.25,
-      });
-    }
-  }, [resetTrigger, geoJsonBounds, map]);
 
   return null;
 }
@@ -127,9 +87,7 @@ function MapController({
 export function IndonesiaLegalMap() {
   // ── 1. State Provinsi: Tampilan awal WAJIB null (Empty State) ───────────
   const [selectedProvinceId, setSelectedProvinceId] = useState<string | null>(null);
-  const [selectedBounds, setSelectedBounds] = useState<L.LatLngBounds | null>(null);
   const [popupPos, setPopupPos] = useState<L.LatLngExpression | null>(null);
-  const [resetTrigger, setResetTrigger] = useState(0);
   const [geoJsonBounds, setGeoJsonBounds] = useState<L.LatLngBounds | null>(null);
 
   // ── 2. State Hover Tunggal (Mencegah tooltip nyangkut saat drag/panning) ─
@@ -170,7 +128,7 @@ export function IndonesiaLegalMap() {
   // Selalu sinkronkan state selectedProvinceId ke Ref agar event listener tidak stale
   const selectedProvinceRef = useRef<string | null>(selectedProvinceId);
 
-  // Fungsi utilitas untuk memperbarui warna seluruh layer wilayah secara instan
+  // Fungsi utilitas untuk memperbarui warna seluruh layer wilayah secara instan tanpa DOM thrashing
   const updateLayerStyles = useCallback((activeKey: string | null, hoveredKey: string | null) => {
     if (geoJsonRef.current) {
       geoJsonRef.current.eachLayer((layer: any) => {
@@ -181,10 +139,8 @@ export function IndonesiaLegalMap() {
 
         if (isSelected) {
           layer.setStyle(MAP_THEME.province.selected);
-          layer.bringToFront();
         } else if (isHovered) {
           layer.setStyle(MAP_THEME.province.hover);
-          layer.bringToFront();
         } else {
           layer.setStyle(MAP_THEME.province.default);
         }
@@ -216,6 +172,8 @@ export function IndonesiaLegalMap() {
     // Sinkronkan ref dan state seketika
     selectedProvinceRef.current = provKey;
     setSelectedProvinceId(provKey);
+    setHoveredProvinceKey(null);
+    setHoveredProvinceName(null);
     setSearchQuery('');
     setIsSearchFocused(false);
 
@@ -224,6 +182,8 @@ export function IndonesiaLegalMap() {
     if (landCoord) {
       setPopupPos(landCoord);
     }
+
+    let targetBounds: L.LatLngBounds | null = null;
 
     // Langsung aplikasikan warna Navy ke layer yang dipilih
     if (geoJsonRef.current) {
@@ -236,13 +196,32 @@ export function IndonesiaLegalMap() {
 
         if (isSelected) {
           layer.bringToFront();
-          const bounds = layer.getBounds();
-          setSelectedBounds(bounds);
+          targetBounds = layer.getBounds();
           if (!landCoord) {
-            setPopupPos(bounds.getCenter());
+            setPopupPos(targetBounds.getCenter());
           }
         }
       });
+    }
+
+    // Eksekusi animasi pergerakan kamera secara langsung (Direct & Smooth, tanpa delay dan tanpa parabolic zoom-out-in yang aneh)
+    if (mapRef.current) {
+      if (targetBounds) {
+        // Berikan headroom atas 160px (paddingTopLeft) agar kartu popup dan pin stem tidak terpotong navbar atas
+        mapRef.current.fitBounds(targetBounds, {
+          maxZoom: 6.2,
+          paddingTopLeft: [50, 160],
+          paddingBottomRight: [50, 50],
+          animate: true,
+          duration: 0.45,
+          easeLinearity: 0.25,
+        });
+      } else if (landCoord) {
+        mapRef.current.setView(landCoord, 6, {
+          animate: true,
+          duration: 0.45,
+        });
+      }
     }
   }, []);
 
@@ -250,10 +229,8 @@ export function IndonesiaLegalMap() {
   const handleResetMap = useCallback(() => {
     selectedProvinceRef.current = null;
     setSelectedProvinceId(null);
-    setSelectedBounds(null);
     setPopupPos(null);
     setSearchQuery('');
-    setResetTrigger((prev) => prev + 1);
 
     // Kembalikan semua provinsi ke style default transparan
     if (geoJsonRef.current) {
@@ -261,7 +238,17 @@ export function IndonesiaLegalMap() {
         layer.setStyle(MAP_THEME.province.default);
       });
     }
-  }, []);
+
+    // Kembalikan kamera ke seluruh Indonesia dengan transisi halus
+    if (mapRef.current && geoJsonBounds) {
+      mapRef.current.fitBounds(geoJsonBounds, {
+        padding: [15, 15],
+        animate: true,
+        duration: 0.45,
+        easeLinearity: 0.25,
+      });
+    }
+  }, [geoJsonBounds]);
 
   // Navigasi ke detail kategori regulasi provinsi yang dipilih
   const handleNavigatePeraturan = (provName: string) => {
@@ -325,13 +312,11 @@ export function IndonesiaLegalMap() {
 
   return (
     <section className="mt-[66px] w-full">
-      {/* ── Transisi Halus Saat Kursor Berpindah Antar Daerah (Smooth Switch) ── */}
+      {/* ── Transisi Halus Saat Kursor Berpindah Antar Daerah (Snappy & GPU-accelerated) ── */}
       <style>{`
         .custom-leaflet-map path.leaflet-interactive {
-          transition: fill 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-                      fill-opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-                      stroke 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-                      stroke-width 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          transition: fill 0.12s ease-out,
+                      fill-opacity 0.12s ease-out !important;
         }
       `}</style>
 
@@ -395,9 +380,6 @@ export function IndonesiaLegalMap() {
               className="w-full h-full bg-[#71D4E9] z-0 focus:outline-none custom-leaflet-map"
             >
               <MapController
-                selectedBounds={selectedBounds}
-                popupPos={popupPos}
-                resetTrigger={resetTrigger}
                 geoJsonBounds={geoJsonBounds}
                 onDeselect={handleResetMap}
                 onDragStateChange={handleDragStateChange}
@@ -460,10 +442,8 @@ export function IndonesiaLegalMap() {
                   key={activeProvince.id}
                   position={popupPos}
                   closeButton={false}
-                  autoPan={true}
-                  autoPanPadding={[40, 40]}
-                  keepInView={true}
-                  offset={[0, 0]}
+                  autoPan={false}
+                  offset={[0, -4]}
                   className="custom-leaflet-popup"
                 >
                   <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
