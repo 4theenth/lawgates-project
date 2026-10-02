@@ -206,18 +206,21 @@ export function IndonesiaLegalMap() {
 
     // Eksekusi animasi pergerakan kamera secara langsung (Direct & Smooth, tanpa delay dan tanpa parabolic zoom-out-in yang aneh)
     if (mapRef.current) {
+      const mapSize = mapRef.current.getSize();
+      const isMobileMap = mapSize.y < 350;
+
       if (targetBounds) {
-        // Berikan headroom atas 160px (paddingTopLeft) agar kartu popup dan pin stem tidak terpotong navbar atas
+        // Headroom atas proporsional: 95px di mobile (250px height), 160px di desktop (520px height)
         mapRef.current.fitBounds(targetBounds, {
-          maxZoom: 6.2,
-          paddingTopLeft: [50, 160],
-          paddingBottomRight: [50, 50],
+          maxZoom: isMobileMap ? 5.8 : 6.2,
+          paddingTopLeft: isMobileMap ? [20, 95] : [50, 160],
+          paddingBottomRight: isMobileMap ? [20, 20] : [50, 50],
           animate: true,
           duration: 0.45,
           easeLinearity: 0.25,
         });
       } else if (landCoord) {
-        mapRef.current.setView(landCoord, 6, {
+        mapRef.current.setView(landCoord, isMobileMap ? 5.5 : 6, {
           animate: true,
           duration: 0.45,
         });
@@ -242,7 +245,7 @@ export function IndonesiaLegalMap() {
     // Kembalikan kamera ke seluruh Indonesia dengan transisi halus
     if (mapRef.current && geoJsonBounds) {
       mapRef.current.fitBounds(geoJsonBounds, {
-        padding: [15, 15],
+        padding: [10, 10],
         animate: true,
         duration: 0.45,
         easeLinearity: 0.25,
@@ -311,7 +314,7 @@ export function IndonesiaLegalMap() {
   };
 
   return (
-    <section className="mt-[66px] w-full">
+    <section className="mt-8 sm:mt-[66px] w-full">
       {/* ── Transisi Halus Saat Kursor Berpindah Antar Daerah (Snappy & GPU-accelerated) ── */}
       <style>{`
         .custom-leaflet-map path.leaflet-interactive {
@@ -321,19 +324,79 @@ export function IndonesiaLegalMap() {
       `}</style>
 
       {/* ── Section Header ────────────────────────────────────────── */}
-      <div className="mb-8">
-        <h2 className="text-2xl sm:text-[26px] font-bold text-neu-900 tracking-tight">
+      <div className="mb-6 sm:mb-8 max-w-[361px] lg:max-w-none mx-auto">
+        <h2 className="text-xl sm:text-2xl lg:text-[26px] font-bold text-neu-900 tracking-tight">
           Peta Hukum Indonesia
         </h2>
-        <p className="text-neu-600 text-md sm:text-[14px] mt-1 max-w-2xl leading-relaxed">
+        <p className="text-neu-600 text-xs sm:text-[14px] mt-1 max-w-2xl leading-relaxed">
           Klik salah satu provinsi untuk melihat jumlah peraturan dan hukum yang berlaku di wilayah tersebut.
         </p>  
       </div>
 
-      {/* ── Grid Container (Peta Kiri + Sidebar Kanan) Sejajar Garis Bawah ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full items-stretch">
-        {/* ── MAP CONTAINER (Left) ── responsive height, rounded 20px ── */}
-        <div className="lg:col-span-8 xl:col-span-8 w-full h-[400px] sm:h-[460px] lg:h-[520px] bg-[#71D4E9] rounded-[20px] border border-neu-200/80 overflow-hidden relative shadow-sm">
+      {/* ── Grid Container ──
+          Mobile (< lg): Stacked vertikal dengan urutan: 1. Search Box -> 2. Map (width: 361, height: 250, r: 12) -> 3. Info Box
+          Desktop (>= lg): 2 Kolom, Map (col-span-8, h-[520px]) di kiri, Search & Info di kanan
+      ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 w-full items-start">
+        
+        {/* ── FORM 1: Top Search Box (Mobile: Order 1, Desktop: Order 2 Right Col) ── */}
+        <div className="order-1 lg:order-2 lg:col-span-4 w-full max-w-[361px] lg:max-w-none mx-auto bg-white rounded-[12px] sm:rounded-[20px] border border-neu-100 sm:border-neu-50 p-3.5 sm:p-4 shrink-0 shadow-sm sm:shadow-none">
+          {/* Header: Pilih Provinsi + Earth Icon */}
+          <div className="flex items-center justify-between pb-2 sm:pb-2.5">
+            <h3 className="font-medium text-neu-900 text-xs sm:text-[14px]">
+              Pilih Provinsi
+            </h3>
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-neu-700 bg-white">
+              <Earth className="w-[18px] h-[18px] sm:w-[20px] sm:h-[20px]" />
+            </div>
+          </div>
+
+          {/* Input Search Provinsi */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 sm:pl-3.5 flex items-center pointer-events-none text-neu-400">
+              <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              placeholder="Cari provinsi"
+              className="w-full pl-8 sm:pl-9 pr-3 sm:pr-4 py-1.5 sm:py-2 bg-white border border-neu-100 rounded-lg sm:rounded-xl text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none focus:ring-1 focus:ring-pr-900 focus:border-pr-900 transition-all"
+            />
+
+            {/* Dropdown Pencarian Otomatis */}
+            {isSearchFocused && searchQuery.trim().length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-neu-200 rounded-xl shadow-lg max-h-56 overflow-y-auto z-30 py-1">
+                {filteredProvinces.length > 0 ? (
+                  filteredProvinces.map((prov) => (
+                    <button
+                      key={prov.id}
+                      type="button"
+                      onMouseDown={() => handleSelectProvince(prov.id)}
+                      className="w-full text-left px-3.5 py-2 hover:bg-neu-50 text-xs sm:text-sm text-neu-800 flex items-center justify-between transition-colors cursor-pointer"
+                    >
+                      <span className="font-medium">{prov.name}</span>
+                      <span className="text-[11px] text-neu-500 font-semibold">
+                        {prov.total.toLocaleString('id-ID')}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-xs text-neu-500 text-center">
+                    Provinsi tidak ditemukan
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── MAP CONTAINER (Mobile: Order 2, Desktop: Order 1 Left Col) ──
+            Ukuran Mobile: width: 361px (max-w-[361px]), height: 250px, border-radius: 12px
+            Ukuran Desktop: width: 100% (col-span-8), height: 520px, border-radius: 20px
+        ── */}
+        <div className="order-2 lg:order-1 lg:col-span-8 lg:row-span-2 w-full max-w-[361px] lg:max-w-none mx-auto h-[250px] lg:h-[520px] bg-[#71D4E9] rounded-[12px] sm:rounded-[20px] border border-neu-200/80 overflow-hidden relative shadow-sm">
           {/* Leaflet Map Canvas Wrapper dengan event mouse move & leave untuk hover tooltip */}
           <div
             className="w-full h-full relative"
@@ -353,7 +416,7 @@ export function IndonesiaLegalMap() {
                   transform: 'translate(-50%, -100%)',
                 }}
               >
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-white/95 backdrop-blur-sm rounded-full border border-neu-200/90 shadow-md text-[11px] font-bold text-neu-900 tracking-wide whitespace-nowrap">
+                <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-white/95 backdrop-blur-sm rounded-full border border-neu-200/90 shadow-md text-[10px] sm:text-[11px] font-bold text-neu-900 tracking-wide whitespace-nowrap">
                   <span className="w-1.5 h-1.5 rounded-full bg-pr-900 inline-block" />
                   <span>{hoveredProvinceName.toUpperCase()}</span>
                 </div>
@@ -362,8 +425,8 @@ export function IndonesiaLegalMap() {
 
             <MapContainer
               center={[-2.5, 118]}
-              zoom={5}
-              minZoom={4.6}
+              zoom={4.5}
+              minZoom={3.5}
               maxZoom={8}
               zoomSnap={0.25}
               zoomDelta={0.5}
@@ -443,23 +506,23 @@ export function IndonesiaLegalMap() {
                   position={popupPos}
                   closeButton={false}
                   autoPan={false}
-                  offset={[0, -4]}
+                  offset={[0, -2]}
                   className="custom-leaflet-popup"
                 >
                   <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
-                    <div className="bg-white rounded-xl shadow-xl border border-neu-200/90 p-3.5 min-w-[200px] select-none">
-                      {/* Header Card: NAMA PROVINSI 14px neu-900 | 3090 neu-900 */}
-                      <div className="flex items-center justify-between gap-3 pb-2 border-b border-neu-100">
-                        <span className="text-[12px] font-bold text-neu-900 tracking-wide">
+                    <div className="bg-white rounded-lg sm:rounded-xl shadow-xl border border-neu-200/90 p-2.5 sm:p-3.5 min-w-[170px] sm:min-w-[200px] select-none">
+                      {/* Header Card: NAMA PROVINSI | Total Regulasi */}
+                      <div className="flex items-center justify-between gap-2.5 pb-1.5 sm:pb-2 border-b border-neu-100">
+                        <span className="text-[11px] sm:text-[12px] font-bold text-neu-900 tracking-wide">
                           {activeProvince.name}
                         </span>
-                        <span className="text-[14px] font-bold text-neu-900">
+                        <span className="text-[12px] sm:text-[14px] font-bold text-neu-900">
                           {activeProvince.total.toLocaleString('id-ID')}
                         </span>
                       </div>
 
                       {/* Detail Berlaku & Tidak Berlaku */}
-                      <div className="py-2 space-y-1.5 text-xs">
+                      <div className="py-1.5 sm:py-2 space-y-1 sm:space-y-1.5 text-[10px] sm:text-xs">
                         <div className="flex items-center justify-between text-neu-600">
                           <span>Berlaku</span>
                           <span className="font-semibold text-neu-900">
@@ -478,15 +541,15 @@ export function IndonesiaLegalMap() {
                       <button
                         type="button"
                         onClick={() => handleNavigatePeraturan(activeProvince.name)}
-                        className="w-full mt-1 bg-pr-900 hover:bg-pr-800 text-white rounded-lg py-1.5 px-3 text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                        className="w-full mt-1 bg-pr-900 hover:bg-pr-800 text-white rounded-md sm:rounded-lg py-1 sm:py-1.5 px-2.5 sm:px-3 text-[10px] sm:text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
                       >
-                        <Eye className="w-3.5 h-3.5" />
+                        <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         <span>Lihat Peraturan</span>
                       </button>
                     </div>
 
                     {/* Garis Pin Stem Menunjuk Wilayah Terpilih */}
-                    <div className="w-[1.5px] h-6 bg-neu-900" />
+                    <div className="w-[1.5px] h-4 sm:h-6 bg-neu-900" />
                   </div>
                 </Popup>
               )}
@@ -494,240 +557,184 @@ export function IndonesiaLegalMap() {
           </div>
 
           {/* Indicator Info (Pojok Kiri Bawah) */}
-          <div className="absolute bottom-4 left-4 z-[400] flex items-center gap-2 bg-white/95 backdrop-blur-sm px-3.5 py-1.5 rounded-full border border-neu-200 shadow-sm text-xs text-neu-700 select-none pointer-events-none">
-            <span className="w-2.5 h-2.5 rounded-full bg-pr-900 inline-block" />
-            <span className="text-[12px] sm:text-xs font-medium">
+          <div className="absolute bottom-2.5 left-2.5 sm:bottom-4 sm:left-4 z-[400] flex items-center gap-1.5 sm:gap-2 bg-white/95 backdrop-blur-sm px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-neu-200 shadow-sm text-neu-700 select-none pointer-events-none">
+            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-pr-900 inline-block" />
+            <span className="text-[10px] sm:text-xs font-medium">
               klik provinsi yang ingin dipilih
             </span>
           </div>
 
           {/* Zoom & Reset Controls Custom Figma (Pojok Kanan Bawah) */}
-          <div className="absolute bottom-4 right-4 z-[400] flex flex-col bg-white rounded-[14px] shadow-md border border-neu-200/80 overflow-hidden select-none">
+          <div className="absolute bottom-2.5 right-2.5 sm:bottom-4 sm:right-4 z-[400] flex flex-col bg-white rounded-[10px] sm:rounded-[14px] shadow-md border border-neu-200/80 overflow-hidden select-none">
             <button
               type="button"
               onClick={() => mapRef.current?.zoomIn()}
               title="Perbesar Peta"
-              className="p-2 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
+              className="p-1.5 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             <div className="w-full h-[1px] bg-neu-100" />
             <button
               type="button"
               onClick={() => mapRef.current?.zoomOut()}
               title="Perkecil Peta"
-              className="p-2 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
+              className="p-1.5 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
             >
-              <Minus className="w-4 h-4" />
+              <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             <div className="w-full h-[1px] bg-neu-100" />
             <button
               type="button"
               onClick={handleResetMap}
               title="Kembali ke Tampilan Awal"
-              className="p-2 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
+              className="p-1.5 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
 
-        {/* ── SIDEBAR PANEL (Right) ── responsive height, auto-fit content cleanly ── */}
-        <div className="lg:col-span-4 xl:col-span-4 w-full lg:h-[520px] flex flex-col gap-3">
-          {/* ── FORM 1: Top Search Box ── */}
-          <div className="bg-white rounded-[20px] border border-neu-50 p-4 shrink-0">
-            {/* Header: Pilih Provinsi + Earth Icon */}
-            <div className="flex items-center justify-between pb-2.5">
-              <h3 className="font-medium text-neu-900 text-[14px]">
-                Pilih Provinsi
-              </h3>
-              <div className="w-8 h-8 rounded-full  flex items-center justify-center text-neu-700 bg-white">
-                <Earth className="w-[20px] h-[20px]" />
-              </div>
-            </div>
-
-            {/* Input Search Provinsi */}
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neu-400">
-                <Search className="w-4 h-4" />
-              </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                placeholder="Cari provinsi"
-                className="w-full pl-9 pr-4 py-2 bg-white border border-neu-100 rounded-xl text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none focus:ring-1 focus:ring-pr-900 focus:border-pr-900 transition-all"
-              />
-
-              {/* Dropdown Pencarian Otomatis */}
-              {isSearchFocused && searchQuery.trim().length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-neu-200 rounded-xl shadow-lg max-h-56 overflow-y-auto z-30 py-1">
-                  {filteredProvinces.length > 0 ? (
-                    filteredProvinces.map((prov) => (
-                      <button
-                        key={prov.id}
-                        type="button"
-                        onMouseDown={() => handleSelectProvince(prov.id)}
-                        className="w-full text-left px-3.5 py-2 hover:bg-neu-50 text-xs sm:text-sm text-neu-800 flex items-center justify-between transition-colors cursor-pointer"
-                      >
-                        <span className="font-medium">{prov.name}</span>
-                        <span className="text-[11px] text-neu-500 font-semibold">
-                          {prov.total.toLocaleString('id-ID')}
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-3 py-2 text-xs text-neu-500 text-center">
-                      Provinsi tidak ditemukan
-                    </div>
-                  )}
+        {/* ── FORM 2: Bottom Info Box (Mobile: Order 3, Desktop: Order 3 Right Col) ── */}
+        <div className="order-3 lg:order-3 lg:col-span-4 w-full max-w-[361px] lg:max-w-none mx-auto lg:h-[406px] bg-white rounded-[12px] sm:rounded-[20px] border border-neu-100 sm:border-neu-50 p-3.5 sm:p-4 flex flex-col justify-between overflow-y-auto shadow-sm sm:shadow-none">
+          {activeProvince ? (
+            <div className="space-y-2.5 animate-in fade-in duration-300">
+              {/* Header Row: Logo Timbangan + NAMA PROVINSI + Total Regulasi */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-[30px] h-[30px] sm:w-[35px] sm:h-[35px] rounded-lg bg-pr-50 flex items-center justify-center text-pr-900 shrink-0">
+                    <Scale className="w-[18px] h-[18px] sm:w-[20px] sm:h-[20px]" />
+                  </div>
+                  <span className="font-bold text-[12px] sm:text-[14px] text-pr-900 tracking-wide truncate">
+                    {activeProvince.name}
+                  </span>
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* ── FORM 2: Bottom Info Box ── */}
-          <div className="flex-1 bg-white rounded-[20px] border border-neu-50 p-4  flex flex-col justify-between overflow-y-auto">
-            {activeProvince ? (
-              <div className="space-y-2.5 animate-in fade-in duration-300">
-                {/* Header Row: Logo Timbangan + NAMA PROVINSI + Total Regulasi */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-[35px] h-[35px] rounded-lg bg-pr-50 flex items-center justify-center text-pr-900 shrink-0">
-                      <Scale className="w-[20px] h-[20px]" />
-                    </div>
-                    <span className="font-bold text-[13px] sm:text-[14px] text-pr-900 tracking-wide truncate">
-                      {activeProvince.name}
+                <div className="flex items-center gap-1.5 text-pr-900 shrink-0 ml-2">
+                  <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pr-900" />
+                  <span className="font-bold text-[12px] sm:text-[14px]">
+                    {activeProvince.total.toLocaleString('id-ID')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Garis Pembatas di Bawah Nama Provinsi */}
+              <div className="w-full h-[1px] bg-neu-50" />
+
+              {/* Progress Bar Status Peraturan */}
+              <div className="space-y-2">
+                {/* Berlaku */}
+                <div>
+                  <div className="flex items-center justify-between text-[11px] sm:text-[12px] mb-1">
+                    <span className="text-neu-900 font-medium">Berlaku</span>
+                    <span className="text-neu-900 font-bold">
+                      {activeProvince.berlaku.toLocaleString('id-ID')}
                     </span>
                   </div>
+                  <div className="w-full h-2 rounded-full bg-neu-100 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-suc-800 transition-all duration-500"
+                      style={{
+                        width: `${Math.round(
+                          (activeProvince.berlaku / activeProvince.total) * 100
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
 
-                  <div className="flex items-center gap-1.5 text-pr-900 shrink-0 ml-2">
-                    <FileText className="w-4 h-4 text-pr-900" />
-                    <span className="font-bold text-[13px] sm:text-[14px]">
-                      {activeProvince.total.toLocaleString('id-ID')}
+                {/* Tidak Berlaku */}
+                <div>
+                  <div className="flex items-center justify-between text-[11px] sm:text-[12px] mb-1">
+                    <span className="text-neu-900 font-medium">Tidak Berlaku</span>
+                    <span className="text-neu-900 font-bold">
+                      {activeProvince.tidakBerlaku.toLocaleString('id-ID')}
                     </span>
                   </div>
-                </div>
-
-                {/* Garis Pembatas di Bawah Nama Provinsi */}
-                <div className="w-full h-[1px] bg-neu-50" />
-
-                {/* Progress Bar Status Peraturan */}
-                <div className="space-y-2">
-                  {/* Berlaku */}
-                  <div>
-                    <div className="flex items-center justify-between text-[11px] sm:text-[12px] mb-1">
-                      <span className="text-neu-900 font-medium">Berlaku</span>
-                      <span className="text-neu-900 font-bold">
-                        {activeProvince.berlaku.toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-neu-100 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-suc-800 transition-all duration-500"
-                        style={{
-                          width: `${Math.round(
-                            (activeProvince.berlaku / activeProvince.total) * 100
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Tidak Berlaku */}
-                  <div>
-                    <div className="flex items-center justify-between text-[11px] sm:text-[12px] mb-1">
-                      <span className="text-neu-900 font-medium">Tidak Berlaku</span>
-                      <span className="text-neu-900 font-bold">
-                        {activeProvince.tidakBerlaku.toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-dan-50 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-dan-800 transition-all duration-500"
-                        style={{
-                          width: `${Math.round(
-                            (activeProvince.tidakBerlaku / activeProvince.total) * 100
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Garis Pembatas di Bawah Tidak Berlaku */}
-                <div className="w-full h-[1px] bg-neu-100" />
-
-                {/* Peraturan Daerah Preview */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-[12px]">
-                    <span className="font-bold text-neu-900">Peraturan Daerah</span>
-                    <button
-                      type="button"
-                      onClick={() => handleNavigatePeraturan(activeProvince.name)}
-                      className="text-neu-600 hover:text-pr-900 font-medium transition-colors flex items-center gap-0.5 text-[11px] cursor-pointer"
-                    >
-                      Lihat semua
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Card Detail Perda */}
-                  <div className="p-3 rounded-xl  bg-white space-y-2 shadow-sm">
-                    {/* Badge Status */}
-                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-suc-50 text-suc-800 border border-suc-200 text-[10px] font-semibold">
-                      <CircleCheckBig className="w-3 h-3 text-suc-800" />
-                      <span>{activeProvince.samplePerda.status}</span>
-                    </div>
-
-                    {/* Judul Perda */}
-                    <p className="text-[11px] sm:text-[12px] text-neu-800 font-medium line-clamp-2 leading-relaxed">
-                      {activeProvince.samplePerda.nomor}{' '}
-                      {activeProvince.samplePerda.tentang}
-                    </p>
-
-                    {/* Tombol Lihat Detail */}
-                    <button
-                      type="button"
-                      onClick={() => handleNavigatePeraturan(activeProvince.name)}
-                      className="w-full bg-pr-50 hover:bg-pr-100 text-pr-900 text-[12px] font-medium py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Lihat Detail</span>
-                    </button>
+                  <div className="w-full h-2 rounded-full bg-dan-50 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-dan-800 transition-all duration-500"
+                      style={{
+                        width: `${Math.round(
+                          (activeProvince.tidakBerlaku / activeProvince.total) * 100
+                        )}%`,
+                      }}
+                    />
                   </div>
                 </div>
               </div>
-            ) : (
-              /* KONDISI 2: BELUM ADA PROVINSI DIPILIH (EMPTY STATE) */
-              <div className="flex flex-col items-center justify-center text-center my-auto py-8 px-4">
-                <div className="w-12 h-12 rounded-[18px] bg-white border border-neu-100 flex items-center justify-center text-neu-400 mb-3">
-                  <Earth className="w-6 h-6" strokeWidth={1.5} />
-                </div>
-                <h4 className="font-medium text-[14px] text-neu-900 mb-1">
-                  Belum ada provinsi yang dipilih
-                </h4>
-                <p className="text-[12px] text-neu-200 max-w-[240px] leading-relaxed">
-                  Silakan klik salah satu provinsi pada peta atau pencarian untuk menampilkan jumlah peraturan
-                </p>
-              </div>
-            )}
 
-            {/* Tombol Footer: Lihat Lainnya (Aktif jika ada provinsi) */}
-            {activeProvince && (
-              <div className="pt-2.5">
-                <button
-                  type="button"
-                  onClick={() => handleNavigatePeraturan(activeProvince.name)}
-                  className="w-full bg-pr-900 hover:bg-pr-800 text-white rounded-xl py-2 px-4 text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>Lihat Lainnya</span>
-                </button>
+              {/* Garis Pembatas di Bawah Tidak Berlaku */}
+              <div className="w-full h-[1px] bg-neu-100" />
+
+              {/* Peraturan Daerah Preview */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] sm:text-[12px]">
+                  <span className="font-bold text-neu-900">Peraturan Daerah</span>
+                  <button
+                    type="button"
+                    onClick={() => handleNavigatePeraturan(activeProvince.name)}
+                    className="text-neu-600 hover:text-pr-900 font-medium transition-colors flex items-center gap-0.5 text-[10px] sm:text-[11px] cursor-pointer"
+                  >
+                    Lihat semua
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Card Detail Perda */}
+                <div className="p-2.5 sm:p-3 rounded-xl bg-white space-y-2 shadow-sm border border-neu-100 sm:border-transparent">
+                  {/* Badge Status */}
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-suc-50 text-suc-800 border border-suc-200 text-[10px] font-semibold">
+                    <CircleCheckBig className="w-3 h-3 text-suc-800" />
+                    <span>{activeProvince.samplePerda.status}</span>
+                  </div>
+
+                  {/* Judul Perda */}
+                  <p className="text-[11px] sm:text-[12px] text-neu-800 font-medium line-clamp-2 leading-relaxed">
+                    {activeProvince.samplePerda.nomor}{' '}
+                    {activeProvince.samplePerda.tentang}
+                  </p>
+
+                  {/* Tombol Lihat Detail */}
+                  <button
+                    type="button"
+                    onClick={() => handleNavigatePeraturan(activeProvince.name)}
+                    className="w-full bg-pr-50 hover:bg-pr-100 text-pr-900 text-[11px] sm:text-[12px] font-medium py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Lihat Detail</span>
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            /* KONDISI 2: BELUM ADA PROVINSI DIPILIH (EMPTY STATE) */
+            <div className="flex flex-col items-center justify-center text-center my-auto py-6 sm:py-8 px-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-[14px] sm:rounded-[18px] bg-white border border-neu-100 flex items-center justify-center text-neu-400 mb-2 sm:mb-3">
+                <Earth className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.5} />
+              </div>
+              <h4 className="font-medium text-[13px] sm:text-[14px] text-neu-900 mb-1">
+                Belum ada provinsi yang dipilih
+              </h4>
+              <p className="text-[11px] sm:text-[12px] text-neu-400 max-w-[240px] leading-relaxed">
+                Silakan klik salah satu provinsi pada peta atau pencarian untuk menampilkan jumlah peraturan
+              </p>
+            </div>
+          )}
+
+          {/* Tombol Footer: Lihat Lainnya (Aktif jika ada provinsi) */}
+          {activeProvince && (
+            <div className="pt-2.5">
+              <button
+                type="button"
+                onClick={() => handleNavigatePeraturan(activeProvince.name)}
+                className="w-full bg-pr-900 hover:bg-pr-800 text-white rounded-xl py-2 px-4 text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>Lihat Lainnya</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </section>
