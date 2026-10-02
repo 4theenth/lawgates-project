@@ -106,6 +106,50 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
     { id: 'draft' as const, label: 'Draft' },
   ];
 
+  // ── Penanganan Tombol Back Bawaan Browser (Chrome/Edge/Firefox) ──
+  // Menjaga agar tombol back browser saat edit data kembali ke daftar /admin/dokumen-hukum
+  // bukannya mundur ke /admin/dashboard
+  const editStateRef = useRef({ editingDoc, isAddModalOpen, editingStatusDoc, deletingDoc });
+
+  useEffect(() => {
+    editStateRef.current = { editingDoc, isAddModalOpen, editingStatusDoc, deletingDoc };
+  }, [editingDoc, isAddModalOpen, editingStatusDoc, deletingDoc]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const { editingDoc: curEditingDoc, isAddModalOpen: curAdd, editingStatusDoc: curStatus, deletingDoc: curDelete } = editStateRef.current;
+
+      if (curEditingDoc !== null) {
+        setEditingDoc(null);
+        return;
+      }
+      if (curAdd) {
+        setIsAddModalOpen(false);
+        return;
+      }
+      if (curStatus !== null) {
+        setEditingStatusDoc(null);
+        return;
+      }
+      if (curDelete !== null) {
+        setDeletingDoc(null);
+        return;
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  // Sync state dengan history browser saat masuk mode edit atau membuka modal
+  useEffect(() => {
+    if (editingDoc !== null || isAddModalOpen || editingStatusDoc !== null || deletingDoc !== null) {
+      window.history.pushState({ activeOverlay: true }, '');
+    }
+  }, [editingDoc, isAddModalOpen, editingStatusDoc, deletingDoc]);
+
   const breadcrumbs = [
     { label: 'Dashboard', href: '/admin/dashboard' },
     { label: 'Dokumen Hukum' },

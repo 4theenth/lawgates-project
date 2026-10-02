@@ -152,6 +152,50 @@ export default function DokumenHukumCreate() {
       });
   }, []);
 
+  // ── Penanganan Tombol Back Bawaan Browser (Chrome/Edge/Firefox) ──
+  // Menjaga agar tombol back browser kembali ke langkah/layar sebelumnya
+  // daripada langsung keluar ke /admin/dokumen-hukum
+  const stepStateRef = useRef({ currentStep, editingFile });
+
+  useEffect(() => {
+    stepStateRef.current = { currentStep, editingFile };
+  }, [currentStep, editingFile]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const { editingFile: currentEditing, currentStep: curStep } = stepStateRef.current;
+
+      // 1. Jika sedang dalam layar koreksi/edit file (CorrectionDetailView)
+      if (currentEditing !== null) {
+        setEditingFile(null); // Tutup koreksi & kembali ke Langkah 3 (Layar pada Gambar)
+        return;
+      }
+
+      // 2. Jika berada di Langkah > 1 (Langkah 3 atau 2 atau 4)
+      if (curStep > 1) {
+        if (curStep === 3 || curStep === 2) {
+          setCurrentStep(1); // Kembali ke Langkah 1 (Unggah File)
+        } else if (curStep === 4) {
+          setCurrentStep(3); // Kembali ke Langkah 3 (Validasi)
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  // Sync state dengan history browser saat masuk mode edit atau pindah langkah
+  useEffect(() => {
+    if (editingFile !== null) {
+      window.history.pushState({ editMode: true, fileId: editingFile.id }, '');
+    } else if (currentStep > 1) {
+      window.history.pushState({ step: currentStep }, '');
+    }
+  }, [editingFile, currentStep]);
+
   // Handler tambah berkas dari tombol di header atau dropzone
   const handleAddFiles = async (newFiles: File[]) => {
     setInlineError(null);

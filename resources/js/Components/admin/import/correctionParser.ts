@@ -219,6 +219,20 @@ export function generateInitialCorrectionData(
   let babList: ChapterItem[] = [];
 
   if (Array.isArray(raw.chunks)) {
+    // Bangun peta penjelasan dari chunks bertipe PENJELASAN_PASAL
+    // Key: label pasal (misal "Pasal 5"), Value: teks penjelasan
+    const penjelasanMap = new Map<string, string>();
+    raw.chunks.forEach((c: any) => {
+      const tipe = String(c.tipe || '').toUpperCase();
+      const bagian = String(c.bagian_dokumen || '').toUpperCase();
+      if (tipe === 'PENJELASAN_PASAL' || (tipe === 'PASAL' && bagian === 'PENJELASAN')) {
+        const labelKey = String(c.label || '').trim();
+        if (labelKey) {
+          penjelasanMap.set(labelKey, String(c.teks || c.isi || '').trim());
+        }
+      }
+    });
+
     // Ambil HANYA chunk bertipe PASAL murni (hindari PENJELASAN_PASAL atau LAMPIRAN)
     const pasalChunks = raw.chunks.filter(
       (c: any) => String(c.tipe || '').toUpperCase() === 'PASAL'
@@ -254,10 +268,12 @@ export function generateInitialCorrectionData(
             };
           } else if (tipe === 'PASAL') {
             const pasalNum = label || `Pasal ${currentBab.pasalList.length + 1}`;
+            const penjelasan = penjelasanMap.get(pasalNum) || '';
             currentBab.pasalList.push({
               id: c.id || `pasal-${currentBab.id}-${currentBab.pasalList.length + 1}`,
               nomor: pasalNum,
               isi: c.teks || c.isi || '',
+              penjelasan,
               isExpanded: true,
             });
           }
@@ -274,12 +290,16 @@ export function generateInitialCorrectionData(
             judul: 'Batang Tubuh',
             deskripsi: '',
             isExpanded: true,
-            pasalList: pasalChunks.map((c: any, idx: number) => ({
-              id: c.id || `pasal-${idx + 1}`,
-              nomor: c.label || `Pasal ${idx + 1}`,
-              isi: c.teks || c.isi || '',
-              isExpanded: true,
-            })),
+            pasalList: pasalChunks.map((c: any, idx: number) => {
+              const pasalLabel = String(c.label || '').trim() || `Pasal ${idx + 1}`;
+              return {
+                id: c.id || `pasal-${idx + 1}`,
+                nomor: pasalLabel,
+                isi: c.teks || c.isi || '',
+                penjelasan: penjelasanMap.get(pasalLabel) || '',
+                isExpanded: true,
+              };
+            }),
           },
         ];
       }
