@@ -196,9 +196,10 @@ export function IndonesiaLegalMap() {
 
         if (isSelected) {
           layer.bringToFront();
-          targetBounds = layer.getBounds();
-          if (!landCoord) {
-            setPopupPos(targetBounds.getCenter());
+          const bounds = layer.getBounds();
+          targetBounds = bounds;
+          if (!landCoord && bounds) {
+            setPopupPos(bounds.getCenter());
           }
         }
       });
