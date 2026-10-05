@@ -3,7 +3,7 @@ import { Head, router } from '@inertiajs/react';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
 import { ChevronUp, X, Maximize2 } from 'lucide-react';
-import { ChapterItem, ArticleItem } from '@/Components/admin/import/correctionParser';
+import { ChapterItem, ArticleItem, detectTargetPeraturan } from '@/Components/admin/import/correctionParser';
 import { ReadonlyTableOfContents } from '@/Components/public/peraturan/ReadonlyTableOfContents';
 import { ReadonlyPembukaanSection } from '@/Components/public/peraturan/ReadonlyPembukaanSection';
 import { ReadonlyBatangTubuhSection } from '@/Components/public/peraturan/ReadonlyBatangTubuhSection';
@@ -98,7 +98,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Map Data from Database to UI State
+  // Map Data from Database to UI State (Adaptif Tree Builder)
   const initialBabList = useMemo<ChapterItem[]>(() => {
     if (!peraturan) return [];
     const rawStrukturList = peraturan.struktur_dokumen || [];
@@ -108,15 +108,28 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     const rawPasalList = peraturan.pasal || [];
 
     // First pass: create all ArticleItems and a map for quick lookup
-    const pasalMap = new Map<string, any>();
+    const pasalMap = new Map<string, ArticleItem>();
     rawPasalList.forEach((p: any) => {
+      const rawNomor = String(p.nomor_pasal || '').trim();
+      const nomorFormatted =
+        rawNomor === '0' || rawNomor === ''
+          ? 'Pasal'
+          : rawNomor.toLowerCase().startsWith('pasal') || rawNomor.toLowerCase().startsWith('angka')
+          ? rawNomor
+          : `Pasal ${rawNomor}`;
+
+      const targetInfo = detectTargetPeraturan(p.isi_pasal || '');
+      const isAmendingContainer = Boolean(targetInfo) || /diubah\s+sebagai\s+berikut/i.test(p.isi_pasal || '');
+
       pasalMap.set(p.id.toString(), {
         id: p.id.toString(),
-        nomor: p.nomor_pasal?.toLowerCase().startsWith('pasal') ? p.nomor_pasal : `Pasal ${p.nomor_pasal}`,
-        isi: p.isi_pasal,
-        penjelasan: p.penjelasan?.isi_penjelasan,
-        isExpanded: true,
-        pasalList: []
+        nomor: nomorFormatted,
+        isi: p.isi_pasal || '',
+        penjelasan: p.penjelasan?.isi_penjelasan || '',
+        tipe: p.parent_pasal_id ? 'PASAL_PERUBAHAN' : isAmendingContainer ? 'PASAL_PERUBAHAN_CONTAINER' : 'PASAL',
+        targetInduk: targetInfo,
+        isExpanded: false,
+        pasalList: [],
       });
     });
 
@@ -127,7 +140,8 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       if (p.parent_pasal_id) {
         const parentArticle = pasalMap.get(p.parent_pasal_id.toString());
         if (parentArticle) {
-          parentArticle.pasalList!.push(articleItem);
+          if (!parentArticle.pasalList) parentArticle.pasalList = [];
+          parentArticle.pasalList.push(articleItem);
         } else {
           rootPasals.push(p);
         }
@@ -137,17 +151,19 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     });
 
     const map = new Map<string, ChapterItem>();
+    const assignedPasalIds = new Set<string>();
 
     // Third pass: instantiate all ChapterItems
     strukturList.forEach((str: any) => {
       const pasalsInStruktur = rootPasals.filter((p: any) => p.struktur_id === str.id);
+      pasalsInStruktur.forEach((p: any) => assignedPasalIds.add(p.id.toString()));
 
       let judul = str.label || '';
       let deskripsi = '';
       if (str.judul_struktur) {
         if (!judul) {
           judul = str.judul_struktur;
-        } else {
+        } else if (str.judul_struktur !== str.label) {
           deskripsi = str.judul_struktur;
         }
       }
@@ -156,9 +172,10 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
         id: str.id.toString(),
         judul: judul || 'BAGIAN',
         deskripsi: deskripsi,
-        isExpanded: true,
+        tipe: (str.tipe_struktur as 'BAB' | 'BAGIAN' | 'PARAGRAF') || 'BAB',
+        isExpanded: false,
         children: [],
-        pasalList: pasalsInStruktur.map((p: any) => pasalMap.get(p.id.toString())!)
+        pasalList: pasalsInStruktur.map((p: any) => pasalMap.get(p.id.toString())!),
       });
     });
 
@@ -171,7 +188,8 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
         if (str.parent_id) {
           const parent = map.get(str.parent_id.toString());
           if (parent) {
-            parent.children!.push(item);
+            if (!parent.children) parent.children = [];
+            parent.children.push(item);
           } else {
             rootItems.push(item);
           }
@@ -180,6 +198,32 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
         }
       }
     });
+
+    // Fifth pass: Recovery of unassigned/orphan pasals
+    const unassignedPasals = rootPasals.filter((p: any) => !assignedPasalIds.has(p.id.toString()));
+
+    if (unassignedPasals.length > 0) {
+      if (rootItems.length > 0) {
+        // Distribusikan pasal unassigned ke Bab/Struktur pertama atau yang relevan
+        let targetChapter = rootItems[0];
+        unassignedPasals.forEach((p: any) => {
+          const art = pasalMap.get(p.id.toString());
+          if (art && targetChapter) {
+            targetChapter.pasalList.push(art);
+          }
+        });
+      } else {
+        // Buat Batang Tubuh default jika tidak ada struktur dokumen
+        rootItems.push({
+          id: 'bab-default',
+          judul: 'Batang Tubuh',
+          tipe: 'BAB',
+          isExpanded: false,
+          children: [],
+          pasalList: unassignedPasals.map((p: any) => pasalMap.get(p.id.toString())!),
+        });
+      }
+    }
 
     return rootItems;
   }, [peraturan]);
@@ -505,8 +549,8 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
           {!showGraph ? (
             <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5 w-full min-w-0">
 
-              {/* Kolom Kiri: Daftar Isi (Ramping seperti Form Koreksi Data) */}
-              <div className="w-full lg:w-[220px] xl:w-[240px] shrink-0 lg:sticky lg:top-28">
+              {/* Kolom Kiri: Daftar Isi */}
+              <div className="w-full lg:w-[290px] xl:w-[320px] shrink-0 lg:sticky lg:top-28">
                 <ReadonlyTableOfContents
                   pembukaanJudul="Pembukaan"
                   pembukaanData={pembukaanData}

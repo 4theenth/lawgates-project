@@ -666,55 +666,7 @@ class DokumenHukumController extends Controller
             }
 
             $babList = $data['babList'] ?? [];
-            foreach ($babList as $babData) {
-                $babId = null;
-                if ($babData['id'] !== 'bab_default') {
-                    $judulStruktur = $babData['judul'] ?? '';
-                    $label = '';
-                    if (preg_match('/^(BAB\s+[IVXLCDM]+)\s+(.*)$/i', $judulStruktur, $m)) {
-                        $label = $m[1];
-                        $judulStruktur = $m[2];
-                    } else {
-                        $label = $judulStruktur;
-                        $judulStruktur = '';
-                    }
-
-                    $bab = StrukturDokumen::create([
-                        'peraturan_id' => $peraturan->id,
-                        'tipe_struktur' => 'BAB',
-                        'label' => $label,
-                        'judul_struktur' => $judulStruktur,
-                        'urutan' => $urutanStruktur++
-                    ]);
-                    $babId = $bab->id;
-                }
-
-                foreach ($babData['pasalList'] as $pasalData) {
-                    $nomor_pasal = str_replace('Pasal ', '', $pasalData['nomor'] ?? '');
-                    if (is_numeric($nomor_pasal)) {
-                        $nomor_pasal = (int) $nomor_pasal;
-                    } else {
-                        $nomor_pasal = 0; 
-                    }
-
-                    $pasal = Pasal::create([
-                        'peraturan_id' => $peraturan->id,
-                        'struktur_id' => $babId,
-                        'nomor_pasal' => $nomor_pasal,
-                        'isi_pasal' => $pasalData['isi'] ?? '',
-                        'urutan' => $urutanPasal++
-                    ]);
-
-                    $penjelasanText = trim($pasalData['penjelasan'] ?? '');
-                    if ($penjelasanText) {
-                        PenjelasanPasal::create([
-                            'peraturan_id' => $peraturan->id,
-                            'pasal_id' => $pasal->id,
-                            'isi_penjelasan' => $penjelasanText
-                        ]);
-                    }
-                }
-            }
+            $this->saveStrukturAndPasal($peraturan->id, $babList, null, $urutanStruktur, $urutanPasal);
         } else {
             // Normal update for existing documents
             // Update Menimbang
@@ -995,6 +947,97 @@ class DokumenHukumController extends Controller
                 'success' => false,
                 'message' => 'Terjadi kesalahan sistem saat mengimpor dokumen hukum dari penyimpanan.'
             ], 500);
+        }
+    }
+
+    /**
+     * Simpan struktur dokumen (BAB, BAGIAN, PARAGRAF) dan pasal-pasal secara rekursif
+     */
+    private function saveStrukturAndPasal(
+        int $peraturanId,
+        array $nodes,
+        ?int $parentId = null,
+        &$urutanStruktur = 1,
+        &$urutanPasal = 1
+    ) {
+        foreach ($nodes as $node) {
+            $tipe = strtoupper($node['tipe'] ?? 'BAB');
+            $judul = $node['judul'] ?? '';
+            $label = $node['label'] ?? '';
+            $judulStruktur = $node['deskripsi'] ?? '';
+
+            if (!$label && $judul) {
+                if (preg_match('/^(BAB\s+[IVXLCDM\d]+|Bagian\s+[A-Za-z\d]+|Paragraf\s+\d+)\s*(?:-\s*)?(.*)$/i', $judul, $m)) {
+                    $label = trim($m[1]);
+                    $judulStruktur = trim($m[2]) ?: $judulStruktur;
+                } else {
+                    $label = $judul;
+                }
+            }
+
+            $struktur = null;
+            if ($node['id'] !== 'bab_default') {
+                $struktur = StrukturDokumen::create([
+                    'peraturan_id' => $peraturanId,
+                    'tipe_struktur' => $tipe,
+                    'label' => $label ?: 'Struktur',
+                    'judul_struktur' => $judulStruktur,
+                    'parent_id' => $parentId,
+                    'urutan' => $urutanStruktur++
+                ]);
+            }
+
+            $strukturId = $struktur ? $struktur->id : $parentId;
+
+            // 1. Simpan Pasal-pasal langsung di bawah struktur ini
+            if (!empty($node['pasalList']) && is_array($node['pasalList'])) {
+                foreach ($node['pasalList'] as $pasalData) {
+                    $this->savePasalNode($peraturanId, $strukturId, $pasalData, null, $urutanPasal);
+                }
+            }
+
+            // 2. Simpan Sub-struktur (Children: Bagian / Paragraf) secara rekursif
+            if (!empty($node['children']) && is_array($node['children'])) {
+                $this->saveStrukturAndPasal($peraturanId, $node['children'], $strukturId, $urutanStruktur, $urutanPasal);
+            }
+        }
+    }
+
+    /**
+     * Simpan node Pasal dan Sub-pasal (Pasal Ubahan) secara rekursif
+     */
+    private function savePasalNode(
+        int $peraturanId,
+        ?int $strukturId,
+        array $pasalData,
+        ?int $parentPasalId = null,
+        &$urutanPasal = 1
+    ) {
+        $nomorPasal = trim($pasalData['nomor'] ?? $pasalData['label'] ?? 'Pasal');
+
+        $pasal = Pasal::create([
+            'peraturan_id' => $peraturanId,
+            'struktur_id' => $strukturId,
+            'parent_pasal_id' => $parentPasalId,
+            'nomor_pasal' => $nomorPasal,
+            'isi_pasal' => $pasalData['isi'] ?? '',
+            'urutan' => $urutanPasal++
+        ]);
+
+        $penjelasanText = trim($pasalData['penjelasan'] ?? '');
+        if ($penjelasanText) {
+            PenjelasanPasal::create([
+                'peraturan_id' => $peraturanId,
+                'pasal_id' => $pasal->id,
+                'isi_penjelasan' => $penjelasanText
+            ]);
+        }
+
+        // Simpan Sub-Pasal yang diubah di dalam pasal container ini
+        if (!empty($pasalData['pasalList']) && is_array($pasalData['pasalList'])) {
+            foreach ($pasalData['pasalList'] as $subPasalData) {
+                $this->savePasalNode($peraturanId, $strukturId, $subPasalData, $pasal->id, $urutanPasal);
+            }
         }
     }
 }
