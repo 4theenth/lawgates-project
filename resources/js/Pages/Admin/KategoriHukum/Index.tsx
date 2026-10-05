@@ -12,6 +12,7 @@ import {
 } from '@/Components/admin/CategoryTable';
 import { CategoryModal } from '@/Components/admin/CategoryModal';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
+import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
 import { Plus, Search, X, Gavel } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
@@ -250,31 +251,18 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
         <Breadcrumb items={breadcrumbs} />
       </div>
 
-      {/* 2. Page Header & Action Button Sesuai Spesifikasi */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-sans text-[20px] font-semibold leading-[26px] text-neu-900 tracking-tight">
-            Kategori Hukum
-          </h1>
-          <p className="font-sans text-[14px] font-normal leading-[20px] text-neu-600 mt-1">
-            Kelola kategori hukum yang akan digunakan untuk menambahkan data hukum nantinya
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setServerError(null);
-              setIsAddModalOpen(true);
-            }}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Kategori</span>
-          </button>
-        </div>
-      </div>
+      {/* 2. Page Header & Action Button Menggunakan Komponen Reusable */}
+      <AdminPageHeader
+        title="Kategori Hukum"
+        description="Kelola kategori hukum yang akan digunakan untuk menambahkan data hukum nantinya"
+        action={{
+          label: 'Tambah Kategori',
+          onClick: () => {
+            setServerError(null);
+            setIsAddModalOpen(true);
+          },
+        }}
+      />
 
       {/* 3. Toolbar: Search Bar (Aligned Right) */}
       <div className="flex items-center justify-end mb-6">

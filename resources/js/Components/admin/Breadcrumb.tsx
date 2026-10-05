@@ -15,7 +15,10 @@ interface BreadcrumbProps {
 
 export function Breadcrumb({ items, className = '' }: BreadcrumbProps) {
   return (
-    <nav aria-label="Breadcrumb" className={`flex items-center text-[11px] sm:text-xs text-gray-500 font-medium ${className}`}>
+    <nav
+      aria-label="Breadcrumb"
+      className={`flex items-center font-sans text-[12px] leading-[18px] font-medium tracking-normal text-neu-500 ${className}`}
+    >
       <ol className="flex flex-wrap items-center gap-x-1 gap-y-1 sm:gap-x-1.5">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
@@ -23,24 +26,24 @@ export function Breadcrumb({ items, className = '' }: BreadcrumbProps) {
           return (
             <li key={`${item.label}-${index}`} className="inline-flex items-center">
               {index > 0 && (
-                <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 mx-0.5 sm:mx-1 text-gray-400 shrink-0" />
+                <ChevronRight className="w-3.5 h-3.5 mx-0.5 sm:mx-1 text-neu-400 shrink-0" />
               )}
               {item.onClick ? (
                 <button
                   type="button"
                   onClick={item.onClick}
-                  className="text-gray-500 hover:text-pr-900 transition-colors duration-150 cursor-pointer"
+                  className="text-neu-500 hover:text-pr-900 transition-colors duration-150 cursor-pointer"
                 >
                   {item.label}
                 </button>
               ) : isLast || !item.href ? (
-                <span className={`${isLast ? 'text-gray-900 font-semibold' : 'text-gray-500'}`}>
+                <span className={isLast ? 'text-neu-900 font-medium' : 'text-neu-500'}>
                   {item.label}
                 </span>
               ) : (
                 <Link
                   href={item.href}
-                  className="text-gray-500 hover:text-pr-900 transition-colors duration-150"
+                  className="text-neu-500 hover:text-pr-900 transition-colors duration-150"
                 >
                   {item.label}
                 </Link>

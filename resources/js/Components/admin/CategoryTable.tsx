@@ -1,6 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, Pencil, Trash2 } from 'lucide-react';
 import { IconButton } from '@/Components/common';
+import {
+  Table,
+  TableHeader,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+} from '@/Components/ui/table';
 
 export interface CategoryItem {
   id: string;
@@ -62,61 +70,59 @@ export function CategoryTable({
   }, [activeActionId]);
 
   return (
-    <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-visible transition-all duration-200">
-      <div className="overflow-x-auto sm:overflow-visible">
-        <table className="w-full min-w-[500px] text-left border-collapse">
-          {/* Table Header (Sesuai spesifikasi admin: rounded-tl-xl, rounded-tr-xl, bg-neu-50) */}
-          <thead>
-            <tr className="bg-neu-50 border-b border-neu-200 text-[12px] font-semibold text-neu-600 uppercase tracking-wider select-none">
-              <th className="py-3 px-5 whitespace-nowrap rounded-tl-xl">
-                <div
-                  onClick={() => onSort?.('kategori')}
-                  className="group inline-flex items-center gap-1 cursor-pointer hover:text-neu-900 transition-colors"
-                >
-                  <span className={sortColumn === 'kategori' ? 'text-pr-900 font-bold' : ''}>Kategori</span>
-                  {renderSortIcon('kategori')}
-                </div>
-              </th>
-              <th className="py-3 px-5 whitespace-nowrap">
-                <div
-                  onClick={() => onSort?.('deskripsi')}
-                  className="group inline-flex items-center gap-1 cursor-pointer hover:text-neu-900 transition-colors"
-                >
-                  <span className={sortColumn === 'deskripsi' ? 'text-pr-900 font-bold' : ''}>Deskripsi</span>
-                  {renderSortIcon('deskripsi')}
-                </div>
-              </th>
-              <th className="py-3 px-5 text-right whitespace-nowrap rounded-tr-xl">
-                <span>Aksi</span>
-              </th>
-            </tr>
-          </thead>
+    <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-hidden transition-all duration-200">
+      <Table className="w-full min-w-[550px] text-left border-collapse">
+        {/* Table Header (Sesuai spesifikasi admin: rounded-tl-xl, rounded-tr-xl, bg-neu-50) */}
+        <TableHeader className="bg-neu-50">
+          <TableRow className="border-b border-neu-200">
+            <TableHead className="py-3 px-5 whitespace-nowrap rounded-tl-xl">
+              <div
+                onClick={() => onSort?.('kategori')}
+                className="group inline-flex items-center gap-1 cursor-pointer text-neu-700"
+              >
+                <span className={sortColumn === 'kategori' ? 'text-pr-900 font-bold' : ''}>Kategori</span>
+                {renderSortIcon('kategori')}
+              </div>
+            </TableHead>
+            <TableHead className="py-3 px-5 whitespace-nowrap">
+              <div
+                onClick={() => onSort?.('deskripsi')}
+                className="group inline-flex items-center gap-1 cursor-pointer text-neu-700"
+              >
+                <span className={sortColumn === 'deskripsi' ? 'text-pr-900 font-bold' : ''}>Deskripsi</span>
+                {renderSortIcon('deskripsi')}
+              </div>
+            </TableHead>
+            <TableHead className="py-3 px-5 text-right whitespace-nowrap rounded-tr-xl">
+              <span>Aksi</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
 
-          {/* Table Body */}
-          <tbody className="divide-y divide-neu-50 text-[12px] text-neu-800">
-            {categories.map((item, index) => {
-              const isActionOpen = activeActionId === item.id;
-              const isNearBottom = index >= categories.length - 2 && categories.length >= 3;
+        {/* Table Body */}
+        <TableBody>
+          {categories.map((item, index) => {
+            const isActionOpen = activeActionId === item.id;
+            const isNearBottom = index >= categories.length - 2 && categories.length >= 3;
 
-              return (
-                <tr
-                  key={item.id}
-                  className="hover:bg-gray-50/70 transition-colors"
-                >
+            return (
+              <TableRow
+                key={item.id}
+              >
                   {/* Kategori */}
-                  <td className="py-3.5 px-5 font-normal text-neu-900 whitespace-nowrap">
+                  <TableCell className="py-3.5 px-5 font-normal text-neu-900 whitespace-nowrap">
                     {item.kategori}
-                  </td>
+                  </TableCell>
 
                   {/* Deskripsi */}
-                  <td className="py-3.5 px-5 font-normal text-neu-600">
+                  <TableCell className="py-3.5 px-5 font-normal text-neu-600">
                     <span className="line-clamp-1" title={item.deskripsi}>
                       {item.deskripsi}
                     </span>
-                  </td>
+                  </TableCell>
 
                   {/* Aksi */}
-                  <td className="py-3.5 px-5 text-right whitespace-nowrap relative">
+                  <TableCell className="py-3.5 px-5 text-right whitespace-nowrap relative">
                     <IconButton
                       icon={<MoreVertical className="w-4 h-4 text-neu-600" />}
                       variant="ghost"
@@ -166,13 +172,12 @@ export function CategoryTable({
                         </button>
                       </div>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
     </div>
   );
 }

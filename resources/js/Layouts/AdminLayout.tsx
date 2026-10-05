@@ -8,9 +8,18 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: PropsWithChildren<AdminLayoutProps>) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  const handleMobileClose = React.useCallback(() => {
+    setIsMobileSidebarOpen(false);
+  }, []);
 
   const toggleSidebar = () => {
-    setIsSidebarCollapsed((prev) => !prev);
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsMobileSidebarOpen((prev) => !prev);
+    } else {
+      setIsSidebarCollapsed((prev) => !prev);
+    }
   };
 
   return (
@@ -22,11 +31,15 @@ export default function AdminLayout({ children }: PropsWithChildren<AdminLayoutP
       />
 
       {/* Container Sidebar & Main Content */}
-      <div className="flex-1 flex min-h-0 w-full overflow-hidden">
-        {/* Sidebar Navigasi Kiri - Stays in place */}
-        <AdminSidebar isCollapsed={isSidebarCollapsed} />
+      <div className="flex-1 flex min-h-0 w-full overflow-hidden relative">
+        {/* Sidebar Navigasi Kiri (Desktop inline + Mobile slide-over drawer) */}
+        <AdminSidebar
+          isCollapsed={isSidebarCollapsed}
+          isMobileOpen={isMobileSidebarOpen}
+          onMobileClose={handleMobileClose}
+        />
 
-        {/* Konten Halaman (Main Body) - Hanya scroll vertikal, tidak bisa digeser horizontal */}
+        {/* Konten Halaman (Main Body) - Scroll vertikal, 100% full width di mobile */}
         <main className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden transition-all duration-300 bg-[#FCFEFF]">
           <div className="w-full max-w-[1440px] mx-auto p-4 sm:p-6 lg:p-7 min-w-0">
             {children}

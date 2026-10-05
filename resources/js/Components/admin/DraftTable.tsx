@@ -34,7 +34,7 @@ export function DraftTable({
   sortDirection = 'asc',
   onSort,
   onEdit,
-  onPublish,
+  onPublish: _onPublish,
   onDelete,
 }: DraftTableProps) {
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
@@ -80,9 +80,9 @@ export function DraftTable({
   }, [activeActionId]);
 
   return (
-    <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-visible transition-all duration-200">
-      <div className="overflow-x-auto sm:overflow-visible">
-        <table className="w-full table-fixed text-left border-collapse">
+    <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-hidden transition-all duration-200">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[800px] table-fixed text-left border-collapse">
           <colgroup>
             <col className="w-[5%]" />
             <col className="w-[45%]" />
@@ -158,8 +158,7 @@ export function DraftTable({
               return (
                 <tr
                   key={draft.id}
-                  className={`hover:bg-neu-50/60 transition-colors ${isChecked ? 'bg-pr-50/20' : ''
-                    }`}
+                  className={isChecked ? 'bg-pr-50/20' : ''}
                 >
                   {/* Checkbox */}
                   <td className="py-3.5 px-4 text-center">
