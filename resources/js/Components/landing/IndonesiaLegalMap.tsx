@@ -197,8 +197,8 @@ export function IndonesiaLegalMap() {
         if (isSelected) {
           layer.bringToFront();
           targetBounds = layer.getBounds();
-          if (!landCoord) {
-            setPopupPos(targetBounds.getCenter());
+          if (!landCoord && targetBounds) {
+            setPopupPos((targetBounds as L.LatLngBounds).getCenter());
           }
         }
       });

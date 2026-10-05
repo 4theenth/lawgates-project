@@ -128,10 +128,10 @@ class DocumentStorageService
         $disk = Storage::disk('minio');
 
         $isPdfFile = function ($path) use ($disk) {
-            if (!$disk->exists($path)) {
-                return false;
-            }
             try {
+                if (!$disk->exists($path)) {
+                    return false;
+                }
                 $stream = $disk->readStream($path);
                 if (!$stream) return false;
                 $header = fread($stream, 1024);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { cleanOcrText } from '../../../utils/ocrTextCleaner';
 import { LegalDocumentCorrectionData } from '../../admin/import/correctionParser';
 
 interface ReadonlyPembukaanSectionProps {
@@ -85,7 +86,7 @@ export function ReadonlyPembukaanSection({
               {isOpenMenimbang && pembukaan.menimbang && (
                 <div className="mt-2">
                   <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
-                    {pembukaan.menimbang}
+                    {cleanOcrText(pembukaan.menimbang)}
                   </div>
                 </div>
               )}
@@ -110,7 +111,7 @@ export function ReadonlyPembukaanSection({
               {isOpenMengingat && pembukaan.mengingat && (
                 <div className="mt-2">
                   <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
-                    {pembukaan.mengingat}
+                    {cleanOcrText(pembukaan.mengingat)}
                   </div>
                 </div>
               )}
@@ -135,7 +136,7 @@ export function ReadonlyPembukaanSection({
               {isOpenMemutuskan && pembukaan.memutuskan && (
                 <div className="mt-2">
                   <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
-                    {pembukaan.memutuskan}
+                    {cleanOcrText(pembukaan.memutuskan)}
                   </div>
                 </div>
               )}
