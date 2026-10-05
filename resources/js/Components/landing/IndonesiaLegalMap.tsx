@@ -8,7 +8,6 @@ import {
   Plus,
   Minus,
   RotateCcw,
-  Check,
   CircleCheckBig,
   ChevronRight,
 } from 'lucide-react';
@@ -196,9 +195,10 @@ export function IndonesiaLegalMap() {
 
         if (isSelected) {
           layer.bringToFront();
-          targetBounds = layer.getBounds();
-          if (!landCoord && targetBounds) {
-            setPopupPos((targetBounds as L.LatLngBounds).getCenter());
+          const bounds = layer.getBounds();
+          targetBounds = bounds;
+          if (!landCoord && bounds) {
+            setPopupPos(bounds.getCenter());
           }
         }
       });
@@ -330,7 +330,7 @@ export function IndonesiaLegalMap() {
         </h2>
         <p className="text-neu-600 text-xs sm:text-[14px] mt-1 max-w-2xl leading-relaxed">
           Klik salah satu provinsi untuk melihat jumlah peraturan dan hukum yang berlaku di wilayah tersebut.
-        </p>  
+        </p>
       </div>
 
       {/* ── Grid Container ──
@@ -338,7 +338,7 @@ export function IndonesiaLegalMap() {
           Desktop (>= lg): 2 Kolom, Map (col-span-8, h-[520px]) di kiri, Search & Info di kanan
       ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 w-full items-start">
-        
+
         {/* ── FORM 1: Top Search Box (Mobile: Order 1, Desktop: Order 2 Right Col) ── */}
         <div className="order-1 lg:order-2 lg:col-span-4 w-full max-w-[361px] lg:max-w-none mx-auto bg-white rounded-[12px] sm:rounded-[20px] border border-neu-100 sm:border-neu-50 p-3.5 sm:p-4 shrink-0 shadow-sm sm:shadow-none">
           {/* Header: Pilih Provinsi + Earth Icon */}
