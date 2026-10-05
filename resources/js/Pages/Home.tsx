@@ -62,7 +62,7 @@ export default function Home({ categoryCounts }: HomeProps) {
 
         {/* 5. Section Statistik Peraturan (Pattern Background) */}
         <Section>
-          <RegulationHierarchyGrid />
+          <RegulationHierarchyGrid counts={categoryCounts} />
         </Section>
 
         {/* 6. Section Sistem Hukum Terbaru (White Background Container) */}
