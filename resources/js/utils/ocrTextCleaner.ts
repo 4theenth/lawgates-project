@@ -39,7 +39,8 @@ export const cleanOcrText = (text: string): string => {
     // --- KONDISI UNTUK TIDAK MENGGABUNG (PERTAHANKAN ENTER) ---
     
     // a. Baris saat ini diakhiri tanda baca penutup kalimat/paragraf
-    const endsWithTerminator = /[.:;!?]$/.test(trimmedCurrent);
+    // Pengecualian: Jika diakhiri dengan pola list (misal: " a.", " 1.", "a.", "1."), jangan anggap sebagai penutup kalimat agar bisa digabung dengan teks di bawahnya.
+    const endsWithTerminator = /[.:;!?]$/.test(trimmedCurrent) && !/(^|\s)([a-zA-Z]|\d+)\.$/.test(trimmedCurrent);
     
     // b. Baris berikutnya adalah penanda struktur dokumen hukum
     const isNextLineStructure = /^(Pasal|BAB|Bagian|Paragraf|Mengingat|Menimbang|Memutuskan|Menetapkan|Ditetapkan|Diundangkan)\b/i.test(trimmedNext);
