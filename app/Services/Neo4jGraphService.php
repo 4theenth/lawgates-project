@@ -138,9 +138,27 @@ class Neo4jGraphService
                 $connectedId = $safeGet($connectedNode, 'id');
                 $relType = $row->get('rel_type'); // e.g. DIUBAH_OLEH, MENGUBAH, MENCABUT
 
-                // Determine relation direction relative to center for Figma design matching
-                $isMerujuk = ($row->get('source_id') === $centerId);
-                $relCategory = $isMerujuk ? 'Merujuk' : 'Dirujuk Oleh';
+                $relTypeRaw = strtoupper((string)$relType);
+                $isSourceCenter = ($row->get('source_id') === $centerId);
+
+                // Determine precise category based on rel_type and direction relative to center
+                if (str_contains($relTypeRaw, 'CABUT')) {
+                    $relCategory = $isSourceCenter ? 'Mencabut' : 'Dicabut Oleh';
+                } elseif (str_contains($relTypeRaw, 'UBAH')) {
+                    $relCategory = $isSourceCenter ? 'Mengubah' : 'Diubah Oleh';
+                } elseif (str_contains($relTypeRaw, 'RUJUK') || str_contains($relTypeRaw, 'INGAT') || str_contains($relTypeRaw, 'TIMBANG')) {
+                    $relCategory = $isSourceCenter ? 'Merujuk' : 'Dirujuk Oleh';
+                } else {
+                    if ($relTypeRaw === 'DIUBAH_OLEH') {
+                        $relCategory = 'Diubah Oleh';
+                    } elseif ($relTypeRaw === 'DICABUT_OLEH') {
+                        $relCategory = 'Dicabut Oleh';
+                    } elseif ($relTypeRaw === 'DIRUJUK_OLEH') {
+                        $relCategory = 'Dirujuk Oleh';
+                    } else {
+                        $relCategory = $isSourceCenter ? 'Merujuk' : 'Dirujuk Oleh';
+                    }
+                }
 
                 if (!isset($nodeMap[$connectedId])) {
                     $nodeMap[$connectedId] = true;
@@ -165,6 +183,43 @@ class Neo4jGraphService
                     'type' => $relType,
                     'relCategory' => $relCategory,
                 ];
+            }
+        }
+
+        // Fetch relations between connected satellite nodes themselves if any exist in Neo4j
+        $connectedIds = array_keys(array_filter($nodeMap, fn($id) => $id !== $centerId, ARRAY_FILTER_USE_KEY));
+        if (count($connectedIds) > 1) {
+            try {
+                $interQuery = '
+                    MATCH (c1:Peraturan)-[r]->(c2:Peraturan)
+                    WHERE c1.id IN $ids AND c2.id IN $ids AND c1.id <> c2.id
+                    RETURN c1.id AS source_id, c2.id AS target_id, type(r) AS rel_type
+                ';
+                $interResult = $this->client->run($interQuery, ['ids' => array_map('intval', $connectedIds)]);
+
+                $linkSet = [];
+                foreach ($links as $l) {
+                    $linkSet["{$l['source']}-{$l['target']}"] = true;
+                    $linkSet["{$l['target']}-{$l['source']}"] = true;
+                }
+
+                foreach ($interResult as $row) {
+                    $src = $row->get('source_id');
+                    $tgt = $row->get('target_id');
+                    $key = "{$src}-{$tgt}";
+                    if (!isset($linkSet[$key])) {
+                        $linkSet[$key] = true;
+                        $linkSet["{$tgt}-{$src}"] = true;
+                        $links[] = [
+                            'source' => $src,
+                            'target' => $tgt,
+                            'type' => $row->get('rel_type') ?? 'RELATED_TO',
+                            'relCategory' => 'Inter-Relasi',
+                        ];
+                    }
+                }
+            } catch (\Exception $e) {
+                // Ignore if inter-relation query fails
             }
         }
 

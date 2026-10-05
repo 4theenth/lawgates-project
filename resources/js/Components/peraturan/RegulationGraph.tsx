@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { Maximize2, CheckCircle, Calendar, FileText, X, RotateCcw, ZoomIn, ZoomOut, Sparkles, AlertCircle, ListFilter, Search, ChevronRight, Layers } from 'lucide-react';
+import { Maximize2, CheckCircle, Calendar, FileText, X, RotateCcw, ZoomIn, ZoomOut, Sparkles, AlertCircle, ListFilter, Search, ChevronRight, Layers, Shuffle, Eye, EyeOff } from 'lucide-react';
 import { router } from '@inertiajs/react';
 
 // ─────────────────────────────────────────────
@@ -26,6 +26,16 @@ interface GraphNode {
     vy?: number;
     fx?: number | null;
     fy?: number | null;
+    targetDistance?: number;
+    targetAngle?: number;
+    baseX?: number;
+    baseY?: number;
+    driftSpeedX?: number;
+    driftSpeedY?: number;
+    driftAmpX?: number;
+    driftAmpY?: number;
+    phaseX?: number;
+    phaseY?: number;
 }
 
 interface GraphLink {
@@ -59,6 +69,7 @@ const ORB_THEMES = {
         ring: '#ffffff',
         line: '#0284c7',
         text: '#0369a1',
+        label: 'Pusat',
     },
     merujuk: {
         core: '#10b981',
@@ -67,6 +78,7 @@ const ORB_THEMES = {
         ring: '#ffffff',
         line: '#059669',
         text: '#047857',
+        label: 'Merujuk',
     },
     dirujuk: {
         core: '#0284c7',
@@ -75,14 +87,25 @@ const ORB_THEMES = {
         ring: '#ffffff',
         line: '#0284c7',
         text: '#0369a1',
+        label: 'Dirujuk Oleh',
     },
-    diubah: {
+    mengubah: {
         core: '#f59e0b',
         glow: 'rgba(245, 158, 11, 0.35)',
         halo: 'rgba(245, 158, 11, 0.15)',
         ring: '#ffffff',
         line: '#d97706',
         text: '#b45309',
+        label: 'Mengubah',
+    },
+    diubah: {
+        core: '#8b5cf6',
+        glow: 'rgba(139, 92, 246, 0.35)',
+        halo: 'rgba(139, 92, 246, 0.15)',
+        ring: '#ffffff',
+        line: '#7c3aed',
+        text: '#6d28d9',
+        label: 'Diubah Oleh',
     },
     mencabut: {
         core: '#e11d48',
@@ -91,14 +114,25 @@ const ORB_THEMES = {
         ring: '#ffffff',
         line: '#be123c',
         text: '#9f1239',
+        label: 'Mencabut',
+    },
+    dicabut: {
+        core: '#d946ef',
+        glow: 'rgba(217, 70, 239, 0.35)',
+        halo: 'rgba(217, 70, 239, 0.15)',
+        ring: '#ffffff',
+        line: '#c026d3',
+        text: '#a21caf',
+        label: 'Dicabut Oleh',
     },
     default: {
-        core: '#8b5cf6',
-        glow: 'rgba(139, 92, 246, 0.35)',
-        halo: 'rgba(139, 92, 246, 0.15)',
+        core: '#64748b',
+        glow: 'rgba(100, 116, 139, 0.35)',
+        halo: 'rgba(100, 116, 139, 0.15)',
         ring: '#ffffff',
-        line: '#7c3aed',
-        text: '#6d28d9',
+        line: '#475569',
+        text: '#334155',
+        label: 'Relasi Lain',
     },
 };
 
@@ -111,7 +145,6 @@ const isDocumentAvailable = (node: GraphNode): boolean => {
     if (node.has_data === true) return true;
     if (node.has_data === false) return false;
 
-    // Fallback heuristic
     const uid = node.unique_id || '';
     const judul = (node.judul || '').toLowerCase();
     if (!uid || uid.includes('menunggu') || judul.includes('menunggu import')) {
@@ -148,15 +181,43 @@ const getShortCode = (node: GraphNode) => {
     return `${prefix} ${nomor}/${tahun}`;
 };
 
+// Determine precise category key for a node
+const getNodeCategoryKey = (node: GraphNode): string => {
+    if (node.isCenter) return 'center';
+
+    const relCat = (node.relCategory || '').toLowerCase();
+    const relType = (node.relType || '').toLowerCase();
+
+    if (relCat === 'dicabut oleh' || relType === 'dicabut_oleh' || relCat.includes('dicabut oleh')) return 'dicabut';
+    if (relCat === 'mencabut' || relType === 'mencabut') return 'mencabut';
+    if (relCat === 'diubah oleh' || relType === 'diubah_oleh' || relCat.includes('diubah oleh')) return 'diubah';
+    if (relCat === 'mengubah' || relType === 'mengubah') return 'mengubah';
+    if (relCat === 'dirujuk oleh' || relType === 'dirujuk_oleh' || relCat.includes('dirujuk oleh')) return 'dirujuk';
+    if (relCat === 'merujuk' || relType === 'merujuk') return 'merujuk';
+
+    // Secondary fallback checks if exact strings missing
+    if (relCat.includes('dicabut') || relType.includes('dicabut')) return 'dicabut';
+    if (relCat.includes('mencabut')) return 'mencabut';
+    if (relCat.includes('diubah') || relType.includes('diubah')) return 'diubah';
+    if (relCat.includes('mengubah')) return 'mengubah';
+    if (relCat.includes('dirujuk') || relType.includes('dirujuk')) return 'dirujuk';
+    if (relCat.includes('merujuk')) return 'merujuk';
+
+    return 'default';
+};
+
 // Determine theme based on node relationship
 const getNodeTheme = (node: GraphNode) => {
     if (node.isCenter) return ORB_THEMES.center;
 
-    const rel = (node.relType || node.relCategory || '').toLowerCase();
-    if (rel.includes('cabut')) return ORB_THEMES.mencabut;
-    if (rel.includes('ubah')) return ORB_THEMES.diubah;
-    if (node.relCategory === 'Dirujuk Oleh') return ORB_THEMES.dirujuk;
-    if (node.relCategory === 'Merujuk' || rel.includes('ingat') || rel.includes('rujuk')) return ORB_THEMES.merujuk;
+    const catKey = getNodeCategoryKey(node);
+    if (catKey === 'dicabut') return ORB_THEMES.dicabut;
+    if (catKey === 'mencabut') return ORB_THEMES.mencabut;
+    if (catKey === 'diubah') return ORB_THEMES.diubah;
+    if (catKey === 'mengubah') return ORB_THEMES.mengubah;
+    if (catKey === 'dirujuk') return ORB_THEMES.dirujuk;
+    if (catKey === 'merujuk') return ORB_THEMES.merujuk;
+
     return ORB_THEMES.default;
 };
 
@@ -182,11 +243,71 @@ const drawRoundedRect = (
     ctx.closePath();
 };
 
+// Helper: apply organic randomized starburst positions to nodes with floating drift parameters
+const applyRandomStarPositions = (nodes: GraphNode[]): GraphNode[] => {
+    if (!nodes || nodes.length === 0) return [];
+
+    const numSectors = Math.floor(Math.random() * 4) + 7; // 7 to 10 sectors
+    const baseAngleOffset = Math.random() * Math.PI * 2;
+
+    const sectorSpikes = Array.from({ length: numSectors }, () => {
+        return Math.random() > 0.4
+            ? 550 + Math.random() * 450
+            : 220 + Math.random() * 250;
+    });
+
+    const nonCenterNodes = nodes.filter(n => !n.isCenter);
+
+    nodes.forEach((n, idx) => {
+        if (n.isCenter) {
+            n.x = 0;
+            n.y = 0;
+            n.fx = 0;
+            n.fy = 0;
+            n.baseX = 0;
+            n.baseY = 0;
+            n.targetDistance = 0;
+            return;
+        }
+
+        const nonCenterIdx = nonCenterNodes.findIndex(item => item.id === n.id);
+        const itemIdx = nonCenterIdx >= 0 ? nonCenterIdx : idx;
+
+        const sectorIdx = itemIdx % numSectors;
+        const maxDist = sectorSpikes[sectorIdx];
+
+        const angleJitter = (Math.random() - 0.5) * 0.75;
+        const angle = baseAngleOffset + (sectorIdx / numSectors) * Math.PI * 2 + angleJitter;
+
+        const depthRatio = Math.pow(Math.random(), 0.65);
+        const targetDistance = 160 + depthRatio * (maxDist - 160);
+
+        const x = Math.cos(angle) * targetDistance;
+        const y = Math.sin(angle) * targetDistance;
+
+        n.x = x;
+        n.y = y;
+        n.baseX = x;
+        n.baseY = y;
+        n.fx = null;
+        n.fy = null;
+        n.targetDistance = targetDistance;
+        n.driftSpeedX = 0.00008 + Math.random() * 0.00014;
+        n.driftSpeedY = 0.00008 + Math.random() * 0.00014;
+        n.driftAmpX = 6 + Math.random() * 8;
+        n.driftAmpY = 6 + Math.random() * 8;
+        n.phaseX = Math.random() * Math.PI * 2;
+        n.phaseY = Math.random() * Math.PI * 2;
+    });
+
+    return nodes;
+};
+
 // ─────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────
 
-export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini = false }: RegulationGraphProps) {
+export default function RegulationGraph({ peraturanId, onClose, onExpand: _onExpand, isMini = false }: RegulationGraphProps) {
     const graphRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -197,14 +318,103 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
 
     const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
     const [clickedNode, setClickedNode] = useState<GraphNode | null>(null);
-    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+    const [cardNode, setCardNode] = useState<GraphNode | null>(null);
+
+    // Lines & Relation Filter Controls
+    const [showLines, setShowLines] = useState(false);
+    const [activeFocusCategory, setActiveFocusCategory] = useState<string | null>(null);
+    const [enabledLineCategories] = useState<Record<string, boolean>>({
+        merujuk: true,
+        dirujuk: true,
+        mengubah: true,
+        diubah: true,
+        mencabut: true,
+        dicabut: true,
+    });
+
+    const catAnimStatesRef = useRef<Record<string, { startTime: number; startVal: number; targetVal: number }>>({});
+
+    const getAnimProgress = useCallback((key: string, targetVal: number, now: number): number => {
+        const duration = 700;
+        let state = catAnimStatesRef.current[key];
+
+        if (!state) {
+            state = {
+                startTime: now,
+                startVal: 0,
+                targetVal: targetVal,
+            };
+            catAnimStatesRef.current[key] = state;
+        } else if (state.targetVal !== targetVal) {
+            // Calculate exact progress at moment of toggle
+            const elapsed = now - state.startTime;
+            const t = Math.min(1, Math.max(0, elapsed / duration));
+
+            let currentVal = 0;
+            if (state.targetVal === 1) {
+                // Was extending outward
+                currentVal = state.startVal + (1 - state.startVal) * (1 - Math.pow(1 - t, 3));
+            } else {
+                // Was retracting inward
+                currentVal = state.startVal * Math.pow(1 - t, 3);
+            }
+
+            state = {
+                startTime: now,
+                startVal: Math.min(1, Math.max(0, currentVal)),
+                targetVal: targetVal,
+            };
+            catAnimStatesRef.current[key] = state;
+        }
+
+        const elapsed = now - state.startTime;
+        const t = Math.min(1, Math.max(0, elapsed / duration));
+
+        if (state.targetVal === 1) {
+            const eased = 1 - Math.pow(1 - t, 3);
+            return Math.min(1, state.startVal + (1 - state.startVal) * eased);
+        } else {
+            const eased = Math.pow(1 - t, 3);
+            return Math.min(1, state.startVal * eased);
+        }
+    }, []);
+
+    const handleCategoryPillClick = useCallback((catKey: string) => {
+        setActiveFocusCategory(prev => {
+            if (prev === catKey) {
+                // User clicks the currently active relation pill again -> turn OFF & back to default state
+                setShowLines(false);
+                return null;
+            } else {
+                // User clicks a relation pill -> turn ON lines & isolate this category
+                setShowLines(true);
+                return catKey;
+            }
+        });
+    }, []);
 
     // Sidebar States
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterCategory, setFilterCategory] = useState<'all' | 'merujuk' | 'dirujuk'>('all');
+    const [filterCategory, setFilterCategory] = useState<'all' | 'merujuk' | 'dirujuk' | 'mengubah' | 'diubah' | 'mencabut' | 'dicabut'>('all');
 
     const initialCenterDone = useRef(false);
+
+    // Randomize Starburst Layout callback
+    const handleRandomizeStarLayout = useCallback(() => {
+        setClickedNode(null);
+        setGraphData(prev => ({
+            nodes: applyRandomStarPositions([...prev.nodes]),
+            links: prev.links,
+        }));
+        if (graphRef.current) {
+            graphRef.current.centerAt(0, 0, 400);
+            graphRef.current.zoom(1.1, 400);
+            if (graphRef.current.d3ReheatSimulation) {
+                graphRef.current.d3ReheatSimulation();
+            }
+        }
+    }, []);
 
     // Find center node ID
     const centerNodeId = useMemo(() => {
@@ -220,12 +430,14 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
     // Filtered nodes for sidebar list based on search and category
     const filteredSidebarNodes = useMemo(() => {
         return connectedNodes.filter(node => {
-            if (filterCategory === 'merujuk' && node.relCategory !== 'Merujuk') {
-                return false;
-            }
-            if (filterCategory === 'dirujuk' && node.relCategory !== 'Dirujuk Oleh') {
-                return false;
-            }
+            const themeKey = (node.relCategory || node.relType || '').toLowerCase();
+            
+            if (filterCategory === 'merujuk' && !themeKey.includes('merujuk')) return false;
+            if (filterCategory === 'dirujuk' && !themeKey.includes('dirujuk')) return false;
+            if (filterCategory === 'mengubah' && !themeKey.includes('mengubah')) return false;
+            if (filterCategory === 'diubah' && !themeKey.includes('diubah')) return false;
+            if (filterCategory === 'mencabut' && !themeKey.includes('mencabut')) return false;
+            if (filterCategory === 'dicabut' && !themeKey.includes('dicabut')) return false;
 
             if (!searchQuery.trim()) return true;
             const query = searchQuery.toLowerCase();
@@ -238,19 +450,38 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
         });
     }, [connectedNodes, filterCategory, searchQuery]);
 
-    // Focus graph view on selected node from sidebar
-    const handleSelectFromSidebar = useCallback((node: GraphNode) => {
+    // Wait 250ms for node glide & camera POV centering to arrive at screen center before showing card
+    useEffect(() => {
+        if (!clickedNode) {
+            setCardNode(null);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setCardNode(clickedNode);
+        }, 240);
+
+        return () => clearTimeout(timer);
+    }, [clickedNode]);
+
+    // Focus camera POV directly on the Main Center Node position
+    const focusOnNodeAndCenterMain = useCallback((node: GraphNode) => {
         setClickedNode(node);
         if (graphRef.current) {
-            const targetX = node.x || 0;
-            const targetY = node.y || 0;
-            graphRef.current.centerAt(targetX, targetY, 400);
-            graphRef.current.zoom(1.35, 400);
+            const centerNode = graphData.nodes.find(n => n.isCenter);
+            const mainX = centerNode ? (centerNode.x ?? 0) : 0;
+            const mainY = centerNode ? (centerNode.y ?? 0) : 0;
 
-            const screenCoords = graphRef.current.graph2ScreenCoords(targetX, targetY);
-            setTooltipPos(screenCoords);
+            // Camera POV focuses directly on the Main Node's current position
+            graphRef.current.centerAt(mainX, mainY, 350);
+            graphRef.current.zoom(1.25, 350);
         }
-    }, []);
+    }, [graphData.nodes]);
+
+    // Focus graph view on selected node from sidebar
+    const handleSelectFromSidebar = useCallback((node: GraphNode) => {
+        focusOnNodeAndCenterMain(node);
+    }, [focusOnNodeAndCenterMain]);
 
     // Set of active/focused node IDs (Center Node + Clicked/Hovered Node)
     const activeNodeIds = useMemo(() => {
@@ -272,22 +503,15 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                 const response = await fetch(`/api/peraturan/${peraturanId}/graph`);
                 const data = await response.json();
 
-                // Scatter nodes organically in full 360 degrees
-                data.nodes = (data.nodes || []).map((n: any) => {
-                    if (n.isCenter) {
-                        return { ...n, x: 0, y: 0, fx: 0, fy: 0 };
-                    }
-                    const angle = Math.random() * Math.PI * 2;
-                    const randomDist = 130 + Math.random() * 220;
+                if (data.nodes) {
+                    setGraphData({
+                        nodes: applyRandomStarPositions(data.nodes),
+                        links: data.links || [], // ONLY REAL DATABASE LINKS!
+                    });
+                } else {
+                    setGraphData({ nodes: [], links: [] });
+                }
 
-                    return {
-                        ...n,
-                        x: Math.cos(angle) * randomDist,
-                        y: Math.sin(angle) * randomDist,
-                    };
-                });
-
-                setGraphData(data);
                 setLoading(false);
                 initialCenterDone.current = false;
             } catch (error) {
@@ -298,6 +522,84 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
 
         fetchGraph();
     }, [peraturanId]);
+
+    // Continuous organic floating drift animation tick for nodes
+    useEffect(() => {
+        if (!isGraphReady || graphData.nodes.length === 0) return;
+
+        let animationFrameId: number;
+        let lastReheatTime = 0;
+
+        const animateDrift = (timestamp: number) => {
+            graphData.nodes.forEach((node: any) => {
+                if (node.isCenter) return;
+
+                if (node.isDragging || node.__isDragging) {
+                    node.baseX = node.x;
+                    node.baseY = node.y;
+                    return;
+                }
+
+                const baseX = node.baseX ?? node.x ?? 0;
+                const baseY = node.baseY ?? node.y ?? 0;
+
+                const isNodeClicked = clickedNode && node.id === clickedNode.id;
+
+                let targetX = baseX;
+                let targetY = baseY;
+
+                if (isNodeClicked) {
+                    // Smoothly draw clicked node closer to Main Center Node's current position at ~145px proximity
+                    const centerNode = graphData.nodes.find(n => n.isCenter);
+                    const mainX = centerNode ? (centerNode.x ?? 0) : 0;
+                    const mainY = centerNode ? (centerNode.y ?? 0) : 0;
+
+                    const relX = (baseX - mainX);
+                    const relY = (baseY - mainY);
+                    const dist = Math.sqrt(relX * relX + relY * relY) || 1;
+                    const targetDist = 145;
+
+                    targetX = mainX + (relX / dist) * targetDist;
+                    targetY = mainY + (relY / dist) * targetDist;
+                } else {
+                    // Gentle floating drift around baseX, baseY
+                    const t = timestamp / 1000;
+                    targetX = baseX + Math.sin(t * (node.driftSpeedX || 0.0001) * 1000 + (node.phaseX || 0)) * (node.driftAmpX || 8);
+                    targetY = baseY + Math.cos(t * (node.driftSpeedY || 0.0001) * 1000 + (node.phaseY || 0)) * (node.driftAmpY || 8);
+                }
+
+                // Smooth lerp interpolation (slightly faster lerp for responsive node glide when clicked)
+                const lerpFactor = isNodeClicked ? 0.08 : 0.04;
+                const curX = node.x ?? baseX;
+                const curY = node.y ?? baseY;
+                const newX = curX + (targetX - curX) * lerpFactor;
+                const newY = curY + (targetY - curY) * lerpFactor;
+
+                node.x = newX;
+                node.y = newY;
+                node.fx = newX;
+                node.fy = newY;
+                node.vx = 0;
+                node.vy = 0;
+            });
+
+            // Throttle reheat to avoid constant physics jitter
+            if (graphRef.current && typeof graphRef.current.d3ReheatSimulation === 'function') {
+                if (timestamp - lastReheatTime > 400) {
+                    graphRef.current.d3ReheatSimulation();
+                    lastReheatTime = timestamp;
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(animateDrift);
+        };
+
+        animationFrameId = requestAnimationFrame(animateDrift);
+
+        return () => {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        };
+    }, [isGraphReady, graphData.nodes, clickedNode]);
 
     // ─────────────────────────────────────────────
     // Resize Observer
@@ -325,27 +627,36 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
     }, [loading, graphData.nodes.length]);
 
     // ─────────────────────────────────────────────
-    // D3 Force Configuration (Organic Constellation Mesh)
+    // D3 Force Configuration (Clean Wide Starburst Scattering)
     // ─────────────────────────────────────────────
 
     useEffect(() => {
         if (!graphRef.current) return;
 
-        // Repulsion force to spread nodes
-        graphRef.current.d3Force('charge').strength(-320).distanceMax(800);
+        // Wide repulsion force to spread star nodes cleanly across space
+        graphRef.current.d3Force('charge').strength(-650).distanceMax(1800);
 
-        // Dynamic link spring distances
         const linkForce = graphRef.current.d3Force('link');
         if (linkForce) {
             linkForce.distance((link: any) => {
-                const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-                const hash = (Number(targetId || 1) * 73 + 19) % 160;
-                return 140 + hash;
+                const target = typeof link.target === 'object' ? link.target : null;
+                const source = typeof link.source === 'object' ? link.source : null;
+
+                if (target && typeof target.targetDistance === 'number') {
+                    return target.targetDistance;
+                }
+                if (source && typeof source.targetDistance === 'number') {
+                    return source.targetDistance;
+                }
+                return 250;
             });
             linkForce.strength(0.2);
         }
 
         graphRef.current.d3Force('center', null);
+        if (graphRef.current.d3ReheatSimulation) {
+            graphRef.current.d3ReheatSimulation();
+        }
     }, [graphData]);
 
     // ─────────────────────────────────────────────
@@ -363,27 +674,42 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
             return;
         }
 
-        // SEMUA node bisa diklik untuk melihat fokus & kartu relasi!
-        setClickedNode(node);
-        if (graphRef.current) {
-            const screenCoords = graphRef.current.graph2ScreenCoords(node.x, node.y);
-            setTooltipPos(screenCoords);
-        }
-    }, []);
+        focusOnNodeAndCenterMain(node);
+    }, [focusOnNodeAndCenterMain]);
 
     const handleNodeDragEnd = useCallback((node: any) => {
-        node.fx = node.x;
-        node.fy = node.y;
-        if (graphRef.current) {
+        node.isDragging = false;
+        graphData.nodes.forEach((n: any) => {
+            n.baseX = n.x;
+            n.baseY = n.y;
+            n.fx = n.x;
+            n.fy = n.y;
+            n.vx = 0;
+            n.vy = 0;
+        });
+        if (graphRef.current?.d3ReheatSimulation) {
             graphRef.current.d3ReheatSimulation();
         }
-    }, []);
+    }, [graphData.nodes]);
 
     const handleNodeDrag = useCallback((node: any) => {
-        if (!graphRef.current) return;
-        graphRef.current.d3ReheatSimulation();
+        node.isDragging = true;
+        node.baseX = node.x;
+        node.baseY = node.y;
 
-        const coords = graphRef.current.graph2ScreenCoords(node.x, node.y);
+        graphData.nodes.forEach((n: any) => {
+            if (n.id !== node.id && !n.isCenter) {
+                n.fx = null;
+                n.fy = null;
+            }
+        });
+
+        if (graphRef.current?.d3ReheatSimulation) {
+            graphRef.current.d3ReheatSimulation();
+        }
+
+        const coords = graphRef.current?.graph2ScreenCoords(node.x, node.y);
+        if (!coords) return;
         const margin = 50;
         if (
             coords.x < margin ||
@@ -396,29 +722,10 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                 graphRef.current.zoom(currentZoom * 0.98, 100);
             }
         }
-    }, [dimensions]);
-
-    // Track clicked node position for tooltip positioning
-    useEffect(() => {
-        let animationFrameId: number;
-        const updateTooltipPos = () => {
-            if (clickedNode && graphRef.current) {
-                const node = graphData.nodes.find(n => n.id === clickedNode.id) || clickedNode;
-                const coords = graphRef.current.graph2ScreenCoords(node.x, node.y);
-                setTooltipPos(coords);
-            }
-            animationFrameId = requestAnimationFrame(updateTooltipPos);
-        };
-
-        if (clickedNode) updateTooltipPos();
-
-        return () => {
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        };
-    }, [clickedNode, graphData.nodes]);
+    }, [graphData.nodes, dimensions]);
 
     // ─────────────────────────────────────────────
-    // Custom Canvas Rendering: Modern Jewel Dots on White / Light Canvas
+    // Custom Canvas Rendering
     // ─────────────────────────────────────────────
 
     const drawNode = useCallback((node: any, ctx: CanvasRenderingContext2D) => {
@@ -427,7 +734,6 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
         const isClicked = clickedNode?.id === node.id;
         const isFocused = isHovered || isClicked;
 
-        // Dimming when another node is active
         const isDimmed = activeNodeIds !== null && !activeNodeIds.has(node.id);
         const alpha = isDimmed ? 0.18 : 1;
 
@@ -438,46 +744,36 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
         const y = node.y || 0;
         const theme = getNodeTheme(node);
 
-        // Breathing pulse animation
-        const pulse = Math.sin(Date.now() / 280) * 1.5;
+        const pulse = Math.sin(performance.now() / 1400) * 1.2;
 
         if (isCenter) {
-            // ─────────────────────────────────────────
-            // CENTER NODE: Primary Hub Jewel Dot
-            // ─────────────────────────────────────────
             const coreRadius = 11;
             const auraRadius = coreRadius + 8 + pulse;
 
-            // Outer Radiant Sky Halo
             ctx.beginPath();
             ctx.arc(x, y, auraRadius, 0, Math.PI * 2);
             ctx.fillStyle = theme.halo;
             ctx.fill();
 
-            // Inner Ring Aura
             ctx.beginPath();
             ctx.arc(x, y, coreRadius + 4, 0, Math.PI * 2);
             ctx.fillStyle = theme.glow;
             ctx.fill();
 
-            // Core Solid Electric Indigo Dot
             ctx.beginPath();
             ctx.arc(x, y, coreRadius, 0, Math.PI * 2);
             ctx.fillStyle = theme.core;
             ctx.fill();
 
-            // Crisp Pure White Outline
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2.5;
             ctx.stroke();
 
-            // Monospace Label Below Hub
             const shortCode = getShortCode(node);
             ctx.font = '700 10.5px Inter, system-ui, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
 
-            // Background pill for label clarity
             const textW = ctx.measureText(shortCode).width;
             ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
             drawRoundedRect(ctx, x - textW / 2 - 6, y + coreRadius + 5, textW + 12, 16, 4);
@@ -490,30 +786,23 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
             ctx.fillText(shortCode, x, y + coreRadius + 7);
 
         } else {
-            // ─────────────────────────────────────────
-            // SATELLITE NODE: Luminous Jewel Bead
-            // ─────────────────────────────────────────
             const coreRadius = isFocused ? 7.5 : 5.5;
             const auraRadius = isFocused ? coreRadius + 7 + pulse : coreRadius + 3 + pulse;
 
-            // Outer Glowing Halo
             ctx.beginPath();
             ctx.arc(x, y, auraRadius, 0, Math.PI * 2);
             ctx.fillStyle = theme.glow;
             ctx.fill();
 
-            // Core Solid Jewel Bead
             ctx.beginPath();
             ctx.arc(x, y, coreRadius, 0, Math.PI * 2);
             ctx.fillStyle = theme.core;
             ctx.fill();
 
-            // High-Contrast Crisp White Border
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = isFocused ? 2 : 1.5;
             ctx.stroke();
 
-            // Short Label Below Dot
             const shortCode = getShortCode(node);
             ctx.font = isFocused ? '700 9.5px Inter, system-ui, sans-serif' : '600 8.5px Inter, system-ui, sans-serif';
             ctx.textAlign = 'center';
@@ -522,7 +811,6 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
             const labelY = y + coreRadius + 5;
             const textW = ctx.measureText(shortCode).width;
 
-            // Clean white pill behind text
             ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
             drawRoundedRect(ctx, x - textW / 2 - 4, labelY - 1, textW + 8, 14, 3);
             ctx.fill();
@@ -538,75 +826,172 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
     }, [hoverNode, clickedNode, activeNodeIds]);
 
     // ─────────────────────────────────────────────
-    // Custom Link Render: Hairline Links & Midpoint Relation Badge
+    // Custom Link Render: Animated Line Connection & Electric Energy Flow
     // ─────────────────────────────────────────────
 
     const drawLinkOverlay = useCallback((link: any, ctx: CanvasRenderingContext2D) => {
         const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
         const targetId = typeof link.target === 'object' ? link.target.id : link.target;
 
-        const isClickedLink = clickedNode && (
-            (sourceId === clickedNode.id && targetId === centerNodeId) ||
-            (targetId === clickedNode.id && sourceId === centerNodeId)
-        );
+        const isClickedLink = clickedNode && (sourceId === clickedNode.id || targetId === clickedNode.id);
 
-        if (!isClickedLink) return;
+        const targetNode = typeof link.target === 'object' ? link.target : graphData.nodes.find(n => n.id === targetId);
+        const sourceNode = typeof link.source === 'object' ? link.source : graphData.nodes.find(n => n.id === sourceId);
+        const node = (targetNode && !targetNode.isCenter) ? targetNode : sourceNode;
+        const catKey = node ? getNodeCategoryKey(node) : 'default';
+
+        const now = performance.now();
+
+        // 1. Progress for individual clicked node selection (draws out on click, retracts on unselect/X)
+        const clickedKey = `clicked_${sourceId}-${targetId}`;
+        const pClicked = getAnimProgress(clickedKey, isClickedLink ? 1 : 0, now);
+
+        // 2. Progress for category filter
+        const isCatActive = showLines && (activeFocusCategory === null ? enabledLineCategories[catKey] !== false : catKey === activeFocusCategory);
+        const catKeyAnim = `cat_${catKey}`;
+        const pCat = getAnimProgress(catKeyAnim, isCatActive ? 1 : 0, now);
+
+        // Max combined animation progress
+        const p = Math.max(pClicked, pCat);
+
+        // If progress is zero or virtually invisible, return early
+        if (p <= 0.001) return;
+
+        let strokeColor = '#3b82f6';
+        let lineWidth = 1.4;
+
+        if (pClicked >= pCat && (clickedNode || pClicked > 0)) {
+            const theme = (clickedNode && (sourceId === clickedNode.id || targetId === clickedNode.id))
+                ? getNodeTheme(clickedNode)
+                : (node ? getNodeTheme(node) : ORB_THEMES.default);
+            strokeColor = theme.line;
+            lineWidth = 2.8;
+        } else if (node) {
+            const theme = getNodeTheme(node);
+            strokeColor = theme.line;
+            lineWidth = isCatActive ? (activeFocusCategory !== null ? 1.8 : 1.3) : 1.4;
+        }
 
         const startX = link.source.x || 0;
         const startY = link.source.y || 0;
         const endX = link.target.x || 0;
         const endY = link.target.y || 0;
 
-        const midX = (startX + endX) / 2;
-        const midY = (startY + endY) / 2;
-
-        const theme = getNodeTheme(clickedNode);
-        const relText = (clickedNode.relType || clickedNode.relCategory || 'MERUJUK').replace(/_/g, ' ').toUpperCase();
+        const currEndX = startX + (endX - startX) * p;
+        const currEndY = startY + (endY - startY) * p;
 
         ctx.save();
-        ctx.globalAlpha = 1;
 
-        // Draw Relation Badge Pill at Link Midpoint
-        ctx.font = '700 8.5px Inter, system-ui, sans-serif';
-        const textW = ctx.measureText(relText).width;
-        const pillW = textW + 16;
-        const pillH = 18;
-        const px = midX - pillW / 2;
-        const py = midY - pillH / 2;
-
-        // Drop shadow for badge
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetY = 2;
-
-        // White Pill with Colored Border
-        drawRoundedRect(ctx, px, py, pillW, pillH, 9);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
+        // 1. Draw Base Animated Line (Tarikan / Gulungan Garis)
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = lineWidth;
+        ctx.shadowColor = strokeColor;
+        ctx.shadowBlur = isClickedLink ? 8 : 4;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(currEndX, currEndY);
+        ctx.stroke();
 
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
 
-        ctx.strokeStyle = theme.line;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        // 2. Draw Electric Energy Flow Particles (Aliran Energi Listrik)
+        if (p > 0.05) {
+            const pulseSpeed = 0.0012; // Smooth energy flow speed
+            const numPulses = isClickedLink ? 3 : 2;
 
-        ctx.fillStyle = theme.text;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(relText, midX, midY);
+            for (let i = 0; i < numPulses; i++) {
+                const offset = i / numPulses;
+                const pulseT = ((now * pulseSpeed + offset) % 1) * p;
+
+                const px = startX + (endX - startX) * pulseT;
+                const py = startY + (endY - startY) * pulseT;
+
+                // Tail trailing behind electric particle
+                const tailLength = 0.08 * p;
+                const tailT = Math.max(0, pulseT - tailLength);
+                const tx = startX + (endX - startX) * tailT;
+                const ty = startY + (endY - startY) * tailT;
+
+                // Electric Light Trail
+                const tailGrad = ctx.createLinearGradient(tx, ty, px, py);
+                tailGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                tailGrad.addColorStop(1, strokeColor);
+
+                ctx.strokeStyle = tailGrad;
+                ctx.lineWidth = lineWidth * 1.3;
+                ctx.beginPath();
+                ctx.moveTo(tx, ty);
+                ctx.lineTo(px, py);
+                ctx.stroke();
+
+                // Outer Electric Energy Glow Aura
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = strokeColor;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(px, py, isClickedLink ? 3.2 : 2.2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Inner Bright Electric Spark Core
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 6;
+                ctx.beginPath();
+                ctx.arc(px, py, isClickedLink ? 1.8 : 1.2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // 3. Draw Relation Badge Pill at Link Midpoint (Only when mostly extended p >= 0.5)
+        if (isClickedLink && p >= 0.5) {
+            const badgeAlpha = Math.min(1, (p - 0.5) / 0.5);
+            ctx.globalAlpha = badgeAlpha;
+
+            const midX = (startX + endX) / 2;
+            const midY = (startY + endY) / 2;
+
+            const theme = getNodeTheme(clickedNode);
+            const relText = (clickedNode.relCategory || clickedNode.relType || link.relCategory || link.type || 'MERUJUK').replace(/_/g, ' ').toUpperCase();
+
+            ctx.font = '700 8.5px Inter, system-ui, sans-serif';
+            const textW = ctx.measureText(relText).width;
+            const pillW = textW + 16;
+            const pillH = 18;
+            const px = midX - pillW / 2;
+            const py = midY - pillH / 2;
+
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 2;
+
+            drawRoundedRect(ctx, px, py, pillW, pillH, 9);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+
+            ctx.strokeStyle = theme.line;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.fillStyle = theme.text;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(relText, midX, midY);
+        }
 
         ctx.restore();
-    }, [clickedNode, centerNodeId]);
+    }, [clickedNode, showLines, activeFocusCategory, enabledLineCategories, graphData.nodes, getAnimProgress]);
 
-    // Link Color & Width Logic
+    // Link Color & Width Logic (DEFAULT: Completely Transparent / ZERO Lines, ON: Theme Color)
     const getLinkColor = useCallback((link: any) => {
         const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
         const targetId = typeof link.target === 'object' ? link.target.id : link.target;
 
         const isClickedLink = clickedNode && (
-            (sourceId === clickedNode.id && targetId === centerNodeId) ||
-            (targetId === clickedNode.id && sourceId === centerNodeId)
+            sourceId === clickedNode.id || targetId === clickedNode.id
         );
 
         if (isClickedLink) {
@@ -614,29 +999,103 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
             return theme.line;
         }
 
-        if (activeNodeIds !== null) {
-            const isConnected = activeNodeIds.has(sourceId) && activeNodeIds.has(targetId);
-            if (!isConnected) return 'rgba(226, 232, 240, 0.3)';
+        if (showLines) {
+            const targetNode = typeof link.target === 'object' ? link.target : graphData.nodes.find(n => n.id === targetId);
+            const sourceNode = typeof link.source === 'object' ? link.source : graphData.nodes.find(n => n.id === sourceId);
+            const node = (targetNode && !targetNode.isCenter) ? targetNode : sourceNode;
+
+            if (node) {
+                const catKey = getNodeCategoryKey(node);
+
+                if (activeFocusCategory !== null) {
+                    if (catKey === activeFocusCategory) {
+                        const theme = getNodeTheme(node);
+                        return theme.line;
+                    }
+                    return 'rgba(0, 0, 0, 0)';
+                }
+
+                if (enabledLineCategories[catKey] !== false) {
+                    const theme = getNodeTheme(node);
+                    return theme.line;
+                }
+            }
         }
 
-        return 'rgba(148, 163, 184, 0.38)'; // Hairline slate line
-    }, [clickedNode, activeNodeIds, centerNodeId]);
+        // Default state when lines are OFF or category disabled: 0 lines drawn!
+        return 'rgba(0, 0, 0, 0)';
+    }, [clickedNode, showLines, activeFocusCategory, enabledLineCategories, graphData.nodes]);
 
     const getLinkWidth = useCallback((link: any) => {
         const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
         const targetId = typeof link.target === 'object' ? link.target.id : link.target;
 
         const isClickedLink = clickedNode && (
-            (sourceId === clickedNode.id && targetId === centerNodeId) ||
-            (targetId === clickedNode.id && sourceId === centerNodeId)
+            sourceId === clickedNode.id || targetId === clickedNode.id
         );
 
-        return isClickedLink ? 2.5 : 0.85;
-    }, [clickedNode, centerNodeId]);
+        if (isClickedLink) return 2.8;
+
+        if (showLines) {
+            const targetNode = typeof link.target === 'object' ? link.target : graphData.nodes.find(n => n.id === targetId);
+            const sourceNode = typeof link.source === 'object' ? link.source : graphData.nodes.find(n => n.id === sourceId);
+            const node = (targetNode && !targetNode.isCenter) ? targetNode : sourceNode;
+
+            if (node) {
+                const catKey = getNodeCategoryKey(node);
+
+                if (activeFocusCategory !== null) {
+                    return catKey === activeFocusCategory ? 1.5 : 0;
+                }
+
+                if (enabledLineCategories[catKey] !== false) {
+                    return 1.2;
+                }
+            }
+        }
+
+        return 0;
+    }, [clickedNode, showLines, activeFocusCategory, enabledLineCategories, graphData.nodes]);
 
     // ─────────────────────────────────────────────
     // Rendering
     // ─────────────────────────────────────────────
+
+    // Calculate card position adaptively so it flips away from the connecting line (never covering node or link line)
+    const cardPos = useMemo(() => {
+        if (!cardNode || !graphRef.current) return { x: dimensions.width / 2 + 30, y: dimensions.height / 2 - 100 };
+        const node = graphData.nodes.find(n => n.id === cardNode.id) || cardNode;
+        const coords = graphRef.current.graph2ScreenCoords(node.x || 0, node.y || 0);
+        if (!coords) return { x: dimensions.width / 2 + 30, y: dimensions.height / 2 - 100 };
+
+        const centerNode = graphData.nodes.find(n => n.isCenter);
+        const centerCoords = centerNode
+            ? (graphRef.current.graph2ScreenCoords(centerNode.x || 0, centerNode.y || 0) || { x: dimensions.width / 2, y: dimensions.height / 2 })
+            : { x: dimensions.width / 2, y: dimensions.height / 2 };
+
+        const cardWidth = 310;
+        const cardHeight = 210;
+
+        // If node is to the left of center, place card to the LEFT of the node so line between node & center is clear!
+        // If node is to the right of center, place card to the RIGHT of the node!
+        const isLeftOfCenter = coords.x < centerCoords.x;
+        
+        let targetX = isLeftOfCenter ? coords.x - cardWidth - 25 : coords.x + 25;
+        let targetY = coords.y - cardHeight / 2;
+
+        // Boundary safety clamps so card is always inside viewport
+        if (targetX < 16) {
+            // Fallback: if not enough room on left, place above or below node
+            targetX = Math.max(16, Math.min(coords.x - cardWidth / 2, dimensions.width - cardWidth - 16));
+            targetY = coords.y < centerCoords.y ? coords.y - cardHeight - 25 : coords.y + 25;
+        } else if (targetX + cardWidth > dimensions.width - 16) {
+            targetX = dimensions.width - cardWidth - 16;
+        }
+
+        targetY = Math.max(16, Math.min(targetY, dimensions.height - cardHeight - 16));
+
+        return { x: targetX, y: targetY };
+    }, [cardNode, graphData.nodes, dimensions]);
 
     if (loading) {
         return (
@@ -704,18 +1163,65 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                         </span>
                     </button>
 
-                    {/* Legend Pill */}
-                    <div className="bg-white/90 backdrop-blur-md rounded-xl p-2.5 flex items-center gap-3.5 shadow-sm border border-slate-200/80">
-                        <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-[#10b981] shadow-xs ring-2 ring-emerald-100"></span>
-                            <span className={`${isMini ? 'text-[11px]' : 'text-xs'} font-semibold text-slate-700`}>Merujuk</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-[#0284c7] shadow-xs ring-2 ring-sky-100"></span>
-                            <span className={`${isMini ? 'text-[11px]' : 'text-xs'} font-semibold text-slate-700`}>Dirujuk</span>
-                        </div>
+                    {/* Toggle Line Visibility ON / OFF Button */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setShowLines(prev => {
+                                const next = !prev;
+                                if (!next) setActiveFocusCategory(null);
+                                return next;
+                            });
+                        }}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer border ${
+                            showLines
+                                ? 'bg-indigo-600 text-white border-indigo-600 ring-2 ring-indigo-600/20'
+                                : 'bg-white/90 backdrop-blur-md text-slate-700 hover:text-slate-900 hover:bg-slate-50 border-slate-200/80'
+                        }`}
+                        title="Tampilkan / Sembunyikan Semua Garis Relasi"
+                    >
+                        {showLines ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                        <span>Garis: {showLines ? 'ON' : 'OFF'}</span>
+                    </button>
+
+                    {/* Interactive Legend & Category Line Filter Pills */}
+                    <div className="bg-white/90 backdrop-blur-md rounded-xl p-2 flex flex-wrap items-center gap-1.5 shadow-sm border border-slate-200/80 max-w-[75vw]">
+                        {[
+                            { key: 'merujuk', label: 'Merujuk', color: '#10b981', textColor: 'text-emerald-700' },
+                            { key: 'dirujuk', label: 'Dirujuk', color: '#0284c7', textColor: 'text-sky-700' },
+                            { key: 'mengubah', label: 'Mengubah', color: '#f59e0b', textColor: 'text-amber-700' },
+                            { key: 'diubah', label: 'Diubah', color: '#8b5cf6', textColor: 'text-purple-700' },
+                            { key: 'mencabut', label: 'Mencabut', color: '#e11d48', textColor: 'text-rose-700' },
+                            { key: 'dicabut', label: 'Dicabut', color: '#d946ef', textColor: 'text-fuchsia-700' },
+                        ].map((cat) => {
+                            const isFocused = activeFocusCategory === cat.key;
+                            const isLineActive = showLines && (activeFocusCategory === null ? enabledLineCategories[cat.key] !== false : isFocused);
+
+                            return (
+                                <button
+                                    key={cat.key}
+                                    type="button"
+                                    onClick={() => handleCategoryPillClick(cat.key)}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
+                                        isFocused
+                                            ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-900/10'
+                                            : isLineActive
+                                            ? 'bg-slate-100 border-slate-300 shadow-xs'
+                                            : 'opacity-40 bg-transparent border-transparent hover:opacity-80'
+                                    }`}
+                                    title={`Klik 1x untuk fokus langsung pada garis relasi ${cat.label}`}
+                                >
+                                    <span
+                                        className="w-2.5 h-2.5 rounded-full shrink-0 transition-transform"
+                                        style={{ backgroundColor: cat.color }}
+                                    ></span>
+                                    <span className={isFocused ? 'text-white font-bold' : cat.textColor}>{cat.label}</span>
+                                </button>
+                            );
+                        })}
+
                         {!isMini && (
-                            <div className="hidden sm:flex items-center gap-1.5 pl-2 border-l border-slate-200 text-slate-400 text-[11px] font-medium">
+                            <div className="hidden lg:flex items-center gap-1.5 pl-2 border-l border-slate-200 text-slate-400 text-[11px] font-medium shrink-0">
                                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                                 <span className="text-slate-600 font-medium">{graphData.nodes.length} Entitas</span>
                             </div>
@@ -723,12 +1229,21 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                     </div>
                 </div>
 
-                {/* Floating Fullscreen / Reset Toolbar */}
+                {/* Floating Fullscreen / Reset / Shuffle Toolbar */}
                 {!isMini && (
                     <div className="flex items-center gap-2 pointer-events-auto">
                         <button
                             type="button"
+                            onClick={handleRandomizeStarLayout}
+                            title="Acak Layout Bintang (Randomize)"
+                            className="p-2.5 bg-white/90 backdrop-blur-md hover:bg-slate-50 shadow-sm border border-slate-200/80 rounded-xl text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+                        >
+                            <Shuffle className="w-4 h-4 text-amber-500" />
+                        </button>
+                        <button
+                            type="button"
                             onClick={() => {
+                                setClickedNode(null);
                                 if (graphRef.current) {
                                     graphRef.current.centerAt(0, 0, 400);
                                     graphRef.current.zoom(1.1, 400);
@@ -808,11 +1323,11 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                     </div>
 
                     {/* Filter Category Tabs */}
-                    <div className="flex items-center p-1 bg-slate-200/60 rounded-xl text-[11px] font-semibold text-slate-600">
+                    <div className="flex flex-wrap items-center gap-1 p-1.5 bg-slate-200/60 rounded-xl text-[10.5px] font-semibold text-slate-600">
                         <button
                             type="button"
                             onClick={() => setFilterCategory('all')}
-                            className={`flex-1 py-1 rounded-lg text-center transition-all cursor-pointer ${
+                            className={`px-2 py-0.5 rounded-lg text-center transition-all cursor-pointer ${
                                 filterCategory === 'all'
                                     ? 'bg-white text-slate-900 shadow-xs font-bold'
                                     : 'hover:text-slate-900'
@@ -823,7 +1338,7 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                         <button
                             type="button"
                             onClick={() => setFilterCategory('merujuk')}
-                            className={`flex-1 py-1 rounded-lg text-center transition-all cursor-pointer ${
+                            className={`px-2 py-0.5 rounded-lg text-center transition-all cursor-pointer ${
                                 filterCategory === 'merujuk'
                                     ? 'bg-white text-emerald-700 shadow-xs font-bold'
                                     : 'hover:text-slate-900'
@@ -834,13 +1349,57 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                         <button
                             type="button"
                             onClick={() => setFilterCategory('dirujuk')}
-                            className={`flex-1 py-1 rounded-lg text-center transition-all cursor-pointer ${
+                            className={`px-2 py-0.5 rounded-lg text-center transition-all cursor-pointer ${
                                 filterCategory === 'dirujuk'
                                     ? 'bg-white text-sky-700 shadow-xs font-bold'
                                     : 'hover:text-slate-900'
                             }`}
                         >
                             Dirujuk
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFilterCategory('mengubah')}
+                            className={`px-2 py-0.5 rounded-lg text-center transition-all cursor-pointer ${
+                                filterCategory === 'mengubah'
+                                    ? 'bg-white text-amber-700 shadow-xs font-bold'
+                                    : 'hover:text-slate-900'
+                            }`}
+                        >
+                            Mengubah
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFilterCategory('diubah')}
+                            className={`px-2 py-0.5 rounded-lg text-center transition-all cursor-pointer ${
+                                filterCategory === 'diubah'
+                                    ? 'bg-white text-purple-700 shadow-xs font-bold'
+                                    : 'hover:text-slate-900'
+                            }`}
+                        >
+                            Diubah
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFilterCategory('mencabut')}
+                            className={`px-2 py-0.5 rounded-lg text-center transition-all cursor-pointer ${
+                                filterCategory === 'mencabut'
+                                    ? 'bg-white text-rose-700 shadow-xs font-bold'
+                                    : 'hover:text-slate-900'
+                            }`}
+                        >
+                            Mencabut
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setFilterCategory('dicabut')}
+                            className={`px-2 py-0.5 rounded-lg text-center transition-all cursor-pointer ${
+                                filterCategory === 'dicabut'
+                                    ? 'bg-white text-fuchsia-700 shadow-xs font-bold'
+                                    : 'hover:text-slate-900'
+                            }`}
+                        >
+                            Dicabut
                         </button>
                     </div>
                 </div>
@@ -964,13 +1523,13 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                     height={dimensions.height}
                     graphData={graphData}
                     nodeRelSize={1}
-                    d3VelocityDecay={0.65}
+                    d3VelocityDecay={0.88}
 
                     // Links
                     linkColor={getLinkColor}
                     linkWidth={getLinkWidth}
                     linkCurvature={0.06}
-                    linkCanvasObjectMode={() => 'after'}
+                    linkCanvasObjectMode={() => 'replace'}
                     linkCanvasObject={drawLinkOverlay}
 
                     // Zoom & Pan
@@ -1031,12 +1590,15 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
             </div>
 
             {/* ── Floating Interactive Detail Tooltip (Beside Clicked Node) ── */}
-            {clickedNode && (
+            {cardNode && (
                 <div
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
                     className="absolute z-50 pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
                     style={{
-                        left: Math.min(Math.max(tooltipPos.x + 24, 16), dimensions.width - 330),
-                        top: Math.min(Math.max(tooltipPos.y - 30, 16), dimensions.height - 240),
+                        left: cardPos.x,
+                        top: cardPos.y,
                         maxWidth: 320,
                     }}
                 >
@@ -1047,19 +1609,23 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
                                 <span
                                     className="w-2.5 h-2.5 rounded-full"
                                     style={{
-                                        backgroundColor: getNodeTheme(clickedNode).core,
+                                        backgroundColor: getNodeTheme(cardNode).core,
                                     }}
                                 ></span>
                                 <span className="text-[11px] font-bold tracking-wider uppercase text-slate-500">
-                                    {clickedNode.isCenter ? 'Dokumen Utama' : (clickedNode.relType || clickedNode.relCategory || 'Merujuk')}
+                                    {cardNode.isCenter ? 'Dokumen Utama' : (cardNode.relType || cardNode.relCategory || 'Merujuk')}
                                 </span>
                             </div>
                             <button
+                                type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    e.preventDefault();
                                     setClickedNode(null);
                                 }}
-                                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                                title="Tutup Card Info"
                             >
                                 <X className="w-4 h-4" />
                             </button>
@@ -1067,30 +1633,30 @@ export default function RegulationGraph({ peraturanId, onClose, onExpand, isMini
 
                         {/* Title */}
                         <h4 className="text-sm font-bold text-slate-900 mb-3 leading-snug line-clamp-3">
-                            {clickedNode.judul ||
-                                `${clickedNode.jenis || 'Undang-Undang'} Nomor ${clickedNode.nomor} Tahun ${clickedNode.tahun}`}
+                            {cardNode.judul ||
+                                `${cardNode.jenis || 'Undang-Undang'} Nomor ${cardNode.nomor} Tahun ${cardNode.tahun}`}
                         </h4>
 
                         {/* Status & Tanggal */}
                         <div className="flex flex-wrap gap-2 mb-4">
                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold border border-emerald-200/80">
                                 <CheckCircle className="w-3.5 h-3.5" />
-                                {clickedNode.status || 'Berlaku'}
+                                {cardNode.status || 'Berlaku'}
                             </div>
                             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium border border-slate-200/80">
                                 <Calendar className="w-3.5 h-3.5" />
-                                {formatTanggal(clickedNode.tanggal_penetapan)}
+                                {formatTanggal(cardNode.tanggal_penetapan)}
                             </div>
                         </div>
 
                         {/* CTA Button: Active if document exists, Disabled if document not yet in database */}
-                        {isDocumentAvailable(clickedNode) ? (
+                        {isDocumentAvailable(cardNode) ? (
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     if (onClose) onClose();
-                                    if (clickedNode.unique_id) {
-                                        router.visit(`/peraturan/${clickedNode.unique_id}`);
+                                    if (cardNode.unique_id) {
+                                        router.visit(`/peraturan/${cardNode.unique_id}`);
                                     }
                                 }}
                                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold tracking-wide transition-all shadow-sm hover:shadow cursor-pointer"
