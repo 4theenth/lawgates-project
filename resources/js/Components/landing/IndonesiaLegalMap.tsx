@@ -8,7 +8,6 @@ import {
   Plus,
   Minus,
   RotateCcw,
-  Check,
   CircleCheckBig,
   ChevronRight,
 } from 'lucide-react';
