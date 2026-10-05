@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from '@inertiajs/react';
 import { Calendar, MapPin, ArrowRightLeft, Download, Check } from 'lucide-react';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
+import { useAuthModal } from '@/hooks/useAuthModal';
 
 export interface DetailPeraturanHeaderProps {
   breadcrumbItems?: { label: string; href?: string }[];
@@ -34,6 +35,7 @@ export function DetailPeraturanHeader({
   downloadHref,
   showCompare = true,
 }: DetailPeraturanHeaderProps) {
+  const { requireAuth } = useAuthModal();
   const isBerlaku =
     !statusPeraturan.toLowerCase().includes('tidak') &&
     !statusPeraturan.toLowerCase().includes('cabut');
@@ -66,7 +68,7 @@ export function DetailPeraturanHeader({
           {onCompare && (
             <button
               type="button"
-              onClick={onCompare}
+              onClick={() => requireAuth(onCompare)}
               className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#E5E7EB] hover:bg-[#D1D5DB] text-gray-800 text-sm font-semibold transition-all shadow-2xs cursor-pointer"
             >
               <ArrowRightLeft className="w-4 h-4 text-gray-700 stroke-[2]" />
@@ -76,17 +78,18 @@ export function DetailPeraturanHeader({
 
           {/* Tombol Download Dokumen Sesuai Desain */}
           {downloadHref ? (
-            <Link
-              href={downloadHref}
+            <button
+              type="button"
+              onClick={() => requireAuth(() => { window.location.href = downloadHref; })}
               className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#0E1E38] hover:bg-[#091528] text-white text-sm font-semibold transition-all shadow-xs cursor-pointer"
             >
               <Download className="w-4 h-4 text-white stroke-[2]" />
               <span>Download Dokumen</span>
-            </Link>
+            </button>
           ) : onDownload ? (
             <button
               type="button"
-              onClick={onDownload}
+              onClick={() => requireAuth(onDownload)}
               className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#0E1E38] hover:bg-[#091528] text-white text-sm font-semibold transition-all shadow-xs cursor-pointer"
             >
               <Download className="w-4 h-4 text-white stroke-[2]" />
