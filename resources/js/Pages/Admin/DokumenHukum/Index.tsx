@@ -11,6 +11,7 @@ import { FilterPopover } from '@/Components/admin/FilterPopover';
 import { DocumentModal } from '@/Components/admin/DocumentModal';
 import { EditStatusModal } from '@/Components/admin/EditStatusModal';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
+import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
 import {
   CorrectionDetailView,
   LegalDocumentCorrectionData,
@@ -458,28 +459,15 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
         <Breadcrumb items={breadcrumbs} />
       </div>
 
-      {/* 2. Page Header & Action Button Sesuai Spesifikasi Figma */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-sans text-[20px] font-semibold leading-[26px] text-neu-900 tracking-tight">
-            Daftar Dokumen Hukum
-          </h1>
-          <p className="font-sans text-[14px] font-normal leading-[20px] text-neu-600 mt-1">
-            Kelola daftar peraturan, putusan, dan impor dokumen hukum hasil OCR.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Tombol Tambah Hukum (Membuka Alur Tambah Data / Impor JSON OCR) */}
-          <Link
-            href="/admin/dokumen-hukum/tambah"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Hukum</span>
-          </Link>
-        </div>
-      </div>
+      {/* 2. Page Header & Action Button Menggunakan Komponen Reusable */}
+      <AdminPageHeader
+        title="Daftar Dokumen Hukum"
+        description="Kelola daftar peraturan, putusan, dan impor dokumen hukum hasil OCR."
+        action={{
+          label: 'Tambah Hukum',
+          href: '/admin/dokumen-hukum/tambah',
+        }}
+      />
 
       {/* 3. Toolbar: Status Filter Tabs & Search / Filter Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">

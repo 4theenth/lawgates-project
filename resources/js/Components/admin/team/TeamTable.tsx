@@ -9,6 +9,14 @@ import {
   Eye,
   Pencil,
 } from 'lucide-react';
+import {
+  Table,
+  TableHeader,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+} from '@/Components/ui/table';
 import profileAvatar from '@/assets/profile-avatar.webp';
 import {
   TeamMember,
@@ -92,14 +100,13 @@ export function TeamTable({
   };
 
   return (
-    <div className="w-full bg-white rounded-xl border border-neu-100 shadow-2xs overflow-visible transition-all duration-200">
-      <div className="overflow-x-auto sm:overflow-visible">
-        <table className="w-full min-w-[620px] text-left border-collapse">
+    <div className="w-full bg-white rounded-xl border border-neu-100 shadow-2xs overflow-hidden transition-all duration-200">
+      <Table className="w-full min-w-[620px] text-left border-collapse">
           {/* Table Header Sesuai Desain Figma */}
-          <thead>
-            <tr className="bg-[#F1F5F9]/80 border-b border-neu-100 text-[11px] font-semibold text-neu-600 uppercase tracking-wider select-none">
+          <TableHeader>
+            <TableRow className="bg-[#F1F5F9]/80 border-b border-neu-100 hover:bg-transparent text-[11px] font-semibold text-neu-600 uppercase tracking-wider select-none">
               {/* Kolom NAME */}
-              <th className="py-3 px-5 whitespace-nowrap">
+              <TableHead className="py-3 px-5 whitespace-nowrap">
                 <div
                   onClick={() => onSort?.('name')}
                   className="group inline-flex items-center gap-1 cursor-pointer hover:text-neu-900 transition-colors"
@@ -109,10 +116,10 @@ export function TeamTable({
                   </span>
                   {renderSortIcon('name')}
                 </div>
-              </th>
+              </TableHead>
 
               {/* Kolom EMAIL */}
-              <th className="py-3 px-5 whitespace-nowrap">
+              <TableHead className="py-3 px-5 whitespace-nowrap">
                 <div
                   onClick={() => onSort?.('email')}
                   className="group inline-flex items-center gap-1 cursor-pointer hover:text-neu-900 transition-colors"
@@ -122,10 +129,10 @@ export function TeamTable({
                   </span>
                   {renderSortIcon('email')}
                 </div>
-              </th>
+              </TableHead>
 
               {/* Kolom ROLE */}
-              <th className="py-3 px-5 whitespace-nowrap">
+              <TableHead className="py-3 px-5 whitespace-nowrap">
                 <div
                   onClick={() => onSort?.('role')}
                   className="group inline-flex items-center gap-1 cursor-pointer hover:text-neu-900 transition-colors"
@@ -135,10 +142,10 @@ export function TeamTable({
                   </span>
                   {renderSortIcon('role')}
                 </div>
-              </th>
+              </TableHead>
 
               {/* Kolom STATUS */}
-              <th className="py-3 px-5 whitespace-nowrap">
+              <TableHead className="py-3 px-5 whitespace-nowrap">
                 <div
                   onClick={() => onSort?.('status')}
                   className="group inline-flex items-center gap-1 cursor-pointer hover:text-neu-900 transition-colors"
@@ -148,17 +155,17 @@ export function TeamTable({
                   </span>
                   {renderSortIcon('status')}
                 </div>
-              </th>
+              </TableHead>
 
               {/* Kolom AKSI */}
-              <th className="py-3 px-5 text-right whitespace-nowrap">
+              <TableHead className="py-3 px-5 text-right whitespace-nowrap">
                 <span>Aksi</span>
-              </th>
-            </tr>
-          </thead>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
 
           {/* Table Body */}
-          <tbody className="divide-y divide-neu-50 text-[12px] text-neu-800">
+          <TableBody>
             {members.map((member, index) => {
               const isActionOpen = activeActionId === member.id;
               const isNearBottom = index >= members.length - 2 && members.length >= 3;
@@ -170,12 +177,11 @@ export function TeamTable({
               const isDirectDelete = member.status === 'pending';
 
               return (
-                <tr
+                <TableRow
                   key={member.id}
-                  className="hover:bg-gray-50/70 transition-colors"
                 >
                   {/* Kolom 1: Avatar & Nama */}
-                  <td className="py-3.5 px-5 font-normal text-neu-900 whitespace-nowrap">
+                  <TableCell className="py-3.5 px-5 font-normal text-neu-900 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full border border-neu-100 overflow-hidden bg-cover bg-center bg-no-repeat bg-neu-100 shrink-0 shadow-2xs">
                         <img
@@ -188,25 +194,25 @@ export function TeamTable({
                         {member.name}
                       </span>
                     </div>
-                  </td>
+                  </TableCell>
 
                   {/* Kolom 2: Email */}
-                  <td className="py-3.5 px-5 font-normal text-neu-600 whitespace-nowrap text-[13px]">
+                  <TableCell className="py-3.5 px-5 font-normal text-neu-600 whitespace-nowrap text-[13px]">
                     {member.email}
-                  </td>
+                  </TableCell>
 
                   {/* Kolom 3: Role */}
-                  <td className="py-3.5 px-5 font-normal text-neu-600 whitespace-nowrap text-[13px]">
+                  <TableCell className="py-3.5 px-5 font-normal text-neu-600 whitespace-nowrap text-[13px]">
                     {member.role}
-                  </td>
+                  </TableCell>
 
                   {/* Kolom 4: Status Badge */}
-                  <td className="py-3.5 px-5 whitespace-nowrap">
+                  <TableCell className="py-3.5 px-5 whitespace-nowrap">
                     {getStatusBadge(member.status)}
-                  </td>
+                  </TableCell>
 
                   {/* Kolom 5: Aksi */}
-                  <td className="py-3.5 px-5 text-right whitespace-nowrap relative">
+                  <TableCell className="py-3.5 px-5 text-right whitespace-nowrap relative">
                     {isDirectDelete ? (
                       /* Tombol Hapus Langsung untuk status Pending */
                       <button
@@ -324,13 +330,12 @@ export function TeamTable({
                         )}
                       </div>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
     </div>
   );
 }

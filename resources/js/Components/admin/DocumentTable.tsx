@@ -1,6 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, Pencil, CircleChevronDown, Trash2 } from 'lucide-react';
 import { StatusBadge, IconButton } from '@/Components/common';
+import {
+  Table,
+  TableHeader,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+} from '@/Components/ui/table';
 
 export interface DokumenHukumItem {
   id: string;
@@ -70,107 +78,105 @@ export function DocumentTable({
   }, [activeActionId]);
 
   return (
-    <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-visible transition-all duration-200">
-      <div className="overflow-x-auto sm:overflow-visible">
-        <table className="w-full table-fixed text-left border-collapse">
-          {/* Colgroup untuk mengunci lebar kolom agar judul & tabel tidak bergeser saat diurutkan */}
-          <colgroup>
-            <col className="w-[18%]" />
-            <col className="w-[42%]" />
-            <col className="w-[16%]" />
-            <col className="w-[16%]" />
-            <col className="w-[8%]" />
-          </colgroup>
+    <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-hidden transition-all duration-200">
+      <Table className="w-full min-w-[850px] table-fixed text-left border-collapse">
+        {/* Colgroup untuk mengunci lebar kolom agar judul & tabel tidak bergeser saat diurutkan */}
+        <colgroup>
+          <col className="w-[18%] min-w-[150px]" />
+          <col className="w-[42%] min-w-[320px]" />
+          <col className="w-[16%] min-w-[130px]" />
+          <col className="w-[16%] min-w-[140px]" />
+          <col className="w-[8%] min-w-[70px]" />
+        </colgroup>
 
-          {/* Table Header (Sesuai spesifikasi admin: rounded-tl-xl, rounded-tr-xl, bg-neu-50) */}
-          <thead>
-            <tr className="bg-neu-50 border-b border-neu-200 text-[12px] font-semibold text-neu-600 uppercase tracking-wider select-none">
-              <th className="py-3 px-5 whitespace-nowrap overflow-hidden rounded-tl-xl">
-                <div
-                  onClick={() => onSort?.('kategori')}
-                  className="group inline-flex items-center gap-1.5 cursor-pointer hover:text-neu-900 transition-colors"
-                >
-                  <span className={sortColumn === 'kategori' ? 'text-pr-900 font-semibold' : ''}>Kategori</span>
-                  <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
-                    {renderSortIcon('kategori')}
-                  </div>
+        {/* Table Header (Sesuai spesifikasi admin: rounded-tl-xl, rounded-tr-xl, bg-neu-50) */}
+        <TableHeader className="bg-neu-50">
+          <TableRow className="border-b border-neu-200">
+            <TableHead className="py-3 px-5 whitespace-nowrap rounded-tl-xl">
+              <div
+                onClick={() => onSort?.('kategori')}
+                className="group inline-flex items-center gap-1.5 cursor-pointer text-neu-700"
+              >
+                <span className={sortColumn === 'kategori' ? 'text-pr-900 font-semibold' : ''}>Kategori</span>
+                <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
+                  {renderSortIcon('kategori')}
                 </div>
-              </th>
-              <th className="py-3 px-5 whitespace-nowrap overflow-hidden">
-                <div
-                  onClick={() => onSort?.('judul')}
-                  className="group inline-flex items-center gap-1.5 cursor-pointer hover:text-neu-900 transition-colors"
-                >
-                  <span className={sortColumn === 'judul' ? 'text-pr-900 font-semibold' : ''}>Judul</span>
-                  <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
-                    {renderSortIcon('judul')}
-                  </div>
+              </div>
+            </TableHead>
+            <TableHead className="py-3 px-5 whitespace-nowrap">
+              <div
+                onClick={() => onSort?.('judul')}
+                className="group inline-flex items-center gap-1.5 cursor-pointer text-neu-700"
+              >
+                <span className={sortColumn === 'judul' ? 'text-pr-900 font-semibold' : ''}>Judul</span>
+                <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
+                  {renderSortIcon('judul')}
                 </div>
-              </th>
-              <th className="py-3 px-5 whitespace-nowrap overflow-hidden">
-                <div
-                  onClick={() => onSort?.('status')}
-                  className="group inline-flex items-center gap-1.5 cursor-pointer hover:text-neu-900 transition-colors"
-                >
-                  <span className={sortColumn === 'status' ? 'text-pr-900 font-semibold' : ''}>Status Hukum</span>
-                  <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
-                    {renderSortIcon('status')}
-                  </div>
+              </div>
+            </TableHead>
+            <TableHead className="py-3 px-5 whitespace-nowrap">
+              <div
+                onClick={() => onSort?.('status')}
+                className="group inline-flex items-center gap-1.5 cursor-pointer text-neu-700"
+              >
+                <span className={sortColumn === 'status' ? 'text-pr-900 font-semibold' : ''}>Status Hukum</span>
+                <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
+                  {renderSortIcon('status')}
                 </div>
-              </th>
-              <th className="py-3 px-5 whitespace-nowrap overflow-hidden">
-                <div
-                  onClick={() => onSort?.('tgl_ditetapkan')}
-                  className="group inline-flex items-center gap-1.5 cursor-pointer hover:text-neu-900 transition-colors"
-                >
-                  <span className={sortColumn === 'tgl_ditetapkan' ? 'text-pr-900 font-semibold' : ''}>Tgl Ditetapkan</span>
-                  <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
-                    {renderSortIcon('tgl_ditetapkan')}
-                  </div>
+              </div>
+            </TableHead>
+            <TableHead className="py-3 px-5 whitespace-nowrap">
+              <div
+                onClick={() => onSort?.('tgl_ditetapkan')}
+                className="group inline-flex items-center gap-1.5 cursor-pointer text-neu-700"
+              >
+                <span className={sortColumn === 'tgl_ditetapkan' ? 'text-pr-900 font-semibold' : ''}>Tgl Ditetapkan</span>
+                <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
+                  {renderSortIcon('tgl_ditetapkan')}
                 </div>
-              </th>
-              <th className="py-3 px-5 text-right whitespace-nowrap overflow-hidden rounded-tr-xl">
-                <span>Aksi</span>
-              </th>
-            </tr>
-          </thead>
+              </div>
+            </TableHead>
+            <TableHead className="py-3 px-5 text-right whitespace-nowrap rounded-tr-xl">
+              <span>Aksi</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
 
-          {/* Table Body */}
-          <tbody className="divide-y divide-neu-50 text-[12px] text-neu-800">
-            {documents.map((doc, index) => {
-              const isActionOpen = activeActionId === doc.id;
-              // Buka ke atas jika baris berada di bagian bawah tabel agar tidak terpotong
-              const isNearBottom = index >= documents.length - 2 && documents.length >= 3;
+        {/* Table Body */}
+        <TableBody>
+          {documents.map((doc, index) => {
+            const isActionOpen = activeActionId === doc.id;
+            // Buka ke atas jika baris berada di bagian bawah tabel agar tidak terpotong
+            const isNearBottom = index >= documents.length - 2 && documents.length >= 3;
 
-              return (
-                <tr
-                  key={doc.id}
-                  className="hover:bg-gray-50/70 transition-colors"
-                >
+            return (
+              <TableRow
+                key={doc.id}
+              >
                   {/* Kategori */}
-                  <td className="py-3.5 px-5 font-normal text-neu-700 truncate" title={doc.kategori}>
+                  <TableCell className="py-3.5 px-5 font-normal text-neu-700 truncate" title={doc.kategori}>
                     {doc.kategori}
-                  </td>
+                  </TableCell>
 
                   {/* Judul */}
-                  <td className="py-3.5 px-5 font-normal text-neu-900 truncate">
+                  <TableCell className="py-3.5 px-5 font-normal text-neu-900 truncate">
                     <span className="truncate block" title={doc.judul}>
                       {doc.judul}
                     </span>
-                  </td>
+                  </TableCell>
 
                   {/* Status Hukum (Pill Badge Menggunakan Komponen Reusable Common) */}
-                  <td className="py-3.5 px-5 whitespace-nowrap">
+                  <TableCell className="py-3.5 px-5 whitespace-nowrap">
                     <StatusBadge status={doc.status} />
-                  </td>
+                  </TableCell>
 
                   {/* Tgl Ditetapkan */}
-                  <td className="py-3.5 px-5 text-neu-600 whitespace-nowrap">
+                  <TableCell className="py-3.5 px-5 text-neu-600 whitespace-nowrap">
                     {doc.tgl_ditetapkan}
-                  </td>
+                  </TableCell>
 
                   {/* Aksi Button (Tiga Titik) & Overlay Menu */}
-                  <td className="py-3.5 px-5 text-right whitespace-nowrap relative">
+                  <TableCell className="py-3.5 px-5 text-right whitespace-nowrap relative">
                     <IconButton
                       icon={<MoreVertical className="w-4 h-4 text-neu-600" />}
                       variant="ghost"
@@ -241,13 +247,12 @@ export function DocumentTable({
                         </button>
                       </div>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
     </div>
   );
 }
