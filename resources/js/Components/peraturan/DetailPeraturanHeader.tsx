@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from '@inertiajs/react';
 import { Calendar, MapPin, ArrowRightLeft, Download, Check, Copy, Share2 } from 'lucide-react';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
+import { useAuthModal } from '@/hooks/useAuthModal';
 
 export interface DetailPeraturanHeaderProps {
   breadcrumbItems?: { label: string; href?: string }[];
@@ -34,6 +35,7 @@ export function DetailPeraturanHeader({
   downloadHref,
   showCompare = true,
 }: DetailPeraturanHeaderProps) {
+  const { requireAuth } = useAuthModal();
   const [isCitationCopied, setIsCitationCopied] = useState(false);
   const [isShareCopied, setIsShareCopied] = useState(false);
 
@@ -104,7 +106,7 @@ export function DetailPeraturanHeader({
             <button
               type="button"
               onClick={onCompare}
-              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full bg-[#E5E7EB] hover:bg-[#D1D5DB] text-gray-800 text-xs sm:text-sm font-semibold transition-all shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#E5E7EB] hover:bg-[#D1D5DB] text-gray-800 text-sm font-semibold transition-all shadow-2xs cursor-pointer"
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-gray-700 stroke-[2]" />
               <span>Bandingkan</span>
@@ -115,16 +117,16 @@ export function DetailPeraturanHeader({
           {downloadHref ? (
             <Link
               href={downloadHref}
-              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-[#0E1E38] hover:bg-[#091528] text-white text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#0E1E38] hover:bg-[#091528] text-white text-sm font-semibold transition-all shadow-xs cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5 text-white stroke-[2]" />
-              <span>Download</span>
+              <Download className="w-4 h-4 text-white stroke-[2]" />
+              <span>Download Dokumen</span>
             </Link>
           ) : onDownload ? (
             <button
               type="button"
               onClick={onDownload}
-              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-[#0E1E38] hover:bg-[#091528] text-white text-xs sm:text-sm font-semibold transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#0E1E38] hover:bg-[#091528] text-white text-sm font-semibold transition-all shadow-xs cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-white stroke-[2]" />
               <span>Download</span>
@@ -138,8 +140,8 @@ export function DetailPeraturanHeader({
         {/* Status Badge */}
         <div
           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isBerlaku
-              ? 'bg-[#EBF8F2] text-[#059669] border border-[#059669]/20'
-              : 'bg-red-50 text-red-700 border border-red-200'
+            ? 'bg-[#EBF8F2] text-[#059669] border border-[#059669]/20'
+            : 'bg-red-50 text-red-700 border border-red-200'
             }`}
         >
           {isBerlaku && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}

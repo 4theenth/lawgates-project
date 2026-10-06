@@ -70,6 +70,11 @@ class GoogleAuthController extends Controller
                 'pending_link_phone',
             ]);
 
+            $redirect = $request->input('redirect') ?: $request->query('redirect');
+            if (!empty($redirect)) {
+                session()->put('url.intended', $redirect);
+            }
+
             Auth::login($user, $remember);
 
             if (in_array($user->role, ['admin', 'superadmin'])) {
@@ -80,6 +85,11 @@ class GoogleAuthController extends Controller
         }
 
         // 2. Alur login dengan Google
+        $redirect = $request->input('redirect') ?: $request->query('redirect');
+        if (!empty($redirect)) {
+            session()->put('url.intended', $redirect);
+        }
+
         $user = User::where('email', $googleUser['email'])->first();
 
         if ($user) {

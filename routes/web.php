@@ -84,32 +84,40 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/dashboard', function () {
-    $user = auth()->user();
-    if ($user && in_array($user->role, ['admin', 'superadmin'])) {
-        return redirect()->route('admin.dashboard');
-    }
-    return redirect('/');
-})->name('dashboard');
-
-Route::get('/pencarian', function () {
-    return Inertia::render('Pencarian');
-});
-
-Route::redirect('/regulasi', '/pencarian');
-
-Route::get('/bandingkan', function () {
-    return Inertia::render('Bandingkan');
-});
-
-Route::get('/kategori/{slug}', [KategoriController::class, 'show'])->name('kategori.show');
-
-Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show']);
-Route::get('/peraturan/{unique_id}/lihat', [PeraturanController::class, 'viewer'])->name('peraturan.viewer');
-Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download'])->name('peraturan.download');
-
-// Referensi filter
+// Referensi filter (tetap dapat diakses publik agar dropdown filter di landing page dapat menampilkan opsi)
 Route::get('/api/referensi-filter', [PeraturanController::class, 'referensiFilter']);
+
+// ── PROTECTED ROUTES (MANDATORY LOGIN) ──────────────────────────────────
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', function () {
+        $user = auth()->user();
+        if ($user && in_array($user->role, ['admin', 'superadmin'])) {
+            return redirect()->route('admin.dashboard');
+        }
+        return redirect('/');
+    })->name('dashboard');
+
+    Route::get('/pencarian', function () {
+        return Inertia::render('Pencarian');
+    })->name('pencarian');
+
+    // Route alias untuk kompatibilitas /search & /regulasi
+    Route::redirect('/search', '/pencarian');
+    Route::redirect('/regulasi', '/pencarian');
+
+    Route::get('/bandingkan', function () {
+        return Inertia::render('Bandingkan');
+    })->name('bandingkan');
+
+    Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show'])->name('peraturan.show');
+    Route::get('/peraturan/{unique_id}/lihat', [PeraturanController::class, 'viewer'])->name('peraturan.viewer');
+    Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download'])->name('peraturan.download');
+
+    // Route alias untuk /regulations/*
+    Route::get('/regulations/{unique_id}', function ($unique_id) {
+        return redirect()->route('peraturan.show', ['unique_id' => $unique_id]);
+    });
+});
 
 /*
 |--------------------------------------------------------------------------
