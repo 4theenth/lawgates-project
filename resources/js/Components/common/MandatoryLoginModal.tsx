@@ -104,7 +104,7 @@ export default function MandatoryLoginModal({
           leaveTo="opacity-0"
         >
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
             aria-hidden="true"
           />
         </TransitionChild>
