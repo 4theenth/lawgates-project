@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Info, Zap } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ChevronDown, ChevronUp, Info, Zap, ArrowUp, X, Copy, Check } from 'lucide-react';
 import { ChapterItem, ArticleItem, detectActionType } from '../../admin/import/correctionParser';
 import { cleanOcrText } from '../../../utils/ocrTextCleaner';
 
@@ -7,22 +7,92 @@ interface ReadonlyBatangTubuhSectionProps {
   babList: ChapterItem[];
   onToggleBab: (babId: string) => void;
   onTogglePasal: (babId: string, pasalId: string) => void;
+  searchQuery?: string;
+}
+
+const scrollToElementRef = (el: HTMLElement | null, offset = 24) => {
+  if (!el) return;
+  const container = document.getElementById('scrollable-content');
+  if (container && window.innerWidth >= 1024) {
+    const elementPosition = el.getBoundingClientRect().top;
+    const containerPosition = container.getBoundingClientRect().top;
+    const offsetPosition = elementPosition - containerPosition + container.scrollTop - offset;
+    container.scrollTo({ top: Math.max(0, offsetPosition), behavior: 'smooth' });
+  } else {
+    const elementPosition = el.getBoundingClientRect().top;
+    const offsetPosition = elementPosition + window.pageYOffset - (offset + 100);
+    window.scrollTo({ top: Math.max(0, offsetPosition), behavior: 'smooth' });
+  }
+};
+
+export function highlightText(text: string, query?: string): React.ReactNode {
+  const cleaned = cleanOcrText(text);
+  if (!query || !query.trim()) return cleaned;
+  const q = query.trim();
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  const parts = cleaned.split(regex);
+
+  return parts.map((part, index) =>
+    regex.test(part) ? (
+      <mark key={index} className="bg-amber-200 text-slate-900 font-semibold rounded px-0.5">
+        {part}
+      </mark>
+    ) : (
+      part
+    )
+  );
 }
 
 function PasalNode({
   pasal,
   babId,
-  onTogglePasal
+  onTogglePasal,
+  searchQuery = '',
 }: {
   pasal: ArticleItem;
   babId: string;
   onTogglePasal: (babId: string, pasalId: string) => void;
+  searchQuery?: string;
 }) {
   const [isPenjelasanExpanded, setIsPenjelasanExpanded] = useState(false);
   const [activeSubPasalId, setActiveSubPasalId] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const rincianGridRef = useRef<HTMLDivElement>(null);
+  const activeSubPasalRef = useRef<HTMLDivElement>(null);
 
   const containerAction = detectActionType(pasal.isi);
   const activeSubPasal = pasal.pasalList?.find(p => p.id === activeSubPasalId);
+
+  const handleCopyPasal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const fullText = `${pasal.nomor}\n${cleanOcrText(pasal.isi)}${pasal.penjelasan ? `\n\nPenjelasan ${pasal.nomor}:\n${cleanOcrText(pasal.penjelasan)}` : ''}`;
+    navigator.clipboard.writeText(fullText);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleSubPasalClick = (subPId: string) => {
+    if (activeSubPasalId === subPId) {
+      // Toggle off / close
+      setActiveSubPasalId(null);
+      setTimeout(() => scrollToElementRef(rincianGridRef.current), 50);
+    } else {
+      // Open new sub-pasal & scroll to detail
+      setActiveSubPasalId(subPId);
+      setTimeout(() => scrollToElementRef(activeSubPasalRef.current), 100);
+    }
+  };
+
+  const handleCloseSubPasal = () => {
+    setActiveSubPasalId(null);
+    setTimeout(() => scrollToElementRef(rincianGridRef.current), 50);
+  };
+
+  const handleScrollBackToGrid = () => {
+    scrollToElementRef(rincianGridRef.current);
+  };
 
   return (
     <div
@@ -46,6 +116,29 @@ function PasalNode({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleCopyPasal}
+            title={`Salin Teks ${pasal.nomor}`}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+              isCopied
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                : 'bg-white text-neu-600 border border-neu-200 hover:bg-neu-50 hover:text-pr-900'
+            }`}
+          >
+            {isCopied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Tersalin!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Salin Teks</span>
+              </>
+            )}
+          </button>
+
           {pasal.penjelasan && (
             <button
               type="button"
@@ -84,17 +177,17 @@ function PasalNode({
         <div className="space-y-3">
           {/* 2. Banner Atas: Ketentuan Perubahan Peraturan */}
           {pasal.targetInduk && (
-            <div className="p-3 bg-gradient-to-r from-amber-50 to-amber-100/40 border-l-4 border-amber-500 rounded-xl shadow-2xs flex items-center justify-between flex-wrap gap-2 border border-amber-200/60">
+            <div className="p-3.5 bg-gradient-to-r from-amber-50 to-amber-100/40 border-l-4 border-amber-500 rounded-xl shadow-2xs flex items-center justify-between flex-wrap gap-2.5 border border-amber-200/60">
               <div className="flex items-center gap-2 text-amber-950 font-bold text-[12px]">
                 <Zap className="w-4 h-4 text-amber-600 shrink-0" />
                 <span>Ketentuan Perubahan Peraturan</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] text-amber-950 font-medium">
-                  Mengubah: <span className="font-extrabold text-slate-900">{pasal.targetInduk.namaLengkap || pasal.targetInduk.labelSingkat}</span>
+              <div className="flex items-center gap-2 flex-wrap text-[12px]">
+                <span className="text-amber-950 font-medium">
+                  Mengubah Peraturan Induk: <span className="font-extrabold text-slate-900">{pasal.targetInduk.namaLengkap || pasal.targetInduk.labelSingkat}</span>
                 </span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${containerAction.badgeColor}`}>
-                  {containerAction.label}
+                <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold border shadow-2xs ${containerAction.badgeColor}`}>
+                  Sifat Intervensi: {containerAction.label}
                 </span>
               </div>
             </div>
@@ -102,23 +195,31 @@ function PasalNode({
 
           {/* 3. Teks Utama Norma Pasal */}
           <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
-            {cleanOcrText(pasal.isi)}
+            {highlightText(pasal.isi, searchQuery)}
           </div>
 
           {/* 4. Penjelasan Pasal (Jika ada & di-expand) */}
           {isPenjelasanExpanded && pasal.penjelasan && (
             <div className="w-full mt-2 p-3.5 rounded-[8px] bg-blue-50/50 border-l-4 border-l-blue-500 border border-blue-100 text-[12px] text-blue-900 leading-relaxed whitespace-pre-line text-justify">
               <span className="font-semibold text-[14px] block mb-1">Penjelasan {pasal.nomor}:</span>
-              {cleanOcrText(pasal.penjelasan)}
+              {highlightText(pasal.penjelasan, searchQuery)}
             </div>
           )}
 
           {/* 5. Kotak Kuning Bawah: Rincian Pasal Target yang Diintervensi */}
           {pasal.targetInduk && pasal.pasalList && pasal.pasalList.length > 0 && (
-            <div className="p-4 bg-gradient-to-r from-amber-50/90 to-amber-100/50 border-2 border-amber-300 rounded-xl shadow-2xs space-y-2.5">
-              <div className="flex items-center gap-1.5 text-amber-950 font-bold text-[12px]">
-                <Zap className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Rincian Pasal Target yang Diintervensi:</span>
+            <div
+              ref={rincianGridRef}
+              className="p-4 bg-gradient-to-r from-amber-50/90 to-amber-100/50 border-2 border-amber-300 rounded-xl shadow-2xs space-y-2.5 scroll-mt-28"
+            >
+              <div className="flex items-center justify-between flex-wrap gap-2 text-amber-950 font-bold text-[12px]">
+                <div className="flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Rincian Pasal Target yang Diintervensi:</span>
+                </div>
+                <span className="text-[11px] font-normal text-amber-800 bg-amber-200/60 px-2 py-0.5 rounded-md">
+                  Klik tombol pasal untuk membaca teks perubahan
+                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
@@ -130,7 +231,7 @@ function PasalNode({
                     <button
                       key={subP.id}
                       type="button"
-                      onClick={() => setActiveSubPasalId(isActive ? null : subP.id)}
+                      onClick={() => handleSubPasalClick(subP.id)}
                       className={`flex items-center justify-between p-2 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer ${
                         isActive
                           ? 'bg-amber-500 text-white border-amber-600 shadow-sm ring-2 ring-amber-400'
@@ -152,30 +253,66 @@ function PasalNode({
 
           {/* 6. Area Sub-Pasal Aktif yang Dipilih (Default Kosong, Muncul Saat Tombol Klik) */}
           {activeSubPasal && (
-            <div className="mt-3 pl-4 border-l-4 border-amber-500 bg-amber-50/30 p-4 rounded-xl space-y-2 border border-amber-200/80 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between gap-2 border-b border-amber-200/80 pb-2">
-                <span className="font-bold text-[13px] text-amber-950 bg-amber-200/80 px-2.5 py-0.5 rounded-md">
-                  Rincian Teks: {activeSubPasal.nomor}
+            <div
+              ref={activeSubPasalRef}
+              className="mt-3 pl-4 border-l-4 border-amber-500 bg-amber-50/40 p-4 rounded-xl space-y-3 border border-amber-200/90 animate-in fade-in duration-200 scroll-mt-28 shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-2 border-b border-amber-200/80 pb-2 flex-wrap">
+                <span className="font-bold text-[12.5px] text-amber-950 bg-amber-200/90 px-2.5 py-0.5 rounded-md">
+                  Rincian Teks: {activeSubPasal.nomor} {pasal.targetInduk ? `(${pasal.targetInduk.labelSingkat || pasal.targetInduk.standardId})` : ''}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setActiveSubPasalId(null)}
-                  className="text-[11px] text-amber-800 hover:text-amber-950 font-semibold underline cursor-pointer"
-                >
-                  Tutup Rincian
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleScrollBackToGrid}
+                    title="Kembali ke atas daftar tombol pasal"
+                    className="flex items-center gap-1 text-[11px] bg-amber-200/70 hover:bg-amber-200 text-amber-950 px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                    <span>Ke Pusat Pasal</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCloseSubPasal}
+                    className="flex items-center gap-1 text-[11px] bg-white hover:bg-amber-100 text-amber-950 border border-amber-300 px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Tutup Rincian</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="text-[12px] text-slate-800 leading-relaxed whitespace-pre-line text-justify bg-white/95 p-3.5 rounded-lg border border-amber-200/60 shadow-2xs">
-                {cleanOcrText(activeSubPasal.isi)}
+              <div className="text-[12px] text-slate-800 leading-relaxed whitespace-pre-line text-justify bg-white/95 p-4 rounded-lg border border-amber-200/60 shadow-2xs">
+                {highlightText(activeSubPasal.isi, searchQuery)}
               </div>
 
               {activeSubPasal.penjelasan && (
-                <div className="text-[12px] text-blue-900 leading-relaxed whitespace-pre-line text-justify bg-blue-50/60 p-3.5 rounded-lg border border-blue-200/60 mt-2">
+                <div className="text-[12px] text-blue-900 leading-relaxed whitespace-pre-line text-justify bg-blue-50/60 p-3.5 rounded-lg border border-blue-200/60">
                   <span className="font-semibold block mb-1">Penjelasan {activeSubPasal.nomor}:</span>
-                  {cleanOcrText(activeSubPasal.penjelasan)}
+                  {highlightText(activeSubPasal.penjelasan, searchQuery)}
                 </div>
               )}
+
+              {/* Footer Control bar for long sub-pasals */}
+              <div className="flex items-center justify-between pt-2 border-t border-amber-200/60 text-[11px] flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleScrollBackToGrid}
+                  className="flex items-center gap-1.5 text-amber-950 hover:text-black font-semibold cursor-pointer py-1 px-3 rounded-md bg-amber-200/60 hover:bg-amber-200 transition-colors"
+                >
+                  <ArrowUp className="w-3.5 h-3.5" />
+                  <span>Kembali ke Pusat Daftar Pasal Target</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCloseSubPasal}
+                  className="text-amber-800 hover:text-amber-950 font-semibold underline cursor-pointer"
+                >
+                  Tutup Rincian & Kembali
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -188,12 +325,14 @@ function BatangTubuhNode({
   item, 
   onToggleBab, 
   onTogglePasal, 
-  depth = 0 
+  depth = 0,
+  searchQuery = '',
 }: { 
   item: ChapterItem; 
   onToggleBab: (id: string) => void;
   onTogglePasal: (babId: string, pasalId: string) => void;
   depth?: number;
+  searchQuery?: string;
 }) {
   const isRoot = depth === 0;
 
@@ -224,7 +363,7 @@ function BatangTubuhNode({
         <div className="space-y-4 pt-1">
           {item.deskripsi && (
             <div className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed whitespace-pre-line text-justify">
-              {item.deskripsi}
+              {highlightText(item.deskripsi, searchQuery)}
             </div>
           )}
 
@@ -238,6 +377,7 @@ function BatangTubuhNode({
                   onToggleBab={onToggleBab}
                   onTogglePasal={onTogglePasal}
                   depth={depth + 1}
+                  searchQuery={searchQuery}
                 />
               ))}
             </div>
@@ -252,6 +392,7 @@ function BatangTubuhNode({
                   pasal={pasal}
                   babId={item.id}
                   onTogglePasal={onTogglePasal}
+                  searchQuery={searchQuery}
                 />
               ))}
             </div>
@@ -266,6 +407,7 @@ export function ReadonlyBatangTubuhSection({
   babList,
   onToggleBab,
   onTogglePasal,
+  searchQuery = '',
 }: ReadonlyBatangTubuhSectionProps) {
   if (babList.length === 0) {
     return null;
@@ -280,6 +422,7 @@ export function ReadonlyBatangTubuhSection({
           onToggleBab={onToggleBab} 
           onTogglePasal={onTogglePasal}
           depth={0} 
+          searchQuery={searchQuery}
         />
       ))}
     </div>

@@ -11,10 +11,12 @@ interface ReadonlyTableOfContentsProps {
     menetapkan?: string;
   };
   babList: ChapterItem[];
+  activeSectionId?: string;
   onNavigateToStruktur?: (id: string) => void;
   onNavigateToPasal?: (id: string) => void;
   onNavigateToPembukaan?: () => void;
   onNavigateToSection?: (id: string) => void;
+  onSearchChange?: (query: string) => void;
   hideHeader?: boolean;
   className?: string;
 }
@@ -60,21 +62,29 @@ function filterChapterTree(nodes: ChapterItem[], query: string): { filtered: Cha
 
 function TocPasalNode({ 
   pasal, 
-  onNavigateToPasal 
+  onNavigateToPasal,
+  activeSectionId,
 }: {
   pasal: ArticleItem;
   onNavigateToPasal?: (id: string) => void;
+  activeSectionId?: string;
 }) {
+  const isActive = activeSectionId === pasal.id || activeSectionId === `section-${pasal.id}`;
+
   return (
-    <div className="flex items-center justify-between group rounded-lg hover:bg-neu-50/80 p-0.5 transition-colors">
+    <div className={`flex items-center justify-between group rounded-lg p-0.5 transition-all ${
+      isActive ? 'bg-pr-900 text-white shadow-2xs font-bold px-1.5' : 'hover:bg-neu-50/80'
+    }`}>
       <button
         type="button"
         onClick={() => {
           if (onNavigateToPasal) onNavigateToPasal(pasal.id);
         }}
-        className="flex-1 min-w-0 text-left py-1 px-1 text-[12px] font-medium text-neu-700 hover:text-pr-900 transition-colors flex items-center justify-between cursor-pointer gap-1.5"
+        className={`flex-1 min-w-0 text-left py-1 px-1 text-[12px] transition-colors flex items-center justify-between cursor-pointer gap-1.5 ${
+          isActive ? 'text-white font-bold' : 'font-medium text-neu-700 hover:text-pr-900'
+        }`}
       >
-        <span className="truncate font-semibold">{pasal.nomor}</span>
+        <span className="truncate">{pasal.nomor}</span>
       </button>
 
       {onNavigateToPasal && (
@@ -85,7 +95,9 @@ function TocPasalNode({
             e.stopPropagation();
             onNavigateToPasal(pasal.id);
           }}
-          className="p-1 text-neu-400 hover:text-pr-900 hover:bg-white rounded cursor-pointer transition-all ml-1 shrink-0"
+          className={`p-1 rounded cursor-pointer transition-all ml-1 shrink-0 ${
+            isActive ? 'text-white hover:bg-pr-800' : 'text-neu-400 hover:text-pr-900 hover:bg-white'
+          }`}
         >
           <ArrowUpRight className="w-3.5 h-3.5" />
         </button>
@@ -94,12 +106,13 @@ function TocPasalNode({
   );
 }
 
-function TocNode({ item, expandedBabs, toggleLocalBab, onNavigateToStruktur, onNavigateToPasal, searchQuery = '', depth = 0 }: {
+function TocNode({ item, expandedBabs, toggleLocalBab, onNavigateToStruktur, onNavigateToPasal, activeSectionId, searchQuery = '', depth = 0 }: {
   item: ChapterItem;
   expandedBabs: Record<string, boolean>;
   toggleLocalBab: (id: string) => void;
   onNavigateToStruktur?: (id: string) => void;
   onNavigateToPasal?: (id: string) => void;
+  activeSectionId?: string;
   searchQuery?: string;
   depth?: number;
 }) {
@@ -109,6 +122,7 @@ function TocNode({ item, expandedBabs, toggleLocalBab, onNavigateToStruktur, onN
   const hasChildren = (item.children && item.children.length > 0) || (item.pasalList && item.pasalList.length > 0);
 
   const isBab = item.tipe === 'BAB' || depth === 0;
+  const isActive = activeSectionId === item.id || activeSectionId === `struktur-${item.id}`;
 
   return (
     <div className="space-y-1.5" style={{ marginLeft }}>
@@ -119,7 +133,9 @@ function TocNode({ item, expandedBabs, toggleLocalBab, onNavigateToStruktur, onN
             if (hasChildren) toggleLocalBab(item.id);
           }}
           className={`flex-1 min-w-0 text-left p-2 rounded-[8px] transition-colors flex items-center justify-between cursor-pointer ${
-            isBab
+            isActive
+              ? 'bg-pr-900 text-white font-bold text-[12px] leading-tight shadow-2xs'
+              : isBab
               ? 'bg-[#E8EEF5] text-pr-900 font-bold text-[12px] leading-tight'
               : depth === 1
               ? 'bg-neu-50/80 text-neu-800 font-semibold text-[11px]'
@@ -129,9 +145,9 @@ function TocNode({ item, expandedBabs, toggleLocalBab, onNavigateToStruktur, onN
           <span className="line-clamp-2 truncate pr-1">{item.judul}</span>
           {hasChildren && (
             <ChevronRight
-              className={`w-3.5 h-3.5 text-neu-500 shrink-0 transition-transform ${
-                isExpanded ? 'rotate-90 text-pr-900' : ''
-              }`}
+              className={`w-3.5 h-3.5 shrink-0 transition-transform ${
+                isActive ? 'text-white' : 'text-neu-500'
+              } ${isExpanded ? 'rotate-90' : ''}`}
             />
           )}
         </button>
@@ -161,6 +177,7 @@ function TocNode({ item, expandedBabs, toggleLocalBab, onNavigateToStruktur, onN
               toggleLocalBab={toggleLocalBab}
               onNavigateToStruktur={onNavigateToStruktur}
               onNavigateToPasal={onNavigateToPasal}
+              activeSectionId={activeSectionId}
               searchQuery={searchQuery}
               depth={depth + 1}
             />
@@ -172,6 +189,7 @@ function TocNode({ item, expandedBabs, toggleLocalBab, onNavigateToStruktur, onN
                 key={pasal.id}
                 pasal={pasal}
                 onNavigateToPasal={onNavigateToPasal}
+                activeSectionId={activeSectionId}
               />
             ))}
         </div>
@@ -184,10 +202,12 @@ export function ReadonlyTableOfContents({
   pembukaanJudul = 'Pembukaan',
   pembukaanData,
   babList,
+  activeSectionId,
   onNavigateToStruktur,
   onNavigateToPasal,
   onNavigateToPembukaan,
   onNavigateToSection,
+  onSearchChange,
   hideHeader = false,
   className = '',
 }: ReadonlyTableOfContentsProps) {
@@ -319,14 +339,21 @@ export function ReadonlyTableOfContents({
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearchQuery(val);
+                if (onSearchChange) onSearchChange(val);
+              }}
               placeholder="Cari pasal, bab, atau relasi..."
               className="w-full pl-8 pr-7 py-1.5 bg-neu-50 hover:bg-neu-100/70 focus:bg-white text-neu-900 border border-neu-200 focus:border-pr-900 rounded-lg text-[11px] placeholder:text-neu-400 transition-all outline-none"
             />
             {searchQuery && (
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
+                onClick={() => {
+                  setSearchQuery('');
+                  if (onSearchChange) onSearchChange('');
+                }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-neu-400 hover:text-neu-700 p-0.5 rounded cursor-pointer"
               >
                 <X className="w-3 h-3" />

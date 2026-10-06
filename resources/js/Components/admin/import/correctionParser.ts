@@ -152,10 +152,10 @@ export function detectActionType(teks: string): { type: LegalActionType; label: 
     return { type: 'DIUBAH_DAN_DITAMBAH', label: 'Diubah & Ditambah', badgeColor: 'bg-amber-50 text-amber-900 border-amber-300' };
   }
   if (isTambah) {
-    return { type: 'DITAMBAH', label: 'Ditambah (Pasal Baru)', badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-300' };
+    return { type: 'DITAMBAH', label: 'Ditambah', badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-300' };
   }
   if (isHapus) {
-    return { type: 'DIHAPUS', label: 'Dihapus / Dicabut', badgeColor: 'bg-rose-50 text-rose-900 border-rose-300' };
+    return { type: 'DIHAPUS', label: 'Dihapus', badgeColor: 'bg-rose-50 text-rose-900 border-rose-300' };
   }
   return { type: 'DIUBAH', label: 'Diubah', badgeColor: 'bg-blue-50 text-blue-900 border-blue-300' };
 }
