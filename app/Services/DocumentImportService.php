@@ -35,15 +35,34 @@ class DocumentImportService
                                   ->first();
             
             if (!$jenis) {
-                // Buat singkatan otomatis untuk kode (misal "Undang-Undang Darurat" -> "UUD")
-                $words = preg_split('/[\s\-]+/', trim($tipePeraturan));
-                $initials = '';
-                foreach ($words as $w) {
-                    if (!empty($w)) {
-                        $initials .= strtoupper(substr($w, 0, 1));
+                // Mapping singkatan khusus yang baku
+                $tipeLower = strtolower(trim($tipePeraturan));
+                
+                if (str_contains($tipeLower, 'peraturan pemerintah pengganti undang') || $tipeLower === 'perpu' || $tipeLower === 'perppu') {
+                    $kode = 'PERPPU';
+                } elseif (str_contains($tipeLower, 'undang-undang darurat') || str_contains($tipeLower, 'undang undang darurat')) {
+                    $kode = 'UU Darurat';
+                } elseif (str_contains($tipeLower, 'undang-undang dasar') || str_contains($tipeLower, 'undang undang dasar')) {
+                    $kode = 'UUD';
+                } elseif ($tipeLower === 'undang-undang' || $tipeLower === 'undang undang') {
+                    $kode = 'UU';
+                } elseif ($tipeLower === 'peraturan pemerintah') {
+                    $kode = 'PP';
+                } elseif ($tipeLower === 'peraturan presiden') {
+                    $kode = 'PERPRES';
+                } elseif ($tipeLower === 'peraturan menteri') {
+                    $kode = 'PERMEN';
+                } else {
+                    // Buat singkatan otomatis untuk kode jika tidak ada di mapping
+                    $words = preg_split('/[\s\-]+/', trim($tipePeraturan));
+                    $initials = '';
+                    foreach ($words as $w) {
+                        if (!empty($w)) {
+                            $initials .= strtoupper(substr($w, 0, 1));
+                        }
                     }
+                    $kode = substr($initials, 0, 10) ?: 'KAT';
                 }
-                $kode = substr($initials, 0, 10) ?: 'KAT';
 
                 $jenis = JenisPeraturan::create([
                     'kode' => $kode,
