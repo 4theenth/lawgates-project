@@ -68,20 +68,22 @@ export function CorrectionTableOfContents({
   };
 
   const scrollToSection = (sectionId: string) => {
-    const el = document.getElementById(sectionId);
-    const container = document.getElementById('editor-scroll-container');
-    if (el && container) {
-      const containerRect = container.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const scrollTop = container.scrollTop + (elRect.top - containerRect.top) - 20;
+    setTimeout(() => {
+      const el = document.getElementById(sectionId);
+      const container = document.getElementById('editor-scroll-container');
+      if (el && container) {
+        const containerRect = container.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const scrollTop = container.scrollTop + (elRect.top - containerRect.top) - 20;
 
-      container.scrollTo({
-        top: scrollTop,
-        behavior: 'smooth',
-      });
-    } else if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+        container.scrollTo({
+          top: scrollTop,
+          behavior: 'smooth',
+        });
+      } else if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 50);
   };
 
   // Grouping Peraturan Target & Pemetaan Lokasi Pasal Pengubah
@@ -173,25 +175,24 @@ export function CorrectionTableOfContents({
   }, [targetPeraturanGrouped, searchQuery]);
 
   // Component untuk merender 1 node Pasal (hanya pasal utama)
-  const renderPasalNode = (pasal: ArticleItem, babId: string, depth = 0) => {
+  const renderPasalNode = (pasal: ArticleItem, babId: string, _depth = 0) => {
     const isPasalActive = activeSection === `section-${pasal.id}`;
 
     return (
-      <div key={pasal.id} className="flex items-center justify-between group rounded-lg hover:bg-neu-50/80 p-0.5 transition-colors">
+      <div key={pasal.id} className="flex items-center justify-between group rounded-lg p-0.5 transition-colors">
         <button
           type="button"
           onClick={() => {
             if (onPasalClick) onPasalClick(babId, pasal.id);
             scrollToSection(`section-${pasal.id}`);
           }}
-          className={`flex-1 min-w-0 text-left py-1 px-1 text-[12px] transition-colors cursor-pointer flex items-center justify-between gap-1.5 ${
-            isPasalActive ? 'text-black font-bold' : 'font-medium text-neu-700 hover:text-pr-900'
+          className={`flex-1 min-w-0 text-left py-1.5 px-2 rounded-md text-[12px] transition-all cursor-pointer flex items-center justify-between gap-1.5 ${
+            isPasalActive
+              ? 'bg-pr-900 text-white font-bold shadow-2xs'
+              : 'font-medium text-neu-700 hover:text-pr-900 hover:bg-neu-50/80'
           }`}
         >
-          <span className="truncate flex items-center gap-1.5">
-            {isPasalActive && <span className="w-1.5 h-1.5 rounded-full bg-black shrink-0" />}
-            <span className="truncate font-semibold">{pasal.nomor}</span>
-          </span>
+          <span className="truncate font-semibold">{pasal.nomor}</span>
         </button>
 
         {/* Tombol khusus untuk Lompat ke Pasal */}
@@ -203,7 +204,9 @@ export function CorrectionTableOfContents({
             if (onPasalClick) onPasalClick(babId, pasal.id);
             scrollToSection(`section-${pasal.id}`);
           }}
-          className="p-1 text-neu-400 hover:text-pr-900 hover:bg-white rounded cursor-pointer transition-all ml-1 shrink-0"
+          className={`p-1 rounded cursor-pointer transition-all ml-1 shrink-0 ${
+            isPasalActive ? 'text-white/80 hover:text-white' : 'text-neu-400 hover:text-pr-900 hover:bg-neu-100'
+          }`}
         >
           <ArrowUpRight className="w-3.5 h-3.5" />
         </button>
@@ -225,28 +228,31 @@ export function CorrectionTableOfContents({
     }
 
     const isBab = node.tipe === 'BAB' || depth === 0;
+    const isChapterActive = activeSection === `section-${node.id}`;
 
     return (
-      <div key={node.id} className="space-y-1.5">
+      <div key={node.id} className="space-y-1">
         <div className="flex items-center justify-between gap-1 group">
           {/* Klik area judul: HANYA toggle dropdown tanpa scroll jump */}
           <button
             type="button"
             onClick={() => handleToggle(node.id)}
             className={`flex-1 min-w-0 text-left p-2 rounded-[8px] transition-colors flex items-center justify-between cursor-pointer ${
-              isBab
-                ? 'bg-[#E8EEF5] text-pr-900 font-bold text-[12px] leading-tight'
+              isChapterActive
+                ? 'bg-pr-900 text-white font-bold text-[12px] shadow-2xs'
+                : isBab
+                ? 'bg-neu-100/70 text-pr-900 font-bold text-[12px] hover:bg-neu-200/60'
                 : depth === 1
-                ? 'bg-neu-50/80 text-neu-800 font-semibold text-[11px]'
-                : 'bg-white text-neu-700 font-medium text-[11px] border border-neu-100'
+                ? 'bg-neu-50/80 text-neu-800 font-semibold text-[11px] hover:bg-neu-100'
+                : 'bg-white text-neu-700 font-medium text-[11px] border border-neu-100 hover:bg-neu-50'
             }`}
           >
             <span className="line-clamp-2 truncate pr-1">{displayJudul}</span>
             {hasSubNodes && (
               <ChevronRight
-                className={`w-3.5 h-3.5 text-neu-500 shrink-0 transition-transform ${
-                  isExpanded ? 'rotate-90 text-pr-900' : ''
-                }`}
+                className={`w-3.5 h-3.5 shrink-0 transition-transform ${
+                  isChapterActive ? 'text-white' : 'text-neu-500'
+                } ${isExpanded ? 'rotate-90' : ''}`}
               />
             )}
           </button>
