@@ -144,6 +144,7 @@ export function StepUploadJson({
           <KategoriDetectionBadge 
             detected={detectedCategory || null} 
             isNew={isNewCategory} 
+            isMixed={selectedCategory === 'Campuran'}
           />
 
           {/* Pesan Error Inline (Sesuai AC 3) */}
@@ -187,6 +188,8 @@ export function StepUploadJson({
                     ? `${Math.round(file.sizeKb / 1024)} MB`
                     : `${file.sizeKb} KB`;
 
+                const fileCat = file.parsedData?.metadata?.tipe_peraturan;
+
                 return (
                   <div
                     key={file.id}
@@ -208,10 +211,21 @@ export function StepUploadJson({
                         </h4>
                         <div className="font-sans text-[11px] text-neu-500 mt-1 flex items-center gap-2">
                           <span>{displaySize}</span>
+                          {fileCat && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-neu-300"></span>
+                              <span className="font-medium text-neu-700 bg-white px-2 py-0.5 rounded-md border border-neu-200">
+                                {fileCat}
+                              </span>
+                            </>
+                          )}
                           {isError && (
-                            <span className="text-dan-800 font-medium">
-                              {file.error || 'Ukuran file melebihi 10MB!'}
-                            </span>
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-neu-300"></span>
+                              <span className="text-dan-800 font-medium">
+                                {file.error || 'Ukuran file melebihi 10MB!'}
+                              </span>
+                            </>
                           )}
                         </div>
                       </div>
