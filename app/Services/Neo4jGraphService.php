@@ -89,22 +89,58 @@ class Neo4jGraphService
     }
 
     /**
-     * Get isolated graph for a specific Peraturan (Nodes and Links)
+     * Check if Neo4j server is reachable with a fast 0.2s socket check
      */
-    public function getRegulationGraph(int $peraturanId)
+    public function isNeo4jAvailable(): bool
     {
-        // Query to get the center node and all directly connected nodes (depth 1)
-        $query = "
-            MATCH (center:Peraturan {id: \$id})
-            OPTIONAL MATCH (center)-[r]-(connected:Peraturan)
-            RETURN center, type(r) as rel_type, startNode(r).id AS source_id, endNode(r).id AS target_id, connected
-        ";
+        $host = config('neo4j.connections.default.host', 'localhost');
+        $port = (int) config('neo4j.connections.default.port', 7687);
 
-        $result = $this->client->run($query, ['id' => $peraturanId]);
+        $connection = @fsockopen($host, $port, $errno, $errstr, 0.2);
+        if (is_resource($connection)) {
+            fclose($connection);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Get isolated graph for a specific Peraturan (Nodes, Edges, and Links)
+     */
+    public function getRegulationGraph(int $peraturanId, int $depth = 1, int $limit = 150)
+    {
+        if (!$this->isNeo4jAvailable()) {
+            throw new \RuntimeException('Neo4j service is unreachable');
+        }
+
+        $depth = max(1, min(2, $depth));
+        $limit = max(10, min(500, $limit));
+
+        if ($depth === 2) {
+            $query = "
+                MATCH (center:Peraturan {id: \$id})
+                OPTIONAL MATCH path = (center)-[r*1..2]-(connected:Peraturan)
+                UNWIND relationships(path) AS rel
+                WITH center, connected, rel, startNode(rel).id AS source_id, endNode(rel).id AS target_id, type(rel) AS rel_type
+                RETURN center, rel_type, source_id, target_id, connected
+                LIMIT \$limit
+            ";
+        } else {
+            $query = "
+                MATCH (center:Peraturan {id: \$id})
+                OPTIONAL MATCH (center)-[r]-(connected:Peraturan)
+                RETURN center, type(r) as rel_type, startNode(r).id AS source_id, endNode(r).id AS target_id, connected
+                LIMIT \$limit
+            ";
+        }
+
+        $result = $this->client->run($query, ['id' => $peraturanId, 'limit' => $limit]);
 
         $nodes = [];
-        $links = [];
+        $edges = [];
         $nodeMap = [];
+        $edgeMap = [];
 
         // Helper to safely get property since Neo4j removes null properties
         $safeGet = function($node, $key) {
@@ -116,7 +152,7 @@ class Neo4jGraphService
             $centerNode = $row->get('center');
             if ($centerNode === null) continue;
             
-            $centerId = $safeGet($centerNode, 'id');
+            $centerId = (int) $safeGet($centerNode, 'id');
             
             if (!isset($nodeMap[$centerId])) {
                 $nodeMap[$centerId] = true;
@@ -135,11 +171,13 @@ class Neo4jGraphService
 
             if ($row->get('connected') !== null && $row->get('rel_type') !== null) {
                 $connectedNode = $row->get('connected');
-                $connectedId = $safeGet($connectedNode, 'id');
-                $relType = $row->get('rel_type'); // e.g. DIUBAH_OLEH, MENGUBAH, MENCABUT
+                $connectedId = (int) $safeGet($connectedNode, 'id');
+                $relType = (string) $row->get('rel_type');
+                $sourceId = (int) $row->get('source_id');
+                $targetId = (int) $row->get('target_id');
 
-                $relTypeRaw = strtoupper((string)$relType);
-                $isSourceCenter = ($row->get('source_id') === $centerId);
+                $relTypeRaw = strtoupper($relType);
+                $isSourceCenter = ($sourceId === $centerId);
 
                 // Determine precise category based on rel_type and direction relative to center
                 if (str_contains($relTypeRaw, 'CABUT')) {
@@ -177,12 +215,19 @@ class Neo4jGraphService
                     ];
                 }
 
-                $links[] = [
-                    'source' => $row->get('source_id'),
-                    'target' => $row->get('target_id'),
-                    'type' => $relType,
-                    'relCategory' => $relCategory,
-                ];
+                $edgeKey = "{$sourceId}-{$targetId}-{$relType}";
+                if (!isset($edgeMap[$edgeKey])) {
+                    $edgeMap[$edgeKey] = true;
+                    $edges[] = [
+                        'source_id' => $sourceId,
+                        'target_id' => $targetId,
+                        'relation_type' => $relType,
+                        'source' => $sourceId,
+                        'target' => $targetId,
+                        'type' => $relType,
+                        'relCategory' => $relCategory,
+                    ];
+                }
             }
         }
 
@@ -194,26 +239,25 @@ class Neo4jGraphService
                     MATCH (c1:Peraturan)-[r]->(c2:Peraturan)
                     WHERE c1.id IN $ids AND c2.id IN $ids AND c1.id <> c2.id
                     RETURN c1.id AS source_id, c2.id AS target_id, type(r) AS rel_type
+                    LIMIT 100
                 ';
                 $interResult = $this->client->run($interQuery, ['ids' => array_map('intval', $connectedIds)]);
 
-                $linkSet = [];
-                foreach ($links as $l) {
-                    $linkSet["{$l['source']}-{$l['target']}"] = true;
-                    $linkSet["{$l['target']}-{$l['source']}"] = true;
-                }
-
                 foreach ($interResult as $row) {
-                    $src = $row->get('source_id');
-                    $tgt = $row->get('target_id');
-                    $key = "{$src}-{$tgt}";
-                    if (!isset($linkSet[$key])) {
-                        $linkSet[$key] = true;
-                        $linkSet["{$tgt}-{$src}"] = true;
-                        $links[] = [
+                    $src = (int) $row->get('source_id');
+                    $tgt = (int) $row->get('target_id');
+                    $rType = (string) ($row->get('rel_type') ?? 'RELATED_TO');
+                    $edgeKey = "{$src}-{$tgt}-{$rType}";
+
+                    if (!isset($edgeMap[$edgeKey])) {
+                        $edgeMap[$edgeKey] = true;
+                        $edges[] = [
+                            'source_id' => $src,
+                            'target_id' => $tgt,
+                            'relation_type' => $rType,
                             'source' => $src,
                             'target' => $tgt,
-                            'type' => $row->get('rel_type') ?? 'RELATED_TO',
+                            'type' => $rType,
                             'relCategory' => 'Inter-Relasi',
                         ];
                     }
@@ -225,7 +269,9 @@ class Neo4jGraphService
 
         return [
             'nodes' => $nodes,
-            'links' => $links,
+            'edges' => $edges,
+            'links' => $edges, // Backward compatibility
+            'depth' => $depth,
         ];
     }
     
