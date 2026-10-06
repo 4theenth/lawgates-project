@@ -88,7 +88,7 @@ export function RegulationHierarchyGrid({ counts }: RegulationHierarchyGridProps
 
   const handleCardClick = (item: HierarchyCardItem) => {
     requireAuth(() => {
-      router.visit(`/pencarian?kategori_id=${encodeURIComponent(item.id)}`);
+      router.visit(`/kategori/${item.slug || item.id}`);
     });
   };
 
