@@ -109,6 +109,8 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Bandingkan');
     })->name('bandingkan');
 
+    Route::get('/kategori/{slug}', [KategoriController::class, 'show'])->name('kategori.show');
+
     Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show'])->name('peraturan.show');
     Route::get('/peraturan/{unique_id}/lihat', [PeraturanController::class, 'viewer'])->name('peraturan.viewer');
     Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download'])->name('peraturan.download');
