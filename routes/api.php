@@ -19,6 +19,10 @@ Route::post('/register', [AuthController::class, 'register']);
 // Route yang Membutuhkan Autentikasi (Token Sanctum)
 // =================================================================
 Route::middleware('auth:sanctum')->group(function () {
+    // Categorized Regulation Statistics & Listing
+    Route::get('/regulations/categories/stats', [PeraturanController::class, 'categoryStats']);
+    Route::get('/regulations', [PeraturanController::class, 'index']);
+
     // Pencarian & Peraturan Data
     Route::get('/search', [SearchController::class, 'search']);
     Route::get('/peraturan/compare', [\App\Http\Controllers\Api\ComparisonController::class, 'compare']);
