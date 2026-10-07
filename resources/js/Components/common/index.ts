@@ -19,3 +19,5 @@ export { FormTextarea, default as FormTextareaComponent } from './FormTextarea';
 export { FormCheckbox, default as FormCheckboxComponent } from './FormCheckbox';
 export { SocialAuthButton, GoogleLogo } from './SocialAuthButton';
 export { AuthCard, default as AuthCardComponent } from './AuthCard';
+export { DocumentTableOfContents, default as DocumentTableOfContentsComponent } from './DocumentTableOfContents';
+
