@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
-import { ChevronUp, X, Maximize2 } from 'lucide-react';
-import { ChapterItem, ArticleItem } from '@/Components/admin/import/correctionParser';
+import { ChevronUp, X, Maximize2, AlertTriangle, Menu, RotateCcw } from 'lucide-react';
+import { ChapterItem, ArticleItem, detectTargetPeraturan } from '@/Components/admin/import/correctionParser';
 import { ReadonlyTableOfContents } from '@/Components/public/peraturan/ReadonlyTableOfContents';
 import { ReadonlyPembukaanSection } from '@/Components/public/peraturan/ReadonlyPembukaanSection';
 import { ReadonlyBatangTubuhSection } from '@/Components/public/peraturan/ReadonlyBatangTubuhSection';
@@ -89,6 +89,9 @@ function FloatingGraphPreview({ peraturanId, onClose, onExpand }: FloatingGraphP
 export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
   // Scroll to top state
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [activeSectionId, setActiveSectionId] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [mobileDrawer, setMobileDrawer] = useState<'toc' | 'relasi' | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -98,7 +101,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Map Data from Database to UI State
+  // Map Data from Database to UI State (Adaptif Tree Builder)
   const initialBabList = useMemo<ChapterItem[]>(() => {
     if (!peraturan) return [];
     const rawStrukturList = peraturan.struktur_dokumen || [];
@@ -110,6 +113,17 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     // Map all ArticleItems from rawPasalList
     const pasalMap = new Map<string, ArticleItem>();
     rawPasalList.forEach((p: any) => {
+      const rawNomor = String(p.nomor_pasal || '').trim();
+      const nomorFormatted =
+        rawNomor === '0' || rawNomor === ''
+          ? 'Pasal'
+          : rawNomor.toLowerCase().startsWith('pasal') || rawNomor.toLowerCase().startsWith('angka')
+          ? rawNomor
+          : `Pasal ${rawNomor}`;
+
+      const targetInfo = detectTargetPeraturan(p.isi_pasal || '');
+      const isAmendingContainer = Boolean(targetInfo) || /diubah\s+sebagai\s+berikut/i.test(p.isi_pasal || '');
+
       pasalMap.set(p.id.toString(), {
         id: p.id.toString(),
         nomor: p.nomor_pasal?.toLowerCase().startsWith('pasal') ? p.nomor_pasal : `Pasal ${p.nomor_pasal}`,
@@ -127,7 +141,8 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       if (p.parent_pasal_id) {
         const parentArticle = pasalMap.get(p.parent_pasal_id.toString());
         if (parentArticle) {
-          parentArticle.pasalList!.push(articleItem);
+          if (!parentArticle.pasalList) parentArticle.pasalList = [];
+          parentArticle.pasalList.push(articleItem);
         } else {
           rootPasals.push(p);
         }
@@ -144,6 +159,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       return tipe === 'PASAL' || /^Pasal\s+\d+/i.test(label);
     };
 
+    const assignedPasalIds = new Set<string>();
     const chapterMap = new Map<string, ChapterItem>();
     const rootItems: ChapterItem[] = [];
     let currentChapter: ChapterItem | null = null;
@@ -151,6 +167,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     // Proses strukturList secara sekuensial agar hierarki BAB -> Pasal tersusun rapi
     strukturList.forEach((str: any) => {
       if (isPasalRow(str)) {
+        assignedPasalIds.add(str.id.toString());
         // Baris ini adalah Pasal, sisipkan ke dalam BAB yang sedang aktif (bukan jadi BAB mandiri)
         const pasalLabel = str.label?.toLowerCase().startsWith('pasal') ? str.label : `Pasal ${str.label}`;
         const article: ArticleItem = {
@@ -182,6 +199,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       } else {
         // Baris ini adalah Header Struktur (BAB, BAGIAN, PARAGRAF, LAMPIRAN, dsb.)
         const pasalsInStruktur = rootPasals.filter((p: any) => p.struktur_id === str.id);
+        pasalsInStruktur.forEach((p: any) => assignedPasalIds.add(p.id.toString()));
 
         let judul = str.label || '';
         let deskripsi = '';
@@ -223,6 +241,32 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
         children: [],
         pasalList: rootPasals.map((p: any) => pasalMap.get(p.id.toString())!),
       });
+    }
+
+    // Fifth pass: Recovery of unassigned/orphan pasals
+    const unassignedPasals = rootPasals.filter((p: any) => !assignedPasalIds.has(p.id.toString()));
+
+    if (unassignedPasals.length > 0) {
+      if (rootItems.length > 0) {
+        // Distribusikan pasal unassigned ke Bab/Struktur pertama atau yang relevan
+        const targetChapter = rootItems[0];
+        unassignedPasals.forEach((p: any) => {
+          const art = pasalMap.get(p.id.toString());
+          if (art && targetChapter) {
+            targetChapter.pasalList.push(art);
+          }
+        });
+      } else {
+        // Buat Batang Tubuh default jika tidak ada struktur dokumen
+        rootItems.push({
+          id: 'bab-default',
+          judul: 'Batang Tubuh',
+          tipe: 'BAB',
+          isExpanded: false,
+          children: [],
+          pasalList: unassignedPasals.map((p: any) => pasalMap.get(p.id.toString())!),
+        });
+      }
     }
 
     return rootItems;
@@ -536,7 +580,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
               { label: 'Detail Sistem Hukum' }
             ]}
             jenisPeraturan={peraturan?.jenis_peraturan?.nama || 'UNDANG - UNDANG DASAR'}
-            instansi={peraturan?.entitas || 'Pemerintah Pusat'}
+            instansi={peraturan?.instansi || peraturan?.entitas || (peraturan?.jenis_peraturan?.kode === 'PERDA' || (peraturan?.jenis_peraturan?.nama || '').toLowerCase().includes('daerah') ? 'Pemerintah Daerah' : 'Pemerintah Pusat')}
             judul={peraturan?.judul}
             statusPeraturan={peraturan?.status_peraturan?.nama_status || 'Berlaku'}
             tanggalPenetapan={tanggalPenetapan}
@@ -549,12 +593,14 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
           {!showGraph ? (
             <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5 w-full min-w-0">
 
-              {/* Kolom Kiri: Daftar Isi (Ramping seperti Form Koreksi Data) */}
-              <div className="w-full lg:w-[220px] xl:w-[240px] shrink-0 lg:sticky lg:top-28">
+              {/* Kolom Kiri: Daftar Isi */}
+              <div className="w-full lg:w-[290px] xl:w-[320px] shrink-0 lg:sticky lg:top-28">
                 <ReadonlyTableOfContents
                   pembukaanJudul="Pembukaan"
                   pembukaanData={pembukaanData}
                   babList={babsState}
+                  activeSectionId={activeSectionId}
+                  onSearchChange={setSearchQuery}
                   onNavigateToStruktur={handleNavigateToStruktur}
                   onNavigateToPasal={handleNavigateToPasal}
                   onNavigateToPembukaan={() => {
@@ -579,6 +625,19 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                 scroll-region="true"
                 className="flex-1 min-w-0 w-full space-y-4 lg:sticky lg:top-28 lg:h-[calc(100vh-105px)] lg:overflow-y-auto lg:pr-2.5 custom-scrollbar scroll-smooth pb-12"
               >
+                {/* Status Legal Warning Banner jika Peraturan Tidak Berlaku / Dicabut */}
+                {(peraturan?.status_peraturan?.nama_status === 'Tidak Berlaku' || (peraturan?.status_peraturan?.nama_status || '').toLowerCase().includes('tidak')) && (
+                  <div className="p-4 bg-rose-50/90 border-l-4 border-rose-600 rounded-xl border border-rose-200/90 shadow-2xs flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1 text-rose-950">
+                      <h4 className="text-[13px] font-bold">Catatan Status Hukum: Peraturan Ini Tidak Berlaku</h4>
+                      <p className="text-[12px] leading-relaxed text-rose-900">
+                        Dokumen peraturan ini telah dicabut atau dinyatakan tidak berlaku secara hukum. Silakan periksa bagian <span className="font-semibold">Status & Relasi</span> pada panel kanan untuk melihat peraturan pengubah / pengganti terbaru.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <ReadonlyPembukaanSection
                   pembukaan={pembukaanData}
                   isOpenPembukaan={isPembukaanOpen}
@@ -595,6 +654,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
                 <ReadonlyBatangTubuhSection
                   babList={babsState}
+                  searchQuery={searchQuery}
                   onToggleBab={handleToggleBab}
                   onTogglePasal={handleTogglePasal}
                 />
@@ -644,6 +704,88 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       </div>
 
 
+
+      {/* Mobile Bottom Navigation Bar (Khusus Layar HP) */}
+      <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40 bg-slate-900/95 backdrop-blur-md text-white px-4 py-2.5 rounded-full shadow-xl flex items-center justify-between border border-slate-800">
+        <button
+          type="button"
+          onClick={() => setMobileDrawer('toc')}
+          className="flex items-center gap-2 text-xs font-semibold text-slate-200 hover:text-white px-3 py-1.5 rounded-full hover:bg-slate-800 transition-colors cursor-pointer"
+        >
+          <Menu className="w-4 h-4 text-amber-400" />
+          <span>Daftar Isi</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobileDrawer('relasi')}
+          className="flex items-center gap-2 text-xs font-semibold text-slate-200 hover:text-white px-3 py-1.5 rounded-full hover:bg-slate-800 transition-colors cursor-pointer"
+        >
+          <RotateCcw className="w-4 h-4 text-sky-400" />
+          <span>Status & Relasi</span>
+        </button>
+      </div>
+
+      {/* Mobile Bottom Sheet Drawer Modal */}
+      {mobileDrawer && (
+        <div className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-2xl max-h-[80vh] overflow-y-auto p-4 space-y-3 relative shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+              <h3 className="font-bold text-sm text-gray-900 uppercase">
+                {mobileDrawer === 'toc' ? 'DAFTAR ISI' : 'STATUS & RELASI'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setMobileDrawer(null)}
+                className="p-1 rounded-lg bg-gray-100 text-gray-500 hover:text-gray-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {mobileDrawer === 'toc' ? (
+              <ReadonlyTableOfContents
+                pembukaanJudul="Pembukaan"
+                pembukaanData={pembukaanData}
+                babList={babsState}
+                activeSectionId={activeSectionId}
+                onSearchChange={setSearchQuery}
+                onNavigateToStruktur={(id) => {
+                  setMobileDrawer(null);
+                  handleNavigateToStruktur(id);
+                }}
+                onNavigateToPasal={(id) => {
+                  setMobileDrawer(null);
+                  handleNavigateToPasal(id);
+                }}
+                onNavigateToPembukaan={() => {
+                  setMobileDrawer(null);
+                  setIsPembukaanOpen(true);
+                  scrollToElement('section-pembukaan');
+                }}
+                onNavigateToSection={(sectionId) => {
+                  setMobileDrawer(null);
+                  if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
+                  else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
+                  else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
+                  else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
+
+                  setIsPembukaanOpen(true);
+                  scrollToElement(sectionId);
+                }}
+              />
+            ) : (
+              <ReadonlyTimelineSection
+                riwayatPerubahan={timelineData}
+                onRelasiClick={() => {
+                  setMobileDrawer(null);
+                  handleRelasi();
+                }}
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Scroll to Top Button */}
       <button

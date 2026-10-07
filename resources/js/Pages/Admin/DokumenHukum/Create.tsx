@@ -70,6 +70,8 @@ const NAMA_KATEGORI_MAP: Record<string, string> = {
   'PERPPU': 'Peraturan Pemerintah Pengganti Undang-Undang',
   'PERPRES': 'Peraturan Presiden',
   'PERMEN': 'Peraturan Menteri',
+  'PERDA': 'Peraturan Daerah',
+  'P': 'Peraturan Daerah',
   'KEPPRES': 'Keputusan Presiden',
   'STAATSBLAD': 'Staatsblad',
   'TAP MPR': 'Ketetapan MPR',
@@ -241,6 +243,9 @@ export default function DokumenHukumCreate() {
     const MAX_SIZE = 10 * 1024 * 1024; // 10 MB per file
 
     const newItems: UploadedJsonFile[] = [];
+    // Deteksi kategori dari seluruh file
+    const detectedCategoriesSet = new Set<string>();
+
     for (let idx = 0; idx < toAdd.length; idx++) {
       const file = toAdd[idx];
       const sizeKb = Math.round(file.size / 1024);
@@ -252,15 +257,13 @@ export default function DokumenHukumCreate() {
       }
 
       let parsedData: any = null;
-      // Jangan parse jika file melebihi 10MB untuk menjaga performa
       if (!isOversized) {
         try {
           const text = await file.text();
           const cleanText = text.replace(/^\uFEFF/, '').trim();
           parsedData = JSON.parse(cleanText);
 
-          // Coba deteksi kategori dari file pertama yang valid
-          if (idx === 0 && parsedData?.metadata) {
+          if (parsedData?.metadata) {
             let detected =
               parsedData.metadata.tipe_peraturan ||
               parsedData.metadata.kategori ||
@@ -271,26 +274,10 @@ export default function DokumenHukumCreate() {
               if (NAMA_KATEGORI_MAP[upperDet]) {
                 detected = NAMA_KATEGORI_MAP[upperDet];
               }
-
-              // Update data JSON agar form panjang yang akan disimpan ke backend
               parsedData.metadata.tipe_peraturan = detected;
-
-              setDetectedCategory(detected);
-              // Cek apakah kategori yang terdeteksi sudah ada di database (case insensitive)
-              const existingCat = kategoriOptions.find(
-                (k) => k.nama.toLowerCase() === detected.toLowerCase() ||
-                  k.kode.toLowerCase() === detected.toLowerCase()
-              );
-              setIsNewCategory(!existingCat);
-
-              if (existingCat) {
-                setSelectedCategory(existingCat.nama);
-              } else {
-                setSelectedCategory(detected);
-              }
+              detectedCategoriesSet.add(detected);
             }
           }
-
         } catch (e) {
           console.warn('File is not JSON', e);
           fileError = 'Format berkas tidak valid (bukan format JSON yang benar).';
@@ -780,16 +767,16 @@ export default function DokumenHukumCreate() {
         action={
           currentStep === 1 && uploadedFiles.length > 0
             ? {
-                label: 'Tambah File',
-                icon: <Plus className="w-4 h-4" />,
-                onClick: () => {
-                  if (uploadedFiles.length < 10) {
-                    headerFileInputRef.current?.click();
-                  } else {
-                    toast.warning('Maksimal hanya dapat mengunggah 10 berkas sekaligus.');
-                  }
-                },
-              }
+              label: 'Tambah File',
+              icon: <Plus className="w-4 h-4" />,
+              onClick: () => {
+                if (uploadedFiles.length < 10) {
+                  headerFileInputRef.current?.click();
+                } else {
+                  toast.warning('Maksimal hanya dapat mengunggah 10 berkas sekaligus.');
+                }
+              },
+            }
             : undefined
         }
       />

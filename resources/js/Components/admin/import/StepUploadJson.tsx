@@ -115,13 +115,12 @@ export function StepUploadJson({
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`w-full min-h-[380px] rounded-[16px] border-2 border-dashed transition-all flex flex-col items-center justify-center p-8 sm:p-12 text-center bg-white ${
-                isDragging
+              className={`w-full min-h-[380px] rounded-[16px] border-2 border-dashed transition-all flex flex-col items-center justify-center p-8 sm:p-12 text-center bg-white ${isDragging
                   ? 'border-pr-900 bg-pr-50/40'
                   : errorMessage
-                  ? 'border-dan-800 bg-dan-50/20'
-                  : 'border-neu-200 hover:border-neu-300'
-              }`}
+                    ? 'border-dan-800 bg-dan-50/20'
+                    : 'border-neu-200 hover:border-neu-300'
+                }`}
             >
               {/* Ikon Cloud Download dengan Box Squircle Halus Sesuai Desain Figma */}
               <div className="w-14 h-14 rounded-2xl border border-neu-200 flex items-center justify-center text-neu-700 bg-white mb-4 shadow-2xs">
@@ -196,10 +195,11 @@ export function StepUploadJson({
             detectedKategori={detectedCategory}
             disabled={files.length === 0}
           />
-          
-          <KategoriDetectionBadge 
-            detected={detectedCategory || null} 
-            isNew={isNewCategory} 
+
+          <KategoriDetectionBadge
+            detected={detectedCategory || null}
+            isNew={isNewCategory}
+            isMixed={selectedCategory === 'Campuran'}
           />
 
           {/* Pesan Error Inline */}
@@ -243,86 +243,88 @@ export function StepUploadJson({
                     ? `${Math.round(file.sizeKb / 1024)} MB`
                     : `${file.sizeKb} KB`;
 
+                const fileCat = file.parsedData?.metadata?.tipe_peraturan;
+
                 return (
                   <div
                     key={file.id}
-                    className={`flex items-center justify-between p-3.5 rounded-[12px] transition-colors ${
-                      file.isDuplicate
+                    className={`flex items-center justify-between p-3.5 rounded-[12px] transition-colors ${file.isDuplicate
                         ? 'border border-[#FCD34D] bg-[#FFFDF5]'
                         : isError
-                        ? 'border border-dan-800 bg-dan-50/20'
-                        : 'border border-transparent hover:border-neu-100 bg-neu-50/50'
-                    }`}
+                          ? 'border border-dan-800 bg-dan-50/20'
+                          : 'border border-transparent hover:border-neu-100 bg-neu-50/50'
+                      }`}
                   >
                     {/* Ikon & Nama File */}
                     <div className="flex items-center gap-3.5 min-w-0 flex-1 mr-3">
                       <FileCode2
-                        className={`w-6 h-6 shrink-0 stroke-[1.75] ${
-                          file.isDuplicate ? 'text-[#D97706]' : 'text-pr-900'
-                        }`}
+                        className={`w-6 h-6 shrink-0 stroke-[1.75] ${file.isDuplicate ? 'text-[#D97706]' : 'text-pr-900'
+                          }`}
                       />
                       <div className="min-w-0 flex-1">
                         <h4
-                          className={`font-sans text-[12px] font-medium leading-tight truncate ${
-                            file.isDuplicate ? 'text-[#D97706]' : 'text-neu-900'
-                          }`}
+                          className={`font-sans text-[12px] font-medium leading-tight truncate ${file.isDuplicate ? 'text-[#D97706]' : 'text-neu-900'
+                            }`}
                           title={file.name}
                         >
                           {file.name}
                         </h4>
                         <div className="font-sans text-[11px] text-neu-500 mt-1 flex items-center gap-2">
                           <span>{displaySize}</span>
-                          {file.isDuplicate && (
-                            <span className="flex items-center gap-1.5 text-[#D97706] font-normal">
-                              <AlertTriangle className="w-3.5 h-3.5 stroke-[2] text-[#D97706]" />
-                              <span>{file.duplicateMessage || 'File sudah terdaftar di database.'}</span>
-                            </span>
-                          )}
-                          {isError && !file.isDuplicate && (
-                            <span className="text-dan-800 font-medium">
-                              {file.error || 'Ukuran file melebihi 10MB!'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+  {
+    file.isDuplicate && (
+      <span className="flex items-center gap-1.5 text-[#D97706] font-normal">
+        <AlertTriangle className="w-3.5 h-3.5 stroke-[2] text-[#D97706]" />
+        <span>{file.duplicateMessage || 'File sudah terdaftar di database.'}</span>
+      </span>
+    )
+  }
+  {
+    isError && !file.isDuplicate && (
+      <span className="text-dan-800 font-medium">
+        {file.error || 'Ukuran file melebihi 10MB!'}
+      </span>
+    )
+  }
+                        </div >
+                      </div >
+                    </div >
 
-                    {/* Tombol Hapus File */}
-                    <button
-                      type="button"
-                      onClick={() => onRemoveFile(file.id)}
-                      className={`transition-colors p-1 cursor-pointer shrink-0 ${
-                        file.isDuplicate
-                          ? 'text-[#F59E0B] hover:text-[#D97706]'
-                          : 'text-dan-800 hover:text-dan-900'
-                      }`}
-                      title="Hapus file ini"
-                    >
-                      <XCircle className="w-5 h-5 stroke-[1.75]" />
-                    </button>
-                  </div>
+    {/* Tombol Hapus File */ }
+    < button
+  type = "button"
+  onClick = {() => onRemoveFile(file.id)
+}
+className = {`transition-colors p-1 cursor-pointer shrink-0 ${file.isDuplicate
+    ? 'text-[#F59E0B] hover:text-[#D97706]'
+    : 'text-dan-800 hover:text-dan-900'
+  }`}
+title = "Hapus file ini"
+  >
+  <XCircle className="w-5 h-5 stroke-[1.75]" />
+                    </button >
+                  </div >
                 );
               })}
-            </div>
-          </div>
+            </div >
+          </div >
 
-          {/* Tombol Mulai Import di Kanan Bawah */}
-          <div className="flex justify-end pt-2 w-full">
-            <button
-              type="button"
-              disabled={isImportDisabled}
-              onClick={onStartImport}
-              className={`px-6 py-2.5 rounded-[10px] text-[14px] font-medium transition-colors shadow-2xs inline-flex items-center gap-2 ${
-                isImportDisabled
-                  ? 'bg-[#64748B] text-white cursor-not-allowed opacity-90'
-                  : 'bg-pr-900 text-white hover:bg-pr-800 cursor-pointer'
-              }`}
-            >
-              <span>Mulai Import</span>
-            </button>
-          </div>
-        </div>
+  {/* Tombol Mulai Import di Kanan Bawah */ }
+  < div className = "flex justify-end pt-2 w-full" >
+    <button
+      type="button"
+      disabled={isImportDisabled}
+      onClick={onStartImport}
+      className={`px-6 py-2.5 rounded-[10px] text-[14px] font-medium transition-colors shadow-2xs inline-flex items-center gap-2 ${isImportDisabled
+          ? 'bg-[#64748B] text-white cursor-not-allowed opacity-90'
+          : 'bg-pr-900 text-white hover:bg-pr-800 cursor-pointer'
+        }`}
+    >
+      <span>Mulai Import</span>
+    </button>
+          </div >
+        </div >
       )}
-    </div>
+    </div >
   );
 }

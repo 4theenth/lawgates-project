@@ -11,10 +11,12 @@ export interface ReadonlyTableOfContentsProps {
     menetapkan?: string;
   };
   babList: ChapterItem[];
+  activeSectionId?: string;
   onNavigateToStruktur?: (id: string) => void;
   onNavigateToPasal?: (id: string) => void;
   onNavigateToPembukaan?: () => void;
   onNavigateToSection?: (id: string) => void;
+  onSearchChange?: (query: string) => void;
   hideHeader?: boolean;
   className?: string;
 }
@@ -31,6 +33,7 @@ export function ReadonlyTableOfContents({
   onNavigateToPasal,
   onNavigateToPembukaan,
   onNavigateToSection,
+  onSearchChange,
   hideHeader = false,
   className = '',
 }: ReadonlyTableOfContentsProps) {

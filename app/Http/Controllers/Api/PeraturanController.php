@@ -13,6 +13,135 @@ use Illuminate\Support\Str;
 
 class PeraturanController extends Controller
 {
+    /**
+     * GET /api/regulations/categories/stats
+     * Return cached document count statistics for each legal category.
+     */
+    public function categoryStats()
+    {
+        $stats = Cache::remember('regulations_category_stats', 600, function () {
+            return JenisPeraturan::withCount('peraturan')
+                ->get()
+                ->map(function ($jenis) {
+                    return [
+                        'id' => $jenis->id,
+                        'kode' => $jenis->kode,
+                        'nama' => $jenis->nama,
+                        'deskripsi' => $jenis->deskripsi,
+                        'total_dokumen' => (int) $jenis->peraturan_count,
+                    ];
+                });
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $stats,
+        ]);
+    }
+
+    /**
+     * GET /api/regulations
+     * Listing API supporting category, search, year, status query params with pagination.
+     */
+    public function index(Request $request)
+    {
+        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan']);
+
+        // 1. Filter Category (Mendukung ID, slug/kode, atau nama)
+        $query->when($request->filled('category'), function ($q) use ($request) {
+            $cat = trim((string) $request->query('category'));
+            if (is_numeric($cat)) {
+                $q->where('jenis_peraturan_id', (int) $cat);
+            } else {
+                $q->whereHas('jenisPeraturan', function ($sub) use ($cat) {
+                    $sub->where('kode', 'LIKE', $cat)
+                        ->orWhere('nama', 'LIKE', "%{$cat}%");
+                });
+            }
+        });
+
+        // 2. Filter Search (Judul atau Nomor)
+        $query->when($request->filled('search'), function ($q) use ($request) {
+            $search = trim((string) $request->query('search'));
+            $q->where(function ($sub) use ($search) {
+                $sub->where('judul', 'LIKE', "%{$search}%")
+                    ->orWhere('nomor', 'LIKE', "%{$search}%");
+            });
+        });
+
+        // 3. Filter Tahun (year atau tahun)
+        $query->when($request->filled('year') || $request->filled('tahun'), function ($q) use ($request) {
+            $year = $request->query('year') ?? $request->query('tahun');
+            $q->where('tahun', (int) $year);
+        });
+
+        // 4. Filter Status
+        $query->when($request->filled('status'), function ($q) use ($request) {
+            $status = $request->query('status');
+            if (is_numeric($status)) {
+                $q->where('status_id', (int) $status);
+            } else {
+                $q->whereHas('statusPeraturan', function ($sub) use ($status) {
+                    $sub->where('nama_status', 'LIKE', "%{$status}%");
+                });
+            }
+        });
+
+        // 5. Sorting
+        $sort = $request->query('sort', 'terbaru');
+        if ($sort === 'terlama') {
+            $query->orderBy('tahun', 'asc')->orderBy('id', 'asc');
+        } else {
+            $query->orderBy('tahun', 'desc')->orderBy('id', 'desc');
+        }
+
+        // Paginasi: limit (default 10, max 100) dan page (default 1)
+        $limit = max(1, min(100, (int) $request->query('limit', $request->query('per_page', 10))));
+        $paginated = $query->paginate($limit);
+
+        // Transformasi data item memuat field wajib UI (status, nomor, judul, tahun, instansi)
+        $transformedData = collect($paginated->items())->map(function ($p) {
+            return [
+                'id' => $p->id,
+                'unique_id' => $p->unique_id,
+                'judul' => $p->judul,
+                'nomor' => $p->nomor,
+                'tahun' => (int) $p->tahun,
+                'instansi' => $p->instansi ?? 'Pemerintah Republik Indonesia',
+                'status' => $p->statusPeraturan ? $p->statusPeraturan->nama_status : 'Unknown',
+                'status_keberlakuan' => $p->statusPeraturan ? $p->statusPeraturan->nama_status : 'Unknown',
+                'jenis' => $p->jenisPeraturan ? $p->jenisPeraturan->nama : 'Unknown',
+                'jenis_peraturan' => $p->jenisPeraturan ? [
+                    'id' => $p->jenisPeraturan->id,
+                    'kode' => $p->jenisPeraturan->kode,
+                    'nama' => $p->jenisPeraturan->nama,
+                ] : null,
+                'status_peraturan' => $p->statusPeraturan ? [
+                    'id' => $p->statusPeraturan->id,
+                    'nama_status' => $p->statusPeraturan->nama_status,
+                ] : null,
+                'tanggal_penetapan' => $p->tanggal_penetapan ? $p->tanggal_penetapan->format('Y-m-d') : null,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $transformedData,
+            'meta' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+                'from' => $paginated->firstItem(),
+                'to' => $paginated->lastItem(),
+            ],
+            'current_page' => $paginated->currentPage(),
+            'last_page' => $paginated->lastPage(),
+            'per_page' => $paginated->perPage(),
+            'total' => $paginated->total(),
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([

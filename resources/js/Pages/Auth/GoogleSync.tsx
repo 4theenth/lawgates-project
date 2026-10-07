@@ -96,7 +96,7 @@ export default function GoogleSync({
                 {/* Header Subtitle */}
                 <div className="flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold text-neu-800 mb-6">
                     <Icon name="repeat" className="h-4 w-4 text-neu-700" />
-                    <span>Singkronisasi Akun</span>
+                    <span>Sinkronisasi Akun</span>
                 </div>
 
                 {/* Graphic Box */}

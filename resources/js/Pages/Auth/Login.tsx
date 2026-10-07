@@ -9,13 +9,16 @@ import { useToast } from '@/hooks/useToast';
 export interface LoginProps {
     status?: string;
     canResetPassword?: boolean;
+    redirect?: string;
 }
 
-export default function Login({ status, canResetPassword = true }: LoginProps) {
+export default function Login({ status, canResetPassword = true, redirect }: LoginProps) {
+    const redirectUrl = redirect || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null);
     const { data, setData, post, processing, errors, reset, setError, clearErrors } = useForm({
         email: '',
         password: '',
         remember: false as boolean,
+        redirect: redirectUrl || '',
     });
     const { toast } = useToast();
 
@@ -51,7 +54,11 @@ export default function Login({ status, canResetPassword = true }: LoginProps) {
             return;
         }
 
-        post(route('login'), {
+        const loginUrl = redirectUrl
+            ? route('login', { redirect: redirectUrl })
+            : route('login');
+
+        post(loginUrl, {
             onFinish: () => reset('password'),
         });
     };
@@ -61,7 +68,8 @@ export default function Login({ status, canResetPassword = true }: LoginProps) {
             // Post the token to the backend using router
             router.post('/auth/google/callback', {
                 access_token: tokenResponse.access_token,
-                remember: true
+                remember: true,
+                redirect: redirectUrl || undefined,
             }, {
                 onError: () => {
                     toast.error('Terjadi kesalahan saat verifikasi login Google');
@@ -113,8 +121,15 @@ export default function Login({ status, canResetPassword = true }: LoginProps) {
                 onSocialClick={handleGoogleLogin}
                 footerText="Belum punya akun?"
                 footerLinkText="Buat akun baru"
-                footerLinkHref={route('register')}
+                footerLinkHref={redirectUrl ? `${route('register')}?redirect=${encodeURIComponent(redirectUrl)}` : route('register')}
             >
+                {redirectUrl && (
+                    <div className="mb-4 rounded-xl bg-pr-50 p-3.5 border border-pr-200 flex items-center gap-2.5 text-pr-900 text-xs sm:text-sm font-medium">
+                        <Icon name="lock-keyhole" className="h-4 w-4 text-pr-900 shrink-0" />
+                        <span>Silakan login terlebih dahulu untuk mengakses fitur dan data hukum yang dituju.</span>
+                    </div>
+                )}
+
                 {status && (
                     <div className="mb-4 rounded-xl bg-suc-50 p-3 text-xs sm:text-sm font-medium text-suc-800 border border-suc-200">
                         {status}

@@ -60,18 +60,18 @@ Route::get('/', function () {
             $categoryCounts['uud'] += $total;
         } elseif (str_contains($nama, 'mpr') || str_contains($kode, 'mpr')) {
             $categoryCounts['tap-mpr'] += $total;
+        } elseif (str_contains($nama, 'daerah') || str_contains($nama, 'perda') || str_contains($kode, 'daerah') || $kode === 'perda' || $kode === 'p') {
+            $categoryCounts['peraturan-daerah'] += $total;
+            $categoryCounts['perda'] += $total;
         } elseif (str_contains($nama, 'undang') || $kode === 'uu' || str_contains($nama, 'perpu')) {
             $categoryCounts['undang-undang'] += $total;
             $categoryCounts['uu-perpu'] += $total;
-        } elseif (str_contains($nama, 'pemerintah') || $kode === 'pp') {
-            $categoryCounts['peraturan-pemerintah'] += $total;
-            $categoryCounts['pp'] += $total;
         } elseif (str_contains($nama, 'presiden') || $kode === 'perpres') {
             $categoryCounts['peraturan-presiden'] += $total;
             $categoryCounts['perpres'] += $total;
-        } elseif (str_contains($nama, 'daerah') || $kode === 'perda') {
-            $categoryCounts['peraturan-daerah'] += $total;
-            $categoryCounts['perda'] += $total;
+        } elseif (str_contains($nama, 'pemerintah') || $kode === 'pp') {
+            $categoryCounts['peraturan-pemerintah'] += $total;
+            $categoryCounts['pp'] += $total;
         } elseif (str_contains($nama, 'menteri') || str_contains($nama, 'lembaga') || str_contains($nama, 'badan') || str_contains($kode, 'permen')) {
             $categoryCounts['permen-perban'] += $total;
         } elseif (str_contains($nama, 'putusan') || str_contains($nama, 'mahkamah') || str_contains($kode, 'mk') || str_contains($kode, 'ma')) {
@@ -84,32 +84,42 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/dashboard', function () {
-    $user = auth()->user();
-    if ($user && in_array($user->role, ['admin', 'superadmin'])) {
-        return redirect()->route('admin.dashboard');
-    }
-    return redirect('/');
-})->name('dashboard');
-
-Route::get('/pencarian', function () {
-    return Inertia::render('Pencarian');
-});
-
-Route::redirect('/regulasi', '/pencarian');
-
-Route::get('/bandingkan', function () {
-    return Inertia::render('Bandingkan');
-});
-
-Route::get('/kategori/{slug}', [KategoriController::class, 'show'])->name('kategori.show');
-
-Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show']);
-Route::get('/peraturan/{unique_id}/lihat', [PeraturanController::class, 'viewer'])->name('peraturan.viewer');
-Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download'])->name('peraturan.download');
-
-// Referensi filter
+// Referensi filter (tetap dapat diakses publik agar dropdown filter di landing page dapat menampilkan opsi)
 Route::get('/api/referensi-filter', [PeraturanController::class, 'referensiFilter']);
+
+// ── PROTECTED ROUTES (MANDATORY LOGIN) ──────────────────────────────────
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', function () {
+        $user = auth()->user();
+        if ($user && in_array($user->role, ['admin', 'superadmin'])) {
+            return redirect()->route('admin.dashboard');
+        }
+        return redirect('/');
+    })->name('dashboard');
+
+    Route::get('/pencarian', function () {
+        return Inertia::render('Pencarian');
+    })->name('pencarian');
+
+    // Route alias untuk kompatibilitas /search & /regulasi
+    Route::redirect('/search', '/pencarian');
+    Route::redirect('/regulasi', '/pencarian');
+
+    Route::get('/bandingkan', function () {
+        return Inertia::render('Bandingkan');
+    })->name('bandingkan');
+
+    Route::get('/kategori/{slug}', [KategoriController::class, 'show'])->name('kategori.show');
+
+    Route::get('/peraturan/{unique_id}', [PeraturanController::class, 'show'])->name('peraturan.show');
+    Route::get('/peraturan/{unique_id}/lihat', [PeraturanController::class, 'viewer'])->name('peraturan.viewer');
+    Route::get('/peraturan/{unique_id}/download', [PeraturanController::class, 'download'])->name('peraturan.download');
+
+    // Route alias untuk /regulations/*
+    Route::get('/regulations/{unique_id}', function ($unique_id) {
+        return redirect()->route('peraturan.show', ['unique_id' => $unique_id]);
+    });
+});
 
 /*
 |--------------------------------------------------------------------------

@@ -1,6 +1,30 @@
 import React from 'react';
 import { CheckCircle2, XCircle, Eye } from 'lucide-react';
-import { ScraperRegulationItem } from '@/data/dummyRegulations';
+
+export interface ScraperRegulationMetadata {
+  standard_id: string;
+  tipe_peraturan: string;
+  nomor?: string;
+  judul: string;
+  tahun: string;
+  tempat_penetapan?: string;
+  tanggal_penetapan?: string;
+  tanggal_pengundangan?: string;
+  tanggal_berlaku?: string;
+  status: 'Berlaku' | 'Tidak berlaku' | string;
+  pemrakarsa?: string;
+  instansi?: string;
+  sumber_dokumen?: string;
+}
+
+export interface ScraperRegulationItem {
+  id: string;
+  metadata: ScraperRegulationMetadata;
+  relasi?: {
+    mencabut?: string[];
+    diubah_oleh?: string[];
+  };
+}
 
 interface SearchResultCardProps {
   item: ScraperRegulationItem;
@@ -44,7 +68,7 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
           <span className="text-neu-600 font-medium">Tahun {metadata.tahun}</span>
           <span className="w-1 h-1 rounded-full bg-neu-300" />
           <span className="px-2.5 py-1 bg-neu-50 text-neu-700 text-xs rounded-full border border-neu-100 font-medium">
-            {metadata.pemrakarsa || 'Pemerintah Pusat'}
+            {metadata.pemrakarsa || metadata.instansi || (metadata.tipe_peraturan?.toLowerCase().includes('perda') || metadata.tipe_peraturan?.toLowerCase().includes('daerah') ? 'Pemerintah Daerah' : 'Pemerintah Pusat')}
           </span>
         </div>
 

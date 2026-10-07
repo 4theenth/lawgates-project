@@ -536,74 +536,135 @@ class DokumenHukumController extends Controller
             }
         }
 
-        // Ambil Bab dan Pasal
-        $babs = StrukturDokumen::where('peraturan_id', $peraturan->id)
-            ->where('tipe_struktur', 'BAB')
-            ->orderBy('id')
+        // Ambil Seluruh Struktur (BAB, BAGIAN, PARAGRAF) dan Pasal dengan Hierarki Penuh
+        $rawStrukturList = StrukturDokumen::where('peraturan_id', $peraturan->id)
+            ->whereNotIn('tipe_struktur', ['PEMBUKAAN', 'KONSIDERANS', 'DASAR_HUKUM', 'DIKTUM'])
+            ->orderBy('id', 'asc')
             ->get();
 
-        $babList = [];
-        if ($babs->count() > 0) {
-            foreach ($babs as $bab) {
-                $pasals = Pasal::where('peraturan_id', $peraturan->id)
-                    ->where(function($q) use ($bab) {
-                        $q->where('struktur_id', $bab->id)
-                          ->orWhereIn('struktur_id', function($sub) use ($bab) {
-                              $sub->select('id')->from('struktur_dokumen')->where('parent_id', $bab->id);
-                          });
-                    })
-                    ->orderBy('urutan')
-                    ->get();
-                
-                $pasalList = [];
-                foreach ($pasals as $pasal) {
-                    $penjelasan = \App\Models\PenjelasanPasal::where('pasal_id', $pasal->id)->first();
-                    $pasalList[] = [
-                        'id' => (string)$pasal->id,
-                        'nomor' => $pasal->nomor_pasal,
-                        'isi' => $pasal->isi_pasal ?? '',
-                        'penjelasan' => $penjelasan ? $penjelasan->isi_penjelasan : ''
-                    ];
-                }
+        $rawPasalList = Pasal::where('peraturan_id', $peraturan->id)
+            ->with('penjelasan')
+            ->orderBy('urutan', 'asc')
+            ->get();
 
-                $judulStruktur = trim($bab->judul_struktur);
-                $label = trim($bab->label);
+        // Pass 1: Build ArticleItem map
+        $pasalMap = [];
+        foreach ($rawPasalList as $p) {
+            $rawNomor = trim((string)($p->nomor_pasal ?? ''));
+            if ($rawNomor === '0' || $rawNomor === '') {
+                $nomorFormatted = 'Pasal';
+            } else if (preg_match('/^(pasal|angka)/i', $rawNomor)) {
+                $nomorFormatted = $rawNomor;
+            } else {
+                $nomorFormatted = 'Pasal ' . $rawNomor;
+            }
+
+            $targetInfo = $this->detectTargetIndukPhp($p->isi_pasal ?? '');
+            $isAmendingContainer = !empty($targetInfo) || (bool)preg_match('/diubah\s+sebagai\s+berikut/i', $p->isi_pasal ?? '');
+
+            $pasalMap[(string)$p->id] = [
+                'id' => (string)$p->id,
+                'nomor' => $nomorFormatted,
+                'isi' => $p->isi_pasal ?? '',
+                'penjelasan' => $p->penjelasan ? $p->penjelasan->isi_penjelasan : '',
+                'tipe' => $p->parent_pasal_id ? 'PASAL_PERUBAHAN' : ($isAmendingContainer ? 'PASAL_PERUBAHAN_CONTAINER' : 'PASAL'),
+                'targetInduk' => $targetInfo,
+                'isExpanded' => false,
+                'pasalList' => [],
+                'parent_pasal_id' => $p->parent_pasal_id ? (string)$p->parent_pasal_id : null,
+                'struktur_id' => $p->struktur_id ? (string)$p->struktur_id : null,
+            ];
+        }
+
+        // Pass 2: Nest child pasals into parent pasals
+        $rootPasalList = [];
+        foreach ($pasalMap as $id => &$art) {
+            if (!empty($art['parent_pasal_id']) && isset($pasalMap[$art['parent_pasal_id']])) {
+                $pasalMap[$art['parent_pasal_id']]['pasalList'][] = &$art;
+            } else {
+                $rootPasalList[] = &$art;
+            }
+        }
+        unset($art);
+
+        // Pass 3: Instantiate ChapterItems for rawStrukturList
+        $chapterMap = [];
+        $assignedPasalIds = [];
+
+        foreach ($rawStrukturList as $str) {
+            $pasalsInStruktur = [];
+            foreach ($rootPasalList as &$rp) {
+                if (!empty($rp['struktur_id']) && (string)$rp['struktur_id'] === (string)$str->id) {
+                    $pasalsInStruktur[] = &$rp;
+                    $assignedPasalIds[(string)$rp['id']] = true;
+                }
+            }
+            unset($rp);
+
+            $judulStruktur = trim($str->judul_struktur ?? '');
+            $label = trim($str->label ?? '');
+            if ($judulStruktur && $label) {
                 if (stripos($judulStruktur, $label) === 0) {
                     $judulFormatted = $judulStruktur;
                 } else {
                     $judulFormatted = $label . ' ' . $judulStruktur;
                 }
+            } else {
+                $judulFormatted = $judulStruktur ?: ($label ?: 'STRUKTUR');
+            }
 
-                $babList[] = [
-                    'id' => (string)$bab->id,
-                    'judul' => trim($judulFormatted),
-                    'deskripsi' => '',
-                    'pasalList' => $pasalList,
-                    'isExpanded' => false,
-                ];
+            $chapterMap[(string)$str->id] = [
+                'id' => (string)$str->id,
+                'judul' => $judulFormatted,
+                'deskripsi' => '',
+                'tipe' => $str->tipe_struktur ?? 'BAB',
+                'isExpanded' => false,
+                'children' => [],
+                'pasalList' => $pasalsInStruktur,
+                'parent_id' => $str->parent_id ? (string)$str->parent_id : null,
+            ];
+        }
+
+        // Pass 4: Attach structural children (BAGIAN, PARAGRAF) to parent (BAB, BAGIAN)
+        $rootChapterList = [];
+        foreach ($chapterMap as $id => &$ch) {
+            if (!empty($ch['parent_id']) && isset($chapterMap[$ch['parent_id']])) {
+                $chapterMap[$ch['parent_id']]['children'][] = &$ch;
+            } else {
+                $rootChapterList[] = &$ch;
             }
-        } else {
-            // Jika tidak ada bab, ambil semua pasal langsung
-            $pasals = Pasal::where('peraturan_id', $peraturan->id)->orderBy('urutan')->get();
-            $pasalList = [];
-            foreach ($pasals as $pasal) {
-                $penjelasan = \App\Models\PenjelasanPasal::where('pasal_id', $pasal->id)->first();
-                $pasalList[] = [
-                    'id' => (string)$pasal->id,
-                    'nomor' => $pasal->nomor_pasal,
-                    'isi' => $pasal->isi_pasal ?? '',
-                    'penjelasan' => $penjelasan ? $penjelasan->isi_penjelasan : ''
-                ];
+        }
+        unset($ch);
+
+        // Pass 5: Recovery of unassigned/orphan pasals
+        $unassignedPasals = [];
+        foreach ($rootPasalList as &$rp) {
+            if (!isset($assignedPasalIds[(string)$rp['id']])) {
+                $unassignedPasals[] = &$rp;
             }
-            if (count($pasalList) > 0) {
-                $babList[] = [
+        }
+        unset($rp);
+
+        if (!empty($unassignedPasals)) {
+            if (!empty($rootChapterList)) {
+                foreach ($unassignedPasals as &$up) {
+                    $rootChapterList[0]['pasalList'][] = &$up;
+                }
+                unset($up);
+            } else {
+                $rootChapterList[] = [
                     'id' => 'bab_default',
                     'judul' => 'Batang Tubuh',
-                    'pasalList' => $pasalList,
+                    'deskripsi' => '',
+                    'tipe' => 'BAB',
                     'isExpanded' => true,
+                    'children' => [],
+                    'pasalList' => $unassignedPasals,
                 ];
             }
         }
+
+        $babList = $rootChapterList;
 
         // Ambil Riwayat Perubahan (Law Relations)
         $riwayatPerubahan = [];
@@ -791,55 +852,7 @@ class DokumenHukumController extends Controller
             }
 
             $babList = $data['babList'] ?? [];
-            foreach ($babList as $babData) {
-                $babId = null;
-                if ($babData['id'] !== 'bab_default') {
-                    $judulStruktur = $babData['judul'] ?? '';
-                    $label = '';
-                    if (preg_match('/^(BAB\s+[IVXLCDM]+)\s+(.*)$/i', $judulStruktur, $m)) {
-                        $label = $m[1];
-                        $judulStruktur = $m[2];
-                    } else {
-                        $label = $judulStruktur;
-                        $judulStruktur = '';
-                    }
-
-                    $bab = StrukturDokumen::create([
-                        'peraturan_id' => $peraturan->id,
-                        'tipe_struktur' => 'BAB',
-                        'label' => $label,
-                        'judul_struktur' => $judulStruktur,
-                        'urutan' => $urutanStruktur++
-                    ]);
-                    $babId = $bab->id;
-                }
-
-                foreach ($babData['pasalList'] as $pasalData) {
-                    $nomor_pasal = str_replace('Pasal ', '', $pasalData['nomor'] ?? '');
-                    if (is_numeric($nomor_pasal)) {
-                        $nomor_pasal = (int) $nomor_pasal;
-                    } else {
-                        $nomor_pasal = 0; 
-                    }
-
-                    $pasal = Pasal::create([
-                        'peraturan_id' => $peraturan->id,
-                        'struktur_id' => $babId,
-                        'nomor_pasal' => $nomor_pasal,
-                        'isi_pasal' => $pasalData['isi'] ?? '',
-                        'urutan' => $urutanPasal++
-                    ]);
-
-                    $penjelasanText = trim($pasalData['penjelasan'] ?? '');
-                    if ($penjelasanText) {
-                        PenjelasanPasal::create([
-                            'peraturan_id' => $peraturan->id,
-                            'pasal_id' => $pasal->id,
-                            'isi_penjelasan' => $penjelasanText
-                        ]);
-                    }
-                }
-            }
+            $this->saveStrukturAndPasal($peraturan->id, $babList, null, $urutanStruktur, $urutanPasal);
         } else {
             // Normal update for existing documents
             // Update Menimbang
@@ -1121,5 +1134,132 @@ class DokumenHukumController extends Controller
                 'message' => 'Terjadi kesalahan sistem saat mengimpor dokumen hukum dari penyimpanan.'
             ], 500);
         }
+    }
+
+    /**
+     * Simpan struktur dokumen (BAB, BAGIAN, PARAGRAF) dan pasal-pasal secara rekursif
+     */
+    private function saveStrukturAndPasal(
+        int $peraturanId,
+        array $nodes,
+        ?int $parentId = null,
+        &$urutanStruktur = 1,
+        &$urutanPasal = 1
+    ) {
+        foreach ($nodes as $node) {
+            $tipe = strtoupper($node['tipe'] ?? 'BAB');
+            $judul = $node['judul'] ?? '';
+            $label = $node['label'] ?? '';
+            $judulStruktur = $node['deskripsi'] ?? '';
+
+            if (!$label && $judul) {
+                if (preg_match('/^(BAB\s+[IVXLCDM\d]+|Bagian\s+[A-Za-z\d]+|Paragraf\s+\d+)\s*(?:-\s*)?(.*)$/i', $judul, $m)) {
+                    $label = trim($m[1]);
+                    $judulStruktur = trim($m[2]) ?: $judulStruktur;
+                } else {
+                    $label = $judul;
+                }
+            }
+
+            $struktur = null;
+            if ($node['id'] !== 'bab_default') {
+                $struktur = StrukturDokumen::create([
+                    'peraturan_id' => $peraturanId,
+                    'tipe_struktur' => $tipe,
+                    'label' => $label ?: 'Struktur',
+                    'judul_struktur' => $judulStruktur,
+                    'parent_id' => $parentId,
+                    'urutan' => $urutanStruktur++
+                ]);
+            }
+
+            $strukturId = $struktur ? $struktur->id : $parentId;
+
+            // 1. Simpan Pasal-pasal langsung di bawah struktur ini
+            if (!empty($node['pasalList']) && is_array($node['pasalList'])) {
+                foreach ($node['pasalList'] as $pasalData) {
+                    $this->savePasalNode($peraturanId, $strukturId, $pasalData, null, $urutanPasal);
+                }
+            }
+
+            // 2. Simpan Sub-struktur (Children: Bagian / Paragraf) secara rekursif
+            if (!empty($node['children']) && is_array($node['children'])) {
+                $this->saveStrukturAndPasal($peraturanId, $node['children'], $strukturId, $urutanStruktur, $urutanPasal);
+            }
+        }
+    }
+
+    /**
+     * Simpan node Pasal dan Sub-pasal (Pasal Ubahan) secara rekursif
+     */
+    private function savePasalNode(
+        int $peraturanId,
+        ?int $strukturId,
+        array $pasalData,
+        ?int $parentPasalId = null,
+        &$urutanPasal = 1
+    ) {
+        $nomorPasal = trim($pasalData['nomor'] ?? $pasalData['label'] ?? 'Pasal');
+
+        $pasal = Pasal::create([
+            'peraturan_id' => $peraturanId,
+            'struktur_id' => $strukturId,
+            'parent_pasal_id' => $parentPasalId,
+            'nomor_pasal' => $nomorPasal,
+            'isi_pasal' => $pasalData['isi'] ?? '',
+            'urutan' => $urutanPasal++
+        ]);
+
+        $penjelasanText = trim($pasalData['penjelasan'] ?? '');
+        if ($penjelasanText) {
+            PenjelasanPasal::create([
+                'peraturan_id' => $peraturanId,
+                'pasal_id' => $pasal->id,
+                'isi_penjelasan' => $penjelasanText
+            ]);
+        }
+
+        // Simpan Sub-Pasal yang diubah di dalam pasal container ini
+        if (!empty($pasalData['pasalList']) && is_array($pasalData['pasalList'])) {
+            foreach ($pasalData['pasalList'] as $subPasalData) {
+                $this->savePasalNode($peraturanId, $strukturId, $subPasalData, $pasal->id, $urutanPasal);
+            }
+        }
+    }
+
+    private function detectTargetIndukPhp(?string $teks): ?array
+    {
+        if (!$teks) return null;
+
+        if (preg_match('/(?:ketentuan\s+dalam\s+|perubahan\s+atas\s+|mengubah\s+)?(Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah\s+Pengganti\s+Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah|Peraturan[-_\s]?Presiden|Peraturan[-_\s]?Menteri)\s+Nomor\s+(\d+)\s+Tahun\s+(\d{4})(?:\s+tentang\s+([^,.\n()]+))?/i', $teks, $m)) {
+            $rawJenis = $m[1];
+            $nomor = $m[2];
+            $tahun = $m[3];
+            $tentang = isset($m[4]) ? trim($m[4]) : '';
+
+            $jenisClean = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '_', $rawJenis)));
+            $prefix = 'UU';
+            if (str_contains($jenisClean, 'pengganti')) {
+                $prefix = 'PERPPU';
+            } else if (str_contains($jenisClean, 'pemerintah')) {
+                $prefix = 'PP';
+            } else if (str_contains($jenisClean, 'presiden')) {
+                $prefix = 'PERPRES';
+            } else if (str_contains($jenisClean, 'menteri')) {
+                $prefix = 'PERMEN';
+            }
+
+            $stdId = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '_', trim($rawJenis))) . "_no_{$nomor}_{$tahun}";
+            $labelSingkat = "{$prefix} {$nomor}/{$tahun}";
+            $namaLengkap = "{$rawJenis} Nomor {$nomor} Tahun {$tahun}" . ($tentang ? " tentang {$tentang}" : '');
+
+            return [
+                'standardId' => $stdId,
+                'labelSingkat' => $labelSingkat,
+                'namaLengkap' => $namaLengkap,
+            ];
+        }
+
+        return null;
     }
 }

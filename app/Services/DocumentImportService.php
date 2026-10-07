@@ -447,20 +447,35 @@ class DocumentImportService
 
     private function getJenisId($uniqueId)
     {
+        $uniqueLower = strtolower($uniqueId);
         $kode = 'Lainnya';
-        if (str_contains($uniqueId, 'undang-undang-')) {
-            $kode = 'UU';
-        } elseif (str_contains($uniqueId, 'peraturan-pemerintah-pengganti-')) {
-            $kode = 'PERPPU';
-        } elseif (str_contains($uniqueId, 'peraturan-pemerintah-')) {
-            $kode = 'PP';
-        } elseif (str_contains($uniqueId, 'peraturan-presiden-')) {
+
+        if (str_contains($uniqueLower, 'inpres') || str_contains($uniqueLower, 'instruksi-presiden')) {
+            $kode = 'INPRES';
+        } elseif (str_contains($uniqueLower, 'perda') || str_contains($uniqueLower, 'peraturan-daerah')) {
+            $kode = 'PERDA';
+        } elseif (str_contains($uniqueLower, 'perpres') || str_contains($uniqueLower, 'peraturan-presiden')) {
             $kode = 'PERPRES';
-        } elseif (str_contains($uniqueId, 'staatsblad-')) {
+        } elseif (str_contains($uniqueLower, 'perpu') || str_contains($uniqueLower, 'perppu') || str_contains($uniqueLower, 'peraturan-pemerintah-pengganti')) {
+            $kode = 'PERPPU';
+        } elseif (str_contains($uniqueLower, 'uudrt') || str_contains($uniqueLower, 'uu-darurat') || str_contains($uniqueLower, 'undang-undang-darurat')) {
+            $kode = 'UU Darurat';
+        } elseif (str_contains($uniqueLower, 'uud') || str_contains($uniqueLower, 'undang-undang-dasar')) {
+            $kode = 'UUD';
+        } elseif (str_contains($uniqueLower, 'undang-undang') || str_starts_with($uniqueLower, 'uu-') || str_contains($uniqueLower, '-uu-')) {
+            $kode = 'UU';
+        } elseif (str_contains($uniqueLower, 'peraturan-pemerintah') || str_starts_with($uniqueLower, 'pp-')) {
+            $kode = 'PP';
+        } elseif (str_contains($uniqueLower, 'peraturan-menteri') || str_contains($uniqueLower, 'permen')) {
+            $kode = 'PERMEN';
+        } elseif (str_contains($uniqueLower, 'staatsblad')) {
             $kode = 'STAATSBLAD';
         }
 
-        $jenis = \App\Models\JenisPeraturan::whereRaw('LOWER(kode) = ?', [strtolower($kode)])->first();
+        $jenis = \App\Models\JenisPeraturan::whereRaw('LOWER(kode) = ?', [strtolower($kode)])
+            ->orWhereRaw('LOWER(nama) = ?', [strtolower($kode)])
+            ->first();
+
         if (!$jenis) {
             $jenis = \App\Models\JenisPeraturan::create(['kode' => $kode, 'nama' => $kode]);
         }

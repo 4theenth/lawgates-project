@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { useAuthModal } from '@/hooks/useAuthModal';
 import { PublicLayout } from '@/Layouts/PublicLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
 import { Badge } from '@/Components/common/Badge';
@@ -26,6 +27,7 @@ interface FilterOption {
 }
 
 export default function Pencarian() {
+  const { requireAuth } = useAuthModal();
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(true);
   const [totalResult, setTotalResult] = useState(0);
@@ -885,9 +887,13 @@ export default function Pencarian() {
                   const statusName = item.status_peraturan?.nama_status ?? 'Tidak diketahui';
 
                   return (
-                    <Link
-                      href={`/peraturan/${item.unique_id}`}
+                    <div
                       key={item.id}
+                      onClick={() => {
+                        requireAuth(() => {
+                          router.visit(`/peraturan/${item.unique_id}`);
+                        });
+                      }}
                       className="block bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 hover:shadow-md hover:border-pr-900 transition-all group cursor-pointer"
                     >
                       <div className="flex flex-wrap gap-2 items-center mb-3 sm:mb-4">
@@ -912,7 +918,7 @@ export default function Pencarian() {
                           <span>Tahun {item.tahun}</span>
                           <span className="w-px h-3.5 bg-gray-200"></span>
                           <span className="px-2.5 py-0.5 bg-gray-100 text-gray-600 rounded-full group-hover:bg-gray-200 transition-colors text-[11px]">
-                            {item.instansi || 'Pemerintah Pusat'}
+                            {item.instansi || (item.jenis_peraturan?.kode === 'PERDA' || (item.jenis_peraturan?.nama || '').toLowerCase().includes('daerah') ? 'Pemerintah Daerah' : 'Pemerintah Pusat')}
                           </span>
                         </div>
 
@@ -921,7 +927,7 @@ export default function Pencarian() {
                           <span>Lihat Detail</span>
                         </div>
                       </div>
-                    </Link>
+                    </div>
                   );
                 })}
 

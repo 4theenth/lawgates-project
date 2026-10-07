@@ -1,4 +1,5 @@
-import { Link } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
+import { useAuthModal } from '@/hooks/useAuthModal';
 import { CountUp } from '../common/CountUp';
 import hierarchyCardBg from '@/assets/regulation-hierarchy-card.webp';
 
@@ -83,6 +84,14 @@ interface RegulationHierarchyGridProps {
 }
 
 export function RegulationHierarchyGrid({ counts }: RegulationHierarchyGridProps) {
+  const { requireAuth } = useAuthModal();
+
+  const handleCardClick = (item: HierarchyCardItem) => {
+    requireAuth(() => {
+      router.visit(`/kategori/${item.slug || item.id}`);
+    });
+  };
+
   return (
     <section className="mt-[66px] w-full">
       {/* Section Header */}
@@ -101,33 +110,28 @@ export function RegulationHierarchyGrid({ counts }: RegulationHierarchyGridProps
       <div className="w-full overflow-visible">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 xl:gap-[30px] gap-y-[28px]">
 
-          {hierarchyData.map((item) => {
-            const displayCount = counts?.[item.slug] ?? counts?.[item.id] ?? item.count;
-
-            return (
-              <Link
-                key={item.id}
-                href={`/kategori/${item.slug || item.id}`}
-                className="
-                  group
-                  relative
-                  w-full
-                  h-[280px]
-                  p-[5px]
-                  bg-white
-                  border
-                  border-[#E9E9E9]
-                  rounded-[20px]
-                  overflow-hidden
-                  shadow-sm
-                  hover:shadow-md
-                  hover:border-pr-900/30
-                  transition-all
-                  duration-300
-                  cursor-pointer
-                  block
-                "
-              >
+          {hierarchyData.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => handleCardClick(item)}
+              className="
+                group
+                relative
+                w-full
+                h-[280px]
+                p-[5px]
+                bg-white
+                border
+                border-[#E9E9E9]
+                rounded-[20px]
+                overflow-hidden
+                shadow-sm
+                hover:shadow-md
+                transition-all
+                duration-300
+                cursor-pointer
+              "
+            >
 
                 {/* FOTO - Lebar penuh sejajar folder di dalam rim kartu 5px */}
                 <div
@@ -238,7 +242,7 @@ export function RegulationHierarchyGrid({ counts }: RegulationHierarchyGridProps
                       leading-[130%]
                     "
                   >
-                    <CountUp end={displayCount} />
+                    <CountUp end={counts?.[item.id] ?? item.count} />
                   </div>
 
                 </div>
@@ -261,9 +265,9 @@ export function RegulationHierarchyGrid({ counts }: RegulationHierarchyGridProps
                   </svg>
                 </div>
 
-              </Link>
-            );
-          })}
+              </div>
+            )
+          )}
 
         </div>
       </div>
