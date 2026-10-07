@@ -42,7 +42,7 @@ export function StatCard({
       // Sesuai Figma node #2258:42561 (Normal) & #2187:39979 (Saat di-hover / aktif):
       // Normal: border 1px neu-50 (#E9E9E9) di semua sisi.
       // Hover / Active: aksen garis 7px Primary/900 (#0A1C3E) di sisi kiri + shadow-xs halus tanpa ada layout jitter/getar.
-      className={`group relative overflow-hidden bg-white rounded-[12px] border border-neu-50 p-[18px_14px] flex flex-col justify-between gap-[10px] transition-all duration-200 select-none ${
+      className={`group relative overflow-hidden bg-white rounded-[14px] sm:rounded-[12px] border border-neu-50 p-5 sm:p-[18px_16px] lg:p-[18px_14px] flex flex-col justify-between gap-3 sm:gap-[10px] transition-all duration-200 select-none ${
         isActive ? 'shadow-xs' : 'hover:shadow-xs'
       } ${isClickable ? 'cursor-pointer' : ''} ${className}`}
     >
@@ -116,7 +116,7 @@ export interface StatCardsGroupProps {
 export function StatCardsGroup({ items, className = '' }: StatCardsGroupProps) {
   return (
     <div
-      className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[18px] lg:gap-[22px] w-full ${className}`}
+      className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-[18px] lg:gap-[22px] w-full ${className}`}
     >
       {items.map((item, idx) => (
         <StatCard
