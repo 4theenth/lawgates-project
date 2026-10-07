@@ -66,6 +66,8 @@ const NAMA_KATEGORI_MAP: Record<string, string> = {
   'PERPPU': 'Peraturan Pemerintah Pengganti Undang-Undang',
   'PERPRES': 'Peraturan Presiden',
   'PERMEN': 'Peraturan Menteri',
+  'PERDA': 'Peraturan Daerah',
+  'P': 'Peraturan Daerah',
   'KEPPRES': 'Keputusan Presiden',
   'STAATSBLAD': 'Staatsblad',
   'TAP MPR': 'Ketetapan MPR',

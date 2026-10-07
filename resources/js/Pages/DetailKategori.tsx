@@ -671,7 +671,7 @@ export default function DetailKategori({
                     <div>
                       <div className="flex flex-wrap items-center gap-2 mb-3.5">
                         <span className="bg-[#0B1A3A] text-white text-[11px] font-bold px-3 py-1 rounded-full tracking-wide">
-                          {item.jenis_peraturan?.kode || 'UU'}
+                          {item.jenis_peraturan?.kode === 'P' ? 'PERDA' : item.jenis_peraturan?.kode || 'UU'}
                         </span>
 
                         {isBerlaku ? (
@@ -699,7 +699,7 @@ export default function DetailKategori({
                         <span>Tahun {item.tahun}</span>
                         <span className="w-px h-3.5 bg-gray-200"></span>
                         <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full text-[11px] font-medium">
-                          {item.instansi || 'Pemerintah Pusat'}
+                          {item.instansi || (item.jenis_peraturan?.kode === 'PERDA' || (item.jenis_peraturan?.nama || '').toLowerCase().includes('daerah') ? 'Pemerintah Daerah' : 'Pemerintah Pusat')}
                         </span>
                       </div>
 

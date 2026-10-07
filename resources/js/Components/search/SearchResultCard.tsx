@@ -44,7 +44,7 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
           <span className="text-neu-600 font-medium">Tahun {metadata.tahun}</span>
           <span className="w-1 h-1 rounded-full bg-neu-300" />
           <span className="px-2.5 py-1 bg-neu-50 text-neu-700 text-xs rounded-full border border-neu-100 font-medium">
-            {metadata.pemrakarsa || 'Pemerintah Pusat'}
+            {metadata.pemrakarsa || metadata.instansi || (metadata.tipe_peraturan?.toLowerCase().includes('perda') || metadata.tipe_peraturan?.toLowerCase().includes('daerah') ? 'Pemerintah Daerah' : 'Pemerintah Pusat')}
           </span>
         </div>
 

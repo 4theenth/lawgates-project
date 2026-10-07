@@ -539,7 +539,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
               { label: 'Detail Sistem Hukum' }
             ]}
             jenisPeraturan={peraturan?.jenis_peraturan?.nama || 'UNDANG - UNDANG DASAR'}
-            instansi={peraturan?.entitas || 'Pemerintah Pusat'}
+            instansi={peraturan?.instansi || peraturan?.entitas || (peraturan?.jenis_peraturan?.kode === 'PERDA' || (peraturan?.jenis_peraturan?.nama || '').toLowerCase().includes('daerah') ? 'Pemerintah Daerah' : 'Pemerintah Pusat')}
             judul={peraturan?.judul}
             statusPeraturan={peraturan?.status_peraturan?.nama_status || 'Berlaku'}
             tanggalPenetapan={tanggalPenetapan}
