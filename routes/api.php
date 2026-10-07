@@ -12,8 +12,8 @@ use App\Http\Controllers\Api\UserController;
 // =================================================================
 // Route Publik (Tanpa Token Auth)
 // =================================================================
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:30,1');
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:30,1');
 
 // =================================================================
 // Route yang Membutuhkan Autentikasi (Token Sanctum)
