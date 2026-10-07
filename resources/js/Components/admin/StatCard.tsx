@@ -15,6 +15,26 @@ export interface StatCardProps {
   className?: string;
 }
 
+export interface StatGroupItem {
+  id?: string;
+  title: string;
+  value: string | number;
+  icon?: React.ReactNode;
+  note?: string;
+  noteIcon?: React.ReactNode;
+  trend?: {
+    value: string;
+    isPositive?: boolean;
+  };
+  isActive?: boolean;
+  onClick?: () => void;
+}
+
+export interface StatCardsGroupProps {
+  items: StatGroupItem[];
+  className?: string;
+}
+
 export function StatCard({
   title,
   value,
@@ -91,26 +111,6 @@ export function StatCard({
       </div>
     </div>
   );
-}
-
-export interface StatGroupItem {
-  id?: string;
-  title: string;
-  value: string | number;
-  icon?: React.ReactNode;
-  note?: string;
-  noteIcon?: React.ReactNode;
-  trend?: {
-    value: string;
-    isPositive?: boolean;
-  };
-  isActive?: boolean;
-  onClick?: () => void;
-}
-
-export interface StatCardsGroupProps {
-  items: StatGroupItem[];
-  className?: string;
 }
 
 export function StatCardsGroup({ items, className = '' }: StatCardsGroupProps) {
