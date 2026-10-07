@@ -159,6 +159,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     Route::get('/dokumen-hukum/draft/{id}', [DokumenHukumController::class, 'showDraft'])->name('admin.dokumen-hukum.draft.show');
     Route::post('/dokumen-hukum/draft', [DokumenHukumController::class, 'storeDraft'])->name('admin.dokumen-hukum.draft.store');
     Route::get('/dokumen-hukum/draft-check-duplicate', [DokumenHukumController::class, 'checkDraftDuplicate'])->name('admin.dokumen-hukum.draft.check');
+    Route::get('/dokumen-hukum/check-duplicate', [DokumenHukumController::class, 'checkDuplicate'])->name('admin.dokumen-hukum.check-duplicate');
     Route::post('/dokumen-hukum/draft/publish', [DokumenHukumController::class, 'publishDraft'])->name('admin.dokumen-hukum.draft.publish');
     Route::post('/dokumen-hukum/draft/bulk-delete', [DokumenHukumController::class, 'bulkDeleteDraft'])->name('admin.dokumen-hukum.draft.bulk-delete');
 

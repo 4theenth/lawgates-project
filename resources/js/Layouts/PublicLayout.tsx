@@ -5,6 +5,25 @@ import { useScrollPosition } from '../hooks/useScrollPosition';
 import { AuthModalProvider } from '../hooks/useAuthModal';
 
 // ─────────────────────────────────────────────
+// Types & Props
+// ─────────────────────────────────────────────
+
+interface SectionProps {
+  children: ReactNode;
+  className?: string;
+  /**
+   * Set true for full-bleed sections that span edge-to-edge
+   * (e.g. dark banners). The horizontal container is skipped,
+   * but the component should still use PAGE_CONTAINER internally.
+   */
+  fullWidth?: boolean;
+}
+
+interface PublicLayoutProps {
+  children: ReactNode;
+}
+
+// ─────────────────────────────────────────────
 // Layout Tokens
 // ─────────────────────────────────────────────
 
@@ -31,17 +50,6 @@ export const SECTION_SPACING = 0; // px
 // Section Wrapper
 // ─────────────────────────────────────────────
 
-interface SectionProps {
-  children: ReactNode;
-  className?: string;
-  /**
-   * Set true for full-bleed sections that span edge-to-edge
-   * (e.g. dark banners). The horizontal container is skipped,
-   * but the component should still use PAGE_CONTAINER internally.
-   */
-  fullWidth?: boolean;
-}
-
 /**
  * Wraps a page section with the standard 121px top spacing.
  * Also applies PAGE_CONTAINER so content aligns with the navbar.
@@ -67,10 +75,6 @@ export function Section({ children, className = '', fullWidth = false }: Section
 // ─────────────────────────────────────────────
 // Layout
 // ─────────────────────────────────────────────
-
-interface PublicLayoutProps {
-  children: ReactNode;
-}
 
 export function PublicLayout({ children }: PublicLayoutProps) {
   const isScrolled = useScrollPosition(40);

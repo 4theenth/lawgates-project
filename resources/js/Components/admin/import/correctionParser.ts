@@ -94,6 +94,8 @@ export interface LegalDocumentCorrectionData {
   };
 }
 
+export type LegalActionType = 'DIUBAH' | 'DITAMBAH' | 'DIHAPUS' | 'DIUBAH_DAN_DITAMBAH';
+
 /**
  * Ekstrak ID & Nama Peraturan Target yang diubah dari teks pasal (misal UU No 26 Tahun 2007)
  */
@@ -137,8 +139,6 @@ export function detectTargetPeraturan(teks: string, explicitTarget?: string): Ta
 
   return undefined;
 }
-
-export type LegalActionType = 'DIUBAH' | 'DITAMBAH' | 'DIHAPUS' | 'DIUBAH_DAN_DITAMBAH';
 
 export function detectActionType(teks: string): { type: LegalActionType; label: string; badgeColor: string } {
   if (!teks) return { type: 'DIUBAH', label: 'Diubah', badgeColor: 'bg-blue-50 text-blue-800 border-blue-200' };
