@@ -20,7 +20,7 @@ class DokumenHukumController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan']);
+        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'creator']);
 
         // Filter: Status (Berlaku / Tidak Berlaku / Draft)
         if ($request->filled('status') && $request->status !== 'all') {
@@ -84,6 +84,11 @@ class DokumenHukumController extends Controller
             } else if ($request->sortColumn === 'judul') {
                 $query->orderByRaw("judul {$direction} NULLS LAST")
                       ->orderBy('peraturan.updated_at', 'desc');
+            } else if ($request->sortColumn === 'author') {
+                $query->leftJoin('admins', 'peraturan.created_by', '=', 'admins.id')
+                      ->orderByRaw("COALESCE(admins.username, '') {$direction}")
+                      ->orderBy('peraturan.updated_at', 'desc')
+                      ->select('peraturan.*');
             } else {
                 $query->orderBy($request->sortColumn, $direction);
             }
@@ -111,6 +116,7 @@ class DokumenHukumController extends Controller
                 'judul' => $item->judul,
                 'status' => $status,
                 'tgl_ditetapkan' => $item->tanggal_penetapan ? $item->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-',
+                'author' => $item->creator ? $item->creator->username : null,
                 'real_status' => $item->statusPeraturan ? $item->statusPeraturan->nama_status : '-',
             ];
         });
@@ -163,9 +169,24 @@ class DokumenHukumController extends Controller
             $draftsPaginator->setCollection($formattedDrafts);
         }
 
+        // Statistik ringkasan dokumen hukum untuk StatCards
+        $stats = [
+            'total_dokumen' => Peraturan::count(),
+            'total_berlaku' => Peraturan::whereHas('statusPeraturan', function ($q) {
+                $q->where('nama_status', 'not ilike', '%tidak berlaku%')
+                  ->where('nama_status', 'not ilike', '%belum berlaku%');
+            })->count(),
+            'total_tidak_berlaku' => Peraturan::whereHas('statusPeraturan', function ($q) {
+                $q->where('nama_status', 'ilike', '%tidak berlaku%');
+            })->count(),
+            'total_draft' => DraftDokumen::where('status', 'draft')->count(),
+            'penambahan_baru' => 12,
+        ];
+
         return Inertia::render('Admin/DokumenHukum/Index', [
             'peraturans' => $paginator,
             'drafts' => $draftsPaginator,
+            'stats' => $stats,
             'filters' => $request->only(['search', 'status', 'kategori', 'sortColumn', 'sortDirection', 'pageSize']),
             'referensi' => [
                 'kategori' => $categories
@@ -184,6 +205,26 @@ class DokumenHukumController extends Controller
         $user = auth()->user();
         $autor = $user ? ($user->name ?? 'Admin') : 'Admin';
         $files = $request->input('files');
+
+        // Pengecekan duplikasi terhadap peraturan aktif di sistem (AC 3)
+        foreach ($files as $f) {
+            $fileTitle = $f['title'] ?? ($f['correctionData']['judul'] ?? null);
+            if ($fileTitle) {
+                $duplicatePeraturan = Peraturan::where('judul', $fileTitle)
+                    ->whereHas('statusPeraturan', function($q) {
+                        $q->where('nama_status', 'not ilike', '%draft%');
+                    })
+                    ->first();
+                if ($duplicatePeraturan && !str_contains(strtolower($duplicatePeraturan->judul), 'menunggu import')) {
+                    return response()->json([
+                        'success' => false,
+                        'conflict' => true,
+                        'message' => "Peraturan dengan judul \"{$fileTitle}\" sudah ada di database sistem (Duplikasi terdeteksi).",
+                        'existing_id' => $duplicatePeraturan->unique_id
+                    ], 409);
+                }
+            }
+        }
 
         if ($request->filled('id')) {
             $draft = DraftDokumen::find($request->id);
@@ -250,6 +291,57 @@ class DokumenHukumController extends Controller
                         ]);
                     }
                 }
+            }
+        }
+
+        return response()->json(['exists' => false]);
+    }
+
+    public function checkDuplicate(Request $request)
+    {
+        $filename = $request->query('filename');
+        $judul = $request->query('judul');
+        $standardId = $request->query('standard_id') ?? $request->query('id_dokumen');
+
+        if (!$filename && !$judul && !$standardId) {
+            return response()->json(['exists' => false]);
+        }
+
+        // 1. Cek di tabel peraturan (Database Dokumen Hukum)
+        $query = Peraturan::query();
+        if ($standardId) {
+            $query->where('unique_id', $standardId);
+        } elseif ($judul) {
+            $query->where('judul', 'ilike', $judul);
+        } elseif ($filename) {
+            $cleanName = pathinfo($filename, PATHINFO_FILENAME);
+            $cleanNameWithSpaces = str_replace('_', ' ', $cleanName);
+            $query->where(function($q) use ($cleanName, $cleanNameWithSpaces) {
+                $q->where('unique_id', $cleanName)
+                  ->orWhere('judul', 'ilike', "%{$cleanNameWithSpaces}%");
+            });
+        }
+
+        $existing = $query->first();
+        if ($existing && !str_contains(strtolower($existing->judul), 'menunggu import')) {
+            return response()->json([
+                'exists' => true,
+                'source' => 'database',
+                'title' => $existing->judul,
+                'message' => 'File sudah terdaftar di database.'
+            ]);
+        }
+
+        // 2. Cek di tabel draft
+        if ($filename) {
+            $draft = DraftDokumen::where('files_data', 'like', '%' . $filename . '%')->first();
+            if ($draft) {
+                return response()->json([
+                    'exists' => true,
+                    'source' => 'draft',
+                    'draft_name' => $draft->nama_draft,
+                    'message' => 'File sudah terdaftar di draft.'
+                ]);
             }
         }
 
@@ -341,6 +433,9 @@ class DokumenHukumController extends Controller
         $successCount = 0;
         $errors = [];
 
+        $duplicateFound = false;
+        $duplicateMessage = '';
+
         foreach ($request->input('files') as $index => $fileData) {
             try {
                 if (isset($fileData['parsedData'])) {
@@ -370,18 +465,30 @@ class DokumenHukumController extends Controller
                 }
             } catch (\Exception $e) {
                 \Log::error("Import OCR Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-                $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
+                if (str_contains(strtolower($e->getMessage()), 'sudah ada')) {
+                    $duplicateFound = true;
+                    $duplicateMessage = $e->getMessage();
+                    $errors[] = $e->getMessage();
+                } else {
+                    $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
+                }
             }
         }
 
         if (count($errors) > 0) {
+            $status = $duplicateFound ? 409 : 400;
             return response()->json([
-                'message' => "Berhasil mengimpor {$successCount} dokumen. Gagal: " . count($errors),
+                'success' => false,
+                'conflict' => $duplicateFound,
+                'message' => $duplicateFound 
+                    ? ($duplicateMessage ?: 'Dokumen sudah ada di database (Duplikasi terdeteksi).')
+                    : ("Berhasil mengimpor {$successCount} dokumen. Gagal: " . count($errors)),
                 'errors' => $errors
-            ], 400);
+            ], $status);
         }
 
         return response()->json([
+            'success' => true,
             'message' => "Berhasil mengimpor {$successCount} dokumen."
         ]);
     }
@@ -570,6 +677,24 @@ class DokumenHukumController extends Controller
             DB::beginTransaction();
 
             $peraturan = Peraturan::where('unique_id', $unique_id)->firstOrFail();
+
+            // Pengecekan duplikasi judul terhadap peraturan lain (AC 3)
+            $newJudul = $request->input('judul');
+            if ($newJudul) {
+                $duplicate = Peraturan::where('judul', $newJudul)
+                    ->where('id', '!=', $peraturan->id)
+                    ->first();
+                if ($duplicate && !str_contains(strtolower($duplicate->judul), 'menunggu import')) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'conflict' => true,
+                        'message' => "Dokumen dengan judul \"{$newJudul}\" sudah ada di sistem (Duplikasi terdeteksi).",
+                        'existing_id' => $duplicate->unique_id,
+                    ], 409);
+                }
+            }
+
             $this->performUpdate($peraturan, $request->all());
 
             DB::commit();
