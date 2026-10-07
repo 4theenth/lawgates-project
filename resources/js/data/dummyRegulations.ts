@@ -10,6 +10,7 @@ export interface ScraperRegulationMetadata {
   tanggal_berlaku?: string;
   status: 'Berlaku' | 'Tidak berlaku';
   pemrakarsa: string;
+  instansi?: string;
   sumber_dokumen?: string;
 }
 

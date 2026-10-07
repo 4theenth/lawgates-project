@@ -918,7 +918,7 @@ export default function Pencarian() {
                           <span>Tahun {item.tahun}</span>
                           <span className="w-px h-3.5 bg-gray-200"></span>
                           <span className="px-2.5 py-0.5 bg-gray-100 text-gray-600 rounded-full group-hover:bg-gray-200 transition-colors text-[11px]">
-                            {item.instansi || 'Pemerintah Pusat'}
+                            {item.instansi || (item.jenis_peraturan?.kode === 'PERDA' || (item.jenis_peraturan?.nama || '').toLowerCase().includes('daerah') ? 'Pemerintah Daerah' : 'Pemerintah Pusat')}
                           </span>
                         </div>
 

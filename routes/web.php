@@ -60,18 +60,18 @@ Route::get('/', function () {
             $categoryCounts['uud'] += $total;
         } elseif (str_contains($nama, 'mpr') || str_contains($kode, 'mpr')) {
             $categoryCounts['tap-mpr'] += $total;
+        } elseif (str_contains($nama, 'daerah') || str_contains($nama, 'perda') || str_contains($kode, 'daerah') || $kode === 'perda' || $kode === 'p') {
+            $categoryCounts['peraturan-daerah'] += $total;
+            $categoryCounts['perda'] += $total;
         } elseif (str_contains($nama, 'undang') || $kode === 'uu' || str_contains($nama, 'perpu')) {
             $categoryCounts['undang-undang'] += $total;
             $categoryCounts['uu-perpu'] += $total;
-        } elseif (str_contains($nama, 'pemerintah') || $kode === 'pp') {
-            $categoryCounts['peraturan-pemerintah'] += $total;
-            $categoryCounts['pp'] += $total;
         } elseif (str_contains($nama, 'presiden') || $kode === 'perpres') {
             $categoryCounts['peraturan-presiden'] += $total;
             $categoryCounts['perpres'] += $total;
-        } elseif (str_contains($nama, 'daerah') || $kode === 'perda') {
-            $categoryCounts['peraturan-daerah'] += $total;
-            $categoryCounts['perda'] += $total;
+        } elseif (str_contains($nama, 'pemerintah') || $kode === 'pp') {
+            $categoryCounts['peraturan-pemerintah'] += $total;
+            $categoryCounts['pp'] += $total;
         } elseif (str_contains($nama, 'menteri') || str_contains($nama, 'lembaga') || str_contains($nama, 'badan') || str_contains($kode, 'permen')) {
             $categoryCounts['permen-perban'] += $total;
         } elseif (str_contains($nama, 'putusan') || str_contains($nama, 'mahkamah') || str_contains($kode, 'mk') || str_contains($kode, 'ma')) {
