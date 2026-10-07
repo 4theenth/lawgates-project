@@ -66,6 +66,8 @@ const NAMA_KATEGORI_MAP: Record<string, string> = {
   'PERPPU': 'Peraturan Pemerintah Pengganti Undang-Undang',
   'PERPRES': 'Peraturan Presiden',
   'PERMEN': 'Peraturan Menteri',
+  'PERDA': 'Peraturan Daerah',
+  'P': 'Peraturan Daerah',
   'KEPPRES': 'Keputusan Presiden',
   'STAATSBLAD': 'Staatsblad',
   'TAP MPR': 'Ketetapan MPR',
@@ -152,6 +154,50 @@ export default function DokumenHukumCreate() {
       });
   }, []);
 
+  // ── Penanganan Tombol Back Bawaan Browser (Chrome/Edge/Firefox) ──
+  // Menjaga agar tombol back browser kembali ke langkah/layar sebelumnya
+  // daripada langsung keluar ke /admin/dokumen-hukum
+  const stepStateRef = useRef({ currentStep, editingFile });
+
+  useEffect(() => {
+    stepStateRef.current = { currentStep, editingFile };
+  }, [currentStep, editingFile]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const { editingFile: currentEditing, currentStep: curStep } = stepStateRef.current;
+
+      // 1. Jika sedang dalam layar koreksi/edit file (CorrectionDetailView)
+      if (currentEditing !== null) {
+        setEditingFile(null); // Tutup koreksi & kembali ke Langkah 3 (Layar pada Gambar)
+        return;
+      }
+
+      // 2. Jika berada di Langkah > 1 (Langkah 3 atau 2 atau 4)
+      if (curStep > 1) {
+        if (curStep === 3 || curStep === 2) {
+          setCurrentStep(1); // Kembali ke Langkah 1 (Unggah File)
+        } else if (curStep === 4) {
+          setCurrentStep(3); // Kembali ke Langkah 3 (Validasi)
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  // Sync state dengan history browser saat masuk mode edit atau pindah langkah
+  useEffect(() => {
+    if (editingFile !== null) {
+      window.history.pushState({ editMode: true, fileId: editingFile.id }, '');
+    } else if (currentStep > 1) {
+      window.history.pushState({ step: currentStep }, '');
+    }
+  }, [editingFile, currentStep]);
+
   // Handler tambah berkas dari tombol di header atau dropzone
   const handleAddFiles = async (newFiles: File[]) => {
     setInlineError(null);
@@ -180,113 +226,112 @@ export default function DokumenHukumCreate() {
     const MAX_SIZE = 10 * 1024 * 1024; // 10 MB per file
 
     const newItems: UploadedJsonFile[] = [];
-    for (let idx = 0; idx < toAdd.length; idx++) {
-      const file = toAdd[idx];
-      const sizeKb = Math.round(file.size / 1024);
-      const isOversized = file.size > MAX_SIZE;
+      // Deteksi kategori dari seluruh file
+      const detectedCategoriesSet = new Set<string>();
 
-      let fileError: string | undefined = undefined;
-      if (isOversized) {
-        fileError = 'Ukuran file melebihi 10MB!';
-      }
+      for (let idx = 0; idx < toAdd.length; idx++) {
+        const file = toAdd[idx];
+        const sizeKb = Math.round(file.size / 1024);
+        const isOversized = file.size > MAX_SIZE;
 
-      let parsedData: any = null;
-      // Jangan parse jika file melebihi 10MB untuk menjaga performa
-      if (!isOversized) {
-        try {
-          const text = await file.text();
-          const cleanText = text.replace(/^\uFEFF/, '').trim();
-          parsedData = JSON.parse(cleanText);
+        let fileError: string | undefined = undefined;
+        if (isOversized) {
+          fileError = 'Ukuran file melebihi 10MB!';
+        }
 
-          // Coba deteksi kategori dari file pertama yang valid
-          if (idx === 0 && parsedData?.metadata) {
-            let detected =
-              parsedData.metadata.tipe_peraturan ||
-              parsedData.metadata.kategori ||
-              parsedData.metadata.jenis;
+        let parsedData: any = null;
+        if (!isOversized) {
+          try {
+            const text = await file.text();
+            const cleanText = text.replace(/^\uFEFF/, '').trim();
+            parsedData = JSON.parse(cleanText);
 
-            if (detected) {
-              const upperDet = detected.toUpperCase().trim();
-              if (NAMA_KATEGORI_MAP[upperDet]) {
-                detected = NAMA_KATEGORI_MAP[upperDet];
-              }
+            if (parsedData?.metadata) {
+              let detected =
+                parsedData.metadata.tipe_peraturan ||
+                parsedData.metadata.kategori ||
+                parsedData.metadata.jenis;
 
-              // Update data JSON agar form panjang yang akan disimpan ke backend
-              parsedData.metadata.tipe_peraturan = detected;
-
-              setDetectedCategory(detected);
-              // Cek apakah kategori yang terdeteksi sudah ada di database (case insensitive)
-              const existingCat = kategoriOptions.find(
-                (k) => k.nama.toLowerCase() === detected.toLowerCase() ||
-                  k.kode.toLowerCase() === detected.toLowerCase()
-              );
-              setIsNewCategory(!existingCat);
-
-              if (existingCat) {
-                setSelectedCategory(existingCat.nama);
-              } else {
-                setSelectedCategory(detected);
+              if (detected) {
+                const upperDet = detected.toUpperCase().trim();
+                if (NAMA_KATEGORI_MAP[upperDet]) {
+                  detected = NAMA_KATEGORI_MAP[upperDet];
+                }
+                parsedData.metadata.tipe_peraturan = detected;
+                detectedCategoriesSet.add(detected);
               }
             }
+          } catch (e) {
+            console.warn('File is not JSON', e);
+            fileError = 'Format berkas tidak valid (bukan format JSON yang benar).';
           }
-
-        } catch (e) {
-          console.warn('File is not JSON', e);
-          fileError = 'Format berkas tidak valid (bukan format JSON yang benar).';
         }
-      }
 
-      let isDuplicate = false;
-      if (parsedData?.metadata?.id_dokumen) {
-        try {
-          const checkRes = await fetch(`/peraturan/${parsedData.metadata.id_dokumen}`, {
-            headers: { Accept: 'application/json' },
-          });
-          if (checkRes.status === 200) {
-            const resJson = await checkRes.json();
-            if (resJson.success) {
-              const judul = resJson.data.judul || '';
-              if (!judul.toLowerCase().includes('menunggu import') && !judul.toLowerCase().includes('menunggu impor')) {
-                setInlineError(`Data yang mau diupload ("${parsedData.metadata.judul || file.name}") sudah ada di database.`);
+        let isDuplicate = false;
+        if (parsedData?.metadata?.id_dokumen) {
+          try {
+            const checkRes = await fetch(`/peraturan/${parsedData.metadata.id_dokumen}`, {
+              headers: { Accept: 'application/json' },
+            });
+            if (checkRes.status === 200) {
+              const resJson = await checkRes.json();
+              if (resJson.success) {
+                const judul = resJson.data.judul || '';
+                if (!judul.toLowerCase().includes('menunggu import') && !judul.toLowerCase().includes('menunggu impor')) {
+                  fileError = `Data yang mau diupload ("${parsedData.metadata.judul || file.name}") sudah ada di database.`;
+                  isDuplicate = true;
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Gagal mengecek duplikasi", err);
+          }
+        }
+
+        if (!isDuplicate) {
+          try {
+            const draftCheckRes = await fetch(`/admin/dokumen-hukum/draft-check-duplicate?filename=${encodeURIComponent(file.name)}`, {
+              headers: { Accept: 'application/json' },
+            });
+            if (draftCheckRes.status === 200) {
+              const draftResJson = await draftCheckRes.json();
+              if (draftResJson.exists) {
+                fileError = `Data yang mau diupload ("${file.name}") sudah tersimpan di dalam draft "${draftResJson.draft_name}". Silakan periksa menu Draft.`;
                 isDuplicate = true;
               }
             }
+          } catch (err) {
+            console.error("Gagal mengecek duplikasi draft", err);
           }
-        } catch (err) {
-          console.error("Gagal mengecek duplikasi", err);
         }
+
+        newItems.push({
+          id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+          name: file.name,
+          sizeKb,
+          rawFile: file,
+          parsedData,
+          error: fileError,
+        });
       }
 
-      if (!isDuplicate) {
-        try {
-          const draftCheckRes = await fetch(`/admin/dokumen-hukum/draft-check-duplicate?filename=${encodeURIComponent(file.name)}`, {
-            headers: { Accept: 'application/json' },
-          });
-          if (draftCheckRes.status === 200) {
-            const draftResJson = await draftCheckRes.json();
-            if (draftResJson.exists) {
-              setInlineError(`Data yang mau diupload ("${file.name}") sudah tersimpan di dalam draft "${draftResJson.draft_name}". Silakan periksa menu Draft.`);
-              isDuplicate = true;
-            }
-          }
-        } catch (err) {
-          console.error("Gagal mengecek duplikasi draft", err);
-        }
+      // Update kategori terdeteksi (Tunggal atau Beragam)
+      if (detectedCategoriesSet.size === 1) {
+        const detected = Array.from(detectedCategoriesSet)[0];
+        setDetectedCategory(detected);
+        const existingCat = kategoriOptions.find(
+          (k) => k.nama.toLowerCase() === detected.toLowerCase() ||
+                 k.kode.toLowerCase() === detected.toLowerCase()
+        );
+        setIsNewCategory(!existingCat);
+        setSelectedCategory(existingCat ? existingCat.nama : detected);
+      } else if (detectedCategoriesSet.size > 1) {
+        setDetectedCategory('Beragam Kategori (Otomatis)');
+        setIsNewCategory(false);
+        setSelectedCategory('Campuran');
       }
 
-      if (isDuplicate) {
-        continue;
-      }
 
-      newItems.push({
-        id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
-        name: file.name,
-        sizeKb,
-        rawFile: file,
-        parsedData,
-        error: fileError,
-      });
-    }
 
     if (newItems.length > 0) {
       setUploadedFiles((prev) => [...prev, ...newItems]);

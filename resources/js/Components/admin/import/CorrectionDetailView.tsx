@@ -4,6 +4,8 @@ import {
   LegalDocumentCorrectionData,
   generateInitialCorrectionData,
   formatStandardId,
+  ChapterItem,
+  ArticleItem,
 } from './correctionParser';
 import { CorrectionTableOfContents } from './CorrectionTableOfContents';
 import { CorrectionHeaderSection } from './CorrectionHeaderSection';
@@ -94,47 +96,125 @@ export function CorrectionDetailView({
   const [isOpenMengingat, setIsOpenMengingat] = useState(true);
   const [isOpenMemutuskan, setIsOpenMemutuskan] = useState(true);
 
-  // Toggle bab accordion
+  // Toggle bab / bagian / paragraf accordion (Rekursif untuk hierarki bertingkat)
   const toggleBab = (babId: string) => {
+    const toggleNodeInTree = (nodes: ChapterItem[], targetId: string): ChapterItem[] => {
+      return nodes.map((n) => {
+        if (n.id === targetId) {
+          return { ...n, isExpanded: !n.isExpanded };
+        }
+        if (n.children && n.children.length > 0) {
+          return { ...n, children: toggleNodeInTree(n.children, targetId) };
+        }
+        return n;
+      });
+    };
+
     setData((prev) => ({
       ...prev,
-      babList: prev.babList.map((b) =>
-        b.id === babId ? { ...b, isExpanded: !b.isExpanded } : b
-      ),
+      babList: toggleNodeInTree(prev.babList, babId),
     }));
   };
 
-  // Toggle pasal accordion
-  const togglePasal = (babId: string, pasalId: string) => {
+  // Toggle pasal accordion (Rekursif untuk pasal utama & sub-pasal)
+  const togglePasal = (_babId: string, pasalId: string) => {
+    const togglePasalInList = (pasalList: ArticleItem[], targetPasalId: string): { list: ArticleItem[]; updated: boolean } => {
+      let updated = false;
+      const list = pasalList.map((p) => {
+        if (p.id === targetPasalId) {
+          updated = true;
+          return { ...p, isExpanded: !p.isExpanded };
+        }
+        if (p.pasalList && p.pasalList.length > 0) {
+          const childRes = togglePasalInList(p.pasalList, targetPasalId);
+          if (childRes.updated) {
+            updated = true;
+            return { ...p, pasalList: childRes.list };
+          }
+        }
+        return p;
+      });
+      return { list, updated };
+    };
+
+    const togglePasalInTree = (nodes: ChapterItem[], targetPasalId: string): ChapterItem[] => {
+      return nodes.map((n) => {
+        const { list: newPasalList, updated } = togglePasalInList(n.pasalList || [], targetPasalId);
+        const newChildren = n.children && n.children.length > 0 ? togglePasalInTree(n.children, targetPasalId) : n.children;
+        return {
+          ...n,
+          pasalList: newPasalList,
+          children: newChildren,
+        };
+      });
+    };
+
     setData((prev) => ({
       ...prev,
-      babList: prev.babList.map((b) =>
-        b.id === babId
-          ? {
-              ...b,
-              pasalList: b.pasalList.map((p) =>
-                p.id === pasalId ? { ...p, isExpanded: !p.isExpanded } : p
-              ),
-            }
-          : b
-      ),
+      babList: togglePasalInTree(prev.babList, pasalId),
     }));
   };
 
-  const forceExpandPasal = (babId: string, pasalId: string) => {
+  // Expand target pasal dan seluruh parent (BAB, BAGIAN, PARAGRAF) secara otomatis saat diklik dari Daftar Isi / Relasi
+  const forceExpandPasal = (_babId: string, pasalId: string) => {
+    const expandPath = (nodes: ChapterItem[], targetPasalId: string): { updatedNodes: ChapterItem[]; found: boolean } => {
+      let foundAny = false;
+
+      const updatedNodes = nodes.map((node) => {
+        let containsPasal = false;
+
+        const checkArticleList = (pasals: ArticleItem[]): { list: ArticleItem[]; found: boolean } => {
+          let foundInList = false;
+          const list = pasals.map((p) => {
+            if (p.id === targetPasalId) {
+              foundInList = true;
+              return { ...p, isExpanded: true };
+            }
+            if (p.pasalList && p.pasalList.length > 0) {
+              const res = checkArticleList(p.pasalList);
+              if (res.found) {
+                foundInList = true;
+                return { ...p, isExpanded: true, pasalList: res.list };
+              }
+            }
+            return p;
+          });
+          return { list, found: foundInList };
+        };
+
+        const pasalRes = checkArticleList(node.pasalList || []);
+        if (pasalRes.found) {
+          containsPasal = true;
+        }
+
+        let updatedChildren = node.children;
+        if (node.children && node.children.length > 0) {
+          const childRes = expandPath(node.children, targetPasalId);
+          if (childRes.found) {
+            containsPasal = true;
+            updatedChildren = childRes.updatedNodes;
+          }
+        }
+
+        if (containsPasal) {
+          foundAny = true;
+          return {
+            ...node,
+            isExpanded: true,
+            pasalList: pasalRes.list,
+            children: updatedChildren,
+          };
+        }
+
+        return node;
+      });
+
+      return { updatedNodes, found: foundAny };
+    };
+
     setData((prev) => ({
       ...prev,
-      babList: prev.babList.map((b) =>
-        b.id === babId
-          ? {
-              ...b,
-              isExpanded: true,
-              pasalList: b.pasalList.map((p) =>
-                p.id === pasalId ? { ...p, isExpanded: true } : p
-              ),
-            }
-          : b
-      ),
+      babList: expandPath(prev.babList, pasalId).updatedNodes,
     }));
   };
 

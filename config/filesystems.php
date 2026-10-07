@@ -38,6 +38,9 @@ return [
             'bucket' => env('MINIO_BUCKET'),
             'endpoint' => env('MINIO_ENDPOINT'),
             'use_path_style_endpoint' => true,
+            'http' => [
+                'verify' => false,
+            ],
             'throw' => false,
         ],
 

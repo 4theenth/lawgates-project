@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/Components/ui/button';
 import { Icon } from '@/Components/ui/icon';
+import { useAuthModal } from '@/hooks/useAuthModal';
 
 interface SearchFilterBarProps {
   isScrolled: boolean;
@@ -65,14 +66,14 @@ function MultiSelectDropdown({
         <span className="truncate pr-1.5">{displayLabel}</span>
         <Icon
           name="chevron-down"
-          className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-sec-900' : ''
-            }`}
+          className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${
+            isOpen ? 'rotate-180 text-sec-900' : ''
+          }`}
         />
       </button>
 
       {isOpen && (
-        <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-pr-900 border  rounded-[14px]  py-2 px-1.5 z-50 max-h-56 overflow-y-auto custom-scrollbar">
-          {/* Daftar Opsi dengan Checkbox (Hanya opsi sebenarnya, tidak ada opsi 'Semua') */}
+        <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-pr-900 border rounded-[14px] py-2 px-1.5 z-50 max-h-56 overflow-y-auto custom-scrollbar">
           {options.map((item) => {
             const isChecked = selectedValues.includes(item.value);
             return (
@@ -83,10 +84,11 @@ function MultiSelectDropdown({
                 className="w-full px-2.5 py-1.5 text-left text-[12px] flex items-center gap-2.5 rounded-[8px] transition-colors hover:bg-white/10 text-neu-200 hover:text-white group cursor-pointer"
               >
                 <div
-                  className={`w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-all ${isChecked
+                  className={`w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-all ${
+                    isChecked
                       ? 'bg-[#0F224A] border-sec-400 text-sec-400'
                       : 'border-neu-400/40 bg-white/5 group-hover:border-white/40'
-                    }`}
+                  }`}
                 >
                   {isChecked && <Icon name="check" className="w-3 h-3 text-sec-400 stroke-[3]" />}
                 </div>
@@ -177,30 +179,28 @@ function YearRangeDropdown({
         <span className="truncate pr-1.5">{displayLabel}</span>
         <Icon
           name="chevron-down"
-          className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-sec-900' : ''
-            }`}
+          className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${
+            isOpen ? 'rotate-180 text-sec-900' : ''
+          }`}
         />
       </button>
 
       {isOpen && (
-        <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-pr-900 border border-pr-700/90 rounded-[14px]  backdrop-blur-2xl p-2.5 sm:p-3 z-50">
-          {/* Header & Reset Action */}
+        <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-pr-900 border border-pr-700/90 rounded-[14px] backdrop-blur-2xl p-2.5 sm:p-3 z-50">
           <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/10 text-[12px]">
             <span className="text-neu-200 font-semibold text-[12px]">Rentang Tahun</span>
             {(tahunDari || tahunSampai) && (
               <button
                 type="button"
                 onClick={onReset}
-                className="text-sec-900  text-[12px] font-medium transition-colors cursor-pointer"
+                className="text-sec-900 text-[12px] font-medium transition-colors cursor-pointer"
               >
                 Reset
               </button>
             )}
           </div>
 
-          {/* 2 Kolom: Dari & Sampai (Keduanya tampil bersamaan) */}
           <div className="grid grid-cols-2 gap-2">
-            {/* Kolom Dari */}
             <div className="min-w-0">
               <div className="text-neu-300 text-[12px] font-medium mb-1">Dari</div>
               <button
@@ -211,8 +211,9 @@ function YearRangeDropdown({
                 <span className="truncate">{tahunDari || 'Pilih'}</span>
                 <Icon
                   name="chevron-down"
-                  className={`w-3 h-3 text-neu-300 shrink-0 transition-transform duration-200 ${openSub.dari ? 'rotate-180 text-sec-400' : ''
-                    }`}
+                  className={`w-3 h-3 text-neu-300 shrink-0 transition-transform duration-200 ${
+                    openSub.dari ? 'rotate-180 text-sec-400' : ''
+                  }`}
                 />
               </button>
 
@@ -225,10 +226,11 @@ function YearRangeDropdown({
                         key={`dari-${yr}`}
                         type="button"
                         onClick={() => onChangeDari(yr)}
-                        className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer ${isSelected
+                        className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer ${
+                          isSelected
                             ? 'bg-sec-900/20 text-sec-900 font-semibold'
                             : 'text-neu-200 hover:bg-white/10 hover:text-white'
-                          }`}
+                        }`}
                       >
                         <span className="truncate">{yr}</span>
                         {isSelected && <Icon name="check" className="w-3 h-3 text-sec-900 shrink-0" />}
@@ -239,7 +241,6 @@ function YearRangeDropdown({
               )}
             </div>
 
-            {/* Kolom Sampai */}
             <div className="min-w-0">
               <div className="text-neu-300 text-[12px] font-medium mb-1">Sampai</div>
               <button
@@ -250,8 +251,9 @@ function YearRangeDropdown({
                 <span className="truncate">{tahunSampai || 'Pilih'}</span>
                 <Icon
                   name="chevron-down"
-                  className={`w-3 h-3 text-neu-300 shrink-0 transition-transform duration-200 ${openSub.sampai ? 'rotate-180 text-sec-400' : ''
-                    }`}
+                  className={`w-3 h-3 text-neu-300 shrink-0 transition-transform duration-200 ${
+                    openSub.sampai ? 'rotate-180 text-sec-400' : ''
+                  }`}
                 />
               </button>
 
@@ -264,10 +266,11 @@ function YearRangeDropdown({
                         key={`sampai-${yr}`}
                         type="button"
                         onClick={() => onChangeSampai(yr)}
-                        className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer ${isSelected
+                        className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer ${
+                          isSelected
                             ? 'bg-sec-900/20 text-sec-900 font-semibold'
                             : 'text-neu-200 hover:bg-white/10 hover:text-white'
-                          }`}
+                        }`}
                       >
                         <span className="truncate">{yr}</span>
                         {isSelected && <Icon name="check" className="w-3 h-3 text-sec-900 shrink-0" />}
@@ -288,6 +291,7 @@ function YearRangeDropdown({
 // Main Component: SearchFilterBar
 // ─────────────────────────────────────────────
 export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) {
+  const { requireAuth } = useAuthModal();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -339,44 +343,45 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
   const handleSearchSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
-    const keyword = searchQuery.trim();
-    setErrorMsg('');
+    requireAuth(() => {
+      const keyword = searchQuery.trim();
+      setErrorMsg('');
 
-    // Susun filter tahun: jika kedua rentang terisi buat '2020-2026', atau jika hanya 1 terisi
-    let formattedTahun = '';
-    if (tahunDari && tahunSampai) {
-      const y1 = Number(tahunDari);
-      const y2 = Number(tahunSampai);
-      if (!isNaN(y1) && !isNaN(y2)) {
-        const minY = Math.min(y1, y2);
-        const maxY = Math.max(y1, y2);
-        formattedTahun = minY === maxY ? String(minY) : `${minY}-${maxY}`;
-      } else {
-        formattedTahun = `${tahunDari}-${tahunSampai}`;
+      let formattedTahun = '';
+      if (tahunDari && tahunSampai) {
+        const y1 = Number(tahunDari);
+        const y2 = Number(tahunSampai);
+        if (!isNaN(y1) && !isNaN(y2)) {
+          const minY = Math.min(y1, y2);
+          const maxY = Math.max(y1, y2);
+          formattedTahun = minY === maxY ? String(minY) : `${minY}-${maxY}`;
+        } else {
+          formattedTahun = `${tahunDari}-${tahunSampai}`;
+        }
+      } else if (tahunDari) {
+        formattedTahun = tahunDari;
+      } else if (tahunSampai) {
+        formattedTahun = tahunSampai;
       }
-    } else if (tahunDari) {
-      formattedTahun = tahunDari;
-    } else if (tahunSampai) {
-      formattedTahun = tahunSampai;
-    }
 
-    const isAllKategori =
-      selectedKategori.length === 0 ||
-      (kategoriOptions.length > 0 && selectedKategori.length === kategoriOptions.length);
-    const kategoriParam = isAllKategori ? '' : selectedKategori.join(',');
+      const isAllKategori =
+        selectedKategori.length === 0 ||
+        (kategoriOptions.length > 0 && selectedKategori.length === kategoriOptions.length);
+      const kategoriParam = isAllKategori ? '' : selectedKategori.join(',');
 
-    const isAllStatus =
-      selectedStatus.length === 0 ||
-      (statusOptions.length > 0 && selectedStatus.length === statusOptions.length);
-    const statusParam = isAllStatus ? '' : selectedStatus.join(',');
+      const isAllStatus =
+        selectedStatus.length === 0 ||
+        (statusOptions.length > 0 && selectedStatus.length === statusOptions.length);
+      const statusParam = isAllStatus ? '' : selectedStatus.join(',');
 
-    if (onSearch) {
-      onSearch(keyword, {
-        kategori: kategoriParam,
-        tahun: formattedTahun,
-        status: statusParam,
-      });
-    }
+      if (onSearch) {
+        onSearch(keyword, {
+          kategori: kategoriParam,
+          tahun: formattedTahun,
+          status: statusParam,
+        });
+      }
+    });
   };
 
   const kategoriOptions: FilterOption[] = listKategori.map((k) => ({
@@ -389,7 +394,6 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
     label: s.nama,
   }));
 
-  // Fallback tahun agar selalu tersedia opsi tahun lengkap (misal 2026 ke bawah)
   const currentYear = new Date().getFullYear();
   const availableYears = Array.from(
     new Set([
@@ -408,14 +412,13 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
     <div className="relative w-full max-w-[699px] h-[54px] sm:h-[60px]">
       <div
         ref={filterContainerRef}
-        className="absolute top-0 left-0 w-full flex flex-col bg-pr-900  rounded-[25px] sm:rounded-[28px] p-2 sm:p-[10px] shadow-2xl backdrop-blur-[40px] z-30 transition-all duration-300 ease-out"
+        className="absolute top-0 left-0 w-full flex flex-col bg-pr-900 rounded-[25px] sm:rounded-[28px] p-2 sm:p-[10px] shadow-2xl backdrop-blur-[40px] z-30 transition-all duration-300 ease-out"
       >
-        {/* ── Search Row ── */}
+        {/* Search Row */}
         <form
           onSubmit={handleSearchSubmit}
           className="flex items-center w-full h-[38px] sm:h-[40px] gap-1.5 sm:gap-[8px]"
         >
-          {/* Search Input (14px) */}
           <div className="flex items-center flex-1 min-w-0 h-[38px] sm:h-[40px] px-2.5 sm:px-[17px] bg-white/5 border border-white/10 rounded-[25px] backdrop-blur-[14px]">
             <Button
               type="submit"
@@ -439,7 +442,6 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
             />
           </div>
 
-          {/* Search Button (12px) */}
           <Button
             type="submit"
             className="w-auto sm:w-[105px] h-[38px] sm:h-[40px] min-h-[36px] bg-sec-900 text-neu-900 text-[12px] font-bold rounded-[12px] px-3 sm:px-5 hover:bg-sec-800 transition-colors cursor-pointer shrink-0"
@@ -447,17 +449,17 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
             Search
           </Button>
 
-          {/* Filter Toggle Button (12px) */}
           <Button
             type="button"
             onClick={() => {
               setIsSearchExpanded((prev) => !prev);
               setActiveDropdown(null);
             }}
-            className={`flex items-center justify-center gap-1 sm:gap-2 w-auto sm:w-[105px] h-[38px] sm:h-[40px] min-h-[36px] text-[12px] font-bold rounded-[12px] px-2.5 sm:px-5 transition-colors cursor-pointer shrink-0 ${isSearchExpanded
+            className={`flex items-center justify-center gap-1 sm:gap-2 w-auto sm:w-[105px] h-[38px] sm:h-[40px] min-h-[36px] text-[12px] font-bold rounded-[12px] px-2.5 sm:px-5 transition-colors cursor-pointer shrink-0 ${
+              isSearchExpanded
                 ? 'bg-sec-900 text-neu-900 hover:bg-sec-800'
                 : 'bg-neu-50 text-neu-900 hover:bg-white'
-              }`}
+            }`}
           >
             <Icon
               name="settings-2"
@@ -467,16 +469,14 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
           </Button>
         </form>
 
-        {/* ── Filter Cepat Section (Melebar ke bawah di container yang sama tanpa border pemisah) ── */}
+        {/* Filter Cepat Section */}
         {isSearchExpanded && (
           <div className="w-full pt-3 sm:pt-3.5 px-0.5 sm:px-1 pb-1 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="w-full text-left text-neu-200 text-[12px] font-semibold leading-[16px] tracking-[0.6%] mb-2 sm:mb-[10px]">
               Filter Cepat
             </div>
 
-            {/* Responsive Grid: Mobile 2 rows (Kategori 100%, Tahun & Status 50%), Desktop 3 columns in 1 row */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-[16px] w-full">
-              {/* Kategori (Multi-select) */}
               <div className="col-span-1">
                 <MultiSelectDropdown
                   label="Kategori"
@@ -497,9 +497,7 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
                 />
               </div>
 
-              {/* Tahun & Status Wrapper (2 cols on mobile, separate columns on desktop) */}
               <div className="grid grid-cols-2 gap-2 sm:gap-[16px] sm:col-span-2">
-                {/* Tahun (Range: Dari & Sampai) */}
                 <YearRangeDropdown
                   label="Tahun"
                   tahunDari={tahunDari}
@@ -518,7 +516,6 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
                   onClose={() => setActiveDropdown(null)}
                 />
 
-                {/* Status (Multi-select) */}
                 <MultiSelectDropdown
                   label="Status"
                   selectedValues={selectedStatus}
@@ -538,12 +535,12 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
                 />
               </div>
             </div>
-          </div>
-        )}
 
-        {errorMsg && (
-          <div className="text-left text-red-400 text-xs sm:text-sm font-medium mt-2 px-2">
-            {errorMsg}
+            {errorMsg && (
+              <div className="text-left text-red-400 text-xs sm:text-sm font-medium mt-2 px-2">
+                {errorMsg}
+              </div>
+            )}
           </div>
         )}
       </div>

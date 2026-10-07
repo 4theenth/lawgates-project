@@ -8,6 +8,7 @@ import { RecentRegulations } from '../Components/landing/RecentRegulations';
 import { ServicesOverview } from '../Components/landing/ServicesOverview';
 import { PublicLayout, Section } from '../Layouts/PublicLayout';
 import { useScrollPosition } from '../hooks/useScrollPosition';
+import { useAuthModal } from '../hooks/useAuthModal';
 import plusPattern from '@/assets/plus.svg';
 
 interface HomeProps {
@@ -16,17 +17,20 @@ interface HomeProps {
 
 export default function Home({ categoryCounts }: HomeProps) {
   const isScrolled = useScrollPosition(50);
+  const { requireAuth } = useAuthModal();
 
   const handleSearch = (query: string, filters?: any) => {
-    // Siapkan parameter URL dari input user
-    const params: Record<string, string> = {};
-    if (query) params.keyword = query;
-    if (filters?.kategori) params.kategori_id = filters.kategori;
-    if (filters?.tahun) params.tahun = filters.tahun;
-    if (filters?.status) params.status_id = filters.status;
+    requireAuth(() => {
+      // Siapkan parameter URL dari input user
+      const params: Record<string, string> = {};
+      if (query) params.keyword = query;
+      if (filters?.kategori) params.kategori_id = filters.kategori;
+      if (filters?.tahun) params.tahun = filters.tahun;
+      if (filters?.status) params.status_id = filters.status;
 
-    // Pindah ke halaman /pencarian beserta query param-nya (Inertia Routing)
-    router.get('/pencarian', params);
+      // Pindah ke halaman /pencarian beserta query param-nya (Inertia Routing)
+      router.get('/pencarian', params);
+    });
   };
 
   return (
@@ -62,7 +66,7 @@ export default function Home({ categoryCounts }: HomeProps) {
 
         {/* 5. Section Statistik Peraturan (Pattern Background) */}
         <Section>
-          <RegulationHierarchyGrid />
+          <RegulationHierarchyGrid counts={categoryCounts} />
         </Section>
 
         {/* 6. Section Sistem Hukum Terbaru (White Background Container) */}

@@ -53,7 +53,7 @@ class RegisteredUserController extends Controller
             }
 
             // Jika akun terdaftar via Google (password masih kosong), simpan data pending di session
-            // dan alihkan ke layar Singkronisasi Akun
+            // dan alihkan ke layar Sinkronisasi Akun
             session([
                 'pending_link_email' => $request->email,
                 'pending_link_password' => $request->password,
@@ -80,7 +80,7 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect('/')->with('success', 'Pendaftaran berhasil! Selamat datang di LawGates');
+        return redirect()->intended('/');
     }
 
     /**
