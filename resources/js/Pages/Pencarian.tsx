@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
+import axios from 'axios';
 import { useAuthModal } from '@/hooks/useAuthModal';
 import { PublicLayout } from '@/Layouts/PublicLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
@@ -72,9 +73,9 @@ export default function Pencarian() {
 
   // 1. Ambil data referensi filter saat dimuat
   useEffect(() => {
-    fetch('/api/referensi-filter')
-      .then((res) => res.json())
-      .then((data) => {
+    axios.get('/api/referensi-filter')
+      .then((res) => {
+        const data = res.data;
         setListKategori(data.kategori || []);
         setListStatus(data.status || []);
         setListTahun(data.tahun || []);
@@ -183,9 +184,9 @@ export default function Pencarian() {
   const fetchData = (queryString: string) => {
     lastFetchedQueryRef.current = queryString;
     setIsSearching(true);
-    fetch(`/api/search?${queryString}`)
-      .then((res) => res.json())
-      .then((data) => {
+    axios.get(`/api/search?${queryString}`)
+      .then((res) => {
+        const data = res.data;
         setSearchResults(data.data || []);
         setTotalResult(data.total || 0);
         setCurrentPage(data.current_page || 1);
