@@ -38,69 +38,62 @@ export function DetailPeraturanHeader({
   showCompare = true,
 }: DetailPeraturanHeaderProps) {
   const { requireAuth } = useAuthModal();
-  const [isCitationCopied, setIsCitationCopied] = useState(false);
-  const [isShareCopied, setIsShareCopied] = useState(false);
+  const [isLinkCopied, setIsLinkCopied] = useState(false);
 
   const isBerlaku =
     !statusPeraturan.toLowerCase().includes('tidak') &&
     !statusPeraturan.toLowerCase().includes('cabut');
 
-  const handleCopyCitation = () => {
-    navigator.clipboard.writeText(judul);
-    setIsCitationCopied(true);
-    setTimeout(() => setIsCitationCopied(false), 2000);
-  };
-
-  const handleShareLink = () => {
+  const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
-    setIsShareCopied(true);
-    setTimeout(() => setIsShareCopied(false), 2000);
+    setIsLinkCopied(true);
+    setTimeout(() => setIsLinkCopied(false), 2000);
   };
 
   return (
-    <div className="space-y-4 mb-8">
+    <div className="space-y-4 mb-0">
       {/* 1. Breadcrumb Navigasi */}
       <Breadcrumb items={breadcrumbItems} className="mb-2" />
 
-      {/* 2. Badge Kategori & Instansi */}
+      {/* 2. Badge Kategori & Instansi Sesuai Figma node #76:2402 */}
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        <span className="inline-flex items-center px-3 py-1 rounded-full border border-gray-200 bg-white text-[11px] font-bold text-gray-700 tracking-wider uppercase shadow-2xs">
+        <span className="inline-flex items-center px-3.5 py-1 rounded-[15px] bg-pr-50 text-[10px] sm:text-[11px] font-semibold text-pr-900 tracking-wider uppercase">
           {jenisPeraturan}
         </span>
-        <span className="text-[13px] text-gray-500 font-medium flex items-center gap-1.5">
-          <span className="text-gray-400">•</span>
+        <span className="text-[12px] sm:text-[13px] text-neu-800 font-normal flex items-center gap-1.5">
+          <span className="text-neu-400">•</span>
           {instansi}
         </span>
       </div>
 
       {/* 3. Judul Dokumen Hukum & Action Buttons Row */}
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6 pt-1">
-        <h1 className="text-[22px] sm:text-[26px] lg:text-[30px] font-bold text-gray-900 leading-[1.3] tracking-tight max-w-4xl">
+        <h1 className="text-[22px] sm:text-[26px] lg:text-[28px] font-bold text-neu-900 leading-[1.3] tracking-tight flex-1 min-w-0">
           {judul}
         </h1>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 self-start flex-wrap">
-          {/* Tombol Salin Sitasi */}
+          {/* Tombol Salin Link (Lebar tetap terkunci min-w-[125px] agar tidak goyang) */}
           <button
             type="button"
-            onClick={handleCopyCitation}
-            title="Salin Sitasi Legal Peraturan"
-            className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full bg-white hover:bg-slate-100 text-gray-700 text-xs sm:text-sm font-semibold border border-gray-200 transition-all shadow-2xs cursor-pointer"
+            onClick={handleCopyLink}
+            title="Salin Tautan Halaman Ini"
+            className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 min-w-[125px] rounded-full bg-white hover:bg-neu-50 text-neu-700 text-xs sm:text-sm font-semibold border border-neu-200 transition-all cursor-pointer"
           >
-            {isCitationCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-gray-500" />}
-            <span>{isCitationCopied ? 'Sitasi Tersalin!' : 'Salin Sitasi'}</span>
+            {isLinkCopied ? <Check className="w-3.5 h-3.5 text-suc-900" /> : <Copy className="w-3.5 h-3.5 text-neu-500" />}
+            <span>{isLinkCopied ? 'Link Tersalin!' : 'Salin Link'}</span>
           </button>
 
-          {/* Tombol Bagikan Link */}
+          {/* Tombol Bagikan (Dinonaktifkan / Segera Hadir) */}
           <button
             type="button"
-            onClick={handleShareLink}
-            title="Bagikan Tautan Halaman Ini"
-            className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full bg-white hover:bg-slate-100 text-gray-700 text-xs sm:text-sm font-semibold border border-gray-200 transition-all shadow-2xs cursor-pointer"
+            disabled
+            title="Fitur bagikan segera hadir"
+            className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full bg-neu-50 text-neu-400 text-xs sm:text-sm font-semibold border border-neu-200 opacity-60 cursor-not-allowed select-none"
           >
-            {isShareCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5 text-gray-500" />}
-            <span>{isShareCopied ? 'Link Tersalin!' : 'Bagikan'}</span>
+            <Share2 className="w-3.5 h-3.5 text-neu-400" />
+            <span>Bagikan</span>
           </button>
 
           {/* Tombol Bandingkan */}
@@ -108,9 +101,9 @@ export function DetailPeraturanHeader({
             <button
               type="button"
               onClick={onCompare}
-              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#E5E7EB] hover:bg-[#D1D5DB] text-gray-800 text-sm font-semibold transition-all shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-neu-100 hover:bg-neu-200 text-neu-800 text-sm font-semibold transition-all cursor-pointer"
             >
-              <ArrowRightLeft className="w-3.5 h-3.5 text-gray-700 stroke-[2]" />
+              <ArrowRightLeft className="w-3.5 h-3.5 text-neu-700 stroke-[2]" />
               <span>Bandingkan</span>
             </button>
           )}
@@ -119,7 +112,7 @@ export function DetailPeraturanHeader({
           {downloadHref ? (
             <Link
               href={downloadHref}
-              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#0E1E38] hover:bg-[#091528] text-white text-sm font-semibold transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-pr-900 hover:bg-pr-800 text-white text-sm font-semibold transition-all cursor-pointer"
             >
               <Download className="w-4 h-4 text-white stroke-[2]" />
               <span>Download Dokumen</span>
@@ -128,7 +121,7 @@ export function DetailPeraturanHeader({
             <button
               type="button"
               onClick={onDownload}
-              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-[#0E1E38] hover:bg-[#091528] text-white text-sm font-semibold transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-pr-900 hover:bg-pr-800 text-white text-sm font-semibold transition-all cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-white stroke-[2]" />
               <span>Download</span>
@@ -142,8 +135,8 @@ export function DetailPeraturanHeader({
         {/* Status Badge */}
         <div
           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isBerlaku
-            ? 'bg-[#EBF8F2] text-[#059669] border border-[#059669]/20'
-            : 'bg-red-50 text-red-700 border border-red-200'
+            ? 'bg-suc-50 text-suc-900 border border-suc-200'
+            : 'bg-dan-50 text-dan-900 border border-dan-200'
             }`}
         >
           {isBerlaku && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
@@ -151,14 +144,14 @@ export function DetailPeraturanHeader({
         </div>
 
         {/* Tanggal Penetapan */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-gray-700 text-xs font-medium shadow-2xs">
-          <Calendar className="w-3.5 h-3.5 text-gray-400" />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-neu-200 bg-white text-neu-700 text-xs font-medium">
+          <Calendar className="w-3.5 h-3.5 text-neu-400" />
           <span>Ditetapkan: {tanggalPenetapan || '-'}</span>
         </div>
 
         {/* Tempat Penetapan */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-gray-200 bg-white text-gray-700 text-xs font-medium shadow-2xs">
-          <MapPin className="w-3.5 h-3.5 text-gray-400" />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-neu-200 bg-white text-neu-700 text-xs font-medium">
+          <MapPin className="w-3.5 h-3.5 text-neu-400" />
           <span>Tempat Penetapan : {tempatPenetapan || '-'}</span>
         </div>
       </div>

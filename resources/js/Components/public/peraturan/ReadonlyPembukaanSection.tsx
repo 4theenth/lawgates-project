@@ -41,9 +41,12 @@ export function ReadonlyPembukaanSection({
         onClick={onTogglePembukaan}
         className="w-full flex items-center justify-between cursor-pointer"
       >
-        <span className="text-[14px] font-bold text-pr-900 tracking-wide uppercase">
-          PEMBUKAAN
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-pr-700 shrink-0" />
+          <span className="text-[14px] font-bold text-pr-900 tracking-wide uppercase">
+            PEMBUKAAN
+          </span>
+        </div>
         {isOpenPembukaan ? (
           <ChevronUp className="w-4 h-4 text-neu-400" />
         ) : (
@@ -56,13 +59,13 @@ export function ReadonlyPembukaanSection({
           {/* Judul & Sub Judul Pembukaan */}
           <div className="space-y-3">
             {pembukaan.judul && (
-              <div className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[14px] font-semibold text-neu-900">
+              <div className="w-full p-3 rounded-[8px] bg-neu-50/40 border border-neu-100 text-[14px] font-semibold text-neu-900">
                 {pembukaan.judul}
               </div>
             )}
             
             {pembukaan.subJudul && (
-              <div className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed whitespace-pre-line text-justify">
+              <div className="w-full p-3 rounded-[8px] bg-neu-50/40 border border-neu-100 text-[12px] text-neu-700 leading-relaxed whitespace-pre-line text-justify">
                 {pembukaan.subJudul}
               </div>
             )}
@@ -76,7 +79,9 @@ export function ReadonlyPembukaanSection({
                 onClick={onToggleMenimbang}
                 className="w-full flex items-center justify-between py-1 cursor-pointer"
               >
-                <span className="text-[14px] font-bold text-neu-800">Menimbang</span>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-[6px] bg-pr-900 text-white text-xs font-semibold">
+                  Menimbang
+                </span>
                 {isOpenMenimbang ? (
                   <ChevronUp className="w-4 h-4 text-neu-400" />
                 ) : (
@@ -85,7 +90,7 @@ export function ReadonlyPembukaanSection({
               </button>
               {isOpenMenimbang && pembukaan.menimbang && (
                 <div className="mt-2">
-                  <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
+                  <div className="w-full p-3.5 rounded-[8px] bg-neu-50/30 border-l-4 border-l-sec-900 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
                     {cleanOcrText(pembukaan.menimbang)}
                   </div>
                 </div>
@@ -101,7 +106,9 @@ export function ReadonlyPembukaanSection({
                 onClick={onToggleMengingat}
                 className="w-full flex items-center justify-between py-1 cursor-pointer"
               >
-                <span className="text-[14px] font-bold text-neu-800">Mengingat</span>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-[6px] bg-pr-900 text-white text-xs font-semibold">
+                  Mengingat
+                </span>
                 {isOpenMengingat ? (
                   <ChevronUp className="w-4 h-4 text-neu-400" />
                 ) : (
@@ -110,7 +117,7 @@ export function ReadonlyPembukaanSection({
               </button>
               {isOpenMengingat && pembukaan.mengingat && (
                 <div className="mt-2">
-                  <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
+                  <div className="w-full p-3.5 rounded-[8px] bg-neu-50/30 border-l-4 border-l-sec-900 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
                     {cleanOcrText(pembukaan.mengingat)}
                   </div>
                 </div>
@@ -126,7 +133,9 @@ export function ReadonlyPembukaanSection({
                 onClick={onToggleMemutuskan}
                 className="w-full flex items-center justify-between py-1 cursor-pointer"
               >
-                <span className="text-[14px] font-bold text-neu-800">Memutuskan</span>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-[6px] bg-pr-900 text-white text-xs font-semibold">
+                  Memutuskan
+                </span>
                 {isOpenMemutuskan ? (
                   <ChevronUp className="w-4 h-4 text-neu-400" />
                 ) : (
@@ -135,7 +144,7 @@ export function ReadonlyPembukaanSection({
               </button>
               {isOpenMemutuskan && pembukaan.memutuskan && (
                 <div className="mt-2">
-                  <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
+                  <div className="w-full p-3.5 rounded-[8px] bg-neu-50/30 border-l-4 border-l-sec-900 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
                     {cleanOcrText(pembukaan.memutuskan)}
                   </div>
                 </div>
@@ -151,7 +160,9 @@ export function ReadonlyPembukaanSection({
                 onClick={onToggleMenetapkan}
                 className="w-full flex items-center justify-between py-1 cursor-pointer"
               >
-                <span className="text-[14px] font-bold text-neu-800">Menetapkan</span>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-[6px] bg-pr-900 text-white text-xs font-semibold">
+                  Menetapkan
+                </span>
                 {isOpenMenetapkan ? (
                   <ChevronUp className="w-4 h-4 text-neu-400" />
                 ) : (
@@ -160,7 +171,7 @@ export function ReadonlyPembukaanSection({
               </button>
               {isOpenMenetapkan && (pembukaan as any).menetapkan && (
                 <div className="mt-2">
-                  <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
+                  <div className="w-full p-3.5 rounded-[8px] bg-neu-50/30 border-l-4 border-l-sec-900 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
                     {(pembukaan as any).menetapkan}
                   </div>
                 </div>
