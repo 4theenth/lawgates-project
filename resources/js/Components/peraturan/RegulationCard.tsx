@@ -80,7 +80,7 @@ export function RegulationCard({
       <Link
         href={`/peraturan/${item.unique_id}`}
         onClick={handleClick}
-        className={`group relative bg-white border border-neu-200 border-l-[6px] border-l-transparent hover:border-l-pr-900 hover:border-neu-300 rounded-2xl p-5 sm:p-6 shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col justify-between cursor-pointer ${className}`}
+        className={`group relative bg-white border border-neu-200 hover:border-l-[6px] hover:border-l-pr-900 hover:border-neu-300 rounded-2xl p-5 sm:p-6 transition-all duration-200 flex flex-col justify-between cursor-pointer ${className}`}
       >
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -122,7 +122,7 @@ export function RegulationCard({
     <Link
       href={`/peraturan/${item.unique_id}`}
       onClick={handleClick}
-      className={`block bg-white border border-neu-200 rounded-2xl p-5 sm:p-6 hover:shadow-md hover:border-pr-900 transition-all group cursor-pointer ${className}`}
+      className={`block bg-white border border-neu-200 rounded-2xl p-5 sm:p-6 hover:border-pr-900 transition-all group cursor-pointer ${className}`}
     >
       <div className="flex flex-wrap gap-2 items-center mb-3 sm:mb-4">
         <Badge
