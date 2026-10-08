@@ -5,6 +5,8 @@ import { useAuthModal } from '@/hooks/useAuthModal';
 import { PublicLayout } from '@/Layouts/PublicLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
 import { Badge } from '@/Components/common/Badge';
+import { Pagination } from '@/Components/common/Pagination';
+import { RegulationEmptyState } from '@/Components/peraturan/RegulationEmptyState';
 import {
   Search,
   Filter,
@@ -338,26 +340,7 @@ export default function Pencarian() {
     applyFilters({ per_page: newPerPage, page: 1 });
   };
 
-  const getPageNumbers = () => {
-    const pages: (number | string)[] = [];
-    const maxVisible = 5;
 
-    if (lastPage <= maxVisible) {
-      for (let i = 1; i <= lastPage; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      if (currentPage > 3) pages.push('...');
-
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(lastPage - 1, currentPage + 1);
-
-      for (let i = start; i <= end; i++) pages.push(i);
-
-      if (currentPage < lastPage - 2) pages.push('...');
-      pages.push(lastPage);
-    }
-    return pages;
-  };
 
   const getStatusVariant = (statusName: string): 'success' | 'danger' | 'warning' | 'neutral' => {
     const name = statusName.toLowerCase();
@@ -933,94 +916,17 @@ export default function Pencarian() {
                 })}
 
                 {/* ── Pagination Controls ── */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-4 border-t border-gray-100">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto justify-center cursor-pointer"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    <span>Sebelumnya</span>
-                  </button>
-
-                  <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5">
-                    {/* Per-Page Selector */}
-                    <div ref={perPageRef} className="relative flex items-center gap-2 text-xs text-gray-600 font-medium">
-                      <span>Lihat</span>
-                      <button
-                        type="button"
-                        onClick={() => setIsPerPageOpen((prev) => !prev)}
-                        className="inline-flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg py-1.5 pl-3 pr-2 focus:outline-none focus:ring-2 focus:ring-pr-900 text-xs font-medium shadow-2xs cursor-pointer"
-                      >
-                        <span>{perPage}</span>
-                        <ChevronDown
-                          className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isPerPageOpen ? 'rotate-180 text-pr-900' : ''
-                            }`}
-                        />
-                      </button>
-
-                      {isPerPageOpen && (
-                        <div className="absolute bottom-[calc(100%+6px)] left-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-40 w-16 text-center">
-                          {[10, 15, 20, 50, 100].map((num) => (
-                            <button
-                              key={num}
-                              type="button"
-                              onClick={() => handlePerPageChange(num)}
-                              className={`w-full py-1 text-xs transition-colors cursor-pointer ${perPage === num
-                                  ? 'bg-blue-50 text-pr-900 font-semibold'
-                                  : 'text-gray-700 hover:bg-gray-50'
-                                }`}
-                            >
-                              {num}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Page Numbers */}
-                    <div className="flex items-center gap-1">
-                      {getPageNumbers().map((page, index) => (
-                        <button
-                          key={index}
-                          onClick={() => (typeof page === 'number' ? handlePageChange(page) : null)}
-                          disabled={page === '...'}
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors cursor-pointer ${page === currentPage
-                              ? 'bg-[#0B132B] text-white shadow-sm'
-                              : page === '...'
-                                ? 'text-gray-400 cursor-default'
-                                : 'text-gray-600 hover:bg-gray-100'
-                            }`}
-                        >
-                          {page}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === lastPage || lastPage === 0}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto justify-center cursor-pointer"
-                  >
-                    <span>Selanjutnya</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
+                <Pagination
+                  currentPage={currentPage}
+                  lastPage={lastPage}
+                  perPage={perPage}
+                  onPageChange={handlePageChange}
+                  onPerPageChange={handlePerPageChange}
+                />
               </div>
             ) : (
-              /* ── Empty State Sesuai Screenshot 2 ── */
-              <div className="border border-dashed border-gray-300 rounded-2xl p-12 sm:p-20 text-center flex flex-col items-center justify-center bg-white shadow-2xs">
-                <div className="w-12 h-12 rounded-full border border-gray-200 flex items-center justify-center mb-4 text-gray-400 bg-gray-50/50">
-                  <Scale className="w-6 h-6 stroke-[1.5]" />
-                </div>
-                <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-1.5">
-                  Hasil tidak ditemukan untuk kata kunci tersebut
-                </h3>
-                <p className="text-xs sm:text-sm text-gray-500 max-w-md">
-                  Ups, kata kunci yang kamu cari tidak ada. Coba cek ejaan atau gunakan kata lain.
-                </p>
-              </div>
+              /* ── Empty State ── */
+              <RegulationEmptyState isSearchNotFound={true} />
             )}
           </div>
         </div>
