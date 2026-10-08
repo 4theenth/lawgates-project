@@ -57,6 +57,11 @@ class Peraturan extends Model
         return $this->belongsTo(\App\Models\Status::class, 'status_id');
     }
 
+    public function creator()
+    {
+        return $this->belongsTo(\App\Models\Admin::class, 'created_by');
+    }
+
     // Tambahan relasi ke tabel pasal
     public function pasal()
     {

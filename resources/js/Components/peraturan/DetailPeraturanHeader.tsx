@@ -15,6 +15,7 @@ export interface DetailPeraturanHeaderProps {
   onCompare?: () => void;
   onDownload?: () => void;
   downloadHref?: string;
+  viewerHref?: string;
   showCompare?: boolean;
 }
 
@@ -33,6 +34,7 @@ export function DetailPeraturanHeader({
   onCompare,
   onDownload,
   downloadHref,
+  viewerHref,
   showCompare = true,
 }: DetailPeraturanHeaderProps) {
   const { requireAuth } = useAuthModal();
@@ -113,7 +115,7 @@ export function DetailPeraturanHeader({
             </button>
           )}
 
-          {/* Tombol Download Dokumen */}
+          {/* Tombol Download / Lihat Dokumen */}
           {downloadHref ? (
             <Link
               href={downloadHref}

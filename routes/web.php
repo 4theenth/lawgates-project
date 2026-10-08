@@ -60,18 +60,18 @@ Route::get('/', function () {
             $categoryCounts['uud'] += $total;
         } elseif (str_contains($nama, 'mpr') || str_contains($kode, 'mpr')) {
             $categoryCounts['tap-mpr'] += $total;
+        } elseif (str_contains($nama, 'daerah') || str_contains($nama, 'perda') || str_contains($kode, 'daerah') || $kode === 'perda' || $kode === 'p') {
+            $categoryCounts['peraturan-daerah'] += $total;
+            $categoryCounts['perda'] += $total;
         } elseif (str_contains($nama, 'undang') || $kode === 'uu' || str_contains($nama, 'perpu')) {
             $categoryCounts['undang-undang'] += $total;
             $categoryCounts['uu-perpu'] += $total;
-        } elseif (str_contains($nama, 'pemerintah') || $kode === 'pp') {
-            $categoryCounts['peraturan-pemerintah'] += $total;
-            $categoryCounts['pp'] += $total;
         } elseif (str_contains($nama, 'presiden') || $kode === 'perpres') {
             $categoryCounts['peraturan-presiden'] += $total;
             $categoryCounts['perpres'] += $total;
-        } elseif (str_contains($nama, 'daerah') || $kode === 'perda') {
-            $categoryCounts['peraturan-daerah'] += $total;
-            $categoryCounts['perda'] += $total;
+        } elseif (str_contains($nama, 'pemerintah') || $kode === 'pp') {
+            $categoryCounts['peraturan-pemerintah'] += $total;
+            $categoryCounts['pp'] += $total;
         } elseif (str_contains($nama, 'menteri') || str_contains($nama, 'lembaga') || str_contains($nama, 'badan') || str_contains($kode, 'permen')) {
             $categoryCounts['permen-perban'] += $total;
         } elseif (str_contains($nama, 'putusan') || str_contains($nama, 'mahkamah') || str_contains($kode, 'mk') || str_contains($kode, 'ma')) {
@@ -159,6 +159,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     Route::get('/dokumen-hukum/draft/{id}', [DokumenHukumController::class, 'showDraft'])->name('admin.dokumen-hukum.draft.show');
     Route::post('/dokumen-hukum/draft', [DokumenHukumController::class, 'storeDraft'])->name('admin.dokumen-hukum.draft.store');
     Route::get('/dokumen-hukum/draft-check-duplicate', [DokumenHukumController::class, 'checkDraftDuplicate'])->name('admin.dokumen-hukum.draft.check');
+    Route::get('/dokumen-hukum/check-duplicate', [DokumenHukumController::class, 'checkDuplicate'])->name('admin.dokumen-hukum.check-duplicate');
     Route::post('/dokumen-hukum/draft/publish', [DokumenHukumController::class, 'publishDraft'])->name('admin.dokumen-hukum.draft.publish');
     Route::post('/dokumen-hukum/draft/bulk-delete', [DokumenHukumController::class, 'bulkDeleteDraft'])->name('admin.dokumen-hukum.draft.bulk-delete');
 

@@ -110,7 +110,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
     const rawPasalList = peraturan.pasal || [];
 
-    // First pass: create all ArticleItems and a map for quick lookup
+    // Map all ArticleItems from rawPasalList
     const pasalMap = new Map<string, ArticleItem>();
     rawPasalList.forEach((p: any) => {
       const rawNomor = String(p.nomor_pasal || '').trim();
@@ -126,17 +126,15 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
       pasalMap.set(p.id.toString(), {
         id: p.id.toString(),
-        nomor: nomorFormatted,
+        nomor: p.nomor_pasal?.toLowerCase().startsWith('pasal') ? p.nomor_pasal : `Pasal ${p.nomor_pasal}`,
         isi: p.isi_pasal || '',
-        penjelasan: p.penjelasan?.isi_penjelasan || '',
-        tipe: p.parent_pasal_id ? 'PASAL_PERUBAHAN' : isAmendingContainer ? 'PASAL_PERUBAHAN_CONTAINER' : 'PASAL',
-        targetInduk: targetInfo,
-        isExpanded: false,
+        penjelasan: p.penjelasan?.isi_penjelasan,
+        isExpanded: true,
         pasalList: [],
       });
     });
 
-    // Second pass: nest pasals inside parent pasals if they have parent_pasal_id
+    // Nest pasals inside parent pasals if they have parent_pasal_id
     const rootPasals: any[] = [];
     rawPasalList.forEach((p: any) => {
       const articleItem = pasalMap.get(p.id.toString())!;
@@ -153,54 +151,97 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       }
     });
 
-    const map = new Map<string, ChapterItem>();
+    // Deteksi apakah sebuah baris pada struktur_dokumen sebenarnya adalah Pasal
+    // (misal pada hasil impor OCR di mana baris pasal tersimpan di tabel struktur_dokumen)
+    const isPasalRow = (str: any) => {
+      const label = String(str.label || '').trim();
+      const tipe = String(str.tipe_struktur || '').toUpperCase();
+      return tipe === 'PASAL' || /^Pasal\s+\d+/i.test(label);
+    };
+
     const assignedPasalIds = new Set<string>();
-
-    // Third pass: instantiate all ChapterItems
-    strukturList.forEach((str: any) => {
-      const pasalsInStruktur = rootPasals.filter((p: any) => p.struktur_id === str.id);
-      pasalsInStruktur.forEach((p: any) => assignedPasalIds.add(p.id.toString()));
-
-      let judul = str.label || '';
-      let deskripsi = '';
-      if (str.judul_struktur) {
-        if (!judul) {
-          judul = str.judul_struktur;
-        } else if (str.judul_struktur !== str.label) {
-          deskripsi = str.judul_struktur;
-        }
-      }
-
-      map.set(str.id.toString(), {
-        id: str.id.toString(),
-        judul: judul || 'BAGIAN',
-        deskripsi: deskripsi,
-        tipe: (str.tipe_struktur as 'BAB' | 'BAGIAN' | 'PARAGRAF') || 'BAB',
-        isExpanded: false,
-        children: [],
-        pasalList: pasalsInStruktur.map((p: any) => pasalMap.get(p.id.toString())!),
-      });
-    });
-
+    const chapterMap = new Map<string, ChapterItem>();
     const rootItems: ChapterItem[] = [];
+    let currentChapter: ChapterItem | null = null;
 
-    // Fourth pass: attach structural children to parents
+    // Proses strukturList secara sekuensial agar hierarki BAB -> Pasal tersusun rapi
     strukturList.forEach((str: any) => {
-      const item = map.get(str.id.toString());
-      if (item) {
-        if (str.parent_id) {
-          const parent = map.get(str.parent_id.toString());
-          if (parent) {
-            if (!parent.children) parent.children = [];
-            parent.children.push(item);
-          } else {
-            rootItems.push(item);
-          }
+      if (isPasalRow(str)) {
+        assignedPasalIds.add(str.id.toString());
+        // Baris ini adalah Pasal, sisipkan ke dalam BAB yang sedang aktif (bukan jadi BAB mandiri)
+        const pasalLabel = str.label?.toLowerCase().startsWith('pasal') ? str.label : `Pasal ${str.label}`;
+        const article: ArticleItem = {
+          id: str.id.toString(),
+          nomor: pasalLabel,
+          isi: str.judul_struktur || '',
+          penjelasan: '',
+          isExpanded: true,
+          pasalList: [],
+        };
+
+        if (str.parent_id && chapterMap.has(str.parent_id.toString())) {
+          chapterMap.get(str.parent_id.toString())!.pasalList.push(article);
+        } else if (currentChapter) {
+          currentChapter.pasalList.push(article);
         } else {
-          rootItems.push(item);
+          // Jika belum ada bab induk, buatkan pembungkus Batang Tubuh
+          currentChapter = {
+            id: 'chapter-default',
+            judul: 'Batang Tubuh',
+            deskripsi: '',
+            isExpanded: true,
+            children: [],
+            pasalList: [article],
+          };
+          chapterMap.set('chapter-default', currentChapter);
+          rootItems.push(currentChapter);
+        }
+      } else {
+        // Baris ini adalah Header Struktur (BAB, BAGIAN, PARAGRAF, LAMPIRAN, dsb.)
+        const pasalsInStruktur = rootPasals.filter((p: any) => p.struktur_id === str.id);
+        pasalsInStruktur.forEach((p: any) => assignedPasalIds.add(p.id.toString()));
+
+        let judul = str.label || '';
+        let deskripsi = '';
+        if (str.judul_struktur) {
+          if (!judul) {
+            judul = str.judul_struktur;
+          } else {
+            deskripsi = str.judul_struktur;
+          }
+        }
+
+        const newChapter: ChapterItem = {
+          id: str.id.toString(),
+          judul: judul || 'BAGIAN',
+          deskripsi: deskripsi,
+          isExpanded: true,
+          children: [],
+          pasalList: pasalsInStruktur.map((p: any) => pasalMap.get(p.id.toString())!),
+        };
+
+        chapterMap.set(str.id.toString(), newChapter);
+        currentChapter = newChapter;
+
+        if (str.parent_id && chapterMap.has(str.parent_id.toString())) {
+          chapterMap.get(str.parent_id.toString())!.children!.push(newChapter);
+        } else {
+          rootItems.push(newChapter);
         }
       }
     });
+
+    // Jika strukturList kosong tetapi rawPasalList ada, kelompokkan ke dalam Batang Tubuh
+    if (rootItems.length === 0 && rawPasalList.length > 0) {
+      rootItems.push({
+        id: 'chapter-batang-tubuh',
+        judul: 'Batang Tubuh',
+        deskripsi: '',
+        isExpanded: true,
+        children: [],
+        pasalList: rootPasals.map((p: any) => pasalMap.get(p.id.toString())!),
+      });
+    }
 
     // Fifth pass: Recovery of unassigned/orphan pasals
     const unassignedPasals = rootPasals.filter((p: any) => !assignedPasalIds.has(p.id.toString()));
@@ -539,7 +580,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
               { label: 'Detail Sistem Hukum' }
             ]}
             jenisPeraturan={peraturan?.jenis_peraturan?.nama || 'UNDANG - UNDANG DASAR'}
-            instansi={peraturan?.entitas || 'Pemerintah Pusat'}
+            instansi={peraturan?.instansi || peraturan?.entitas || (peraturan?.jenis_peraturan?.kode === 'PERDA' || (peraturan?.jenis_peraturan?.nama || '').toLowerCase().includes('daerah') ? 'Pemerintah Daerah' : 'Pemerintah Pusat')}
             judul={peraturan?.judul}
             statusPeraturan={peraturan?.status_peraturan?.nama_status || 'Berlaku'}
             tanggalPenetapan={tanggalPenetapan}
