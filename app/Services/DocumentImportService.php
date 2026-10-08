@@ -106,6 +106,7 @@ class DocumentImportService
                 'tanggal_berlaku'      => $this->formatTanggal($metadata['tanggal_berlaku'] ?? null),
                 'instansi'             => $metadata['pemrakarsa'] ?? null,
                 'url_pdf'              => $metadata['sumber_dokumen'] ?? null,
+                'subjek'               => $metadata['subjek'] ?? null,
                 'file_pdf_path'        => $pdfPath,
             ];
 
