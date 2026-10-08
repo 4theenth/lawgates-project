@@ -951,7 +951,7 @@ export default function Pencarian() {
                                   <div
                                     className={`w-[18px] h-[18px] mt-0.5 rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${
                                       isChecked
-                                        ? 'bg-[#0B1A3A] border-[#0B1A3A] text-white'
+                                        ? 'bg-sec-900 border-sec-900 text-white'
                                         : 'border-gray-300 bg-white group-hover:border-gray-400'
                                     }`}
                                   >
