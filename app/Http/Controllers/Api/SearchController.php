@@ -76,7 +76,22 @@ class SearchController extends Controller
             $q->whereIn('status_id', $ids);
         });
 
-        // 5. Sorting
+        // 5. Filter Lokasi Daerah
+        $query->when($request->filled('lokasi_daerah'), function ($q) use ($request) {
+            $q->where('lokasi_daerah', 'ilike', '%' . trim($request->lokasi_daerah) . '%');
+        });
+
+        // 5.5. Filter Subjek
+        $query->when($request->filled('subjek'), function ($q) use ($request) {
+            $subjekList = is_array($request->subjek) ? $request->subjek : explode(',', $request->subjek);
+            $q->where(function ($subQ) use ($subjekList) {
+                foreach ($subjekList as $subjekItem) {
+                    $subQ->orWhere('subjek', 'ilike', '%' . trim($subjekItem) . '%');
+                }
+            });
+        });
+
+        // 6. Sorting
         $sort = $request->get('sort', 'relevansi');
         if ($sort === 'terbaru') {
             $query->orderBy('tahun', 'desc');
