@@ -11,16 +11,18 @@ import { FilterPopover } from '@/Components/admin/FilterPopover';
 import { DocumentModal } from '@/Components/admin/DocumentModal';
 import { EditStatusModal } from '@/Components/admin/EditStatusModal';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
+import { DuplicateConfirmModal } from '@/Components/admin/DuplicateConfirmModal';
 import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
+import { StatCardsGroup } from '@/Components/admin/StatCard';
 import {
   CorrectionDetailView,
   LegalDocumentCorrectionData,
   formatStandardId,
 } from '@/Components/admin/import/CorrectionDetailView';
-import { Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X, Files, CheckCircle2, XCircle, FilePenLine, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
-export default function DokumenHukumIndex({ peraturans, drafts, filters, referensi }: any) {
+export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, referensi }: any) {
   const { toast } = useToast();
 
   const ALL_CATEGORIES = referensi?.kategori || [];
@@ -101,6 +103,19 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
   const [editingStatusDoc, setEditingStatusDoc] = useState<DokumenHukumItem | null>(null);
   const [deletingDoc, setDeletingDoc] = useState<DokumenHukumItem | null>(null);
 
+  // State untuk modal konfirmasi duplikasi (status 409 Conflict)
+  const [duplicateModal, setDuplicateModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    documentTitle?: string;
+    existingId?: string;
+  }>({
+    show: false,
+    title: '',
+    message: '',
+  });
+
   const statusOptions = [
     { id: 'berlaku' as const, label: 'Berlaku' },
     { id: 'tidak_berlaku' as const, label: 'Tidak Berlaku' },
@@ -157,8 +172,8 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
   ];
 
   // Handler toggle tab status (Klik tab aktif mematikan filter tab menjadi 'all')
-  const handleTabChange = (tab: 'berlaku' | 'tidak_berlaku' | 'draft') => {
-    const newTab = activeTab === tab ? 'all' : tab;
+  const handleTabChange = (tab: 'all' | 'berlaku' | 'tidak_berlaku' | 'draft') => {
+    const newTab = activeTab === tab && tab !== 'all' ? 'all' : tab;
     setActiveTab(newTab);
     setSelectedDraftIds([]);
     setCurrentPage(1);
@@ -469,6 +484,47 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
         }}
       />
 
+      {/* 2.5 Kotak-kotak Ringkasan Statistik Dokumen (StatCards Sesuai Desain Figma #2291:38182) */}
+      <div className="mb-6">
+        <StatCardsGroup
+          items={[
+            {
+              id: 'all',
+              title: 'Total Dokumen Hukum',
+              value: stats?.total_dokumen !== undefined ? stats.total_dokumen.toLocaleString('id-ID') : '0',
+              icon: <Files className="w-5 h-5" />,
+              note: (stats?.total_dokumen ?? 0) === 0 ? 'Belum ada hukum yang ditambahkan' : undefined,
+              trend: (stats?.total_dokumen ?? 0) > 0 ? {
+                value: `↗ +${stats?.penambahan_baru ?? 12} penambahan baru`,
+                isPositive: true,
+              } : undefined,
+            },
+            {
+              id: 'berlaku',
+              title: 'Total Hukum Berlaku',
+              value: stats?.total_berlaku !== undefined ? stats.total_berlaku.toLocaleString('id-ID') : '0',
+              icon: <CheckCircle2 className="w-5 h-5" />,
+              note: (stats?.total_berlaku ?? 0) === 0 ? 'Belum ada hukum yang berlaku' : 'Regulasi aktif saat ini',
+            },
+            {
+              id: 'tidak_berlaku',
+              title: 'Total Hukum Tidak Berlaku',
+              value: stats?.total_tidak_berlaku !== undefined ? stats.total_tidak_berlaku.toLocaleString('id-ID') : '0',
+              icon: <XCircle className="w-5 h-5" />,
+              note: (stats?.total_tidak_berlaku ?? 0) === 0 ? 'Belum ada hukum yang tidak berlaku' : 'Telah dicabut atau digantikan',
+            },
+            {
+              id: 'draft',
+              title: 'Total Draf',
+              value: stats?.total_draft !== undefined ? stats.total_draft.toLocaleString('id-ID') : '0',
+              icon: <FilePenLine className="w-5 h-5" />,
+              note: (stats?.total_draft ?? 0) === 0 ? 'Tidak ada draft yang perlu ditinjau' : 'Perlu ditinjau',
+              noteIcon: <AlertCircle className="w-3.5 h-3.5" />,
+            },
+          ]}
+        />
+      </div>
+
       {/* 3. Toolbar: Status Filter Tabs & Search / Filter Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         {/* Tab Berlaku / Tidak Berlaku */}
@@ -641,6 +697,16 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
         documentData={deletingDoc}
         onClose={() => setDeletingDoc(null)}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* Modal Konfirmasi Duplikasi jika terdeteksi Status 409 Conflict (AC 3) */}
+      <DuplicateConfirmModal
+        show={duplicateModal.show}
+        onClose={() => setDuplicateModal((prev) => ({ ...prev, show: false }))}
+        title={duplicateModal.title}
+        message={duplicateModal.message}
+        documentTitle={duplicateModal.documentTitle}
+        existingId={duplicateModal.existingId}
       />
     </AdminLayout>
   );

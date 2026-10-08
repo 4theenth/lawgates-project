@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/Components/ui/button';
 import { Icon } from '@/Components/ui/icon';
 import { useAuthModal } from '@/hooks/useAuthModal';
@@ -23,6 +23,19 @@ interface MultiSelectDropdownProps {
   placeholder: string;
   onToggleValue: (value: string) => void;
   onClear: () => void;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}
+
+interface YearRangeDropdownProps {
+  label: string;
+  tahunDari: string;
+  tahunSampai: string;
+  options: string[];
+  onChangeDari: (val: string) => void;
+  onChangeSampai: (val: string) => void;
+  onReset: () => void;
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
@@ -105,19 +118,6 @@ function MultiSelectDropdown({
 // ─────────────────────────────────────────────
 // Year Range Dropdown (Dari & Sampai)
 // ─────────────────────────────────────────────
-interface YearRangeDropdownProps {
-  label: string;
-  tahunDari: string;
-  tahunSampai: string;
-  options: string[];
-  onChangeDari: (val: string) => void;
-  onChangeSampai: (val: string) => void;
-  onReset: () => void;
-  isOpen: boolean;
-  onToggle: () => void;
-  onClose: () => void;
-}
-
 function YearRangeDropdown({
   label,
   tahunDari,
