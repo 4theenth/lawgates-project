@@ -15,6 +15,7 @@ export interface DokumenHukumItem {
   id: string;
   kategori: string;
   judul: string;
+  subjek?: string | null;
   status: 'berlaku' | 'tidak_berlaku' | 'draft';
   tgl_ditetapkan: string;
   author?: string;
@@ -23,18 +24,6 @@ export interface DokumenHukumItem {
 
 export type SortColumn = 'kategori' | 'judul' | 'status' | 'tgl_ditetapkan' | 'author';
 export type SortDirection = 'asc' | 'desc';
-
-// Daftar nama author admin dari referensi fallback sesuai permintaan PM
-const DUMMY_AUTHORS = [
-  'Kayika Dewa',
-  'Danan',
-  'Satria',
-  'Adi Wirata',
-  'Mangadi',
-  'Kevin',
-  'Monica',
-  'Yudis Purba',
-];
 
 interface DocumentTableProps {
   documents: DokumenHukumItem[];
@@ -107,17 +96,19 @@ export function DocumentTable({
   }, [actionMenuState]);
 
   return (
-    <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-hidden transition-all duration-200">
-      <Table className="w-full min-w-[950px] table-fixed text-left border-collapse">
-        {/* Colgroup untuk mengunci proporsi kolom (Kategori, Judul, Status, Tgl Ditetapkan, Author [permintaan PM], Aksi) */}
-        <colgroup>
-          <col className="w-[16%] min-w-[130px]" />
-          <col className="w-[34%] min-w-[280px]" />
-          <col className="w-[14%] min-w-[120px]" />
-          <col className="w-[14%] min-w-[120px]" />
-          <col className="w-[14%] min-w-[120px]" />
-          <col className="w-[8%] min-w-[70px]" />
-        </colgroup>
+    <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-hidden transition-all duration-200 relative">
+      <div className="w-full overflow-x-auto custom-thin-scrollbar">
+        <Table className="w-full min-w-[1150px] table-fixed text-left border-collapse">
+          {/* Colgroup untuk mengunci proporsi kolom (Kategori, Judul, Subjek, Status, Tgl Ditetapkan, Author [permintaan PM], Aksi) */}
+          <colgroup>
+            <col className="w-[14%] min-w-[130px]" />
+            <col className="w-[24%] min-w-[250px]" />
+            <col className="w-[16%] min-w-[180px]" />
+            <col className="w-[12%] min-w-[120px]" />
+            <col className="w-[13%] min-w-[120px]" />
+            <col className="w-[13%] min-w-[120px]" />
+            <col className="w-[8%] min-w-[70px]" />
+          </colgroup>
 
         {/* Table Header (Sesuai spesifikasi admin Figma: bg-neu-50, border-b border-neu-200) */}
         <TableHeader className="bg-neu-50">
@@ -142,6 +133,11 @@ export function DocumentTable({
                 <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
                   {renderSortIcon('judul')}
                 </div>
+              </div>
+            </TableHead>
+            <TableHead className="py-3 px-5 whitespace-nowrap">
+              <div className="group inline-flex items-center gap-1.5 text-neu-700">
+                <span>Subjek</span>
               </div>
             </TableHead>
             <TableHead className="py-3 px-5 whitespace-nowrap">
@@ -178,7 +174,7 @@ export function DocumentTable({
                 </div>
               </div>
             </TableHead>
-            <TableHead className="py-3 px-5 text-right whitespace-nowrap rounded-tr-xl">
+            <TableHead className="py-3 px-5 text-right whitespace-nowrap rounded-tr-xl sticky right-0 bg-neu-50 z-10 border-l border-neu-200 shadow-[-4px_0_12px_rgba(0,0,0,0.03)]">
               <span>Aksi</span>
             </TableHead>
           </TableRow>
@@ -187,13 +183,7 @@ export function DocumentTable({
         {/* Table Body (Tinggi dinamis sesuai panjang data tanpa dipaksa min-h) */}
         <TableBody>
           {documents.map((doc, index) => {
-            const authorName =
-              doc.author ||
-              DUMMY_AUTHORS[
-                (doc.id
-                  ? doc.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-                  : index) % DUMMY_AUTHORS.length
-              ];
+            const authorName = doc.author || 'Sistem';
 
             return (
               <TableRow
@@ -209,6 +199,13 @@ export function DocumentTable({
                 <TableCell className="py-3.5 px-5 font-normal text-neu-900 truncate">
                   <span className="truncate block" title={doc.judul}>
                     {doc.judul}
+                  </span>
+                </TableCell>
+
+                {/* Subjek */}
+                <TableCell className="py-3.5 px-5 text-neu-600 truncate" title={doc.subjek || '-'}>
+                  <span className="truncate block">
+                    {doc.subjek || '-'}
                   </span>
                 </TableCell>
 
@@ -228,7 +225,7 @@ export function DocumentTable({
                 </TableCell>
 
                 {/* Aksi Button (Tiga Titik) */}
-                <TableCell className="py-3.5 px-5 text-right whitespace-nowrap">
+                <TableCell className="py-3.5 px-5 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-[#F8FAFC] z-10 border-l border-neu-100 shadow-[-4px_0_12px_rgba(0,0,0,0.03)] transition-colors">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -256,6 +253,7 @@ export function DocumentTable({
           })}
         </TableBody>
       </Table>
+      </div>
 
       {/* Render Dropdown Aksi Menggunakan Portal ke document.body (Sesuai Desain Figma Node #2258:43749) */}
       {actionMenuState &&

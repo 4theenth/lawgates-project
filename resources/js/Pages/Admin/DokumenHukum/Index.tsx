@@ -34,6 +34,13 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
   const initialCategories = filters?.kategori ? 
     (Array.isArray(filters.kategori) ? filters.kategori : filters.kategori.split(',')) : [];
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialCategories);
+  const initialLokasi = filters?.lokasi_daerah ?
+    (Array.isArray(filters.lokasi_daerah) ? filters.lokasi_daerah : filters.lokasi_daerah.split(',')) : [];
+  const [selectedLokasi, setSelectedLokasi] = useState<string[]>(initialLokasi);
+
+  const initialSubjek = filters?.subjek ?
+    (Array.isArray(filters.subjek) ? filters.subjek : filters.subjek.split(',')) : [];
+  const [selectedSubjek, setSelectedSubjek] = useState<string[]>(initialSubjek);
   
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedDraftIds, setSelectedDraftIds] = useState<string[]>([]);
@@ -58,6 +65,12 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
     const finalCats = overrides.kategori !== undefined ? overrides.kategori : selectedCategories;
     if (finalCats.length > 0) query.kategori = finalCats.join(',');
     
+    const finalLokasi = overrides.lokasi !== undefined ? overrides.lokasi : selectedLokasi;
+    if (finalLokasi && finalLokasi.length > 0) query.lokasi_daerah = finalLokasi.join(',');
+    
+    const finalSubjek = overrides.subjek !== undefined ? overrides.subjek : selectedSubjek;
+    if (finalSubjek && finalSubjek.length > 0) query.subjek = finalSubjek.join(',');
+    
     const finalSortCol = overrides.sortColumn !== undefined ? overrides.sortColumn : sortColumn;
     if (finalSortCol) {
       query.sortColumn = finalSortCol;
@@ -76,7 +89,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
         preserveScroll: true,
         replace: true
     });
-  }, [activeTab, searchQuery, selectedCategories, sortColumn, sortDirection, pageSize, currentPage]);
+  }, [activeTab, searchQuery, selectedCategories, selectedLokasi, selectedSubjek, sortColumn, sortDirection, pageSize, currentPage]);
 
   // Mencegah trigger di initial render
   const isInitialRender = useRef(true);
@@ -185,9 +198,29 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
     const newCats = selectedCategories.includes(category)
       ? selectedCategories.filter((c) => c !== category)
       : [...selectedCategories, category];
+      
+    // Auto-reset lokasi daerah jika Peraturan Daerah tidak dicentang lagi
+    let newLokasi = selectedLokasi;
+    let newSubjek = selectedSubjek;
+    const isPerdaStillSelected = newCats.some(cat => 
+      cat.toLowerCase().includes('perda') || cat.toLowerCase().includes('peraturan daerah')
+    );
+    if (!isPerdaStillSelected) {
+      newLokasi = [];
+      setSelectedLokasi([]);
+    }
+    
+    const isOnlyPerdaSelected = newCats.length > 0 && newCats.every(cat => 
+      cat.toLowerCase().includes('perda') || cat.toLowerCase().includes('peraturan daerah')
+    );
+    if (isOnlyPerdaSelected) {
+      newSubjek = [];
+      setSelectedSubjek([]);
+    }
+
     setSelectedCategories(newCats);
     setCurrentPage(1);
-    fetchData({ kategori: newCats, page: 1 });
+    fetchData({ kategori: newCats, lokasi: newLokasi, subjek: newSubjek, page: 1 });
   };
 
   // Handler pencarian realtime (reset ke halaman 1 agar hasil selalu terlihat)
@@ -598,10 +631,42 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
               categories={ALL_CATEGORIES}
               selectedCategories={selectedCategories}
               onToggleCategory={handleToggleCategory}
+              lokasiDaerahList={referensi?.lokasi_daerah || []}
+              selectedLokasi={selectedLokasi}
+              onChangeLokasi={(lokasi) => {
+                const newLokasi = selectedLokasi.includes(lokasi)
+                  ? selectedLokasi.filter(l => l !== lokasi)
+                  : [...selectedLokasi, lokasi];
+                setSelectedLokasi(newLokasi);
+                setCurrentPage(1);
+                fetchData({ lokasi: newLokasi, page: 1 });
+              }}
+              onClearLokasi={() => {
+                setSelectedLokasi([]);
+                setCurrentPage(1);
+                fetchData({ lokasi: [], page: 1 });
+              }}
+              subjekList={referensi?.subjek || []}
+              selectedSubjek={selectedSubjek}
+              onChangeSubjek={(subjek) => {
+                const newSubjek = selectedSubjek.includes(subjek)
+                  ? selectedSubjek.filter(s => s !== subjek)
+                  : [...selectedSubjek, subjek];
+                setSelectedSubjek(newSubjek);
+                setCurrentPage(1);
+                fetchData({ subjek: newSubjek, page: 1 });
+              }}
+              onClearSubjek={() => {
+                setSelectedSubjek([]);
+                setCurrentPage(1);
+                fetchData({ subjek: [], page: 1 });
+              }}
               onClearAll={() => {
                 setSelectedCategories([]);
+                setSelectedLokasi([]);
+                setSelectedSubjek([]);
                 setCurrentPage(1);
-                fetchData({ kategori: [], page: 1 });
+                fetchData({ kategori: [], lokasi: [], subjek: [], page: 1 });
               }}
               onSelectAll={() => {
                 setSelectedCategories([...ALL_CATEGORIES]);

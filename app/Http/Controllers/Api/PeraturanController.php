@@ -89,7 +89,26 @@ class PeraturanController extends Controller
             }
         });
 
-        // 5. Sorting
+        // 5. Filter Lokasi Daerah / Entitas
+        $query->when($request->filled('lokasi_daerah') || $request->filled('entitas'), function ($q) use ($request) {
+            $lokasi = $request->query('lokasi_daerah') ?? $request->query('entitas');
+            $q->where('lokasi_daerah', 'LIKE', "%{$lokasi}%");
+        });
+
+        // 5.5. Filter Subjek
+        $query->when($request->filled('subjek'), function ($q) use ($request) {
+            $subjekList = is_array($request->query('subjek')) 
+                ? $request->query('subjek') 
+                : explode(',', $request->query('subjek'));
+            
+            $q->where(function ($subQ) use ($subjekList) {
+                foreach ($subjekList as $subjekItem) {
+                    $subQ->orWhere('subjek', 'ilike', '%' . trim($subjekItem) . '%');
+                }
+            });
+        });
+
+        // 6. Sorting
         $sort = $request->query('sort', 'terbaru');
         if ($sort === 'terlama') {
             $query->orderBy('tahun', 'asc')->orderBy('id', 'asc');
@@ -110,6 +129,7 @@ class PeraturanController extends Controller
                 'nomor' => $p->nomor,
                 'tahun' => (int) $p->tahun,
                 'instansi' => $p->instansi ?? 'Pemerintah Republik Indonesia',
+                'lokasi_daerah' => $p->lokasi_daerah,
                 'status' => $p->statusPeraturan ? $p->statusPeraturan->nama_status : 'Unknown',
                 'status_keberlakuan' => $p->statusPeraturan ? $p->statusPeraturan->nama_status : 'Unknown',
                 'jenis' => $p->jenisPeraturan ? $p->jenisPeraturan->nama : 'Unknown',
@@ -312,10 +332,38 @@ class PeraturanController extends Controller
             ->orderBy('tahun', 'desc')
             ->pluck('tahun');
 
+        // 4. Ambil Entitas/Lokasi Daerah yang unik, abaikan 'Pemerintah Pusat'
+        $lokasiDaerah = Peraturan::select('lokasi_daerah')
+            ->whereNotNull('lokasi_daerah')
+            ->where('lokasi_daerah', '!=', '')
+            ->where('lokasi_daerah', '!=', 'Pemerintah Pusat')
+            ->distinct()
+            ->orderBy('lokasi_daerah', 'asc')
+            ->pluck('lokasi_daerah');
+
+        // 5. Ambil Subjek yang unik
+        $rawSubjek = Peraturan::select('subjek')
+            ->whereNotNull('subjek')
+            ->where('subjek', '!=', '')
+            ->distinct()
+            ->pluck('subjek');
+
+        // Do not split the subject string, keep it exactly as provided in the data
+        $subjekList = collect();
+        foreach ($rawSubjek as $subjekStr) {
+            $trimmed = trim($subjekStr);
+            if (!empty($trimmed)) {
+                $subjekList->push($trimmed);
+            }
+        }
+        $subjekList = $subjekList->unique()->sort()->values();
+
         return response()->json([
             'kategori' => $kategori,
             'status'   => $status,
-            'tahun'    => $tahun
+            'tahun'    => $tahun,
+            'lokasi_daerah' => $lokasiDaerah,
+            'subjek' => $subjekList
         ], 200);
     }
 }

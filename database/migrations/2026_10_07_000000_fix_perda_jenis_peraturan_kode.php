@@ -60,11 +60,20 @@ return new class extends Migration
         ];
 
         foreach ($mappings as $canonicalKode => $info) {
-            // Cari data kanonikal utama
+            // Coba cari target yang SUDAH benar secara kode DAN nama
             $target = DB::table('jenis_peraturan')
                 ->where('kode', $canonicalKode)
+                ->where('nama', $info['nama'])
                 ->first();
 
+            // Jika tidak ada, cari yang namanya sesuai (karena nama itu unique)
+            if (!$target) {
+                $target = DB::table('jenis_peraturan')
+                    ->where('nama', $info['nama'])
+                    ->first();
+            }
+
+            // Jika masih tidak ada, ambil apa saja yang cocok dari array raw
             if (!$target) {
                 $target = DB::table('jenis_peraturan')
                     ->whereIn('kode', $info['raw'])
@@ -73,15 +82,7 @@ return new class extends Migration
             }
 
             if ($target) {
-                DB::table('jenis_peraturan')
-                    ->where('id', $target->id)
-                    ->update([
-                        'kode' => $canonicalKode,
-                        'nama' => $info['nama'],
-                        'deskripsi' => $info['deskripsi'],
-                    ]);
-
-                // Konsolidasi duplikat yang memiliki ID berbeda
+                // Hapus duplikat TERLEBIH DAHULU agar tidak bentrok Unique Constraint saat update nama
                 $duplicates = DB::table('jenis_peraturan')
                     ->where(function ($q) use ($info) {
                         $q->whereIn('kode', $info['raw'])
@@ -91,12 +92,23 @@ return new class extends Migration
                     ->get();
 
                 foreach ($duplicates as $dup) {
+                    // Pindahkan relasi peraturan ke target yang dipertahankan
                     DB::table('peraturan')
                         ->where('jenis_peraturan_id', $dup->id)
                         ->update(['jenis_peraturan_id' => $target->id]);
 
+                    // Hapus data duplikat dari jenis_peraturan
                     DB::table('jenis_peraturan')->where('id', $dup->id)->delete();
                 }
+
+                // Setelah duplikat bersih, baru kita update agar aman dari Unique Constraint
+                DB::table('jenis_peraturan')
+                    ->where('id', $target->id)
+                    ->update([
+                        'kode' => $canonicalKode,
+                        'nama' => $info['nama'],
+                        'deskripsi' => $info['deskripsi'],
+                    ]);
             }
         }
     }

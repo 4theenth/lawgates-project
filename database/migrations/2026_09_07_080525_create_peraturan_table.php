@@ -26,6 +26,8 @@ return new class extends Migration
         $table->date('tanggal_berlaku')->nullable();
         
         $table->string('instansi')->nullable();
+        $table->string('lokasi_daerah')->nullable(); // Ditambahkan untuk menyimpan pemrakarsa/daerah Perda
+        $table->string('subjek')->nullable(); // Ditambahkan untuk menyimpan subjek
         $table->string('url_detail')->nullable();
         $table->string('url_pdf')->nullable();
         
