@@ -1,6 +1,17 @@
 import React from 'react';
 import { CheckCircle2, XCircle, Eye } from 'lucide-react';
-import { ScraperRegulationItem } from '@/data/dummyRegulations';
+
+export interface ScraperRegulationItem {
+  metadata: {
+    standard_id: string;
+    judul: string;
+    tahun: number | string;
+    tipe_peraturan?: string;
+    status?: string;
+    pemrakarsa?: string;
+    instansi?: string;
+  };
+}
 
 interface SearchResultCardProps {
   item: ScraperRegulationItem;

@@ -147,6 +147,30 @@ export function IndonesiaLegalMap() {
     }
   }, []);
 
+  // State Data Provinsi (Default dari PROVINCES_DATA, di-update secara dinamis dari API backend)
+  const [provincesData, setProvincesData] = useState<Record<string, ProvinceDetail>>(PROVINCES_DATA);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/regions/statistics')
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data && data.success && data.data) {
+          setProvincesData((prev) => ({
+            ...prev,
+            ...data.data,
+          }));
+        }
+      })
+      .catch((err) => {
+        console.warn('Gagal memuat statistik wilayah dari API, menggunakan data cadangan:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   useEffect(() => {
     selectedProvinceRef.current = selectedProvinceId;
     updateLayerStyles(selectedProvinceId, hoveredProvinceKey);
@@ -154,17 +178,17 @@ export function IndonesiaLegalMap() {
 
   // Pastikan data aktif hanya ada jika ada provinsi yang terpilih
   const activeProvince: ProvinceDetail | null = selectedProvinceId
-    ? PROVINCES_DATA[selectedProvinceId] || null
+    ? provincesData[selectedProvinceId] || null
     : null;
 
   // Filter daftar provinsi untuk autocomplete search
   const filteredProvinces = useMemo(() => {
-    const list = Object.values(PROVINCES_DATA);
+    const list = Object.values(provincesData);
     if (!searchQuery.trim()) return list;
     return list.filter((p) =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
     );
-  }, [searchQuery]);
+  }, [provincesData, searchQuery]);
 
   // Handler saat memilih provinsi (dari klik peta atau search dropdown)
   const handleSelectProvince = useCallback((provKey: string) => {
@@ -253,10 +277,14 @@ export function IndonesiaLegalMap() {
     }
   }, [geoJsonBounds]);
 
-  // Navigasi ke detail kategori regulasi provinsi yang dipilih
-  const handleNavigatePeraturan = (provName: string) => {
-    const slug = normalizeProvinceKey(provName);
-    router.get(`/kategori/${slug}`);
+  // Navigasi ke detail kategori regulasi provinsi yang dipilih atau detail perda spesifik
+  const handleNavigatePeraturan = (provName: string, uniqueId?: string | null) => {
+    if (uniqueId) {
+      router.get(`/peraturan/${uniqueId}`);
+    } else {
+      const slug = normalizeProvinceKey(provName);
+      router.get(`/kategori/${slug}`);
+    }
   };
 
   // Styling default setiap polygon provinsi
@@ -635,9 +663,11 @@ export function IndonesiaLegalMap() {
                     <div
                       className="h-full rounded-full bg-suc-800 transition-all duration-500"
                       style={{
-                        width: `${Math.round(
-                          (activeProvince.berlaku / activeProvince.total) * 100
-                        )}%`,
+                        width: `${
+                          activeProvince.total > 0
+                            ? Math.round((activeProvince.berlaku / activeProvince.total) * 100)
+                            : 0
+                        }%`,
                       }}
                     />
                   </div>
@@ -655,9 +685,11 @@ export function IndonesiaLegalMap() {
                     <div
                       className="h-full rounded-full bg-dan-800 transition-all duration-500"
                       style={{
-                        width: `${Math.round(
-                          (activeProvince.tidakBerlaku / activeProvince.total) * 100
-                        )}%`,
+                        width: `${
+                          activeProvince.total > 0
+                            ? Math.round((activeProvince.tidakBerlaku / activeProvince.total) * 100)
+                            : 0
+                        }%`,
                       }}
                     />
                   </div>
@@ -681,30 +713,38 @@ export function IndonesiaLegalMap() {
                   </button>
                 </div>
 
-                {/* Card Detail Perda */}
-                <div className="p-2.5 sm:p-3 rounded-xl bg-white space-y-2 shadow-sm border border-neu-100 sm:border-transparent">
-                  {/* Badge Status */}
-                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-suc-50 text-suc-800 border border-suc-200 text-[10px] font-semibold">
-                    <CircleCheckBig className="w-3 h-3 text-suc-800" />
-                    <span>{activeProvince.samplePerda.status}</span>
+                {/* Card Detail Perda (Hanya tampil jika ada data samplePerda riil) */}
+                {activeProvince.samplePerda && activeProvince.total > 0 ? (
+                  <div className="p-2.5 sm:p-3 rounded-xl bg-white space-y-2 shadow-sm border border-neu-100 sm:border-transparent">
+                    {/* Badge Status */}
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-suc-50 text-suc-800 border border-suc-200 text-[10px] font-semibold">
+                      <CircleCheckBig className="w-3 h-3 text-suc-800" />
+                      <span>{activeProvince.samplePerda.status}</span>
+                    </div>
+
+                    {/* Judul Perda */}
+                    <p className="text-[11px] sm:text-[12px] text-neu-800 font-medium line-clamp-2 leading-relaxed">
+                      {activeProvince.samplePerda.nomor}{' '}
+                      {activeProvince.samplePerda.tentang}
+                    </p>
+
+                    {/* Tombol Lihat Detail */}
+                    <button
+                      type="button"
+                      onClick={() => handleNavigatePeraturan(activeProvince.name, activeProvince.samplePerda?.unique_id)}
+                      className="w-full bg-pr-50 hover:bg-pr-100 text-pr-900 text-[11px] sm:text-[12px] font-medium py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Lihat Detail</span>
+                    </button>
                   </div>
-
-                  {/* Judul Perda */}
-                  <p className="text-[11px] sm:text-[12px] text-neu-800 font-medium line-clamp-2 leading-relaxed">
-                    {activeProvince.samplePerda.nomor}{' '}
-                    {activeProvince.samplePerda.tentang}
-                  </p>
-
-                  {/* Tombol Lihat Detail */}
-                  <button
-                    type="button"
-                    onClick={() => handleNavigatePeraturan(activeProvince.name)}
-                    className="w-full bg-pr-50 hover:bg-pr-100 text-pr-900 text-[11px] sm:text-[12px] font-medium py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>Lihat Detail</span>
-                  </button>
-                </div>
+                ) : (
+                  <div className="p-3 sm:p-3.5 rounded-xl bg-neu-50/60 border border-neu-100/80 text-center">
+                    <p className="text-[11px] sm:text-[12px] text-neu-500 font-medium">
+                      Belum ada peraturan daerah terdaftar
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

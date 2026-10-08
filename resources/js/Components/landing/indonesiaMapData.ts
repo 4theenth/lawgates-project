@@ -8,10 +8,11 @@ export interface ProvinceDetail {
   total: number;
   berlaku: number;
   tidakBerlaku: number;
-  samplePerda: {
+  samplePerda?: {
+    unique_id?: string | null;
     nomor: string;
     tentang: string;
-    status: 'Berlaku' | 'Tidak Berlaku';
+    status: 'Berlaku' | 'Tidak Berlaku' | string;
   };
 }
 
