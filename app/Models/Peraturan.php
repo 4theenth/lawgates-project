@@ -13,6 +13,28 @@ class Peraturan extends Model
 
     protected $table = 'peraturan';
 
+    protected static function booted(): void
+    {
+        static::saved(function () {
+            \App\Http\Controllers\Api\RegionController::clearCache();
+        });
+
+        static::deleted(function () {
+            \App\Http\Controllers\Api\RegionController::clearCache();
+        });
+    }
+
+    /**
+     * Scope query untuk hanya memilih peraturan sah yang memiliki isi (pasal) dan bukan placeholder "Menunggu import".
+     */
+    public function scopeAvailable($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('judul')
+              ->orWhereRaw('LOWER(judul) NOT LIKE ?', ['%menunggu import%']);
+        })->has('pasal');
+    }
+
     protected $appends = [
         'is_available',
         'has_pembukaan',

@@ -143,7 +143,8 @@ class KategoriController extends Controller
             $matchedJenis = null;
 
             // Query peraturan untuk provinsi ini (berdasarkan judul, tempat penetapan, atau instansi)
-            $peraturanQuery = Peraturan::with(['jenisPeraturan', 'statusPeraturan'])
+            $peraturanQuery = Peraturan::available()
+                ->with(['jenisPeraturan', 'statusPeraturan'])
                 ->where(function ($q) use ($matchedProvince) {
                     $q->where('judul', 'ilike', '%' . $matchedProvince . '%')
                       ->orWhere('tempat_penetapan', 'ilike', '%' . $matchedProvince . '%')
@@ -194,8 +195,8 @@ class KategoriController extends Controller
             $categoryBadge = $matchedPredefined['badge'] ?? ($matchedJenis?->kode ?? 'Regulasi');
             $categoryDescription = $matchedJenis?->deskripsi ?? ($matchedPredefined['deskripsi'] ?? '');
 
-            // 3. Query Peraturan
-            $peraturanQuery = Peraturan::with(['jenisPeraturan', 'statusPeraturan']);
+            // 3. Query Peraturan Sah
+            $peraturanQuery = Peraturan::available()->with(['jenisPeraturan', 'statusPeraturan']);
 
             if ($matchedJenis) {
                 $peraturanQuery->where('jenis_peraturan_id', $matchedJenis->id);
@@ -204,7 +205,7 @@ class KategoriController extends Controller
                 $peraturanQuery->whereRaw('1 = 0');
             }
 
-            $totalCategoryCount = $matchedJenis ? Peraturan::where('jenis_peraturan_id', $matchedJenis->id)->count() : 0;
+            $totalCategoryCount = $matchedJenis ? Peraturan::available()->where('jenis_peraturan_id', $matchedJenis->id)->count() : 0;
         }
 
         // Filter keyword pencarian

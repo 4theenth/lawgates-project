@@ -20,7 +20,9 @@ class PeraturanController extends Controller
     public function categoryStats()
     {
         $stats = Cache::remember('regulations_category_stats', 600, function () {
-            return JenisPeraturan::withCount('peraturan')
+            return JenisPeraturan::withCount(['peraturan' => function ($q) {
+                $q->available();
+            }])
                 ->get()
                 ->map(function ($jenis) {
                     return [
@@ -45,7 +47,7 @@ class PeraturanController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan']);
+        $query = Peraturan::available()->with(['jenisPeraturan', 'statusPeraturan']);
 
         // 1. Filter Category (Mendukung ID, slug/kode, atau nama)
         $query->when($request->filled('category'), function ($q) use ($request) {
@@ -280,8 +282,8 @@ class PeraturanController extends Controller
     // Fungsi baru untuk mengambil data filter secara dinamis
     public function referensiFilter()
     {
-        // 1. Ambil Jenis Peraturan (Kategori) yang ID-nya benar-benar ada di tabel peraturan
-        $kategori = JenisPeraturan::whereIn('id', Peraturan::select('jenis_peraturan_id')->distinct())
+        // 1. Ambil Jenis Peraturan (Kategori) yang ID-nya benar-benar ada di tabel peraturan sah
+        $kategori = JenisPeraturan::whereIn('id', Peraturan::available()->select('jenis_peraturan_id')->distinct())
             ->get()
             ->groupBy('nama')
             ->map(function ($items, $nama) {
@@ -291,8 +293,8 @@ class PeraturanController extends Controller
                 ];
             })->values();
 
-        // 2. Ambil Status yang ID-nya benar-benar ada di tabel peraturan
-        $status = Status::whereIn('id', Peraturan::select('status_id')->distinct())
+        // 2. Ambil Status yang ID-nya benar-benar ada di tabel peraturan sah
+        $status = Status::whereIn('id', Peraturan::available()->select('status_id')->distinct())
             ->get()
             ->groupBy('nama_status')
             ->map(function ($items, $nama) {
@@ -303,7 +305,8 @@ class PeraturanController extends Controller
             })->values();
 
         // 3. Ambil Tahun yang tersedia secara unik dan urutkan dari yang terbaru
-        $tahun = Peraturan::select('tahun')
+        $tahun = Peraturan::available()
+            ->select('tahun')
             ->whereNotNull('tahun')
             ->distinct()
             ->orderBy('tahun', 'desc')
