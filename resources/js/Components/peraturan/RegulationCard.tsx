@@ -69,15 +69,12 @@ export function RegulationCard({ item, onClick, className = '' }: RegulationCard
     bg-white
     border
     border-gray-200/80
-    border-l-[6px]
-    border-l-transparent
+    hover:border-l-[6px]
     hover:border-l-[#0A1C3E]
     hover:border-gray-300
     rounded-2xl
     p-5
     sm:p-6
-    shadow-2xs
-    hover:shadow-md
     transition-all
     duration-200
     flex
