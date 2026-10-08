@@ -3,8 +3,12 @@ import { ReadonlyTimelineItem } from '@/Components/public/peraturan/ReadonlyTime
 
 export function useRegulationTimeline(peraturan: any) {
   const timelineData = useMemo<ReadonlyTimelineItem[]>(() => {
-    if (!peraturan) return [];
-    const relations = peraturan.law_relations || [];
+    // Filter hanya relasi riwayat perubahan hukum (mengubah/diubah/mencabut/dicabut).
+    // Abaikan relasi konsiderans non-perubahan seperti 'mengingat', 'merujuk', 'dirujuk', 'melaksanakan', 'menetapkan'.
+    const relations = (peraturan.law_relations || []).filter((rel: any) => {
+      const relName = (rel.relation_type?.nama_relasi || '').toLowerCase();
+      return relName.includes('ubah') || relName.includes('cabut');
+    });
 
     const beforeCurrent: ReadonlyTimelineItem[] = [];
     const afterCurrent: ReadonlyTimelineItem[] = [];

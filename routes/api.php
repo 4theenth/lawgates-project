@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\UserController;
 // =================================================================
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:30,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:30,1');
+Route::get('/regions/statistics', [\App\Http\Controllers\Api\RegionController::class, 'statistics']);
+
 
 // =================================================================
 // Route yang Membutuhkan Autentikasi (Token Sanctum)

@@ -170,6 +170,19 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                 scroll-region="true"
                 className="flex-1 min-w-0 w-full space-y-4 lg:sticky lg:top-28 lg:h-[calc(100vh-135px)] lg:overflow-y-auto lg:pr-2.5 custom-scrollbar scroll-smooth pb-6"
               >
+                {/* Banner Penjelasan jika Peraturan Masih Menunggu Impor */}
+                {peraturan?.judul && (peraturan.judul.toLowerCase().includes('menunggu import') || (peraturan.judul.toLowerCase().includes('menunggu') && !peraturan?.has_pasal)) && (
+                  <div className="p-4 bg-amber-50/90 border-l-4 border-amber-600 rounded-xl border border-amber-200/90 shadow-2xs flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1 text-amber-950">
+                      <h4 className="text-[13px] font-bold">Dokumen Dalam Antrean Impor</h4>
+                      <p className="text-[12px] leading-relaxed text-amber-900">
+                        Dokumen ini terdeteksi dalam database relasi hukum karena dirujuk oleh peraturan lain, namun naskah lengkapnya belum diunggah oleh Administrator. Naskah lengkap akan otomatis tampil setelah proses pengunggahan selesai.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Status Legal Warning Banner jika Peraturan Tidak Berlaku / Dicabut */}
                 {(peraturan?.status_peraturan?.nama_status === 'Tidak Berlaku' || (peraturan?.status_peraturan?.nama_status || '').toLowerCase().includes('tidak')) && (
                   <div className="p-4 bg-rose-50/90 border-l-4 border-rose-600 rounded-xl border border-rose-200/90 shadow-2xs flex items-start gap-3">

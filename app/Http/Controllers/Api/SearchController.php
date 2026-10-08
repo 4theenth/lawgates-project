@@ -10,8 +10,8 @@ class SearchController extends Controller
 {
     public function search(Request $request)
     {
-        // Tarik relasi agar nama jenis & status bisa ditampilkan di hasil React
-        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan']);
+        // Tarik relasi agar nama jenis & status bisa ditampilkan di hasil React (hanya peraturan sah)
+        $query = Peraturan::available()->with(['jenisPeraturan', 'statusPeraturan']);
 
         // 1. Filter Keyword (Judul atau Nomor)
         $query->when($request->filled('keyword'), function ($q) use ($request) {

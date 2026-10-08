@@ -46,7 +46,8 @@ Route::get('/', function () {
         'putusan-mk-ma' => 0,
     ];
 
-    $countsPerJenis = Peraturan::selectRaw('jenis_peraturan_id, count(*) as total')
+    $countsPerJenis = Peraturan::available()
+        ->selectRaw('jenis_peraturan_id, count(*) as total')
         ->groupBy('jenis_peraturan_id')
         ->pluck('total', 'jenis_peraturan_id');
 
@@ -86,6 +87,8 @@ Route::get('/', function () {
 
 // Referensi filter (tetap dapat diakses publik agar dropdown filter di landing page dapat menampilkan opsi)
 Route::get('/api/referensi-filter', [PeraturanController::class, 'referensiFilter']);
+Route::get('/api/regions/statistics', [\App\Http\Controllers\Api\RegionController::class, 'statistics']);
+
 
 // ── PROTECTED ROUTES (MANDATORY LOGIN) ──────────────────────────────────
 Route::middleware('auth')->group(function () {
