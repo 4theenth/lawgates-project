@@ -54,6 +54,8 @@ class Peraturan extends Model
         'tanggal_pengundangan',
         'tanggal_berlaku',
         'instansi',
+        'lokasi_daerah',
+        'subjek',
         'url_detail',
         'url_pdf',
         'embedding',
@@ -81,7 +83,12 @@ class Peraturan extends Model
 
     public function creator()
     {
-        return $this->belongsTo(\App\Models\Admin::class, 'created_by');
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
+    }
+
+    public function updater()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'updated_by');
     }
 
     // Tambahan relasi ke tabel pasal
