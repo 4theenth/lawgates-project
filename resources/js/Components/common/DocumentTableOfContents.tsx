@@ -113,9 +113,9 @@ export function DocumentTableOfContents({
         }
       }
 
-      // Check if public #scrollable-content container exists (DetailPeraturan)
+      // Check if public #scrollable-content container exists AND has inner scroll
       const publicContainer = document.getElementById('scrollable-content');
-      if (publicContainer && window.innerWidth >= 1024) {
+      if (publicContainer && window.innerWidth >= 1024 && publicContainer.scrollHeight > publicContainer.clientHeight + 10) {
         const headerOffset = 16;
         const elementPosition = el.getBoundingClientRect().top;
         const containerPosition = publicContainer.getBoundingClientRect().top;
@@ -125,7 +125,10 @@ export function DocumentTableOfContents({
         return;
       }
 
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const headerOffset = 110;
+      const elementPosition = el.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+      window.scrollTo({ top: Math.max(0, offsetPosition), behavior: 'smooth' });
     }, 50);
   };
 
