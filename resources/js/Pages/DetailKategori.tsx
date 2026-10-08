@@ -256,7 +256,7 @@ export default function DetailKategori({
           <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {peraturan.data.map((item) => (
-                <RegulationCard key={item.id} item={item} />
+                <RegulationCard key={item.id} item={item} variant="grid" />
               ))}
             </div>
 

@@ -141,7 +141,7 @@ export function detectTargetPeraturan(teks: string, explicitTarget?: string): Ta
 }
 
 export function detectActionType(teks: string): { type: LegalActionType; label: string; badgeColor: string } {
-  if (!teks) return { type: 'DIUBAH', label: 'Diubah', badgeColor: 'bg-blue-50 text-blue-800 border-blue-200' };
+  if (!teks) return { type: 'DIUBAH', label: 'Diubah', badgeColor: 'bg-pr-50 text-pr-900 border-pr-300' };
 
   const lower = teks.toLowerCase();
   const isTambah = lower.includes('disisipkan') || lower.includes('ditambah') || lower.includes('pasal selipan') || lower.includes('pasal baru');
@@ -149,15 +149,15 @@ export function detectActionType(teks: string): { type: LegalActionType; label: 
   const isUbah = lower.includes('diubah') || lower.includes('berbunyi sebagai berikut') || lower.includes('ketentuan pasal');
 
   if (isTambah && isUbah) {
-    return { type: 'DIUBAH_DAN_DITAMBAH', label: 'Diubah & Ditambah', badgeColor: 'bg-amber-50 text-amber-900 border-amber-300' };
+    return { type: 'DIUBAH_DAN_DITAMBAH', label: 'Diubah & Ditambah', badgeColor: 'bg-sec-50 text-sec-900 border-sec-300' };
   }
   if (isTambah) {
-    return { type: 'DITAMBAH', label: 'Ditambah', badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-300' };
+    return { type: 'DITAMBAH', label: 'Ditambah', badgeColor: 'bg-suc-50 text-suc-900 border-suc-300' };
   }
   if (isHapus) {
-    return { type: 'DIHAPUS', label: 'Dihapus', badgeColor: 'bg-rose-50 text-rose-900 border-rose-300' };
+    return { type: 'DIHAPUS', label: 'Dihapus', badgeColor: 'bg-dan-50 text-dan-900 border-dan-300' };
   }
-  return { type: 'DIUBAH', label: 'Diubah', badgeColor: 'bg-blue-50 text-blue-900 border-blue-300' };
+  return { type: 'DIUBAH', label: 'Diubah', badgeColor: 'bg-pr-50 text-pr-900 border-pr-300' };
 }
 
 /**
