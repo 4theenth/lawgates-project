@@ -170,6 +170,11 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     Route::get('/dokumen-hukum/minio/scan', [DokumenHukumController::class, 'scanMinio'])->name('admin.dokumen-hukum.minio.scan');
     Route::post('/dokumen-hukum/minio/import', [DokumenHukumController::class, 'importFromMinio'])->name('admin.dokumen-hukum.minio.import');
     Route::get('/dokumen-hukum/preview-pdf-minio', [DokumenHukumController::class, 'previewPdfMinio'])->name('admin.dokumen-hukum.preview-pdf-minio');
+    Route::get('/dokumen-hukum/minio/file/{filename?}', [DokumenHukumController::class, 'getMinioFileContent'])->where('filename', '.*')->name('admin.dokumen-hukum.minio.file');
+
+    // AC 1 Exact API Endpoints
+    Route::get('/api/admin/minio/files/{filename?}', [DokumenHukumController::class, 'getMinioFileContent'])->where('filename', '.*');
+    Route::post('/api/admin/import/manual', [DokumenHukumController::class, 'importManual']);
 
     // Users & Team Management Routes
     Route::get('/team', [TeamController::class, 'index'])->name('admin.team');

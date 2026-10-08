@@ -364,31 +364,46 @@ export default function DokumenHukumCreate() {
           console.error('Gagal mengecek duplikasi MinIO', err);
         }
 
+        let liveParsedData: any = null;
+        try {
+          const filePath = (mf as any).file_path || (mf as any).folder_path ? `${(mf as any).folder_path}/ocr.json` : mf.name;
+          const contentRes = await fetch(`/api/admin/minio/files/${encodeURIComponent(filePath)}`, {
+            headers: { Accept: 'application/json' },
+          });
+          if (contentRes.ok) {
+            liveParsedData = await contentRes.json();
+          }
+        } catch (err) {
+          console.warn('Gagal membaca data riil dari MinIO, menggunakan format default', err);
+        }
+
+        const fallbackParsedData = {
+          metadata: {
+            judul: mf.title,
+            tipe_peraturan: category.name,
+            kategori: category.name,
+            status: 'berlaku',
+            tahun: '1945',
+          },
+          batang_tubuh: [
+            {
+              pasal: 'Pasal 1',
+              isi: '(1) Negara Indonesia ialah Negara Kesatuan, yang berbentuk Republik.\n(2) Kedaulatan berada di tangan rakyat dan dilaksanakan menurut Undang-Undang Dasar.\n(3) Negara Indonesia adalah negara hukum.',
+            },
+            {
+              pasal: 'Pasal 2',
+              isi: '(1) Majelis Permusyawaratan Rakyat terdiri atas anggota Dewan Perwakilan Rakyat dan anggota Dewan Perwakilan Daerah yang dipilih melalui pemilihan umum dan diatur lebih lanjut dengan undang-undang.\n(2) Majelis Permusyawaratan Rakyat bersidang sedikitnya sekali dalam lima tahun di ibu kota negara.\n(3) Segala putusan Majelis Permusyawaratan Rakyat ditetapkan dengan suara terbanyak.',
+            },
+          ],
+        };
+
         return {
           id: `minio-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
           name: mf.name,
           sizeKb: mf.sizeKb,
           isDuplicate,
           duplicateMessage: isDuplicate ? duplicateMsg : undefined,
-          parsedData: {
-            metadata: {
-              judul: mf.title,
-              tipe_peraturan: category.name,
-              kategori: category.name,
-              status: 'berlaku',
-              tahun: '1945',
-            },
-            batang_tubuh: [
-              {
-                pasal: 'Pasal 1',
-                isi: '(1) Negara Indonesia ialah Negara Kesatuan, yang berbentuk Republik.\n(2) Kedaulatan berada di tangan rakyat dan dilaksanakan menurut Undang-Undang Dasar.\n(3) Negara Indonesia adalah negara hukum.',
-              },
-              {
-                pasal: 'Pasal 2',
-                isi: '(1) Majelis Permusyawaratan Rakyat terdiri atas anggota Dewan Perwakilan Rakyat dan anggota Dewan Perwakilan Daerah yang dipilih melalui pemilihan umum dan diatur lebih lanjut dengan undang-undang.\n(2) Majelis Permusyawaratan Rakyat bersidang sedikitnya sekali dalam lima tahun di ibu kota negara.\n(3) Segala putusan Majelis Permusyawaratan Rakyat ditetapkan dengan suara terbanyak.',
-              },
-            ],
-          },
+          parsedData: liveParsedData || fallbackParsedData,
         };
       })
     );

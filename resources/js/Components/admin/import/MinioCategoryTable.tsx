@@ -16,28 +16,16 @@ export interface MinioCategory {
   count: number;
 }
 
-const DUMMY_MINIO_CATEGORIES: MinioCategory[] = [
-  { id: '1', name: 'Undang Undang', count: 2326 },
-  { id: '2', name: 'Undang Undang Dasar', count: 123847 },
-  { id: '3', name: 'Undang Undang Darurat', count: 827 },
-  { id: '4', name: 'Peraturan Presiden', count: 1245 },
-  { id: '5', name: 'Keputusan Presiden', count: 934 },
-  { id: '6', name: 'TAP MPR', count: 1253 },
-  { id: '7', name: 'PERDA', count: 10097 },
-  { id: '8', name: 'Peraturan Mentri', count: 2354 },
-  { id: '9', name: 'PERPU', count: 1763 },
-  { id: '10', name: 'Surat Edaran', count: 908 },
-  { id: '11', name: 'Instruksi Presiden', count: 204 },
-];
-
 interface MinioCategoryTableProps {
   categories?: MinioCategory[];
+  isLoading?: boolean;
   onSelectCategory: (category: MinioCategory) => void;
   onBack?: () => void;
 }
 
 export function MinioCategoryTable({
-  categories = DUMMY_MINIO_CATEGORIES,
+  categories = [],
+  isLoading = false,
   onSelectCategory,
   onBack: _onBack,
 }: MinioCategoryTableProps) {
@@ -133,7 +121,16 @@ export function MinioCategoryTable({
           </TableHeader>
 
           <TableBody>
-            {paginatedCategories.map((cat, idx) => (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={2} className="py-8 text-center text-neu-500 text-[12px]">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-pr-900 border-t-transparent rounded-full animate-spin" />
+                    <span>Memindai folder dari penyimpanan MinIO...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : paginatedCategories.map((cat, idx) => (
               <TableRow
                 key={`${cat.id}-${idx}`}
                 onClick={() => onSelectCategory(cat)}
@@ -148,10 +145,10 @@ export function MinioCategoryTable({
               </TableRow>
             ))}
 
-            {paginatedCategories.length === 0 && (
+            {!isLoading && paginatedCategories.length === 0 && (
               <TableRow>
                 <TableCell colSpan={2} className="py-8 text-center text-neu-500 text-[12px]">
-                  Tidak ada kategori ditemukan
+                  Tidak ada folder / dokumen OCR ditemukan di penyimpanan MinIO.
                 </TableCell>
               </TableRow>
             )}
