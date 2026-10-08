@@ -447,10 +447,16 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
   const [isMemutuskanOpen, setIsMemutuskanOpen] = useState(true);
   const [isMenetapkanOpen, setIsMenetapkanOpen] = useState(true);
 
-  // Timeline State
+  // Timeline State (Hanya Menampilkan Riwayat Perubahan Hukum Substantif: Mengubah, Diubah, Mencabut, Dicabut)
   const timelineData = useMemo<ReadonlyTimelineItem[]>(() => {
     if (!peraturan) return [];
-    const relations = peraturan.law_relations || [];
+    
+    // Filter hanya relasi riwayat perubahan hukum (mengubah/diubah/mencabut/dicabut).
+    // Abaikan relasi konsiderans non-perubahan seperti 'mengingat', 'merujuk', 'dirujuk', 'melaksanakan', 'menetapkan'.
+    const relations = (peraturan.law_relations || []).filter((rel: any) => {
+      const relName = (rel.relation_type?.nama_relasi || '').toLowerCase();
+      return relName.includes('ubah') || relName.includes('cabut');
+    });
 
     const beforeCurrent: ReadonlyTimelineItem[] = [];
     const afterCurrent: ReadonlyTimelineItem[] = [];

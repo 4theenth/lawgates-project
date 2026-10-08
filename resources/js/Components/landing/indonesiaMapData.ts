@@ -14,6 +14,12 @@ export interface ProvinceDetail {
     tentang: string;
     status: 'Berlaku' | 'Tidak Berlaku' | string;
   };
+  samplePerdaList?: Array<{
+    unique_id?: string | null;
+    nomor: string;
+    tentang: string;
+    status: 'Berlaku' | 'Tidak Berlaku' | string;
+  }>;
 }
 
 export function normalizeProvinceKey(name: string): string {

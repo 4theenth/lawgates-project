@@ -109,11 +109,11 @@ class RegionController extends Controller
                 }
             }
 
-            // Ambil cuplikan Perda terbaru
-            $latestPerda = $matched->first();
-            $samplePerda = null;
+            // Ambil cuplikan Perda terbaru (hingga 5 items untuk scrollable list tanpa scrollbar)
+            $latestPerdas = $matched->take(5);
+            $samplePerdaList = [];
 
-            if ($latestPerda) {
+            foreach ($latestPerdas as $latestPerda) {
                 $statusStr = 'Berlaku';
                 $statusName = strtolower($latestPerda->statusPeraturan->nama_status ?? 'berlaku');
                 if (Str::contains($statusName, 'tidak') || Str::contains($statusName, 'cabut')) {
@@ -127,16 +127,15 @@ class RegionController extends Controller
                     $nomorStr = "Peraturan Daerah Nomor {$latestPerda->nomor}";
                 }
 
-                $samplePerda = [
+                $samplePerdaList[] = [
                     'unique_id' => $latestPerda->unique_id,
                     'nomor' => $nomorStr,
                     'tentang' => $latestPerda->judul ?? '',
                     'status' => $statusStr,
                 ];
-            } else {
-                // Jika belum ada data riil di DB untuk provinsi ini, cuplikan Perda di-set null
-                $samplePerda = null;
             }
+
+            $samplePerda = $samplePerdaList[0] ?? null;
 
             $result[$slug] = [
                 'id' => $slug,
@@ -145,6 +144,7 @@ class RegionController extends Controller
                 'berlaku' => $berlakuCount,
                 'tidakBerlaku' => $tidakBerlakuCount,
                 'samplePerda' => $samplePerda,
+                'samplePerdaList' => $samplePerdaList,
             ];
         }
 
