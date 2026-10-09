@@ -36,10 +36,7 @@ class ImportOcrJson extends Command
         DB::beginTransaction();
         try {
             // 1. METADATA: Jenis & Status
-            $jenis = JenisPeraturan::firstOrCreate(
-                ['kode' => $data['metadata']['tipe_peraturan']], 
-                ['nama' => $data['metadata']['tipe_peraturan']]
-            );
+            $jenis = JenisPeraturan::resolveByRawString($data['metadata']['tipe_peraturan'] ?? '');
 
             $status = Status::firstOrCreate(
                 ['nama_status' => $data['metadata']['status']]

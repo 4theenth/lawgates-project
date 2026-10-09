@@ -1,5 +1,11 @@
 import { ValidatedFileItem } from './StepValidationCorrection';
 
+export interface TargetIndukInfo {
+  standardId: string;
+  labelSingkat?: string;
+  namaLengkap?: string;
+}
+
 export interface ArticleItem {
   id: string;
   nomor: string;
@@ -7,15 +13,49 @@ export interface ArticleItem {
   penjelasan?: string;
   isExpanded?: boolean;
   pasalList?: ArticleItem[];
+  pasalDiubahList?: ArticleItem[];
+
+  // 9 Field Utama & Core Metadata Hukum
+  tipe?: string; // 'PASAL' | 'PASAL_PERUBAHAN' | 'PASAL_PERUBAHAN_CONTAINER'
+  label?: string;
+  bagianDokumen?: string;
+  hierarki?: string;
+  parentBab?: string;
+  parentBagian?: string;
+  parentParagraf?: string;
+  parentPasalPerubahan?: string;
+  targetInduk?: TargetIndukInfo;
+}
+
+export interface ParagraphItem {
+  id: string;
+  judul: string;
+  deskripsi?: string;
+  pasalList: ArticleItem[];
+  isExpanded?: boolean;
+}
+
+export interface BagianItem {
+  id: string;
+  judul: string;
+  deskripsi?: string;
+  paragrafList?: ParagraphItem[];
+  pasalList?: ArticleItem[];
+  children?: ChapterItem[];
+  isExpanded?: boolean;
 }
 
 export interface ChapterItem {
   id: string;
   judul: string;
   deskripsi?: string;
+  tipe?: 'BAB' | 'BAGIAN' | 'PARAGRAF';
+  label?: string;
+  parentBab?: string;
+  parentBagian?: string;
   pasalList: ArticleItem[];
-  isExpanded?: boolean;
   children?: ChapterItem[];
+  isExpanded?: boolean;
 }
 
 export interface TimelineRelationItem {
@@ -52,6 +92,72 @@ export interface LegalDocumentCorrectionData {
     tempatPenetapan?: string;
     pejabatPenetap?: string;
   };
+}
+
+export type LegalActionType = 'DIUBAH' | 'DITAMBAH' | 'DIHAPUS' | 'DIUBAH_DAN_DITAMBAH';
+
+/**
+ * Ekstrak ID & Nama Peraturan Target yang diubah dari teks pasal (misal UU No 26 Tahun 2007)
+ */
+export function detectTargetPeraturan(teks: string, explicitTarget?: string): TargetIndukInfo | undefined {
+  if (explicitTarget && explicitTarget.trim()) {
+    const formatted = formatStandardId(explicitTarget);
+    // Ubah slug seperti "undang-undang-26-2007" menjadi label yang mudah dibaca "UU 26/2007"
+    const slugMatch = formatted.match(/^([A-Z]+)_No_(\d+)_(\d{4})$/i);
+    const labelSingkat = slugMatch ? `${slugMatch[1]} ${slugMatch[2]}/${slugMatch[3]}` : formatted;
+    return {
+      standardId: formatted,
+      labelSingkat,
+      namaLengkap: explicitTarget,
+    };
+  }
+
+  if (!teks) return undefined;
+
+  // Pattern pencarian peraturan target di dalam teks pasal perubah
+  const match = teks.match(
+    /(?:ketentuan\s+dalam\s+|perubahan\s+atas\s+|mengubah\s+)?(Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah\s+Pengganti\s+Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah|Peraturan[-_\s]?Presiden|Peraturan[-_\s]?Menteri)\s+Nomor\s+(\d+)\s+Tahun\s+(\d{4})(?:\s+tentang\s+([^,.\n()]+))?/i
+  );
+
+  if (match) {
+    const rawJenis = match[1];
+    const nomor = match[2];
+    const tahun = match[3];
+    const tentang = match[4] ? match[4].trim() : '';
+
+    const stdId = formatStandardId(`${rawJenis} ${nomor} ${tahun}`);
+    const prefix = stdId.split('_No_')[0] || 'UU';
+    const labelSingkat = `${prefix} ${nomor}/${tahun}`;
+    const namaLengkap = `${rawJenis} Nomor ${nomor} Tahun ${tahun}${tentang ? ` tentang ${tentang}` : ''}`;
+
+    return {
+      standardId: stdId,
+      labelSingkat,
+      namaLengkap,
+    };
+  }
+
+  return undefined;
+}
+
+export function detectActionType(teks: string): { type: LegalActionType; label: string; badgeColor: string } {
+  if (!teks) return { type: 'DIUBAH', label: 'Diubah', badgeColor: 'bg-pr-50 text-pr-900 border-pr-300' };
+
+  const lower = teks.toLowerCase();
+  const isTambah = lower.includes('disisipkan') || lower.includes('ditambah') || lower.includes('pasal selipan') || lower.includes('pasal baru');
+  const isHapus = lower.includes('dihapus') || lower.includes('dicabut');
+  const isUbah = lower.includes('diubah') || lower.includes('berbunyi sebagai berikut') || lower.includes('ketentuan pasal');
+
+  if (isTambah && isUbah) {
+    return { type: 'DIUBAH_DAN_DITAMBAH', label: 'Diubah & Ditambah', badgeColor: 'bg-sec-50 text-sec-900 border-sec-300' };
+  }
+  if (isTambah) {
+    return { type: 'DITAMBAH', label: 'Ditambah', badgeColor: 'bg-suc-50 text-suc-900 border-suc-300' };
+  }
+  if (isHapus) {
+    return { type: 'DIHAPUS', label: 'Dihapus', badgeColor: 'bg-dan-50 text-dan-900 border-dan-300' };
+  }
+  return { type: 'DIUBAH', label: 'Diubah', badgeColor: 'bg-pr-50 text-pr-900 border-pr-300' };
 }
 
 /**
@@ -215,12 +321,11 @@ export function generateInitialCorrectionData(
 
   const judulPembukaan = pembukaanRaw.judul || judul || 'Pembukaan';
 
-  // 4. BATANG TUBUH (BAB & PASAL DARI BERKAS JSON)
+  // 4. BATANG TUBUH (BAB, BAGIAN, PARAGRAF, & PASAL ADAPTIF BERPERINGKAT)
   let babList: ChapterItem[] = [];
 
-  if (Array.isArray(raw.chunks)) {
-    // Bangun peta penjelasan dari chunks bertipe PENJELASAN_PASAL
-    // Key: label pasal (misal "Pasal 5"), Value: teks penjelasan
+  if (Array.isArray(raw.chunks) && raw.chunks.length > 0) {
+    // A. Peta Penjelasan dari chunks bertipe PENJELASAN_PASAL
     const penjelasanMap = new Map<string, string>();
     raw.chunks.forEach((c: any) => {
       const tipe = String(c.tipe || '').toUpperCase();
@@ -233,77 +338,223 @@ export function generateInitialCorrectionData(
       }
     });
 
-    // Ambil HANYA chunk bertipe PASAL murni (hindari PENJELASAN_PASAL atau LAMPIRAN)
-    const pasalChunks = raw.chunks.filter(
-      (c: any) => String(c.tipe || '').toUpperCase() === 'PASAL'
-    );
+    // State Machine untuk pelacakan konteks hierarki (Self-Healing Parser)
+    let currentBab: ChapterItem | null = null;
+    let currentBagian: ChapterItem | null = null;
+    let currentParagraf: ChapterItem | null = null;
+    let currentContainerPasal: ArticleItem | null = null;
+    const containerPasalMap = new Map<string, ArticleItem>(); // Key: label pasal perubah (e.g. "Pasal 17")
 
-    if (pasalChunks.length > 0) {
-      // Periksa apakah ada chunk bertipe BAB
-      const hasBabChunks = raw.chunks.some((c: any) => String(c.tipe || '').toUpperCase() === 'BAB');
+    // Filter chunk non-pembukaan / non-penjelasan umum
+    const mainChunks = raw.chunks.filter((c: any) => {
+      const tipe = String(c.tipe || '').toUpperCase();
+      return (
+        tipe !== 'PEMBUKAAN' &&
+        tipe !== 'KONSIDERANS' &&
+        tipe !== 'DASAR_HUKUM' &&
+        tipe !== 'DIKTUM' &&
+        tipe !== 'PENJELASAN_UMUM'
+      );
+    });
 
-      if (hasBabChunks) {
-        let currentBab: ChapterItem = {
+    // Cek keberadaan chunk bertipe BAB
+    const hasBabChunks = mainChunks.some((c: any) => String(c.tipe || '').toUpperCase() === 'BAB');
+
+    // Jika tidak ada chunk BAB sama sekali, buat Batang Tubuh bawaan
+    if (!hasBabChunks) {
+      currentBab = {
+        id: 'bab-1',
+        judul: 'Batang Tubuh',
+        deskripsi: '',
+        tipe: 'BAB',
+        isExpanded: true,
+        pasalList: [],
+        children: [],
+      };
+      babList.push(currentBab);
+    }
+
+    mainChunks.forEach((c: any, idx: number) => {
+      const tipe = String(c.tipe || '').toUpperCase();
+      const label = String(c.label || '').trim();
+      const teks = String(c.teks || c.isi || '').trim();
+      const bagianDok = String(c.bagian_dokumen || 'BATANG_TUBUH').toUpperCase();
+
+      // Abaikan jika chunk ini adalah penjelasan pasal yang sudah dipetakan
+      if (tipe === 'PENJELASAN_PASAL' || (tipe === 'PASAL' && bagianDok === 'PENJELASAN')) {
+        return;
+      }
+
+      // --- 1. PROSES BAB ---
+      if (tipe === 'BAB') {
+        const babNum = babList.length + 1;
+        const babJudul = label.startsWith('BAB') ? label : `BAB ${babNum}${label ? ` - ${label}` : ''}`;
+        
+        currentBab = {
+          id: `bab-${babNum}`,
+          judul: babJudul,
+          deskripsi: teks,
+          tipe: 'BAB',
+          label: label,
+          isExpanded: babList.length < 2,
+          pasalList: [],
+          children: [],
+        };
+        babList.push(currentBab);
+
+        // Reset sub-state
+        currentBagian = null;
+        currentParagraf = null;
+        currentContainerPasal = null;
+        return;
+      }
+
+      // Pastikan ada currentBab aktif
+      if (!currentBab) {
+        currentBab = {
           id: 'bab-1',
-          judul: 'BAB I',
+          judul: 'Batang Tubuh',
           deskripsi: '',
+          tipe: 'BAB',
           isExpanded: true,
           pasalList: [],
+          children: [],
+        };
+        babList.push(currentBab);
+      }
+
+      // --- 2. PROSES BAGIAN ---
+      if (tipe === 'BAGIAN') {
+        const bagianCount = (currentBab.children || []).filter((ch) => ch.tipe === 'BAGIAN').length + 1;
+        const bagianJudul = label.toLowerCase().startsWith('bagian')
+          ? label
+          : `Bagian ${bagianCount}${label ? ` - ${label}` : ''}`;
+
+        currentBagian = {
+          id: `${currentBab.id}-bagian-${bagianCount}`,
+          judul: bagianJudul,
+          deskripsi: teks,
+          tipe: 'BAGIAN',
+          label: label,
+          parentBab: currentBab.judul,
+          isExpanded: true,
+          pasalList: [],
+          children: [],
         };
 
-        raw.chunks.forEach((c: any) => {
-          const tipe = String(c.tipe || '').toUpperCase();
-          const label = String(c.label || '').trim();
+        if (!currentBab.children) currentBab.children = [];
+        currentBab.children.push(currentBagian);
 
-          if (tipe === 'BAB') {
-            if (currentBab.pasalList.length > 0) {
-              babList.push(currentBab);
-            }
-            currentBab = {
-              id: `bab-${babList.length + 1}`,
-              judul: label.startsWith('BAB') ? label : `BAB ${babList.length + 1} - ${label}`,
-              deskripsi: c.teks || '',
-              isExpanded: babList.length < 2,
-              pasalList: [],
-            };
-          } else if (tipe === 'PASAL') {
-            const pasalNum = label || `Pasal ${currentBab.pasalList.length + 1}`;
-            const penjelasan = penjelasanMap.get(pasalNum) || '';
-            currentBab.pasalList.push({
-              id: c.id || `pasal-${currentBab.id}-${currentBab.pasalList.length + 1}`,
-              nomor: pasalNum,
-              isi: c.teks || c.isi || '',
-              penjelasan,
-              isExpanded: true,
-            });
-          }
-        });
-
-        if (currentBab.pasalList.length > 0) {
-          babList.push(currentBab);
-        }
-      } else {
-        // Jika tidak ada chunk BAB khusus, kelompokkan pasal ke Batang Tubuh
-        babList = [
-          {
-            id: 'bab-1',
-            judul: 'Batang Tubuh',
-            deskripsi: '',
-            isExpanded: true,
-            pasalList: pasalChunks.map((c: any, idx: number) => {
-              const pasalLabel = String(c.label || '').trim() || `Pasal ${idx + 1}`;
-              return {
-                id: c.id || `pasal-${idx + 1}`,
-                nomor: pasalLabel,
-                isi: c.teks || c.isi || '',
-                penjelasan: penjelasanMap.get(pasalLabel) || '',
-                isExpanded: true,
-              };
-            }),
-          },
-        ];
+        // Reset sub-state di bawah bagian
+        currentParagraf = null;
+        currentContainerPasal = null;
+        return;
       }
-    }
+
+      // --- 3. PROSES PARAGRAF ---
+      if (tipe === 'PARAGRAF') {
+        const parentNode = currentBagian || currentBab;
+        const paragrafCount = (parentNode.children || []).filter((ch) => ch.tipe === 'PARAGRAF').length + 1;
+        const paragrafJudul = label.toLowerCase().startsWith('paragraf')
+          ? label
+          : `Paragraf ${paragrafCount}${label ? ` - ${label}` : ''}`;
+
+        currentParagraf = {
+          id: `${parentNode.id}-paragraf-${paragrafCount}`,
+          judul: paragrafJudul,
+          deskripsi: teks,
+          tipe: 'PARAGRAF',
+          label: label,
+          parentBab: currentBab.judul,
+          parentBagian: currentBagian?.judul,
+          isExpanded: true,
+          pasalList: [],
+          children: [],
+        };
+
+        if (!parentNode.children) parentNode.children = [];
+        parentNode.children.push(currentParagraf);
+
+        currentContainerPasal = null;
+        return;
+      }
+
+      // --- 4. PROSES PASAL & PASAL PERUBAHAN ---
+      if (tipe === 'PASAL' || tipe === 'PASAL_PERUBAHAN') {
+        const parentPasalPerubahanRef = c.parent_pasal_perubahan || c.parentPasalPerubahan || '';
+
+        // Kasus A: Chunk ini adalah anak dari Pasal Perubahan (Anakan Pasal Target)
+        if (parentPasalPerubahanRef) {
+          const parentContainer = containerPasalMap.get(parentPasalPerubahanRef) || currentContainerPasal;
+          const targetInfo = detectTargetPeraturan(teks, c.target_induk || parentContainer?.targetInduk?.standardId);
+
+          const childPasalItem: ArticleItem = {
+            id: c.id || `pasal-sub-${idx + 1}`,
+            nomor: label || `Angka ${idx + 1}`,
+            isi: teks,
+            penjelasan: penjelasanMap.get(label) || '',
+            tipe: 'PASAL_PERUBAHAN',
+            label: label,
+            bagianDokumen: bagianDok,
+            hierarki: c.hierarki || '',
+            parentBab: c.parent_bab || currentBab.judul,
+            parentBagian: c.parent_bagian || currentBagian?.judul,
+            parentParagraf: c.parent_paragraf || currentParagraf?.judul,
+            parentPasalPerubahan: parentPasalPerubahanRef,
+            targetInduk: targetInfo,
+            isExpanded: true,
+          };
+
+          if (parentContainer) {
+            if (!parentContainer.pasalList) parentContainer.pasalList = [];
+            parentContainer.pasalList.push(childPasalItem);
+          } else {
+            // Fallback jika container pasal perubah tidak terdaftar, masukkan ke parent node aktif
+            const activeNode = currentParagraf || currentBagian || currentBab;
+            activeNode.pasalList.push(childPasalItem);
+          }
+          return;
+        }
+
+        // Kasus B: Chunk ini adalah Pasal Utama dari Peraturan Ini
+        const pasalLabel = label || `Pasal ${idx + 1}`;
+        const targetInfo = detectTargetPeraturan(teks, c.target_induk);
+        const isContainerPerubahan =
+          tipe === 'PASAL_PERUBAHAN' ||
+          Boolean(targetInfo) ||
+          /diubah\s+sebagai\s+berikut/i.test(teks) ||
+          /beberapa\s+ketentuan\s+dalam/i.test(teks);
+
+        const pasalItem: ArticleItem = {
+          id: c.id || `pasal-${currentBab.id}-${idx + 1}`,
+          nomor: pasalLabel,
+          isi: teks,
+          penjelasan: penjelasanMap.get(pasalLabel) || '',
+          tipe: isContainerPerubahan ? 'PASAL_PERUBAHAN_CONTAINER' : 'PASAL',
+          label: pasalLabel,
+          bagianDokumen: bagianDok,
+          hierarki: c.hierarki || '',
+          parentBab: c.parent_bab || currentBab.judul,
+          parentBagian: c.parent_bagian || currentBagian?.judul,
+          parentParagraf: c.parent_paragraf || currentParagraf?.judul,
+          targetInduk: targetInfo,
+          pasalList: [],
+          isExpanded: true,
+        };
+
+        // Simpan ke peta container pasal jika berpola perubah
+        if (isContainerPerubahan) {
+          containerPasalMap.set(pasalLabel, pasalItem);
+          currentContainerPasal = pasalItem;
+        } else {
+          currentContainerPasal = null;
+        }
+
+        // Masukkan pasal ke parent node aktif (Paragraf > Bagian > Bab)
+        const activeNode = currentParagraf || currentBagian || currentBab;
+        activeNode.pasalList.push(pasalItem);
+      }
+    });
   }
 
   // Jika belum terbentuk dari chunks, periksa struktur babList / pasal standar
@@ -322,6 +573,7 @@ export function generateInitialCorrectionData(
           id: b.id || `bab-${bIdx + 1}`,
           judul: b.judul || b.nama || `BAB ${bIdx + 1}`,
           deskripsi: b.deskripsi || '',
+          tipe: 'BAB',
           isExpanded: bIdx < 2,
           pasalList: Array.isArray(rawPasals)
             ? rawPasals.map((p: any, pIdx: number) => ({
@@ -340,6 +592,7 @@ export function generateInitialCorrectionData(
           id: 'bab-1',
           judul: 'Batang Tubuh',
           deskripsi: '',
+          tipe: 'BAB',
           isExpanded: true,
           pasalList: pasals.map((p, pIdx) => ({
             id: p.id || `pasal-${pIdx + 1}`,

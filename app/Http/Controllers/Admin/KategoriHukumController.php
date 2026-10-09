@@ -77,12 +77,30 @@ class KategoriHukumController extends Controller
         ]);
 
         if (empty($validated['kode'])) {
-            $words = preg_split('/\s+/', trim($validated['nama']));
-            $initials = '';
-            foreach ($words as $w) {
-                $initials .= strtoupper(substr($w, 0, 1));
+            $namaLower = strtolower(trim($validated['nama']));
+            
+            if (str_contains($namaLower, 'peraturan pemerintah pengganti undang') || $namaLower === 'perpu' || $namaLower === 'perppu') {
+                $validated['kode'] = 'PERPPU';
+            } elseif (str_contains($namaLower, 'undang-undang darurat') || str_contains($namaLower, 'undang undang darurat')) {
+                $validated['kode'] = 'UU Darurat';
+            } elseif (str_contains($namaLower, 'undang-undang dasar') || str_contains($namaLower, 'undang undang dasar')) {
+                $validated['kode'] = 'UUD';
+            } elseif ($namaLower === 'undang-undang' || $namaLower === 'undang undang') {
+                $validated['kode'] = 'UU';
+            } elseif ($namaLower === 'peraturan pemerintah') {
+                $validated['kode'] = 'PP';
+            } elseif ($namaLower === 'peraturan presiden') {
+                $validated['kode'] = 'PERPRES';
+            } elseif ($namaLower === 'peraturan menteri') {
+                $validated['kode'] = 'PERMEN';
+            } else {
+                $words = preg_split('/\s+/', trim($validated['nama']));
+                $initials = '';
+                foreach ($words as $w) {
+                    $initials .= strtoupper(substr($w, 0, 1));
+                }
+                $validated['kode'] = substr($initials, 0, 10) ?: 'KAT';
             }
-            $validated['kode'] = substr($initials, 0, 10) ?: 'KAT';
         }
 
         JenisPeraturan::create($validated);

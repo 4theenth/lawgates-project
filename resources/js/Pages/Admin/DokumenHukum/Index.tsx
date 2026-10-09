@@ -11,16 +11,18 @@ import { FilterPopover } from '@/Components/admin/FilterPopover';
 import { DocumentModal } from '@/Components/admin/DocumentModal';
 import { EditStatusModal } from '@/Components/admin/EditStatusModal';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
+import { DuplicateConfirmModal } from '@/Components/admin/DuplicateConfirmModal';
 import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
+import { StatCardsGroup } from '@/Components/admin/StatCard';
 import {
   CorrectionDetailView,
   LegalDocumentCorrectionData,
   formatStandardId,
 } from '@/Components/admin/import/CorrectionDetailView';
-import { Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X, Files, CheckCircle2, XCircle, FilePenLine, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
-export default function DokumenHukumIndex({ peraturans, drafts, filters, referensi }: any) {
+export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, referensi }: any) {
   const { toast } = useToast();
 
   const ALL_CATEGORIES = referensi?.kategori || [];
@@ -32,6 +34,13 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
   const initialCategories = filters?.kategori ? 
     (Array.isArray(filters.kategori) ? filters.kategori : filters.kategori.split(',')) : [];
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialCategories);
+  const initialLokasi = filters?.lokasi_daerah ?
+    (Array.isArray(filters.lokasi_daerah) ? filters.lokasi_daerah : filters.lokasi_daerah.split(',')) : [];
+  const [selectedLokasi, setSelectedLokasi] = useState<string[]>(initialLokasi);
+
+  const initialSubjek = filters?.subjek ?
+    (Array.isArray(filters.subjek) ? filters.subjek : filters.subjek.split(',')) : [];
+  const [selectedSubjek, setSelectedSubjek] = useState<string[]>(initialSubjek);
   
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedDraftIds, setSelectedDraftIds] = useState<string[]>([]);
@@ -56,6 +65,12 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
     const finalCats = overrides.kategori !== undefined ? overrides.kategori : selectedCategories;
     if (finalCats.length > 0) query.kategori = finalCats.join(',');
     
+    const finalLokasi = overrides.lokasi !== undefined ? overrides.lokasi : selectedLokasi;
+    if (finalLokasi && finalLokasi.length > 0) query.lokasi_daerah = finalLokasi.join(',');
+    
+    const finalSubjek = overrides.subjek !== undefined ? overrides.subjek : selectedSubjek;
+    if (finalSubjek && finalSubjek.length > 0) query.subjek = finalSubjek.join(',');
+    
     const finalSortCol = overrides.sortColumn !== undefined ? overrides.sortColumn : sortColumn;
     if (finalSortCol) {
       query.sortColumn = finalSortCol;
@@ -74,7 +89,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
         preserveScroll: true,
         replace: true
     });
-  }, [activeTab, searchQuery, selectedCategories, sortColumn, sortDirection, pageSize, currentPage]);
+  }, [activeTab, searchQuery, selectedCategories, selectedLokasi, selectedSubjek, sortColumn, sortDirection, pageSize, currentPage]);
 
   // Mencegah trigger di initial render
   const isInitialRender = useRef(true);
@@ -100,6 +115,19 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [editingStatusDoc, setEditingStatusDoc] = useState<DokumenHukumItem | null>(null);
   const [deletingDoc, setDeletingDoc] = useState<DokumenHukumItem | null>(null);
+
+  // State untuk modal konfirmasi duplikasi (status 409 Conflict)
+  const [duplicateModal, setDuplicateModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    documentTitle?: string;
+    existingId?: string;
+  }>({
+    show: false,
+    title: '',
+    message: '',
+  });
 
   const statusOptions = [
     { id: 'berlaku' as const, label: 'Berlaku' },
@@ -157,8 +185,8 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
   ];
 
   // Handler toggle tab status (Klik tab aktif mematikan filter tab menjadi 'all')
-  const handleTabChange = (tab: 'berlaku' | 'tidak_berlaku' | 'draft') => {
-    const newTab = activeTab === tab ? 'all' : tab;
+  const handleTabChange = (tab: 'all' | 'berlaku' | 'tidak_berlaku' | 'draft') => {
+    const newTab = activeTab === tab && tab !== 'all' ? 'all' : tab;
     setActiveTab(newTab);
     setSelectedDraftIds([]);
     setCurrentPage(1);
@@ -170,9 +198,29 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
     const newCats = selectedCategories.includes(category)
       ? selectedCategories.filter((c) => c !== category)
       : [...selectedCategories, category];
+      
+    // Auto-reset lokasi daerah jika Peraturan Daerah tidak dicentang lagi
+    let newLokasi = selectedLokasi;
+    let newSubjek = selectedSubjek;
+    const isPerdaStillSelected = newCats.some(cat => 
+      cat.toLowerCase().includes('perda') || cat.toLowerCase().includes('peraturan daerah')
+    );
+    if (!isPerdaStillSelected) {
+      newLokasi = [];
+      setSelectedLokasi([]);
+    }
+    
+    const isOnlyPerdaSelected = newCats.length > 0 && newCats.every(cat => 
+      cat.toLowerCase().includes('perda') || cat.toLowerCase().includes('peraturan daerah')
+    );
+    if (isOnlyPerdaSelected) {
+      newSubjek = [];
+      setSelectedSubjek([]);
+    }
+
     setSelectedCategories(newCats);
     setCurrentPage(1);
-    fetchData({ kategori: newCats, page: 1 });
+    fetchData({ kategori: newCats, lokasi: newLokasi, subjek: newSubjek, page: 1 });
   };
 
   // Handler pencarian realtime (reset ke halaman 1 agar hasil selalu terlihat)
@@ -469,6 +517,47 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
         }}
       />
 
+      {/* 2.5 Kotak-kotak Ringkasan Statistik Dokumen (StatCards Sesuai Desain Figma #2291:38182) */}
+      <div className="mb-6">
+        <StatCardsGroup
+          items={[
+            {
+              id: 'all',
+              title: 'Total Dokumen Hukum',
+              value: stats?.total_dokumen !== undefined ? stats.total_dokumen.toLocaleString('id-ID') : '0',
+              icon: <Files className="w-5 h-5" />,
+              note: (stats?.total_dokumen ?? 0) === 0 ? 'Belum ada hukum yang ditambahkan' : undefined,
+              trend: (stats?.total_dokumen ?? 0) > 0 ? {
+                value: `↗ +${stats?.penambahan_baru ?? 12} penambahan baru`,
+                isPositive: true,
+              } : undefined,
+            },
+            {
+              id: 'berlaku',
+              title: 'Total Hukum Berlaku',
+              value: stats?.total_berlaku !== undefined ? stats.total_berlaku.toLocaleString('id-ID') : '0',
+              icon: <CheckCircle2 className="w-5 h-5" />,
+              note: (stats?.total_berlaku ?? 0) === 0 ? 'Belum ada hukum yang berlaku' : 'Regulasi aktif saat ini',
+            },
+            {
+              id: 'tidak_berlaku',
+              title: 'Total Hukum Tidak Berlaku',
+              value: stats?.total_tidak_berlaku !== undefined ? stats.total_tidak_berlaku.toLocaleString('id-ID') : '0',
+              icon: <XCircle className="w-5 h-5" />,
+              note: (stats?.total_tidak_berlaku ?? 0) === 0 ? 'Belum ada hukum yang tidak berlaku' : 'Telah dicabut atau digantikan',
+            },
+            {
+              id: 'draft',
+              title: 'Total Draf',
+              value: stats?.total_draft !== undefined ? stats.total_draft.toLocaleString('id-ID') : '0',
+              icon: <FilePenLine className="w-5 h-5" />,
+              note: (stats?.total_draft ?? 0) === 0 ? 'Tidak ada draft yang perlu ditinjau' : 'Perlu ditinjau',
+              noteIcon: <AlertCircle className="w-3.5 h-3.5" />,
+            },
+          ]}
+        />
+      </div>
+
       {/* 3. Toolbar: Status Filter Tabs & Search / Filter Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         {/* Tab Berlaku / Tidak Berlaku */}
@@ -542,10 +631,42 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
               categories={ALL_CATEGORIES}
               selectedCategories={selectedCategories}
               onToggleCategory={handleToggleCategory}
+              lokasiDaerahList={referensi?.lokasi_daerah || []}
+              selectedLokasi={selectedLokasi}
+              onChangeLokasi={(lokasi) => {
+                const newLokasi = selectedLokasi.includes(lokasi)
+                  ? selectedLokasi.filter(l => l !== lokasi)
+                  : [...selectedLokasi, lokasi];
+                setSelectedLokasi(newLokasi);
+                setCurrentPage(1);
+                fetchData({ lokasi: newLokasi, page: 1 });
+              }}
+              onClearLokasi={() => {
+                setSelectedLokasi([]);
+                setCurrentPage(1);
+                fetchData({ lokasi: [], page: 1 });
+              }}
+              subjekList={referensi?.subjek || []}
+              selectedSubjek={selectedSubjek}
+              onChangeSubjek={(subjek) => {
+                const newSubjek = selectedSubjek.includes(subjek)
+                  ? selectedSubjek.filter(s => s !== subjek)
+                  : [...selectedSubjek, subjek];
+                setSelectedSubjek(newSubjek);
+                setCurrentPage(1);
+                fetchData({ subjek: newSubjek, page: 1 });
+              }}
+              onClearSubjek={() => {
+                setSelectedSubjek([]);
+                setCurrentPage(1);
+                fetchData({ subjek: [], page: 1 });
+              }}
               onClearAll={() => {
                 setSelectedCategories([]);
+                setSelectedLokasi([]);
+                setSelectedSubjek([]);
                 setCurrentPage(1);
-                fetchData({ kategori: [], page: 1 });
+                fetchData({ kategori: [], lokasi: [], subjek: [], page: 1 });
               }}
               onSelectAll={() => {
                 setSelectedCategories([...ALL_CATEGORIES]);
@@ -641,6 +762,16 @@ export default function DokumenHukumIndex({ peraturans, drafts, filters, referen
         documentData={deletingDoc}
         onClose={() => setDeletingDoc(null)}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* Modal Konfirmasi Duplikasi jika terdeteksi Status 409 Conflict (AC 3) */}
+      <DuplicateConfirmModal
+        show={duplicateModal.show}
+        onClose={() => setDuplicateModal((prev) => ({ ...prev, show: false }))}
+        title={duplicateModal.title}
+        message={duplicateModal.message}
+        documentTitle={duplicateModal.documentTitle}
+        existingId={duplicateModal.existingId}
       />
     </AdminLayout>
   );

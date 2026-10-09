@@ -2,6 +2,26 @@ import type { ReactNode } from 'react';
 import { Navbar } from '../Components/layout/Navbar';
 import { Footer } from '../Components/layout/Footer';
 import { useScrollPosition } from '../hooks/useScrollPosition';
+import { AuthModalProvider } from '../hooks/useAuthModal';
+
+// ─────────────────────────────────────────────
+// Types & Props
+// ─────────────────────────────────────────────
+
+interface SectionProps {
+  children: ReactNode;
+  className?: string;
+  /**
+   * Set true for full-bleed sections that span edge-to-edge
+   * (e.g. dark banners). The horizontal container is skipped,
+   * but the component should still use PAGE_CONTAINER internally.
+   */
+  fullWidth?: boolean;
+}
+
+interface PublicLayoutProps {
+  children: ReactNode;
+}
 
 // ─────────────────────────────────────────────
 // Layout Tokens
@@ -30,17 +50,6 @@ export const SECTION_SPACING = 0; // px
 // Section Wrapper
 // ─────────────────────────────────────────────
 
-interface SectionProps {
-  children: ReactNode;
-  className?: string;
-  /**
-   * Set true for full-bleed sections that span edge-to-edge
-   * (e.g. dark banners). The horizontal container is skipped,
-   * but the component should still use PAGE_CONTAINER internally.
-   */
-  fullWidth?: boolean;
-}
-
 /**
  * Wraps a page section with the standard 121px top spacing.
  * Also applies PAGE_CONTAINER so content aligns with the navbar.
@@ -67,25 +76,23 @@ export function Section({ children, className = '', fullWidth = false }: Section
 // Layout
 // ─────────────────────────────────────────────
 
-interface PublicLayoutProps {
-  children: ReactNode;
-}
-
 export function PublicLayout({ children }: PublicLayoutProps) {
   const isScrolled = useScrollPosition(40);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] font-sans flex flex-col selection:bg-sec-900 selection:text-white w-full overflow-x-hidden">
-      {/* Public Navbar */}
-      <Navbar isScrolled={isScrolled} />
+    <AuthModalProvider>
+      <div className="min-h-screen bg-[#F8F9FA] font-sans flex flex-col selection:bg-sec-900 selection:text-white w-full overflow-x-hidden">
+        {/* Public Navbar */}
+        <Navbar isScrolled={isScrolled} />
 
-      {/* Main Page Content */}
-      <main className="flex-1 w-full max-w-full min-w-0 flex flex-col items-center">
-        {children}
-      </main>
+        {/* Main Page Content */}
+        <main className="flex-1 w-full max-w-full min-w-0 flex flex-col items-center">
+          {children}
+        </main>
 
-      {/* Public Footer */}
-      <Footer />
-    </div>
+        {/* Public Footer */}
+        <Footer />
+      </div>
+    </AuthModalProvider>
   );
 }

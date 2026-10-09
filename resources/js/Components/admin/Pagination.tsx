@@ -9,6 +9,7 @@ interface PaginationProps {
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
   className?: string;
+  iconOnlyArrows?: boolean;
 }
 
 export function Pagination({
@@ -19,6 +20,7 @@ export function Pagination({
   onPageChange,
   onPageSizeChange,
   className = '',
+  iconOnlyArrows = false,
 }: PaginationProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileDropdownOpen, setIsMobileDropdownOpen] = useState(false);
@@ -58,7 +60,11 @@ export function Pagination({
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       if (currentPage <= 3) {
-        pages.push(1, 2, 3, 4, 5, '...', totalPages);
+        if (iconOnlyArrows) {
+          pages.push(1, 2, 3, 4, '...', totalPages - 1, totalPages);
+        } else {
+          pages.push(1, 2, 3, 4, 5, '...', totalPages);
+        }
       } else if (currentPage >= totalPages - 3) {
         pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
       } else {
@@ -165,15 +171,27 @@ export function Pagination({
       <div className="hidden sm:grid grid-cols-3 items-center gap-4">
         {/* Sisi Kiri: Tombol Sebelumnya & Dropdown Lihat 10 */}
         <div className="flex items-center gap-3 justify-self-start">
-          <button
-            type="button"
-            onClick={handlePrev}
-            disabled={currentPage <= 1}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] border border-neu-50 bg-white text-neu-700 hover:bg-gray-50 hover:text-black disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer text-[12px]"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-neu-500" />
-            <span>Sebelumnya</span>
-          </button>
+          {iconOnlyArrows ? (
+            <button
+              type="button"
+              onClick={handlePrev}
+              disabled={currentPage <= 1}
+              className="w-8 h-8 rounded-[8px] border border-neu-100 bg-white flex items-center justify-center text-neu-400 hover:text-neu-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
+              title="Sebelumnya"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-neu-500" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handlePrev}
+              disabled={currentPage <= 1}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] border border-neu-50 bg-white text-neu-700 hover:bg-gray-50 hover:text-black disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer text-[12px]"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-neu-500" />
+              <span>Sebelumnya</span>
+            </button>
+          )}
 
           <div className="relative inline-flex items-center gap-2 text-[12px]">
             <span className="text-neu-500">Lihat</span>
@@ -246,15 +264,27 @@ export function Pagination({
 
         {/* Sisi Kanan: Tombol Selanjutnya */}
         <div className="justify-self-end">
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={currentPage >= totalPages}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] border border-neu-50 bg-white text-neu-700 hover:bg-gray-50 hover:text-black disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer text-[12px]"
-          >
-            <span>Selanjutnya</span>
-            <ArrowRight className="w-3.5 h-3.5 text-neu-500" />
-          </button>
+          {iconOnlyArrows ? (
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={currentPage >= totalPages}
+              className="w-8 h-8 rounded-[8px] border border-neu-100 bg-white flex items-center justify-center text-neu-400 hover:text-neu-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
+              title="Selanjutnya"
+            >
+              <ArrowRight className="w-3.5 h-3.5 text-neu-500" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={currentPage >= totalPages}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] border border-neu-50 bg-white text-neu-700 hover:bg-gray-50 hover:text-black disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer text-[12px]"
+            >
+              <span>Selanjutnya</span>
+              <ArrowRight className="w-3.5 h-3.5 text-neu-500" />
+            </button>
+          )}
         </div>
       </div>
     </div>
