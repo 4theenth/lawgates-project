@@ -4,13 +4,24 @@ import { Icon } from '@/Components/ui/icon';
 
 interface SearchFilterBarProps {
   isScrolled: boolean;
-  onSearch?: (query: string, filters?: { kategori: string; tahun: string; status: string }) => void;
+  onSearch?: (query: string, filters?: { kategori: string; subjek?: string; tahun: string; status: string }) => void;
 }
 
 interface FilterOption {
   value: string;
   label: string;
 }
+
+const DEFAULT_SUBJEK_OPTIONS: FilterOption[] = [
+  { value: 'perpajakan', label: 'Perpajakan' },
+  { value: 'ketenagakerjaan', label: 'Ketenagakerjaan' },
+  { value: 'keuangan', label: 'Keuangan & Perbankan' },
+  { value: 'kesehatan', label: 'Kesehatan' },
+  { value: 'pendidikan', label: 'Pendidikan' },
+  { value: 'lingkungan', label: 'Lingkungan Hidup' },
+  { value: 'perdagangan', label: 'Perdagangan & Industri' },
+  { value: 'hukum-peradilan', label: 'Hukum & Peradilan' },
+];
 
 // ─────────────────────────────────────────────
 // Multi-Select Dropdown (Kategori & Status)
@@ -294,13 +305,14 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
 
   // Multi-select state
   const [selectedKategori, setSelectedKategori] = useState<string[]>([]);
+  const [selectedSubjek, setSelectedSubjek] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
 
   // Year range state
   const [tahunDari, setTahunDari] = useState('');
   const [tahunSampai, setTahunSampai] = useState('');
 
-  const [activeDropdown, setActiveDropdown] = useState<'kategori' | 'tahun' | 'status' | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<'kategori' | 'subjek' | 'tahun' | 'status' | null>(null);
 
   const [listKategori, setListKategori] = useState<any[]>([]);
   const [listStatus, setListStatus] = useState<any[]>([]);
@@ -365,6 +377,11 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
       (kategoriOptions.length > 0 && selectedKategori.length === kategoriOptions.length);
     const kategoriParam = isAllKategori ? '' : selectedKategori.join(',');
 
+    const isAllSubjek =
+      selectedSubjek.length === 0 ||
+      (DEFAULT_SUBJEK_OPTIONS.length > 0 && selectedSubjek.length === DEFAULT_SUBJEK_OPTIONS.length);
+    const subjekParam = isAllSubjek ? '' : selectedSubjek.join(',');
+
     const isAllStatus =
       selectedStatus.length === 0 ||
       (statusOptions.length > 0 && selectedStatus.length === statusOptions.length);
@@ -373,6 +390,7 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
     if (onSearch) {
       onSearch(keyword, {
         kategori: kategoriParam,
+        subjek: subjekParam,
         tahun: formattedTahun,
         status: statusParam,
       });
@@ -474,10 +492,10 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
               Filter Cepat
             </div>
 
-            {/* Responsive Grid: Mobile 2 rows (Kategori 100%, Tahun & Status 50%), Desktop 3 columns in 1 row */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-[16px] w-full">
-              {/* Kategori (Multi-select) */}
-              <div className="col-span-1">
+            {/* Responsive Grid: 4 filter columns (Kategori, Subjek, Tahun, Status) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-[14px] w-full">
+              {/* 1. Kategori (Multi-select) */}
+              <div>
                 <MultiSelectDropdown
                   label="Kategori"
                   selectedValues={selectedKategori}
@@ -497,9 +515,29 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
                 />
               </div>
 
-              {/* Tahun & Status Wrapper (2 cols on mobile, separate columns on desktop) */}
-              <div className="grid grid-cols-2 gap-2 sm:gap-[16px] sm:col-span-2">
-                {/* Tahun (Range: Dari & Sampai) */}
+              {/* 2. Subjek (Multi-select) */}
+              <div>
+                <MultiSelectDropdown
+                  label="Subjek"
+                  selectedValues={selectedSubjek}
+                  options={DEFAULT_SUBJEK_OPTIONS}
+                  placeholder="Semua subjek"
+                  onToggleValue={(val) => {
+                    setSelectedSubjek((prev) =>
+                      prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]
+                    );
+                  }}
+                  onClear={() => setSelectedSubjek([])}
+                  isOpen={activeDropdown === 'subjek'}
+                  onToggle={() =>
+                    setActiveDropdown((prev) => (prev === 'subjek' ? null : 'subjek'))
+                  }
+                  onClose={() => setActiveDropdown(null)}
+                />
+              </div>
+
+              {/* 3. Tahun (Range: Dari & Sampai) */}
+              <div>
                 <YearRangeDropdown
                   label="Tahun"
                   tahunDari={tahunDari}
@@ -517,8 +555,10 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
                   }
                   onClose={() => setActiveDropdown(null)}
                 />
+              </div>
 
-                {/* Status (Multi-select) */}
+              {/* 4. Status (Multi-select) */}
+              <div>
                 <MultiSelectDropdown
                   label="Status"
                   selectedValues={selectedStatus}

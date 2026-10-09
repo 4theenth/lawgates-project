@@ -22,6 +22,7 @@ export default function Home({ categoryCounts }: HomeProps) {
     const params: Record<string, string> = {};
     if (query) params.keyword = query;
     if (filters?.kategori) params.kategori_id = filters.kategori;
+    if (filters?.subjek) params.subjek = filters.subjek;
     if (filters?.tahun) params.tahun = filters.tahun;
     if (filters?.status) params.status_id = filters.status;
 
