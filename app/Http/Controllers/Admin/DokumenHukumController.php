@@ -20,7 +20,7 @@ class DokumenHukumController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'creator']);
+        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'creator', 'updater']);
 
         // Filter: Status (Berlaku / Tidak Berlaku / Draft)
         if ($request->filled('status') && $request->status !== 'all') {
@@ -47,6 +47,22 @@ class DokumenHukumController extends Controller
             $kategoriFilters = is_array($request->kategori) ? $request->kategori : explode(',', $request->kategori);
             $query->whereHas('jenisPeraturan', function ($q) use ($kategoriFilters) {
                 $q->whereIn('nama', $kategoriFilters);
+            });
+        }
+
+        // Filter: Lokasi Daerah
+        if ($request->filled('lokasi_daerah')) {
+            $lokasiFilters = is_array($request->lokasi_daerah) ? $request->lokasi_daerah : explode(',', $request->lokasi_daerah);
+            $query->whereIn('lokasi_daerah', $lokasiFilters);
+        }
+
+        // Filter: Subjek
+        if ($request->filled('subjek')) {
+            $subjekFilters = is_array($request->subjek) ? $request->subjek : explode(',', $request->subjek);
+            $query->where(function ($subQ) use ($subjekFilters) {
+                foreach ($subjekFilters as $subjekItem) {
+                    $subQ->orWhere('subjek', 'ilike', '%' . trim($subjekItem) . '%');
+                }
             });
         }
 
@@ -85,8 +101,9 @@ class DokumenHukumController extends Controller
                 $query->orderByRaw("judul {$direction} NULLS LAST")
                       ->orderBy('peraturan.updated_at', 'desc');
             } else if ($request->sortColumn === 'author') {
-                $query->leftJoin('admins', 'peraturan.created_by', '=', 'admins.id')
-                      ->orderByRaw("COALESCE(admins.username, '') {$direction}")
+                $query->leftJoin('users as creator', 'peraturan.created_by', '=', 'creator.id')
+                      ->leftJoin('users as updater', 'peraturan.updated_by', '=', 'updater.id')
+                      ->orderByRaw("COALESCE(updater.username, creator.username, 'Sistem') {$direction}")
                       ->orderBy('peraturan.updated_at', 'desc')
                       ->select('peraturan.*');
             } else {
@@ -113,10 +130,12 @@ class DokumenHukumController extends Controller
             return [
                 'id' => (string) $item->unique_id, // unique_id used for URL and deletion
                 'kategori' => $item->jenisPeraturan ? $item->jenisPeraturan->nama : '-',
+                'lokasi_daerah' => $item->lokasi_daerah,
+                'subjek' => $item->subjek,
                 'judul' => $item->judul,
                 'status' => $status,
                 'tgl_ditetapkan' => $item->tanggal_penetapan ? $item->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-',
-                'author' => $item->creator ? $item->creator->username : null,
+                'author' => $item->updater ? $item->updater->username : ($item->creator ? $item->creator->username : 'Sistem'),
                 'real_status' => $item->statusPeraturan ? $item->statusPeraturan->nama_status : '-',
             ];
         });
@@ -128,6 +147,28 @@ class DokumenHukumController extends Controller
             ->pluck('nama')
             ->unique()
             ->values();
+
+        $lokasiDaerah = Peraturan::select('lokasi_daerah')
+            ->whereNotNull('lokasi_daerah')
+            ->where('lokasi_daerah', '!=', '')
+            ->distinct()
+            ->pluck('lokasi_daerah')
+            ->values();
+
+        $rawSubjek = Peraturan::select('subjek')
+            ->whereNotNull('subjek')
+            ->where('subjek', '!=', '')
+            ->distinct()
+            ->pluck('subjek');
+
+        $subjekList = collect();
+        foreach ($rawSubjek as $subjekStr) {
+            $trimmed = trim($subjekStr);
+            if (!empty($trimmed)) {
+                $subjekList->push($trimmed);
+            }
+        }
+        $subjekList = $subjekList->unique()->sort()->values();
 
         // Khusus Tab Draft: Ambil data dari tabel draft_dokumen
         $draftsPaginator = null;
@@ -187,9 +228,11 @@ class DokumenHukumController extends Controller
             'peraturans' => $paginator,
             'drafts' => $draftsPaginator,
             'stats' => $stats,
-            'filters' => $request->only(['search', 'status', 'kategori', 'sortColumn', 'sortDirection', 'pageSize']),
+            'filters' => $request->only(['search', 'status', 'kategori', 'lokasi_daerah', 'sortColumn', 'sortDirection', 'pageSize']),
             'referensi' => [
-                'kategori' => $categories
+                'kategori' => $categories,
+                'lokasi_daerah' => $lokasiDaerah,
+                'subjek' => $subjekList
             ]
         ]);
     }
@@ -835,6 +878,14 @@ class DokumenHukumController extends Controller
     private function performUpdate(Peraturan $peraturan, array $data, bool $isImport = false)
     {
         // 1. Update Peraturan Utama
+        $userId = \Illuminate\Support\Facades\Auth::id();
+        if (!$peraturan->created_by && $userId) {
+            $peraturan->created_by = $userId;
+        }
+        if ($userId) {
+            $peraturan->updated_by = $userId;
+        }
+
         if (isset($data['judul'])) {
             $peraturan->judul = $data['judul'];
         }
@@ -850,8 +901,17 @@ class DokumenHukumController extends Controller
         }
         if (isset($data['metadata']['pemrakarsa'])) {
             $peraturan->instansi = $data['metadata']['pemrakarsa'];
+            // Fill lokasi_daerah default using pemrakarsa if not set
+            if (empty($peraturan->lokasi_daerah)) {
+                $peraturan->lokasi_daerah = $data['metadata']['pemrakarsa'];
+            }
         }
-        
+        if (isset($data['metadata']['lokasiDaerah'])) {
+            $peraturan->lokasi_daerah = $data['metadata']['lokasiDaerah'];
+        }
+        if (isset($data['metadata']['subjek'])) {
+            $peraturan->subjek = $data['metadata']['subjek'];
+        }
         if (isset($data['status'])) {
             $statusInput = strtolower($data['status']);
             if ($statusInput === 'draft') {

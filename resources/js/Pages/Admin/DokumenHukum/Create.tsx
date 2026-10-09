@@ -324,6 +324,33 @@ export default function DokumenHukumCreate() {
 
     if (newItems.length > 0) {
       setUploadedFiles((prev) => [...prev, ...newItems]);
+      
+      if (detectedCategoriesSet.size > 0) {
+        const detectedArr = Array.from(detectedCategoriesSet);
+        const dominantCategory = detectedArr.length === 1 ? detectedArr[0] : 'Campuran';
+        
+        if (dominantCategory !== 'Campuran') {
+          const matchingCat = kategoriOptions.find(
+            (k) =>
+              k.nama.toLowerCase() === dominantCategory.toLowerCase() ||
+              k.kode.toLowerCase() === dominantCategory.toLowerCase()
+          );
+
+          if (matchingCat) {
+            setSelectedCategory(matchingCat.nama);
+            setDetectedCategory(matchingCat.nama);
+            setIsNewCategory(false);
+          } else {
+            setSelectedCategory(dominantCategory);
+            setDetectedCategory(dominantCategory);
+            setIsNewCategory(true);
+          }
+        } else {
+          setSelectedCategory('Campuran');
+          setDetectedCategory('Campuran');
+          setIsNewCategory(false);
+        }
+      }
     }
   };
 
