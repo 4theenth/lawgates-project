@@ -163,7 +163,7 @@ function PasalNode({
           )}
 
           {/* 3. Teks Utama Norma Pasal */}
-          <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-sec-900 border border-neu-50  text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
+          <div className="w-full p-3.5 rounded-[8px] bg-bg-900 border-l-4 border-l-sec-900 border border-neu-50  text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
             {highlightText(pasal.isi, searchQuery)}
           </div>
 
@@ -334,7 +334,7 @@ function BatangTubuhNode({
       {item.isExpanded && (
         <div className="space-y-4 pt-1">
           {item.deskripsi && (
-            <div className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-50 text-[12px] text-neu-700 leading-relaxed whitespace-pre-line text-justify">
+            <div className="w-full p-3 rounded-[8px] bg-bg-900 border border-neu-50 text-[12px] text-neu-700 leading-relaxed whitespace-pre-line text-justify">
               {highlightText(item.deskripsi, searchQuery)}
             </div>
           )}
