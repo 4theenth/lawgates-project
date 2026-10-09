@@ -57,10 +57,10 @@ export function DetailPeraturanHeader({
 
       {/* 2. Badge Kategori & Instansi Sesuai Figma node #76:2402 */}
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        <span className="inline-flex items-center px-3.5 py-1 rounded-[15px] bg-pr-50 text-[10px] sm:text-[11px] font-semibold text-pr-900 tracking-wider uppercase">
+        <span className="inline-flex items-center px-3.5 py-1 rounded-[15px] bg-pr-50 text-[10px] sm:text-[10px] font-semibold text-pr-900 tracking-wider uppercase">
           {jenisPeraturan}
         </span>
-        <span className="text-[12px] sm:text-[13px] text-neu-800 font-normal flex items-center gap-1.5">
+        <span className="text-[12px] sm:text-[12px] text-neu-800 font-normal flex items-center gap-1.5">
           <span className="text-neu-400">•</span>
           {instansi}
         </span>
@@ -68,7 +68,7 @@ export function DetailPeraturanHeader({
 
       {/* 3. Judul Dokumen Hukum & Action Buttons Row */}
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6 pt-1">
-        <h1 className="text-[22px] sm:text-[26px] lg:text-[28px] font-bold text-neu-900 leading-[1.3] tracking-tight flex-1 min-w-0">
+        <h1 className="text-[20px] sm:text-[22px] lg:text-[24px] font-bold text-neu-900 leading-[1.3] tracking-tight flex-1 min-w-0">
           {judul}
         </h1>
 

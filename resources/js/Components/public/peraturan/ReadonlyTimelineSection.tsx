@@ -23,11 +23,13 @@ export interface ReadonlyTimelineItem {
 interface ReadonlyTimelineSectionProps {
   riwayatPerubahan: ReadonlyTimelineItem[];
   onRelasiClick?: () => void;
+  className?: string;
 }
 
 export function ReadonlyTimelineSection({
   riwayatPerubahan,
   onRelasiClick,
+  className = '',
 }: ReadonlyTimelineSectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentItemRef = useRef<HTMLDivElement>(null);
@@ -52,12 +54,12 @@ export function ReadonlyTimelineSection({
   }, [riwayatPerubahan]);
 
   return (
-    <div className="bg-white rounded-2xl border border-neu-50 p-5 shadow-2xs">
+    <div className={`bg-white rounded-2xl border border-neu-50 p-5 shadow-2xs flex flex-col h-full ${className}`}>
       {/* Header Capsule Sesuai Figma */}
-      <div className="mb-5">
+      <div className="mb-5 shrink-0">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-pr-50 text-pr-900">
           <History className="w-4 h-4 stroke-[2.2] text-pr-900" />
-          <span className="text-[12px] font-bold tracking-wide uppercase">
+          <span className="text-[12px] font-medium tracking-wide uppercase">
             RIWAYAT PERUBAHAN
           </span>
         </div>
@@ -66,7 +68,7 @@ export function ReadonlyTimelineSection({
       {/* Vertical Timeline - Scrollable container responsif */}
       <div
         ref={scrollContainerRef}
-        className="relative pl-1 max-h-[460px] overflow-y-auto pr-1.5 custom-scrollbar"
+        className="relative pl-1 flex-1 min-h-0 overflow-y-auto pr-1.5 custom-scrollbar"
       >
         {riwayatPerubahan.map((item, index) => {
           const isLast = index === riwayatPerubahan.length - 1;
@@ -102,9 +104,9 @@ export function ReadonlyTimelineSection({
                   </Link>
                 ) : (
                   <p
-                    className={`text-[13px] leading-snug break-words ${
+                    className={`text-[12px] leading-snug break-words ${
                       item.isCurrent
-                        ? 'font-bold text-pr-900'
+                        ? 'font-medium text-pr-900'
                         : item.isAvailable === false
                         ? 'font-medium text-neu-500'
                         : 'font-medium text-neu-800'
@@ -146,17 +148,15 @@ export function ReadonlyTimelineSection({
       </div>
 
       {/* Tombol RELASI */}
-      {onRelasiClick && (
-        <div className="pt-3 mt-3 border-t border-neu-50">
-          <button
-            type="button"
-            onClick={onRelasiClick}
-            className="w-full py-2.5 rounded-full bg-pr-900 hover:bg-pr-800 text-white text-xs font-bold tracking-wider uppercase transition-all shadow-2xs cursor-pointer"
-          >
-            RELASI
-          </button>
-        </div>
-      )}
+      <div className="pt-3 mt-3 border-t border-neu-50 shrink-0">
+        <button
+          type="button"
+          onClick={onRelasiClick}
+          className="w-full py-2.5 rounded-full bg-pr-900 hover:bg-pr-800 text-white text-xs font-bold tracking-wider uppercase transition-all shadow-2xs cursor-pointer"
+        >
+          RELASI
+        </button>
+      </div>
     </div>
   );
 }
