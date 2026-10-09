@@ -5,13 +5,24 @@ import { useAuthModal } from '@/hooks/useAuthModal';
 
 interface SearchFilterBarProps {
   isScrolled: boolean;
-  onSearch?: (query: string, filters?: { kategori: string; tahun: string; status: string; lokasi_daerah: string; subjek: string }) => void;
+  onSearch?: (query: string, filters?: { kategori: string; tahun: string; status: string; lokasi_daerah?: string; subjek?: string }) => void;
 }
 
 interface FilterOption {
   value: string;
   label: string;
 }
+
+const DEFAULT_SUBJEK_OPTIONS: FilterOption[] = [
+  { value: 'perpajakan', label: 'Perpajakan' },
+  { value: 'ketenagakerjaan', label: 'Ketenagakerjaan' },
+  { value: 'keuangan', label: 'Keuangan & Perbankan' },
+  { value: 'kesehatan', label: 'Kesehatan' },
+  { value: 'pendidikan', label: 'Pendidikan' },
+  { value: 'lingkungan', label: 'Lingkungan Hidup' },
+  { value: 'perdagangan', label: 'Perdagangan & Industri' },
+  { value: 'hukum-peradilan', label: 'Hukum & Peradilan' },
+];
 
 // ─────────────────────────────────────────────
 // Multi-Select Dropdown (Kategori & Status)
@@ -411,6 +422,7 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
 
   // Multi-select state
   const [selectedKategori, setSelectedKategori] = useState<string[]>([]);
+  const [selectedSubjek, setSelectedSubjek] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedLokasi, setSelectedLokasi] = useState<string[]>([]);
   
@@ -428,8 +440,6 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
   const [listTahun, setListTahun] = useState<string[]>([]);
   const [listLokasi, setListLokasi] = useState<string[]>([]);
   const [listSubjek, setListSubjek] = useState<string[]>([]);
-
-  const [selectedSubjek, setSelectedSubjek] = useState<string[]>([]);
   
   const filterContainerRef = useRef<HTMLDivElement>(null);
 
