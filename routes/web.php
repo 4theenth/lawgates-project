@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\Api\PeraturanController;
 use App\Http\Controllers\KategoriController;
+use App\Http\Controllers\RegulasiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -96,7 +97,7 @@ Route::get('/pencarian', function () {
     return Inertia::render('Pencarian');
 });
 
-Route::redirect('/regulasi', '/pencarian');
+Route::get('/regulasi', [RegulasiController::class, 'index'])->name('regulasi.index');
 
 Route::get('/bandingkan', function () {
     return Inertia::render('Bandingkan');
