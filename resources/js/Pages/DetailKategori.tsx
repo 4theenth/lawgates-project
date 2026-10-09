@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { PublicLayout } from '@/Layouts/PublicLayout';
-import { Breadcrumb } from '@/Components/admin/Breadcrumb';
+import { Breadcrumb } from '@/Components/common/Breadcrumb';
 import {
   Search,
   Filter,
@@ -327,9 +327,10 @@ export default function DetailKategori({
           <Breadcrumb
             items={[
               { label: 'Beranda', href: '/' },
+              { label: 'Regulasi', href: '/regulasi' },
               { label: kategori.nama },
             ]}
-            className="mb-4 sm:mb-6 text-xs sm:text-sm text-gray-500"
+            className="mb-4 sm:mb-6 text-xs text-neu-500"
           />
           <h1 className="text-2xl sm:text-[32px] font-bold text-gray-900 tracking-tight">
             {kategori.nama}

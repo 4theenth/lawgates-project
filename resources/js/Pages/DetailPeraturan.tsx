@@ -482,7 +482,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
       <Head title={`${peraturan?.judul || 'Detail Peraturan'} - LawGates`} />
 
       <div className="w-full min-w-0 overflow-x-hidden">
-        <div className={`pt-20 sm:pt-24 pb-8 sm:pb-12 ${PAGE_CONTAINER} text-gray-900 min-w-0`}>
+        <div className="pt-24 pb-8 sm:pb-12 w-full max-w-[1240px] mx-auto px-4 sm:px-6 text-gray-900 min-w-0">
 
           {/* Header Metadata Sesuai Desain Reusable */}
           <DetailPeraturanHeader

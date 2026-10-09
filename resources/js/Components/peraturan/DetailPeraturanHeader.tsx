@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from '@inertiajs/react';
 import { Calendar, MapPin, ArrowRightLeft, Download, Check } from 'lucide-react';
-import { Breadcrumb } from '@/Components/admin/Breadcrumb';
+import { Breadcrumb } from '@/Components/common/Breadcrumb';
 
 export interface DetailPeraturanHeaderProps {
   breadcrumbItems?: { label: string; href?: string }[];
@@ -41,7 +41,7 @@ export function DetailPeraturanHeader({
   return (
     <div className="space-y-4 mb-8">
       {/* 1. Breadcrumb Navigasi */}
-      <Breadcrumb items={breadcrumbItems} className="mb-2" />
+      <Breadcrumb items={breadcrumbItems} className="mb-4 sm:mb-6 text-xs text-neu-500" />
 
       {/* 2. Badge Kategori & Instansi */}
       <div className="flex flex-wrap items-center gap-2 pt-1">
