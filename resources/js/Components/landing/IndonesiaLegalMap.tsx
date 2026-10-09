@@ -392,206 +392,237 @@ export function IndonesiaLegalMap() {
           </div>
         </div>
 
-        {/* ── MAP CONTAINER (Mobile: Order 2, Desktop: Order 1 Left Col) ──
-            Ukuran Mobile: width: 361px (max-w-[361px]), height: 250px, border-radius: 12px
-            Ukuran Desktop: width: 100% (col-span-8), height: 520px, border-radius: 20px
-        ── */}
-        <div className="order-2 lg:order-1 lg:col-span-8 lg:row-span-2 w-full max-w-[361px] lg:max-w-none mx-auto h-[250px] lg:h-[520px] bg-[#71D4E9] rounded-[12px] sm:rounded-[20px] border border-neu-200/80 overflow-hidden relative shadow-sm">
-          {/* Leaflet Map Canvas Wrapper dengan event mouse move & leave untuk hover tooltip */}
-          <div
-            className="w-full h-full relative"
-            onMouseMove={handleMouseMove}
-            onMouseLeave={() => {
-              setHoveredProvinceKey(null);
-              setHoveredProvinceName(null);
-            }}
-          >
-            {/* Tooltip Tunggal: HANYA muncul saat kursor lewat murni dan LANGSUNG lenyap saat kursor keluar / drag */}
-            {hoveredProvinceName && mousePos && !isDraggingRef.current && (
-              <div
-                className="absolute pointer-events-none z-[500] select-none transition-opacity duration-75"
-                style={{
-                  left: `${mousePos.x}px`,
-                  top: `${mousePos.y - 14}px`,
-                  transform: 'translate(-50%, -100%)',
-                }}
-              >
-                <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-white/95 backdrop-blur-sm rounded-full border border-neu-200/90 shadow-md text-[10px] sm:text-[11px] font-bold text-neu-900 tracking-wide whitespace-nowrap">
-                  <span className="w-1.5 h-1.5 rounded-full bg-pr-900 inline-block" />
-                  <span>{hoveredProvinceName.toUpperCase()}</span>
-                </div>
-              </div>
-            )}
-
-            <MapContainer
-              center={[-2.5, 118]}
-              zoom={4.5}
-              minZoom={3.5}
-              maxZoom={8}
-              zoomSnap={0.25}
-              zoomDelta={0.5}
-              wheelDebounceTime={40}
-              wheelPxPerZoomLevel={120}
-              scrollWheelZoom={true}
-              zoomControl={false}
-              attributionControl={false}
-              maxBounds={[
-                [16, 86],
-                [-18, 150],
-              ]}
-              maxBoundsViscosity={0.6}
-              className="w-full h-full bg-[#71D4E9] z-0 focus:outline-none custom-leaflet-map"
+        {/* ── CARD CONTAINER SESUAI FIGMA NODE #2358:57222 (Mobile: Order 2, Desktop: Order 1 Left Col) ── */}
+        <div className="order-2 lg:order-1 lg:col-span-8 lg:row-span-2 w-full max-w-[361px] lg:max-w-none mx-auto bg-white rounded-[16px] sm:rounded-[20px] border border-neu-50 p-3 sm:p-[19px] shadow-sm flex flex-col justify-between">
+          {/* 1. Map Canvas Wrapper (Figma node #2358:57227: w: 680, h: 396, r: 15px) */}
+          <div className="w-full h-[260px] sm:h-[396px] bg-[#71D4E9] rounded-[15px] border border-neu-100 overflow-hidden relative shadow-xs">
+            {/* Leaflet Map Canvas Wrapper dengan event mouse move & leave untuk hover tooltip */}
+            <div
+              className="w-full h-full relative"
+              onMouseMove={handleMouseMove}
+              onMouseLeave={() => {
+                setHoveredProvinceKey(null);
+                setHoveredProvinceName(null);
+              }}
             >
-              <MapController
-                geoJsonBounds={geoJsonBounds}
-                onDeselect={handleResetMap}
-                onDragStateChange={handleDragStateChange}
-                onMapReady={(map) => {
-                  mapRef.current = map;
-                }}
-              />
-
-              {/* Basemap Google Maps Terrain (Hanya Menampilkan Nama Negara, Tanpa Nama Kota/Daerah & Tanpa Nama Laut/Samudra) */}
-              <TileLayer
-                url="https://{s}.google.com/vt/lyrs=p&apistyle=s.e:l%7Cp.v:off,s.t:2%7Cs.e:l%7Cp.v:on&x={x}&y={y}&z={z}"
-                subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
-                maxZoom={20}
-              />
-
-              {/* Layer Wilayah Negara Tetangga (Mati warnanya menjadi netral neu-50 agar Indonesia menonjol) */}
-              <GeoJSON
-                data={NEIGHBORING_COUNTRIES as any}
-                style={{
-                  fillColor: MAP_THEME.neighbors.fillColor,
-                  fillOpacity: MAP_THEME.neighbors.fillOpacity,
-                  weight: MAP_THEME.neighbors.weight,
-                  color: MAP_THEME.neighbors.color,
-                  opacity: MAP_THEME.neighbors.opacity,
-                  smoothFactor: 0,
-                } as any}
-                interactive={false}
-              />
-
-              {/* Layer GeoJSON 38 Provinsi Resmi Indonesia (Untuk Interaksi Hover & Seleksi) */}
-              <GeoJSON
-                ref={(instance) => {
-                  geoJsonRef.current = instance;
-                  if (instance && !geoJsonBounds) {
-                    setGeoJsonBounds(instance.getBounds());
-                  }
-                }}
-                data={INDONESIA_GEOJSON as any}
-                style={getFeatureStyle}
-                onEachFeature={onEachFeature}
-              />
-
-              {/* Layer Garis Batas Daratan Antar Provinsi (Hanya di perbatasan darat antar provinsi, tanpa garis pantai) */}
-              <GeoJSON
-                data={INDONESIA_LAND_BORDERS as any}
-                style={{
-                  color: MAP_THEME.borders.color,
-                  weight: MAP_THEME.borders.weight,
-                  opacity: MAP_THEME.borders.opacity,
-                  lineCap: 'round',
-                  lineJoin: 'round',
-                  smoothFactor: 0,
-                } as any}
-                interactive={false}
-              />
-
-              {/* Floating Popup Card saat provinsi dipilih dengan Garis Pin Stem (Sesuai Figma) */}
-              {activeProvince && popupPos && (
-                <Popup
-                  key={activeProvince.id}
-                  position={popupPos}
-                  closeButton={false}
-                  autoPan={false}
-                  offset={[0, -2]}
-                  className="custom-leaflet-popup"
+              {/* Tooltip Tunggal: HANYA muncul saat kursor lewat murni dan LANGSUNG lenyap saat kursor keluar / drag */}
+              {hoveredProvinceName && mousePos && !isDraggingRef.current && (
+                <div
+                  className="absolute pointer-events-none z-[500] select-none transition-opacity duration-75"
+                  style={{
+                    left: `${mousePos.x}px`,
+                    top: `${mousePos.y - 14}px`,
+                    transform: 'translate(-50%, -100%)',
+                  }}
                 >
-                  <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
-                    <div className="bg-white rounded-lg sm:rounded-xl shadow-xl border border-neu-200/90 p-2.5 sm:p-3.5 min-w-[170px] sm:min-w-[200px] select-none">
-                      {/* Header Card: NAMA PROVINSI | Total Regulasi */}
-                      <div className="flex items-center justify-between gap-2.5 pb-1.5 sm:pb-2 border-b border-neu-100">
-                        <span className="text-[11px] sm:text-[12px] font-bold text-neu-900 tracking-wide">
-                          {activeProvince.name}
-                        </span>
-                        <span className="text-[12px] sm:text-[14px] font-bold text-neu-900">
-                          {activeProvince.total.toLocaleString('id-ID')}
-                        </span>
-                      </div>
-
-                      {/* Detail Berlaku & Tidak Berlaku */}
-                      <div className="py-1.5 sm:py-2 space-y-1 sm:space-y-1.5 text-[10px] sm:text-xs">
-                        <div className="flex items-center justify-between text-neu-600">
-                          <span>Berlaku</span>
-                          <span className="font-semibold text-neu-900">
-                            {activeProvince.berlaku.toLocaleString('id-ID')}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-neu-600">
-                          <span>Tidak Berlaku</span>
-                          <span className="font-semibold text-neu-900">
-                            {activeProvince.tidakBerlaku.toLocaleString('id-ID')}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Tombol Lihat Peraturan */}
-                      <button
-                        type="button"
-                        onClick={() => handleNavigatePeraturan(activeProvince.name)}
-                        className="w-full mt-1 bg-pr-900 hover:bg-pr-800 text-white rounded-md sm:rounded-lg py-1 sm:py-1.5 px-2.5 sm:px-3 text-[10px] sm:text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
-                      >
-                        <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                        <span>Lihat Peraturan</span>
-                      </button>
-                    </div>
-
-                    {/* Garis Pin Stem Menunjuk Wilayah Terpilih */}
-                    <div className="w-[1.5px] h-4 sm:h-6 bg-neu-900" />
+                  <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-white/95 backdrop-blur-sm rounded-full border border-neu-200/90 shadow-md text-[10px] sm:text-[11px] font-bold text-neu-900 tracking-wide whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-pr-900 inline-block" />
+                    <span>{hoveredProvinceName.toUpperCase()}</span>
                   </div>
-                </Popup>
+                </div>
               )}
-            </MapContainer>
+
+              <MapContainer
+                center={[-2.5, 118]}
+                zoom={4.5}
+                minZoom={3.5}
+                maxZoom={8}
+                zoomSnap={0.25}
+                zoomDelta={0.5}
+                wheelDebounceTime={40}
+                wheelPxPerZoomLevel={120}
+                scrollWheelZoom={true}
+                zoomControl={false}
+                attributionControl={false}
+                maxBounds={[
+                  [16, 86],
+                  [-18, 150],
+                ]}
+                maxBoundsViscosity={0.6}
+                className="w-full h-full bg-[#71D4E9] z-0 focus:outline-none custom-leaflet-map"
+              >
+                <MapController
+                  geoJsonBounds={geoJsonBounds}
+                  onDeselect={handleResetMap}
+                  onDragStateChange={handleDragStateChange}
+                  onMapReady={(map) => {
+                    mapRef.current = map;
+                  }}
+                />
+
+                {/* Basemap Google Maps Terrain */}
+                <TileLayer
+                  url="https://{s}.google.com/vt/lyrs=p&apistyle=s.e:l%7Cp.v:off,s.t:2%7Cs.e:l%7Cp.v:on&x={x}&y={y}&z={z}"
+                  subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                  maxZoom={20}
+                />
+
+                {/* Layer Wilayah Negara Tetangga */}
+                <GeoJSON
+                  data={NEIGHBORING_COUNTRIES as any}
+                  style={{
+                    fillColor: MAP_THEME.neighbors.fillColor,
+                    fillOpacity: MAP_THEME.neighbors.fillOpacity,
+                    weight: MAP_THEME.neighbors.weight,
+                    color: MAP_THEME.neighbors.color,
+                    opacity: MAP_THEME.neighbors.opacity,
+                    smoothFactor: 0,
+                  } as any}
+                  interactive={false}
+                />
+
+                {/* Layer GeoJSON 38 Provinsi Resmi Indonesia */}
+                <GeoJSON
+                  ref={(instance) => {
+                    geoJsonRef.current = instance;
+                    if (instance && !geoJsonBounds) {
+                      setGeoJsonBounds(instance.getBounds());
+                    }
+                  }}
+                  data={INDONESIA_GEOJSON as any}
+                  style={getFeatureStyle}
+                  onEachFeature={onEachFeature}
+                />
+
+                {/* Layer Garis Batas Daratan Antar Provinsi */}
+                <GeoJSON
+                  data={INDONESIA_LAND_BORDERS as any}
+                  style={{
+                    color: MAP_THEME.borders.color,
+                    weight: MAP_THEME.borders.weight,
+                    opacity: MAP_THEME.borders.opacity,
+                    lineCap: 'round',
+                    lineJoin: 'round',
+                    smoothFactor: 0,
+                  } as any}
+                  interactive={false}
+                />
+
+                {/* Floating Popup Card saat provinsi dipilih dengan Garis Pin Stem (Sesuai Figma node #2358:57596) */}
+                {activeProvince && popupPos && (
+                  <Popup
+                    key={activeProvince.id}
+                    position={popupPos}
+                    closeButton={false}
+                    autoPan={false}
+                    offset={[0, -2]}
+                    className="custom-leaflet-popup"
+                  >
+                    <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
+                      <div className="bg-white rounded-lg sm:rounded-xl shadow-xl border border-neu-200/90 p-2.5 sm:p-3.5 min-w-[170px] sm:min-w-[200px] select-none">
+                        {/* Header Card: NAMA PROVINSI | Total Regulasi */}
+                        <div className="flex items-center justify-between gap-2.5 pb-1.5 sm:pb-2 border-b border-neu-100">
+                          <span className="text-[11px] sm:text-[12px] font-bold text-neu-900 tracking-wide">
+                            {activeProvince.name}
+                          </span>
+                          <span className="text-[12px] sm:text-[14px] font-bold text-neu-900">
+                            {activeProvince.total.toLocaleString('id-ID')}
+                          </span>
+                        </div>
+
+                        {/* Detail Berlaku & Tidak Berlaku */}
+                        <div className="py-1.5 sm:py-2 space-y-1 sm:space-y-1.5 text-[10px] sm:text-xs">
+                          <div className="flex items-center justify-between text-neu-600">
+                            <span>Berlaku</span>
+                            <span className="font-semibold text-neu-900">
+                              {activeProvince.berlaku.toLocaleString('id-ID')}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-neu-600">
+                            <span>Tidak Berlaku</span>
+                            <span className="font-semibold text-neu-900">
+                              {activeProvince.tidakBerlaku.toLocaleString('id-ID')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Tombol Lihat Peraturan */}
+                        <button
+                          type="button"
+                          onClick={() => handleNavigatePeraturan(activeProvince.name)}
+                          className="w-full mt-1 bg-pr-900 hover:bg-pr-800 text-white rounded-md sm:rounded-lg py-1 sm:py-1.5 px-2.5 sm:px-3 text-[10px] sm:text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                        >
+                          <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          <span>Lihat Peraturan</span>
+                        </button>
+                      </div>
+
+                      {/* Garis Pin Stem Menunjuk Wilayah Terpilih */}
+                      <div className="w-[1.5px] h-4 sm:h-6 bg-neu-900" />
+                    </div>
+                  </Popup>
+                )}
+              </MapContainer>
+            </div>
+
+            {/* Indicator Info Badge (Figma node #2358:57291: Primary/50 bg, Primary/900 dot & text) */}
+            <div className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 z-[400] flex items-center gap-1.5 px-2.5 py-1 bg-pr-50 text-pr-900 rounded-lg text-[10px] sm:text-xs font-normal border border-pr-100/60 shadow-2xs pointer-events-none select-none">
+              <span className="w-2 h-2 rounded-full bg-pr-900 shrink-0" />
+              <span>klik provinsi yang ingin dipilih</span>
+            </div>
+
+            {/* Zoom & Reset Controls Custom Figma (Pojok Kanan Bawah, Figma node #2358:57265) */}
+            <div className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 z-[400] flex flex-col bg-white rounded-[10px] sm:rounded-[14px] shadow-md border border-neu-200/80 overflow-hidden select-none">
+              <button
+                type="button"
+                onClick={() => mapRef.current?.zoomIn()}
+                title="Perbesar Peta"
+                className="p-1.5 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+              <div className="w-full h-[1px] bg-neu-100" />
+              <button
+                type="button"
+                onClick={() => mapRef.current?.zoomOut()}
+                title="Perkecil Peta"
+                className="p-1.5 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
+              >
+                <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+              <div className="w-full h-[1px] bg-neu-100" />
+              <button
+                type="button"
+                onClick={handleResetMap}
+                title="Kembali ke Tampilan Awal"
+                className="p-1.5 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+            </div>
           </div>
 
-          {/* Indicator Info (Pojok Kiri Bawah) */}
-          <div className="absolute bottom-2.5 left-2.5 sm:bottom-4 sm:left-4 z-[400] flex items-center gap-1.5 sm:gap-2 bg-white/95 backdrop-blur-sm px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-neu-200 shadow-sm text-neu-700 select-none pointer-events-none">
-            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-pr-900 inline-block" />
-            <span className="text-[10px] sm:text-xs font-medium">
-              klik provinsi yang ingin dipilih
-            </span>
-          </div>
+          {/* 2. Bottom Stats Row Sesuai Figma node #2358:57618 (Total Peraturan, Berlaku, Tidak Berlaku) */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-[19px] mt-3 sm:mt-[19px]">
+            {/* Card 1: Total Peraturan (Figma node #2358:57597) */}
+            <div className="bg-white border border-neu-50 rounded-xl p-2.5 sm:p-3 flex flex-col justify-center min-h-[58px] sm:min-h-[63px]">
+              <span className="text-neu-800 text-[10px] sm:text-xs font-medium">
+                Total Peraturan
+              </span>
+              <span className="text-pr-900 text-sm sm:text-[18px] font-semibold leading-tight mt-0.5 sm:mt-1">
+                {activeProvince ? activeProvince.total.toLocaleString('id-ID') : '3.090'}
+              </span>
+            </div>
 
-          {/* Zoom & Reset Controls Custom Figma (Pojok Kanan Bawah) */}
-          <div className="absolute bottom-2.5 right-2.5 sm:bottom-4 sm:right-4 z-[400] flex flex-col bg-white rounded-[10px] sm:rounded-[14px] shadow-md border border-neu-200/80 overflow-hidden select-none">
-            <button
-              type="button"
-              onClick={() => mapRef.current?.zoomIn()}
-              title="Perbesar Peta"
-              className="p-1.5 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-            <div className="w-full h-[1px] bg-neu-100" />
-            <button
-              type="button"
-              onClick={() => mapRef.current?.zoomOut()}
-              title="Perkecil Peta"
-              className="p-1.5 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
-            >
-              <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-            <div className="w-full h-[1px] bg-neu-100" />
-            <button
-              type="button"
-              onClick={handleResetMap}
-              title="Kembali ke Tampilan Awal"
-              className="p-1.5 sm:p-2.5 hover:bg-neu-100 text-neu-800 transition-colors flex items-center justify-center active:scale-95 cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
+            {/* Card 2: Berlaku (Figma node #2358:57610) */}
+            <div className="bg-white border border-neu-50 rounded-xl p-2.5 sm:p-3 flex flex-col justify-center min-h-[58px] sm:min-h-[63px]">
+              <span className="text-neu-800 text-[10px] sm:text-xs font-medium">
+                Berlaku
+              </span>
+              <span className="text-suc-900 text-sm sm:text-[18px] font-semibold leading-tight mt-0.5 sm:mt-1">
+                {activeProvince ? activeProvince.berlaku.toLocaleString('id-ID') : '2.090'}
+              </span>
+            </div>
+
+            {/* Card 3: Tidak Berlaku (Figma node #2358:57614) */}
+            <div className="bg-white border border-neu-50 rounded-xl p-2.5 sm:p-3 flex flex-col justify-center min-h-[58px] sm:min-h-[63px]">
+              <span className="text-neu-800 text-[10px] sm:text-xs font-medium">
+                Tidak Berlaku
+              </span>
+              <span className="text-dan-900 text-sm sm:text-[18px] font-semibold leading-tight mt-0.5 sm:mt-1">
+                {activeProvince ? activeProvince.tidakBerlaku.toLocaleString('id-ID') : '1.000'}
+              </span>
+            </div>
           </div>
         </div>
 
