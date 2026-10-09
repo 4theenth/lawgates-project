@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
-import { ChevronUp, X, AlertTriangle } from 'lucide-react';
+import { ChevronUp, X, AlertTriangle, AlignLeft } from 'lucide-react';
 import { ReadonlyTableOfContents } from '@/Components/public/peraturan/ReadonlyTableOfContents';
 import { ReadonlyPembukaanSection } from '@/Components/public/peraturan/ReadonlyPembukaanSection';
 import { ReadonlyBatangTubuhSection } from '@/Components/public/peraturan/ReadonlyBatangTubuhSection';
@@ -28,6 +28,7 @@ const formatTanggal = (dateString: string) => {
 export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
   // Scroll to top state
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isDaftarIsiOpen, setIsDaftarIsiOpen] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -96,7 +97,11 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
   const [showFloatingPreview, setShowFloatingPreview] = useState(false);
 
   const handleRelasi = () => {
-    setShowFloatingPreview(true);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setShowGraph(true);
+    } else {
+      setShowFloatingPreview(true);
+    }
   };
 
   const canCompare = Boolean(
@@ -111,7 +116,7 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
     <PublicLayout>
       <Head title={`${peraturan?.judul || 'Detail Peraturan'} - LawGates`} />
 
-      <div className="w-full min-w-0 overflow-x-hidden">
+      <div className="w-full min-w-0">
         {/* ── 1. Full-Width White Hero Banner Sesuai Figma node #76:2402 ── */}
         <section className="w-full bg-white border-b border-neu-50 pt-24 sm:pt-28 pb-6 sm:pb-8">
           <div className={PAGE_CONTAINER}>
@@ -139,8 +144,11 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
             <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5 w-full min-w-0">
 
               {/* Kolom Kiri: Daftar Isi (Sticky) */}
-              <div className="w-full lg:w-[258px] shrink-0 lg:sticky lg:top-28">
-                <ReadonlyTableOfContents
+              {isDaftarIsiOpen ? (
+                <div className="hidden lg:flex w-full lg:w-[258px] shrink-0 lg:sticky lg:top-28 lg:h-[calc(100vh-135px)] flex-col transition-all duration-300">
+                  <ReadonlyTableOfContents
+                    className="flex-1 min-h-0"
+                    onHeaderClick={() => setIsDaftarIsiOpen(false)}
                   pembukaanJudul="Pembukaan"
                   pembukaanData={pembukaanData}
                   babList={babsState}
@@ -163,12 +171,22 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
                   }}
                 />
               </div>
+              ) : (
+                <div className="hidden lg:flex shrink-0 lg:sticky lg:top-28 lg:h-[calc(100vh-135px)] flex-col items-center">
+                  <button 
+                    onClick={() => setIsDaftarIsiOpen(true)}
+                    className="bg-white rounded-[20px] border border-neu-50 p-[14px_18px] shadow-2xs hover:bg-neu-50 transition-colors cursor-pointer"
+                    title="Buka Daftar Isi"
+                  >
+                    <AlignLeft className="w-[18px] h-[18px] text-neu-800" />
+                  </button>
+                </div>
+              )}
 
-              {/* Kolom Tengah: Isi Peraturan (Scrollable, Sedikit Lebih Tinggi dari Kolom Kiri/Kanan & Rounded Sempurna) */}
+              {/* Kolom Tengah: Isi Peraturan (Mengikuti scroll window) */}
               <div
                 id="scrollable-content"
-                scroll-region="true"
-                className="flex-1 min-w-0 w-full space-y-4 lg:sticky lg:top-28 lg:h-[calc(100vh-135px)] lg:overflow-y-auto lg:pr-2.5 custom-scrollbar scroll-smooth pb-6"
+                className="flex-1 min-w-0 w-full space-y-4 pb-6 transition-all duration-300"
               >
                 {/* Banner Penjelasan jika Peraturan Masih Menunggu Impor */}
                 {peraturan?.judul && (peraturan.judul.toLowerCase().includes('menunggu import') || (peraturan.judul.toLowerCase().includes('menunggu') && !peraturan?.has_pasal)) && (
@@ -185,11 +203,11 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
 
                 {/* Status Legal Warning Banner jika Peraturan Tidak Berlaku / Dicabut */}
                 {(peraturan?.status_peraturan?.nama_status === 'Tidak Berlaku' || (peraturan?.status_peraturan?.nama_status || '').toLowerCase().includes('tidak')) && (
-                  <div className="p-4 bg-rose-50/90 border-l-4 border-rose-600 rounded-xl border border-rose-200/90 shadow-2xs flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                    <div className="space-y-1 text-rose-950">
-                      <h4 className="text-[13px] font-bold">Catatan Status Hukum: Peraturan Ini Tidak Berlaku</h4>
-                      <p className="text-[12px] leading-relaxed text-rose-900">
+                  <div className="p-4 bg-dan-50/50 border-l-4 border-dan-900 rounded-xl flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-dan-900 shrink-0 mt-0.5" />
+                    <div className="space-y-1 text-neu-900">
+                      <h4 className="text-[12px] font-semibold">Catatan Status Hukum: Peraturan Ini Tidak Berlaku</h4>
+                      <p className="text-[12px] leading-relaxed text-dan-900">
                         Dokumen peraturan ini telah dicabut atau dinyatakan tidak berlaku secara hukum. Silakan periksa bagian <span className="font-semibold">Status & Relasi</span> pada panel kanan untuk melihat peraturan pengubah / pengganti terbaru.
                       </p>
                     </div>
@@ -219,10 +237,11 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
               </div>
 
               {/* Kolom Kanan: Riwayat Perubahan & Metadata dengan Tombol RELASI */}
-              <div className="w-full lg:w-[258px] shrink-0 min-w-0 space-y-4 lg:sticky lg:top-28 relative">
+              <div className="hidden lg:flex w-full lg:w-[258px] shrink-0 min-w-0 space-y-4 lg:sticky lg:top-28 lg:h-[calc(100vh-135px)] flex-col relative">
                 <ReadonlyTimelineSection
                   riwayatPerubahan={timelineData}
                   onRelasiClick={handleRelasi}
+                  className="flex-1 min-h-0"
                 />
 
                 {/* Floating Graph Preview Window (Berada tepat di atas tombol Relasi) */}

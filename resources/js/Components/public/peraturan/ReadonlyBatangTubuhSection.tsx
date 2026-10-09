@@ -163,7 +163,7 @@ function PasalNode({
           )}
 
           {/* 3. Teks Utama Norma Pasal */}
-          <div className="w-full p-3.5 rounded-[8px] bg-neu-50/30 border-l-4 border-l-sec-900 border border-neu-100 text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
+          <div className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-sec-900 border border-neu-50  text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
             {highlightText(pasal.isi, searchQuery)}
           </div>
 
@@ -309,8 +309,8 @@ function BatangTubuhNode({
     <div
       id={`struktur-${item.id}`}
       className={isRoot 
-        ? "bg-white rounded-[20px] border border-neu-100 p-5 shadow-2xs space-y-4"
-        : "bg-white rounded-[12px] border border-neu-100 p-4 shadow-sm space-y-3 mt-4 ml-4"
+        ? "bg-white rounded-[20px] border border-neu-50 p-5 space-y-4"
+        : "bg-white rounded-[12px] border border-neu-50 p-4 space-y-3 mt-4 ml-4"
       }
     >
       <button
@@ -334,7 +334,7 @@ function BatangTubuhNode({
       {item.isExpanded && (
         <div className="space-y-4 pt-1">
           {item.deskripsi && (
-            <div className="w-full p-3 rounded-[8px] bg-neu-50/40 border border-neu-100 text-[12px] text-neu-700 leading-relaxed whitespace-pre-line text-justify">
+            <div className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-50 text-[12px] text-neu-700 leading-relaxed whitespace-pre-line text-justify">
               {highlightText(item.deskripsi, searchQuery)}
             </div>
           )}
