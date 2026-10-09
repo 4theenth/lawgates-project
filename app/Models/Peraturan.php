@@ -25,14 +25,18 @@ class Peraturan extends Model
     }
 
     /**
-     * Scope query untuk hanya memilih peraturan sah yang memiliki isi (pasal) dan bukan placeholder "Menunggu import".
+     * Scope query untuk hanya memilih peraturan sah yang memiliki isi (pasal), bukan placeholder "Menunggu import", dan bukan berstatus DRAFT.
      */
     public function scopeAvailable($query)
     {
         return $query->where(function ($q) {
             $q->whereNull('judul')
               ->orWhereRaw('LOWER(judul) NOT LIKE ?', ['%menunggu import%']);
-        })->has('pasal');
+        })
+        ->whereDoesntHave('statusPeraturan', function ($q) {
+            $q->whereRaw('LOWER(nama_status) LIKE ?', ['%draft%']);
+        })
+        ->has('pasal');
     }
 
     protected $appends = [

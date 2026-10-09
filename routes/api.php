@@ -51,6 +51,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Khusus Admin & Superadmin
     Route::middleware('role:superadmin,admin')->group(function () {
         Route::post('/peraturan', [PeraturanController::class, 'store']);
+        Route::get('/admin/minio/files/{filename?}', [\App\Http\Controllers\Admin\DokumenHukumController::class, 'getMinioFileContent'])->where('filename', '.*');
+        Route::post('/admin/import/manual', [\App\Http\Controllers\Admin\DokumenHukumController::class, 'importManual']);
     });
 
     // Khusus Superadmin

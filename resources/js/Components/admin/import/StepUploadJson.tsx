@@ -32,6 +32,8 @@ interface StepUploadJsonProps {
   onAddMinioFiles?: (files: MinioFileItem[], category: MinioCategory) => void;
 }
 
+import { MinioSubfolderTable, MinioSubfolder } from './MinioSubfolderTable';
+
 export function StepUploadJson({
   files,
   onAddFiles,
@@ -46,8 +48,43 @@ export function StepUploadJson({
   onClearError,
   onAddMinioFiles,
 }: StepUploadJsonProps) {
-  const [viewMode, setViewMode] = useState<'dropzone' | 'minio_categories' | 'minio_files'>('dropzone');
+  const [viewMode, setViewMode] = useState<
+    'dropzone' | 'minio_categories' | 'minio_subfolders' | 'minio_files'
+  >('dropzone');
   const [selectedMinioCategory, setSelectedMinioCategory] = useState<MinioCategory | null>(null);
+  const [selectedMinioSubfolder, setSelectedMinioSubfolder] = useState<MinioSubfolder | null>(null);
+
+  const [minioScanCategories, setMinioScanCategories] = useState<MinioCategory[]>([]);
+  const [minioScanSubfolders, setMinioScanSubfolders] = useState<Record<string, MinioSubfolder[]>>({});
+  const [minioScanFiles, setMinioScanFiles] = useState<MinioFileItem[]>([]);
+  const [isLoadingMinio, setIsLoadingMinio] = useState(false);
+
+  React.useEffect(() => {
+    if (viewMode === 'minio_categories' && minioScanCategories.length === 0) {
+      setIsLoadingMinio(true);
+      fetch('/admin/dokumen-hukum/minio/scan', {
+        headers: { Accept: 'application/json' },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.categories && data.categories.length > 0) {
+            setMinioScanCategories(data.categories);
+          }
+          if (data?.subfolders) {
+            setMinioScanSubfolders(data.subfolders);
+          }
+          if (data?.files && data.files.length > 0) {
+            setMinioScanFiles(data.files);
+          }
+        })
+        .catch((err) => {
+          console.error('Error scanning MinIO:', err);
+        })
+        .finally(() => {
+          setIsLoadingMinio(false);
+        });
+    }
+  }, [viewMode, minioScanCategories.length]);
 
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -94,6 +131,21 @@ export function StepUploadJson({
     }
     setViewMode('dropzone');
   };
+
+  const filteredMinioFiles = React.useMemo(() => {
+    if (!selectedMinioCategory) return minioScanFiles;
+    const catName = selectedMinioCategory.name.toLowerCase();
+
+    return minioScanFiles.filter((f) => {
+      const matchesCat = (f as any).category?.toLowerCase() === catName || catName === 'lainnya';
+      if (!matchesCat) return false;
+
+      if (selectedMinioSubfolder) {
+        return (f as any).subfolder === selectedMinioSubfolder.name;
+      }
+      return true;
+    });
+  }, [selectedMinioCategory, selectedMinioSubfolder, minioScanFiles]);
 
   return (
     <div className="flex-1 min-w-0 space-y-6">
@@ -159,18 +211,45 @@ export function StepUploadJson({
 
           {viewMode === 'minio_categories' && (
             <MinioCategoryTable
+              categories={minioScanCategories}
+              isLoading={isLoadingMinio}
               onSelectCategory={(category) => {
                 setSelectedMinioCategory(category);
-                setViewMode('minio_files');
+                setSelectedMinioSubfolder(null);
+                const subForCat = minioScanSubfolders[category.name] || [];
+                if (subForCat.length > 0) {
+                  setViewMode('minio_subfolders');
+                } else {
+                  setViewMode('minio_files');
+                }
               }}
               onBack={() => setViewMode('dropzone')}
+            />
+          )}
+
+          {viewMode === 'minio_subfolders' && selectedMinioCategory && (
+            <MinioSubfolderTable
+              category={selectedMinioCategory}
+              subfolders={minioScanSubfolders[selectedMinioCategory.name] || []}
+              onSelectSubfolder={(subfolder) => {
+                setSelectedMinioSubfolder(subfolder);
+                setViewMode('minio_files');
+              }}
+              onBack={() => setViewMode('minio_categories')}
             />
           )}
 
           {viewMode === 'minio_files' && selectedMinioCategory && (
             <MinioFileSelectTable
               category={selectedMinioCategory}
-              onBack={() => setViewMode('minio_categories')}
+              files={filteredMinioFiles}
+              onBack={() => {
+                if (minioScanSubfolders[selectedMinioCategory.name]?.length) {
+                  setViewMode('minio_subfolders');
+                } else {
+                  setViewMode('minio_categories');
+                }
+              }}
               onConfirmFiles={handleConfirmMinioFiles}
               maxFilesAllowed={maxFiles}
             />

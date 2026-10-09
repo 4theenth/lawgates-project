@@ -35,6 +35,7 @@ const DEFAULT_SAMPLE_FILES: MinioFileItem[] = [
 
 interface MinioFileSelectTableProps {
   category?: MinioCategory;
+  files?: MinioFileItem[];
   onBack?: () => void;
   onConfirmFiles: (files: MinioFileItem[]) => void;
   maxFilesAllowed?: number;
@@ -42,12 +43,14 @@ interface MinioFileSelectTableProps {
 
 export function MinioFileSelectTable({
   category: _category,
+  files = [],
   onBack: _onBack,
   onConfirmFiles,
   maxFilesAllowed = 10,
 }: MinioFileSelectTableProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
+  const sourceFiles = files;
   // Tidak ada yang langsung kepilih secara default (mulai dari kosong [])
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -60,7 +63,7 @@ export function MinioFileSelectTable({
 
   // Filter & sort files
   const filteredFiles = useMemo(() => {
-    const list = DEFAULT_SAMPLE_FILES.filter((file) => {
+    const list = sourceFiles.filter((file) => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
@@ -165,7 +168,7 @@ export function MinioFileSelectTable({
       toast.warning('Pilih minimal 1 berkas terlebih dahulu.');
       return;
     }
-    const selectedFiles = DEFAULT_SAMPLE_FILES.filter((f) => selectedIds.includes(f.id));
+    const selectedFiles = sourceFiles.filter((f) => selectedIds.includes(f.id));
     onConfirmFiles(selectedFiles);
   };
 
