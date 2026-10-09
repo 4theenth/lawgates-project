@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from '@inertiajs/react';
 import { Calendar, MapPin, ArrowRightLeft, Download, Check, Copy, Share2 } from 'lucide-react';
-import { Breadcrumb } from '@/Components/admin/Breadcrumb';
+import { Breadcrumb } from '@/Components/common/Breadcrumb';
 import { useAuthModal } from '@/hooks/useAuthModal';
 
 export interface DetailPeraturanHeaderProps {
@@ -53,7 +53,7 @@ export function DetailPeraturanHeader({
   return (
     <div className="space-y-4 mb-0">
       {/* 1. Breadcrumb Navigasi */}
-      <Breadcrumb items={breadcrumbItems} className="mb-2" />
+      <Breadcrumb items={breadcrumbItems} className="mb-4 sm:mb-6 text-xs text-neu-500" />
 
       {/* 2. Badge Kategori & Instansi Sesuai Figma node #76:2402 */}
       <div className="flex flex-wrap items-center gap-2 pt-1">
