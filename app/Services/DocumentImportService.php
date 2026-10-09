@@ -29,19 +29,59 @@ class DocumentImportService
         DB::beginTransaction();
         try {
             // 1. METADATA: Jenis & Status
-            $tipePeraturan = $data['metadata']['tipe_peraturan'] ?? '';
-            $jenis = JenisPeraturan::resolveByRawString($tipePeraturan);
+            $metadata = $data['metadata'] ?? $data;
 
+            $tipePeraturan = $metadata['tipe_peraturan']
+                ?? $metadata['kategori']
+                ?? $metadata['jenis']
+                ?? $metadata['jenis_peraturan']
+                ?? $data['tipe_peraturan']
+                ?? $data['kategori']
+                ?? 'Undang-Undang';
+
+            $jenis = JenisPeraturan::whereRaw('LOWER(nama) = ?', [strtolower($tipePeraturan)])
+                                  ->orWhereRaw('LOWER(kode) = ?', [strtolower($tipePeraturan)])
+                                  ->first();
+            
+            if (!$jenis) {
+                // Buat singkatan otomatis untuk kode (misal "Undang-Undang Darurat" -> "UUD")
+                $words = preg_split('/[\s\-]+/', trim($tipePeraturan));
+                $initials = '';
+                foreach ($words as $w) {
+                    if (!empty($w)) {
+                        $initials .= strtoupper(substr($w, 0, 1));
+                    }
+                }
+                $kode = substr($initials, 0, 10) ?: 'KAT';
+
+                $jenis = JenisPeraturan::create([
+                    'kode' => $kode,
+                    'nama' => $tipePeraturan
+                ]);
+            }
+
+            $statusNama = $metadata['status'] ?? $metadata['status_peraturan'] ?? 'berlaku';
             $status = Status::firstOrCreate(
-                ['nama_status' => $data['metadata']['status']]
+                ['nama_status' => $statusNama]
             );
 
-            $tahun = $data['metadata']['tahun'] ?? $this->ekstrakTahun($data['metadata']['id_dokumen']);
-            $nomor = $this->ekstrakNomor($data['metadata']['judul'] ?? '', $data['metadata']['id_dokumen'] ?? '');
+            $judul = $metadata['judul'] ?? ($data['judul'] ?? 'Dokumen Hukum');
+            $idDokumen = $metadata['id_dokumen']
+                ?? $metadata['standard_id']
+                ?? $metadata['unique_id']
+                ?? ($data['id'] ?? null);
+
+            if (!$idDokumen) {
+                $idDokumen = preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($judul));
+                $idDokumen = substr($idDokumen, 0, 50) . '_' . time();
+            }
+
+            $tahun = $metadata['tahun'] ?? $this->ekstrakTahun($idDokumen);
+            $nomor = $this->ekstrakNomor($judul, $idDokumen);
             
             // Cari peraturan yang ada berdasarkan unique_id ATAU kombinasi jenis, nomor, tahun (termasuk yang soft-delete)
             $peraturan = Peraturan::withTrashed()
-                ->where('unique_id', $data['metadata']['id_dokumen'])
+                ->where('unique_id', $idDokumen)
                 ->orWhere(function($query) use ($jenis, $nomor, $tahun) {
                     $query->where('jenis_peraturan_id', $jenis->id)
                           ->where('nomor', $nomor)
@@ -49,23 +89,24 @@ class DocumentImportService
                 })
                 ->first();
 
-            $tipeFolder = strtolower($data['metadata']['tipe_peraturan'] ?? 'uu');
-            $docFolder = $data['metadata']['standard_id'] ?? $data['metadata']['id_dokumen'] ?? '';
+            $tipeFolder = strtolower($tipePeraturan);
+            $docFolder = $metadata['standard_id'] ?? $idDokumen;
             $pdfPath = "documents/{$tipeFolder}/{$docFolder}/document.pdf";
 
             $attributes = [
-                'unique_id'            => $data['metadata']['id_dokumen'],
-                'judul'                => $data['metadata']['judul'],
+                'unique_id'            => $idDokumen,
+                'judul'                => $judul,
                 'jenis_peraturan_id'   => $jenis->id,
                 'status_id'            => $status->id,
                 'tahun'                => $tahun,
                 'nomor'                => $nomor,
-                'tempat_penetapan'     => $data['metadata']['tempat_penetapan'] ?? null,
-                'tanggal_penetapan'    => $this->formatTanggal($data['metadata']['tanggal_penetapan'] ?? null),
-                'tanggal_pengundangan' => $this->formatTanggal($data['metadata']['tanggal_pengundangan'] ?? null),
-                'tanggal_berlaku'      => $this->formatTanggal($data['metadata']['tanggal_berlaku'] ?? null),
-                'instansi'             => $data['metadata']['pemrakarsa'] ?? null,
-                'url_pdf'              => $data['metadata']['sumber_dokumen'] ?? null,
+                'tempat_penetapan'     => $metadata['tempat_penetapan'] ?? null,
+                'tanggal_penetapan'    => $this->formatTanggal($metadata['tanggal_penetapan'] ?? null),
+                'tanggal_pengundangan' => $this->formatTanggal($metadata['tanggal_pengundangan'] ?? null),
+                'tanggal_berlaku'      => $this->formatTanggal($metadata['tanggal_berlaku'] ?? null),
+                'instansi'             => $metadata['pemrakarsa'] ?? null,
+                'url_pdf'              => $metadata['sumber_dokumen'] ?? null,
+                'subjek'               => $metadata['subjek'] ?? null,
                 'file_pdf_path'        => $pdfPath,
             ];
 
@@ -73,7 +114,7 @@ class DocumentImportService
                 if ($peraturan->trashed()) {
                     $peraturan->restore();
                 } else if (!str_contains(strtolower($peraturan->judul), 'menunggu import')) {
-                    throw new \Exception("Dokumen " . $data['metadata']['judul'] . " sudah ada di database.");
+                    throw new \Exception("Dokumen " . $judul . " sudah ada di database.");
                 }
                 $peraturan->update($attributes);
             } else {
@@ -94,7 +135,16 @@ class DocumentImportService
             $urutan = 1;
             
             // Pre-process chunks to move preamble text to the next chunk
-            $chunks = $data['chunks'];
+            $chunks = $data['chunks'] ?? [];
+            if (empty($chunks) && !empty($data['batang_tubuh']) && is_array($data['batang_tubuh'])) {
+                foreach ($data['batang_tubuh'] as $bt) {
+                    $chunks[] = [
+                        'tipe' => 'PASAL',
+                        'label' => $bt['pasal'] ?? 'Pasal',
+                        'teks' => $bt['isi'] ?? '',
+                    ];
+                }
+            }
             $preambleRegex = '/(Ketentuan\s+Pasal\s+.*?\s+diubah\s+sehingga\s+berbunyi\s+sebagai\s+berikut:)/is';
             
             for ($i = 0; $i < count($chunks); $i++) {

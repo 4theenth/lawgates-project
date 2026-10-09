@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\UserController;
 // =================================================================
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:30,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:30,1');
+Route::get('/regions/statistics', [\App\Http\Controllers\Api\RegionController::class, 'statistics']);
+
 
 // =================================================================
 // Route yang Membutuhkan Autentikasi (Token Sanctum)
@@ -49,6 +51,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Khusus Admin & Superadmin
     Route::middleware('role:superadmin,admin')->group(function () {
         Route::post('/peraturan', [PeraturanController::class, 'store']);
+        Route::get('/admin/minio/files/{filename?}', [\App\Http\Controllers\Admin\DokumenHukumController::class, 'getMinioFileContent'])->where('filename', '.*');
+        Route::post('/admin/import/manual', [\App\Http\Controllers\Admin\DokumenHukumController::class, 'importManual']);
     });
 
     // Khusus Superadmin

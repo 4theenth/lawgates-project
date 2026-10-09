@@ -20,7 +20,7 @@ class DokumenHukumController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan']);
+        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'creator', 'updater']);
 
         // Filter: Status (Berlaku / Tidak Berlaku / Draft)
         if ($request->filled('status') && $request->status !== 'all') {
@@ -47,6 +47,22 @@ class DokumenHukumController extends Controller
             $kategoriFilters = is_array($request->kategori) ? $request->kategori : explode(',', $request->kategori);
             $query->whereHas('jenisPeraturan', function ($q) use ($kategoriFilters) {
                 $q->whereIn('nama', $kategoriFilters);
+            });
+        }
+
+        // Filter: Lokasi Daerah
+        if ($request->filled('lokasi_daerah')) {
+            $lokasiFilters = is_array($request->lokasi_daerah) ? $request->lokasi_daerah : explode(',', $request->lokasi_daerah);
+            $query->whereIn('lokasi_daerah', $lokasiFilters);
+        }
+
+        // Filter: Subjek
+        if ($request->filled('subjek')) {
+            $subjekFilters = is_array($request->subjek) ? $request->subjek : explode(',', $request->subjek);
+            $query->where(function ($subQ) use ($subjekFilters) {
+                foreach ($subjekFilters as $subjekItem) {
+                    $subQ->orWhere('subjek', 'ilike', '%' . trim($subjekItem) . '%');
+                }
             });
         }
 
@@ -84,6 +100,12 @@ class DokumenHukumController extends Controller
             } else if ($request->sortColumn === 'judul') {
                 $query->orderByRaw("judul {$direction} NULLS LAST")
                       ->orderBy('peraturan.updated_at', 'desc');
+            } else if ($request->sortColumn === 'author') {
+                $query->leftJoin('users as creator', 'peraturan.created_by', '=', 'creator.id')
+                      ->leftJoin('users as updater', 'peraturan.updated_by', '=', 'updater.id')
+                      ->orderByRaw("COALESCE(updater.username, creator.username, 'Sistem') {$direction}")
+                      ->orderBy('peraturan.updated_at', 'desc')
+                      ->select('peraturan.*');
             } else {
                 $query->orderBy($request->sortColumn, $direction);
             }
@@ -108,9 +130,12 @@ class DokumenHukumController extends Controller
             return [
                 'id' => (string) $item->unique_id, // unique_id used for URL and deletion
                 'kategori' => $item->jenisPeraturan ? $item->jenisPeraturan->nama : '-',
+                'lokasi_daerah' => $item->lokasi_daerah,
+                'subjek' => $item->subjek,
                 'judul' => $item->judul,
                 'status' => $status,
                 'tgl_ditetapkan' => $item->tanggal_penetapan ? $item->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-',
+                'author' => $item->updater ? $item->updater->username : ($item->creator ? $item->creator->username : 'Sistem'),
                 'real_status' => $item->statusPeraturan ? $item->statusPeraturan->nama_status : '-',
             ];
         });
@@ -122,6 +147,28 @@ class DokumenHukumController extends Controller
             ->pluck('nama')
             ->unique()
             ->values();
+
+        $lokasiDaerah = Peraturan::select('lokasi_daerah')
+            ->whereNotNull('lokasi_daerah')
+            ->where('lokasi_daerah', '!=', '')
+            ->distinct()
+            ->pluck('lokasi_daerah')
+            ->values();
+
+        $rawSubjek = Peraturan::select('subjek')
+            ->whereNotNull('subjek')
+            ->where('subjek', '!=', '')
+            ->distinct()
+            ->pluck('subjek');
+
+        $subjekList = collect();
+        foreach ($rawSubjek as $subjekStr) {
+            $trimmed = trim($subjekStr);
+            if (!empty($trimmed)) {
+                $subjekList->push($trimmed);
+            }
+        }
+        $subjekList = $subjekList->unique()->sort()->values();
 
         // Khusus Tab Draft: Ambil data dari tabel draft_dokumen
         $draftsPaginator = null;
@@ -163,12 +210,29 @@ class DokumenHukumController extends Controller
             $draftsPaginator->setCollection($formattedDrafts);
         }
 
+        // Statistik ringkasan dokumen hukum untuk StatCards
+        $stats = [
+            'total_dokumen' => Peraturan::count(),
+            'total_berlaku' => Peraturan::whereHas('statusPeraturan', function ($q) {
+                $q->where('nama_status', 'not ilike', '%tidak berlaku%')
+                  ->where('nama_status', 'not ilike', '%belum berlaku%');
+            })->count(),
+            'total_tidak_berlaku' => Peraturan::whereHas('statusPeraturan', function ($q) {
+                $q->where('nama_status', 'ilike', '%tidak berlaku%');
+            })->count(),
+            'total_draft' => DraftDokumen::where('status', 'draft')->count(),
+            'penambahan_baru' => 12,
+        ];
+
         return Inertia::render('Admin/DokumenHukum/Index', [
             'peraturans' => $paginator,
             'drafts' => $draftsPaginator,
-            'filters' => $request->only(['search', 'status', 'kategori', 'sortColumn', 'sortDirection', 'pageSize']),
+            'stats' => $stats,
+            'filters' => $request->only(['search', 'status', 'kategori', 'lokasi_daerah', 'sortColumn', 'sortDirection', 'pageSize']),
             'referensi' => [
-                'kategori' => $categories
+                'kategori' => $categories,
+                'lokasi_daerah' => $lokasiDaerah,
+                'subjek' => $subjekList
             ]
         ]);
     }
@@ -184,6 +248,54 @@ class DokumenHukumController extends Controller
         $user = auth()->user();
         $autor = $user ? ($user->name ?? 'Admin') : 'Admin';
         $files = $request->input('files');
+
+        // Pengecekan duplikasi terhadap peraturan aktif di sistem (AC 2)
+        foreach ($files as $f) {
+            $fileTitle = $f['title'] ?? ($f['correctionData']['judul'] ?? null);
+            $fileNomor = $f['nomor'] ?? ($f['correctionData']['nomorPeraturan'] ?? ($f['parsedData']['metadata']['nomor'] ?? null));
+            $fileTahun = $f['tahun'] ?? ($f['correctionData']['tahun'] ?? ($f['parsedData']['metadata']['tahun'] ?? null));
+
+            if ($fileNomor && $fileTahun) {
+                $duplicateByNomorTahun = Peraturan::where('nomor', $fileNomor)
+                    ->where('tahun', $fileTahun)
+                    ->whereHas('statusPeraturan', function($q) {
+                        $q->whereRaw('LOWER(nama_status) NOT LIKE ?', ['%draft%']);
+                    })
+                    ->first();
+
+                if ($duplicateByNomorTahun && !str_contains(strtolower($duplicateByNomorTahun->judul), 'menunggu import')) {
+                    return response()->json([
+                        'success' => false,
+                        'conflict' => true,
+                        'message' => "Peraturan Nomor {$fileNomor} Tahun {$fileTahun} sudah ada di database sistem (Duplikasi terdeteksi).",
+                        'existing_id' => $duplicateByNomorTahun->unique_id,
+                        'existing_title' => $duplicateByNomorTahun->judul
+                    ], 409);
+                }
+            }
+
+            if ($fileTitle) {
+                $duplicatePeraturan = Peraturan::whereRaw('LOWER(judul) = ?', [strtolower($fileTitle)])
+                    ->whereHas('statusPeraturan', function($q) {
+                        $q->whereRaw('LOWER(nama_status) NOT LIKE ?', ['%draft%']);
+                    })
+                    ->first();
+                if ($duplicatePeraturan && !str_contains(strtolower($duplicatePeraturan->judul), 'menunggu import')) {
+                    return response()->json([
+                        'success' => false,
+                        'conflict' => true,
+                        'message' => "Peraturan dengan judul \"{$fileTitle}\" sudah ada di database sistem (Duplikasi terdeteksi).",
+                        'existing_id' => $duplicatePeraturan->unique_id,
+                        'existing_title' => $duplicatePeraturan->judul
+                    ], 409);
+                }
+            }
+
+            // MinIO Write-Back Sync (AC 3): Simpan data/teks terbaru ke MinIO dengan sufiks _edited.json
+            $fileName = $f['name'] ?? ($f['title'] ?? 'draft_dokumen');
+            $contentToSave = $f['correctionData'] ?? ($f['parsedData'] ?? $f);
+            $this->writeBackToMinio($fileName, $contentToSave);
+        }
 
         if ($request->filled('id')) {
             $draft = DraftDokumen::find($request->id);
@@ -236,7 +348,7 @@ class DokumenHukumController extends Controller
             return response()->json(['exists' => false]);
         }
 
-        // Cari draft yang mungkin mengandung file ini (menggunakan LIKE agar kompatibel dengan berbagai format JSON storage)
+        // Cari draft yang mungkin mengandung file ini
         $draft = DraftDokumen::where('files_data', 'like', '%' . $filename . '%')->first();
 
         if ($draft) {
@@ -246,10 +358,84 @@ class DokumenHukumController extends Controller
                     if (($f['name'] ?? '') === $filename) {
                         return response()->json([
                             'exists' => true,
-                            'draft_name' => $draft->nama_draft
-                        ]);
+                            'conflict' => true,
+                            'draft_name' => $draft->nama_draft,
+                            'message' => "File sudah terdaftar di draft '{$draft->nama_draft}'."
+                        ], 409);
                     }
                 }
+            }
+        }
+
+        return response()->json(['exists' => false]);
+    }
+
+    public function checkDuplicate(Request $request)
+    {
+        $filename = $request->query('filename');
+        $judul = $request->query('judul');
+        $standardId = $request->query('standard_id') ?? $request->query('id_dokumen');
+        $nomor = $request->query('nomor');
+        $tahun = $request->query('tahun');
+        $kategori = $request->query('kategori');
+
+        if (!$filename && !$judul && !$standardId && !($nomor && $tahun)) {
+            return response()->json(['exists' => false]);
+        }
+
+        // 1. Cek di tabel peraturan (Database Dokumen Hukum - AC 2)
+        $query = Peraturan::query();
+        if ($standardId) {
+            $query->where('unique_id', $standardId);
+        } elseif ($nomor && $tahun) {
+            $query->where('nomor', $nomor)->where('tahun', $tahun);
+            if ($kategori) {
+                $query->whereHas('jenisPeraturan', function($q) use ($kategori) {
+                    $q->whereRaw('LOWER(nama) LIKE ?', ['%' . strtolower($kategori) . '%'])
+                      ->orWhereRaw('LOWER(kode) LIKE ?', ['%' . strtolower($kategori) . '%']);
+                });
+            }
+        } elseif ($judul) {
+            $query->whereRaw('LOWER(judul) LIKE ?', ['%' . strtolower($judul) . '%']);
+        } elseif ($filename) {
+            $cleanName = pathinfo($filename, PATHINFO_FILENAME);
+            $cleanNameWithSpaces = str_replace('_', ' ', $cleanName);
+            $query->where(function($q) use ($cleanName, $cleanNameWithSpaces) {
+                $q->where('unique_id', $cleanName)
+                  ->orWhereRaw('LOWER(judul) LIKE ?', ['%' . strtolower($cleanNameWithSpaces) . '%']);
+            });
+        }
+
+        $existing = $query->first();
+        if ($existing && !str_contains(strtolower($existing->judul), 'menunggu import')) {
+            return response()->json([
+                'exists' => true,
+                'conflict' => true,
+                'source' => 'database',
+                'title' => $existing->judul,
+                'existing_id' => $existing->unique_id,
+                'message' => "Dokumen '{$existing->judul}' sudah terdaftar di database."
+            ], 409);
+        }
+
+        // 2. Cek di tabel draft
+        if ($filename || ($nomor && $tahun)) {
+            $draftQuery = DraftDokumen::query();
+            if ($filename) {
+                $draftQuery->where('files_data', 'like', '%' . $filename . '%');
+            } elseif ($nomor && $tahun) {
+                $draftQuery->where('files_data', 'like', '%' . $nomor . '%')
+                           ->where('files_data', 'like', '%' . $tahun . '%');
+            }
+            $draft = $draftQuery->first();
+            if ($draft) {
+                return response()->json([
+                    'exists' => true,
+                    'conflict' => true,
+                    'source' => 'draft',
+                    'draft_name' => $draft->nama_draft,
+                    'message' => "Dokumen sudah terdaftar di draft '{$draft->nama_draft}'."
+                ], 409);
             }
         }
 
@@ -341,6 +527,9 @@ class DokumenHukumController extends Controller
         $successCount = 0;
         $errors = [];
 
+        $duplicateFound = false;
+        $duplicateMessage = '';
+
         foreach ($request->input('files') as $index => $fileData) {
             try {
                 if (isset($fileData['parsedData'])) {
@@ -350,6 +539,14 @@ class DokumenHukumController extends Controller
                     if (isset($fileData['correctionData'])) {
                         $correctionData = is_string($fileData['correctionData']) ? json_decode($fileData['correctionData'], true) : $fileData['correctionData'];
                         $this->performUpdate($peraturan, $correctionData, true);
+
+                        // AC 3: MinIO Write-Back Sync
+                        $fileName = $fileData['name'] ?? ($peraturan->unique_id . '.json');
+                        $this->writeBackToMinio($fileName, $correctionData);
+                    } elseif ($parsed) {
+                        // AC 3: MinIO Write-Back Sync
+                        $fileName = $fileData['name'] ?? ($peraturan->unique_id . '.json');
+                        $this->writeBackToMinio($fileName, $parsed);
                     }
 
                     // Cek jika ada file PDF yang disertakan
@@ -370,18 +567,30 @@ class DokumenHukumController extends Controller
                 }
             } catch (\Exception $e) {
                 \Log::error("Import OCR Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-                $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
+                if (str_contains(strtolower($e->getMessage()), 'sudah ada')) {
+                    $duplicateFound = true;
+                    $duplicateMessage = $e->getMessage();
+                    $errors[] = $e->getMessage();
+                } else {
+                    $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
+                }
             }
         }
 
         if (count($errors) > 0) {
+            $status = $duplicateFound ? 409 : 400;
             return response()->json([
-                'message' => "Berhasil mengimpor {$successCount} dokumen. Gagal: " . count($errors),
+                'success' => false,
+                'conflict' => $duplicateFound,
+                'message' => $duplicateFound 
+                    ? ($duplicateMessage ?: 'Dokumen sudah ada di database (Duplikasi terdeteksi).')
+                    : ("Berhasil mengimpor {$successCount} dokumen. Gagal: " . count($errors)),
                 'errors' => $errors
-            ], 400);
+            ], $status);
         }
 
         return response()->json([
+            'success' => true,
             'message' => "Berhasil mengimpor {$successCount} dokumen."
         ]);
     }
@@ -631,6 +840,24 @@ class DokumenHukumController extends Controller
             DB::beginTransaction();
 
             $peraturan = Peraturan::where('unique_id', $unique_id)->firstOrFail();
+
+            // Pengecekan duplikasi judul terhadap peraturan lain (AC 3)
+            $newJudul = $request->input('judul');
+            if ($newJudul) {
+                $duplicate = Peraturan::where('judul', $newJudul)
+                    ->where('id', '!=', $peraturan->id)
+                    ->first();
+                if ($duplicate && !str_contains(strtolower($duplicate->judul), 'menunggu import')) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'conflict' => true,
+                        'message' => "Dokumen dengan judul \"{$newJudul}\" sudah ada di sistem (Duplikasi terdeteksi).",
+                        'existing_id' => $duplicate->unique_id,
+                    ], 409);
+                }
+            }
+
             $this->performUpdate($peraturan, $request->all());
 
             DB::commit();
@@ -651,6 +878,14 @@ class DokumenHukumController extends Controller
     private function performUpdate(Peraturan $peraturan, array $data, bool $isImport = false)
     {
         // 1. Update Peraturan Utama
+        $userId = \Illuminate\Support\Facades\Auth::id();
+        if (!$peraturan->created_by && $userId) {
+            $peraturan->created_by = $userId;
+        }
+        if ($userId) {
+            $peraturan->updated_by = $userId;
+        }
+
         if (isset($data['judul'])) {
             $peraturan->judul = $data['judul'];
         }
@@ -666,8 +901,17 @@ class DokumenHukumController extends Controller
         }
         if (isset($data['metadata']['pemrakarsa'])) {
             $peraturan->instansi = $data['metadata']['pemrakarsa'];
+            // Fill lokasi_daerah default using pemrakarsa if not set
+            if (empty($peraturan->lokasi_daerah)) {
+                $peraturan->lokasi_daerah = $data['metadata']['pemrakarsa'];
+            }
         }
-        
+        if (isset($data['metadata']['lokasiDaerah'])) {
+            $peraturan->lokasi_daerah = $data['metadata']['lokasiDaerah'];
+        }
+        if (isset($data['metadata']['subjek'])) {
+            $peraturan->subjek = $data['metadata']['subjek'];
+        }
         if (isset($data['status'])) {
             $statusInput = strtolower($data['status']);
             if ($statusInput === 'draft') {
@@ -840,57 +1084,124 @@ class DokumenHukumController extends Controller
     }
     public function scanMinio()
     {
-        // Tingkatkan batas waktu eksekusi agar tidak timeout jika jumlah file MinIO sangat banyak
-        set_time_limit(300); // 5 menit
+        set_time_limit(60);
 
         try {
-            // Karena MinIO/S3 adalah Object Storage (bukan folder nyata), allDirectories() seringkali kosong.
-            // Solusi terbaik: Ambil semua file, lalu saring file yang bernama 'ocr.json'
-            $allFiles = \Illuminate\Support\Facades\Storage::disk('minio')->allFiles('documents');
+            $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+            $allFiles = $disk->allFiles('documents');
             
             $pendingImports = [];
+            $categoriesMap = [];
+            $subfoldersMap = [];
+            $minioFileItems = [];
             
-            // Collect existing PDF paths to check against (kalau sudah masuk ke DB)
             $existingPaths = Peraturan::whereNotNull('file_pdf_path')->pluck('file_pdf_path')->toArray();
             
             foreach ($allFiles as $file) {
-                // Hapus slash di awal jika ada
                 $file = ltrim($file, '/');
                 
-                // Jika file ini adalah ocr.json, berarti foldernya siap di-import
-                if (str_ends_with(strtolower($file), '/ocr.json')) {
-                    $dir = dirname($file); // misal: documents/uu/undang-undang-1-2024
+                if (str_ends_with(strtolower($file), '/ocr.json') || str_ends_with(strtolower($file), '.json')) {
+                    $dir = dirname($file);
                     $expectedPdfPath = $dir . '/document.pdf';
                     
-                    // Jika PDF path ini belum ada di database
-                    if (!in_array($expectedPdfPath, $existingPaths)) {
-                        // Deteksi kategori dari path (misal: documents/uu/undang-undang-1-2024)
-                        $parts = explode('/', $dir);
-                        $kategoriRaw = $parts[1] ?? 'unknown'; // Ambil 'uu'
-                        
-                        $kategori = 'Lainnya';
-                        if ($kategoriRaw === 'uu' || str_contains(strtolower($dir), 'undang-undang')) {
-                            $kategori = 'Undang-Undang';
+                    $parts = explode('/', $dir);
+                    $kategoriRaw = strtolower($parts[1] ?? 'lainnya');
+                    
+                    $kategoriMap = [
+                        'uu' => 'Undang Undang',
+                        'uud' => 'Undang Undang Dasar',
+                        'uudrt' => 'Undang Undang Darurat',
+                        'perpres' => 'Peraturan Presiden',
+                        'pp' => 'Peraturan Pemerintah',
+                        'perda' => 'PERDA',
+                        'permen' => 'Peraturan Menteri',
+                        'perpu' => 'PERPU',
+                        'perppu' => 'PERPU',
+                        'kepres' => 'Keputusan Presiden',
+                        'keppres' => 'Keputusan Presiden',
+                        'inpres' => 'Instruksi Presiden',
+                        'tapmpr' => 'TAP MPR',
+                    ];
+
+                    $kategori = $kategoriMap[$kategoriRaw] ?? ucwords(str_replace(['_', '-'], ' ', $kategoriRaw));
+
+                    $subfolderRaw = count($parts) >= 4 ? $parts[2] : null;
+                    $subfolderLabel = $subfolderRaw ? str_replace(['_', '-'], ' ', $subfolderRaw) : null;
+
+                    if (!isset($categoriesMap[$kategori])) {
+                        $categoriesMap[$kategori] = 0;
+                    }
+                    $categoriesMap[$kategori]++;
+
+                    if ($subfolderRaw) {
+                        if (!isset($subfoldersMap[$kategori])) {
+                            $subfoldersMap[$kategori] = [];
                         }
-                        
+                        if (!isset($subfoldersMap[$kategori][$subfolderRaw])) {
+                            $subfoldersMap[$kategori][$subfolderRaw] = [
+                                'id' => md5($kategori . '_' . $subfolderRaw),
+                                'name' => $subfolderRaw,
+                                'label' => $subfolderLabel,
+                                'count' => 0,
+                            ];
+                        }
+                        $subfoldersMap[$kategori][$subfolderRaw]['count']++;
+                    }
+
+                    $fileName = basename($file);
+                    $folderName = basename($dir);
+                    $titleFormatted = str_replace(['_', '-'], ' ', $folderName);
+                    $titleFormatted = ucwords($titleFormatted);
+
+                    $minioFileItems[] = [
+                        'id' => md5($file),
+                        'name' => $fileName,
+                        'title' => $titleFormatted,
+                        'sizeKb' => 1500,
+                        'category' => $kategori,
+                        'subfolder' => $subfolderRaw,
+                        'subfolder_label' => $subfolderLabel,
+                        'folder_path' => $dir,
+                        'file_path' => $file,
+                    ];
+
+                    if (!in_array($expectedPdfPath, $existingPaths)) {
                         $pendingImports[] = [
                             'folder_path' => $dir,
-                            'nama_file' => basename($dir),
+                            'nama_file' => $folderName,
                             'kategori' => $kategori
                         ];
                     }
                 }
             }
             
+            $formattedCategories = [];
+            $cIdx = 1;
+            foreach ($categoriesMap as $catName => $count) {
+                $formattedCategories[] = [
+                    'id' => (string) $cIdx++,
+                    'name' => $catName,
+                    'count' => $count
+                ];
+            }
+
+            $formattedSubfolders = [];
+            foreach ($subfoldersMap as $catName => $subs) {
+                $formattedSubfolders[$catName] = array_values($subs);
+            }
+
             return response()->json([
                 'success' => true,
+                'categories' => $formattedCategories,
+                'subfolders' => $formattedSubfolders,
+                'files' => $minioFileItems,
                 'data' => array_values($pendingImports)
             ]);
         } catch (\Exception $e) {
             \Log::error("MinIO Scan Error: " . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal memindai penyimpanan dokumen hukum. Silakan periksa konfigurasi penyimpanan atau hubungi administrator.'
+                'message' => 'Gagal memindai penyimpanan dokumen hukum.'
             ], 500);
         }
     }
@@ -994,6 +1305,8 @@ class DokumenHukumController extends Controller
                 $peraturan->update([
                     'file_pdf_path' => $folderPath . '/document.pdf'
                 ]);
+                // AC 3: MinIO Write-Back Sync
+                $this->writeBackToMinio($folderPath . '/ocr.json', $parsedData);
             }
 
             return response()->json([
@@ -1008,6 +1321,104 @@ class DokumenHukumController extends Controller
                 'success' => false,
                 'message' => 'Terjadi kesalahan sistem saat mengimpor dokumen hukum dari penyimpanan.'
             ], 500);
+        }
+    }
+
+    /**
+     * Endpoint GET /api/admin/minio/files/{filename} (AC 1)
+     * Membaca isi teks/JSON dokumen dari bucket MinIO
+     */
+    public function getMinioFileContent(Request $request, $filename = null)
+    {
+        $targetFile = $filename ?: $request->query('path') ?: $request->query('filename');
+
+        if (!$targetFile) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Filename or path is required.'
+            ], 400);
+        }
+
+        try {
+            $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+            $cleanPath = ltrim($targetFile, '/');
+
+            if ($disk->exists($cleanPath)) {
+                $content = $disk->get($cleanPath);
+                return response($content, 200, [
+                    'Content-Type' => str_ends_with(strtolower($cleanPath), '.json') ? 'application/json' : 'text/plain; charset=utf-8',
+                ]);
+            }
+
+            $candidatePaths = [
+                "documents/{$cleanPath}",
+                "documents/{$cleanPath}/ocr.json",
+                "documents/{$cleanPath}.json",
+                "{$cleanPath}.json",
+            ];
+
+            foreach ($candidatePaths as $candidate) {
+                if ($disk->exists($candidate)) {
+                    $content = $disk->get($candidate);
+                    return response($content, 200, [
+                        'Content-Type' => str_ends_with(strtolower($candidate), '.json') ? 'application/json' : 'text/plain; charset=utf-8',
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => "File '{$targetFile}' tidak ditemukan di penyimpanan MinIO."
+            ], 404);
+        } catch (\Exception $e) {
+            \Log::error("MinIO Get File Content Error: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membaca file dari penyimpanan MinIO.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Endpoint POST /api/admin/import/manual (AC 1)
+     * Unggahan lokal manual
+     */
+    public function importManual(Request $request, DocumentImportService $importService)
+    {
+        return $this->importOcr($request, $importService);
+    }
+
+    /**
+     * MinIO Write-Back Sync (AC 3)
+     * Menyimpan data/teks terbaru dari Editor ke MinIO sebagai file baru dengan sufiks '_edited.json'
+     */
+    private function writeBackToMinio(?string $originalNameOrPath, $content): bool
+    {
+        if (empty($originalNameOrPath)) {
+            return false;
+        }
+
+        try {
+            $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+            $cleanPath = ltrim($originalNameOrPath, '/');
+
+            // Susun nama file baru dengan sufiks _edited (agar file asli tidak tertimpa)
+            if (str_ends_with(strtolower($cleanPath), '.json')) {
+                $writeBackPath = preg_replace('/\.json$/i', '_edited.json', $cleanPath);
+            } elseif (str_ends_with(strtolower($cleanPath), '.txt')) {
+                $writeBackPath = preg_replace('/\.txt$/i', '_edited.txt', $cleanPath);
+            } else {
+                $writeBackPath = $cleanPath . '_edited.json';
+            }
+
+            $formattedContent = is_string($content) ? $content : json_encode($content, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
+            $disk->put($writeBackPath, $formattedContent);
+            \Log::info("MinIO Write-Back Sync berhasil disimpan ke: {$writeBackPath}");
+            return true;
+        } catch (\Exception $e) {
+            \Log::error("MinIO Write-Back Sync gagal untuk {$originalNameOrPath}: " . $e->getMessage());
+            return false;
         }
     }
 

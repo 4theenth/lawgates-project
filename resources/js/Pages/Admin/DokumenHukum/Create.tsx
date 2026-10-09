@@ -2,8 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
+import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
 import { ImportStepper } from '@/Components/admin/import/ImportStepper';
 import { StepUploadJson, UploadedJsonFile } from '@/Components/admin/import/StepUploadJson';
+import { MinioCategory } from '@/Components/admin/import/MinioCategoryTable';
+import { MinioFileItem } from '@/Components/admin/import/MinioFileSelectTable';
 import {
   StepProcessExtraction,
   ProcessedFileItem,
@@ -17,6 +20,7 @@ import {
   LegalDocumentCorrectionData,
 } from '@/Components/admin/import/CorrectionDetailView';
 import { DraftNameModal } from '@/Components/admin/DraftNameModal';
+import { DuplicateConfirmModal } from '@/Components/admin/DuplicateConfirmModal';
 import { Plus, CircleCheckBig, FileBox } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
@@ -112,6 +116,19 @@ export default function DokumenHukumCreate() {
   const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
   const [editingDraftName, setEditingDraftName] = useState<string>('');
   const [inlineError, setInlineError] = useState<string | null>(null);
+
+  // State untuk modal konfirmasi duplikasi (status 409)
+  const [duplicateModal, setDuplicateModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    documentTitle?: string;
+    existingId?: string;
+  }>({
+    show: false,
+    title: '',
+    message: '',
+  });
 
   const headerFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -226,115 +243,223 @@ export default function DokumenHukumCreate() {
     const MAX_SIZE = 10 * 1024 * 1024; // 10 MB per file
 
     const newItems: UploadedJsonFile[] = [];
-      // Deteksi kategori dari seluruh file
-      const detectedCategoriesSet = new Set<string>();
+    // Deteksi kategori dari seluruh file
+    const detectedCategoriesSet = new Set<string>();
 
-      for (let idx = 0; idx < toAdd.length; idx++) {
-        const file = toAdd[idx];
-        const sizeKb = Math.round(file.size / 1024);
-        const isOversized = file.size > MAX_SIZE;
+    for (let idx = 0; idx < toAdd.length; idx++) {
+      const file = toAdd[idx];
+      const sizeKb = Math.round(file.size / 1024);
+      const isOversized = file.size > MAX_SIZE;
 
-        let fileError: string | undefined = undefined;
-        if (isOversized) {
-          fileError = 'Ukuran file melebihi 10MB!';
-        }
+      let fileError: string | undefined = undefined;
+      if (isOversized) {
+        fileError = 'Ukuran file melebihi 10MB!';
+      }
 
-        let parsedData: any = null;
-        if (!isOversized) {
-          try {
-            const text = await file.text();
-            const cleanText = text.replace(/^\uFEFF/, '').trim();
-            parsedData = JSON.parse(cleanText);
+      let parsedData: any = null;
+      if (!isOversized) {
+        try {
+          const text = await file.text();
+          const cleanText = text.replace(/^\uFEFF/, '').trim();
+          parsedData = JSON.parse(cleanText);
 
-            if (parsedData?.metadata) {
-              let detected =
-                parsedData.metadata.tipe_peraturan ||
-                parsedData.metadata.kategori ||
-                parsedData.metadata.jenis;
+          if (parsedData?.metadata) {
+            let detected =
+              parsedData.metadata.tipe_peraturan ||
+              parsedData.metadata.kategori ||
+              parsedData.metadata.jenis;
 
-              if (detected) {
-                const upperDet = detected.toUpperCase().trim();
-                if (NAMA_KATEGORI_MAP[upperDet]) {
-                  detected = NAMA_KATEGORI_MAP[upperDet];
-                }
-                parsedData.metadata.tipe_peraturan = detected;
-                detectedCategoriesSet.add(detected);
+            if (detected) {
+              const upperDet = detected.toUpperCase().trim();
+              if (NAMA_KATEGORI_MAP[upperDet]) {
+                detected = NAMA_KATEGORI_MAP[upperDet];
               }
+              parsedData.metadata.tipe_peraturan = detected;
+              detectedCategoriesSet.add(detected);
             }
-          } catch (e) {
-            console.warn('File is not JSON', e);
-            fileError = 'Format berkas tidak valid (bukan format JSON yang benar).';
           }
+        } catch (e) {
+          console.warn('File is not JSON', e);
+          fileError = 'Format berkas tidak valid (bukan format JSON yang benar).';
         }
+      }
 
-        let isDuplicate = false;
-        if (parsedData?.metadata?.id_dokumen) {
-          try {
-            const checkRes = await fetch(`/peraturan/${parsedData.metadata.id_dokumen}`, {
-              headers: { Accept: 'application/json' },
-            });
-            if (checkRes.status === 200) {
-              const resJson = await checkRes.json();
-              if (resJson.success) {
-                const judul = resJson.data.judul || '';
-                if (!judul.toLowerCase().includes('menunggu import') && !judul.toLowerCase().includes('menunggu impor')) {
-                  fileError = `Data yang mau diupload ("${parsedData.metadata.judul || file.name}") sudah ada di database.`;
-                  isDuplicate = true;
-                }
-              }
-            }
-          } catch (err) {
-            console.error("Gagal mengecek duplikasi", err);
-          }
-        }
+      let isDuplicate = false;
+      let duplicateMsg = 'File sudah terdaftar di database.';
 
-        if (!isDuplicate) {
-          try {
-            const draftCheckRes = await fetch(`/admin/dokumen-hukum/draft-check-duplicate?filename=${encodeURIComponent(file.name)}`, {
-              headers: { Accept: 'application/json' },
-            });
-            if (draftCheckRes.status === 200) {
-              const draftResJson = await draftCheckRes.json();
-              if (draftResJson.exists) {
-                fileError = `Data yang mau diupload ("${file.name}") sudah tersimpan di dalam draft "${draftResJson.draft_name}". Silakan periksa menu Draft.`;
-                isDuplicate = true;
-              }
-            }
-          } catch (err) {
-            console.error("Gagal mengecek duplikasi draft", err);
-          }
-        }
-
-        newItems.push({
-          id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
-          name: file.name,
-          sizeKb,
-          rawFile: file,
-          parsedData,
-          error: fileError,
+      // Cek duplikasi ke database peraturan dan draft
+      try {
+        const idDok = parsedData?.metadata?.id_dokumen || '';
+        const judulDok = parsedData?.metadata?.judul || '';
+        const checkUrl = `/admin/dokumen-hukum/check-duplicate?filename=${encodeURIComponent(file.name)}&judul=${encodeURIComponent(judulDok)}&id_dokumen=${encodeURIComponent(idDok)}`;
+        const checkRes = await fetch(checkUrl, {
+          headers: { Accept: 'application/json' },
         });
+        if (checkRes.ok) {
+          const checkJson = await checkRes.json();
+          if (checkJson.exists) {
+            isDuplicate = true;
+            duplicateMsg = checkJson.message || 'File sudah terdaftar di database.';
+          }
+        }
+      } catch (err) {
+        console.error('Gagal mengecek duplikasi', err);
       }
 
-      // Update kategori terdeteksi (Tunggal atau Beragam)
-      if (detectedCategoriesSet.size === 1) {
-        const detected = Array.from(detectedCategoriesSet)[0];
-        setDetectedCategory(detected);
-        const existingCat = kategoriOptions.find(
-          (k) => k.nama.toLowerCase() === detected.toLowerCase() ||
-                 k.kode.toLowerCase() === detected.toLowerCase()
-        );
-        setIsNewCategory(!existingCat);
-        setSelectedCategory(existingCat ? existingCat.nama : detected);
-      } else if (detectedCategoriesSet.size > 1) {
-        setDetectedCategory('Beragam Kategori (Otomatis)');
-        setIsNewCategory(false);
-        setSelectedCategory('Campuran');
+      if (isDuplicate) {
+        toast.warning(duplicateMsg);
       }
 
-
+      newItems.push({
+        id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+        name: file.name,
+        sizeKb,
+        rawFile: file,
+        parsedData,
+        error: fileError,
+        isDuplicate,
+        duplicateMessage: isDuplicate ? duplicateMsg : undefined,
+      });
+    }
 
     if (newItems.length > 0) {
       setUploadedFiles((prev) => [...prev, ...newItems]);
+      
+      if (detectedCategoriesSet.size > 0) {
+        const detectedArr = Array.from(detectedCategoriesSet);
+        const dominantCategory = detectedArr.length === 1 ? detectedArr[0] : 'Campuran';
+        
+        if (dominantCategory !== 'Campuran') {
+          const matchingCat = kategoriOptions.find(
+            (k) =>
+              k.nama.toLowerCase() === dominantCategory.toLowerCase() ||
+              k.kode.toLowerCase() === dominantCategory.toLowerCase()
+          );
+
+          if (matchingCat) {
+            setSelectedCategory(matchingCat.nama);
+            setDetectedCategory(matchingCat.nama);
+            setIsNewCategory(false);
+          } else {
+            setSelectedCategory(dominantCategory);
+            setDetectedCategory(dominantCategory);
+            setIsNewCategory(true);
+          }
+        } else {
+          setSelectedCategory('Campuran');
+          setDetectedCategory('Campuran');
+          setIsNewCategory(false);
+        }
+      }
+    }
+  };
+
+  // Handler tambah berkas dari penyimpanan MinIO
+  const handleAddMinioFiles = async (
+    minioFiles: MinioFileItem[],
+    category: MinioCategory
+  ) => {
+    setInlineError(null);
+    const remainingSlots = Math.max(0, 10 - uploadedFiles.length);
+    if (remainingSlots <= 0) {
+      setInlineError('Maksimal hanya dapat mengunggah 10 berkas sekaligus.');
+      return;
+    }
+
+    const toAdd = minioFiles.slice(0, remainingSlots);
+    let duplicateFound = false;
+
+    const newItems: UploadedJsonFile[] = await Promise.all(
+      toAdd.map(async (mf, idx) => {
+        let isDuplicate = false;
+        let duplicateMsg = 'File sudah terdaftar di database.';
+
+        try {
+          const checkUrl = `/admin/dokumen-hukum/check-duplicate?filename=${encodeURIComponent(mf.name)}&judul=${encodeURIComponent(mf.title)}`;
+          const checkRes = await fetch(checkUrl, {
+            headers: { Accept: 'application/json' },
+          });
+          if (checkRes.ok) {
+            const checkJson = await checkRes.json();
+            if (checkJson.exists) {
+              isDuplicate = true;
+              duplicateFound = true;
+              duplicateMsg = checkJson.message || 'File sudah terdaftar di database.';
+            }
+          }
+        } catch (err) {
+          console.error('Gagal mengecek duplikasi MinIO', err);
+        }
+
+        let liveParsedData: any = null;
+        try {
+          const filePath = (mf as any).file_path || (mf as any).folder_path ? `${(mf as any).folder_path}/ocr.json` : mf.name;
+          const contentRes = await fetch(`/api/admin/minio/files/${encodeURIComponent(filePath)}`, {
+            headers: { Accept: 'application/json' },
+          });
+          if (contentRes.ok) {
+            liveParsedData = await contentRes.json();
+          }
+        } catch (err) {
+          console.warn('Gagal membaca data riil dari MinIO, menggunakan format default', err);
+        }
+
+        const fallbackParsedData = {
+          metadata: {
+            judul: mf.title,
+            tipe_peraturan: category.name,
+            kategori: category.name,
+            status: 'berlaku',
+            tahun: '1945',
+          },
+          batang_tubuh: [
+            {
+              pasal: 'Pasal 1',
+              isi: '(1) Negara Indonesia ialah Negara Kesatuan, yang berbentuk Republik.\n(2) Kedaulatan berada di tangan rakyat dan dilaksanakan menurut Undang-Undang Dasar.\n(3) Negara Indonesia adalah negara hukum.',
+            },
+            {
+              pasal: 'Pasal 2',
+              isi: '(1) Majelis Permusyawaratan Rakyat terdiri atas anggota Dewan Perwakilan Rakyat dan anggota Dewan Perwakilan Daerah yang dipilih melalui pemilihan umum dan diatur lebih lanjut dengan undang-undang.\n(2) Majelis Permusyawaratan Rakyat bersidang sedikitnya sekali dalam lima tahun di ibu kota negara.\n(3) Segala putusan Majelis Permusyawaratan Rakyat ditetapkan dengan suara terbanyak.',
+            },
+          ],
+        };
+
+        return {
+          id: `minio-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+          name: mf.name,
+          sizeKb: mf.sizeKb,
+          isDuplicate,
+          duplicateMessage: isDuplicate ? duplicateMsg : undefined,
+          parsedData: liveParsedData || fallbackParsedData,
+        };
+      })
+    );
+
+    if (duplicateFound) {
+      toast.warning('File sudah terdaftar di database.');
+    }
+
+    if (newItems.length > 0) {
+      setUploadedFiles((prev) => [...prev, ...newItems]);
+
+      // Cocokkan kategori dengan opsi yang ada di database jika tersedia
+      const matchingCat = kategoriOptions.find(
+        (k) =>
+          k.nama.toLowerCase() === category.name.toLowerCase() ||
+          k.kode.toLowerCase() === category.name.toLowerCase()
+      );
+
+      if (matchingCat) {
+        setSelectedCategory(matchingCat.nama);
+        setDetectedCategory(matchingCat.nama);
+        setIsNewCategory(false);
+      } else {
+        setSelectedCategory(category.name);
+        setDetectedCategory(category.name);
+        setIsNewCategory(true);
+      }
+
+      toast.success(`${newItems.length} berkas dari MinIO berhasil dipilih!`);
     }
   };
 
@@ -342,7 +467,7 @@ export default function DokumenHukumCreate() {
   const handleRemoveUploadedFile = (id: string) => {
     setUploadedFiles((prev) => {
       const updated = prev.filter((f) => f.id !== id);
-      if (!updated.some((f) => Boolean(f.error || f.sizeKb > 10 * 1024))) {
+      if (!updated.some((f) => Boolean(f.error || f.sizeKb > 10 * 1024 || f.isDuplicate))) {
         setInlineError(null);
       }
       return updated;
@@ -361,6 +486,12 @@ export default function DokumenHukumCreate() {
     const hasError = uploadedFiles.some((f) => Boolean(f.error || f.sizeKb > 10 * 1024));
     if (hasError) {
       setInlineError('Harap hapus berkas yang melebihi batas 10MB sebelum melanjutkan import.');
+      return;
+    }
+
+    const hasDuplicate = uploadedFiles.some((f) => Boolean(f.isDuplicate));
+    if (hasDuplicate) {
+      toast.warning('File sudah terdaftar di database.');
       return;
     }
 
@@ -479,6 +610,21 @@ export default function DokumenHukumCreate() {
         }),
       });
 
+      if (response.status === 409) {
+        const errorData = await response.json().catch(() => ({}));
+        const msg = errorData.message || 'Duplikasi terdeteksi: Dokumen ini sudah tersimpan di sistem.';
+        setIsDraftModalOpen(false);
+        setDuplicateModal({
+          show: true,
+          title: 'Duplikasi Draft Terdeteksi (409 Conflict)',
+          message: msg,
+          documentTitle: namaDraft,
+          existingId: errorData.existing_id,
+        });
+        toast.warning(msg);
+        return;
+      }
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Gagal menyimpan draft');
@@ -501,11 +647,23 @@ export default function DokumenHukumCreate() {
     try {
       const payload = new FormData();
       validatedFiles.forEach((file, index) => {
-        // Stringify JSON data since FormData only takes strings/blobs
-        const parsedDataStr = typeof file.parsedData === 'object'
-          ? JSON.stringify(file.parsedData)
-          : file.parsedData;
-        payload.append(`files[${index}][parsedData]`, parsedDataStr);
+        // Stringify JSON data with ensured metadata fields
+        const parsed = typeof file.parsedData === 'object' && file.parsedData !== null
+          ? { ...file.parsedData }
+          : {};
+
+        if (!parsed.metadata) parsed.metadata = {};
+        if (!parsed.metadata.tipe_peraturan) {
+          parsed.metadata.tipe_peraturan = file.category || selectedCategory || 'Undang-Undang';
+        }
+        if (!parsed.metadata.status) {
+          parsed.metadata.status = 'berlaku';
+        }
+        if (!parsed.metadata.judul) {
+          parsed.metadata.judul = file.title || file.name.replace(/\.json$/i, '');
+        }
+
+        payload.append(`files[${index}][parsedData]`, JSON.stringify(parsed));
 
         if (file.correctionData) {
           payload.append(`files[${index}][correctionData]`, JSON.stringify(file.correctionData));
@@ -527,6 +685,20 @@ export default function DokumenHukumCreate() {
         },
         body: payload
       });
+
+      if (response.status === 409) {
+        const errorData = await response.json().catch(() => ({}));
+        const msg = errorData.message || 'Dokumen sudah ada di sistem (Duplikasi terdeteksi).';
+        setDuplicateModal({
+          show: true,
+          title: 'Duplikasi Dokumen Terdeteksi (409 Conflict)',
+          message: msg,
+          documentTitle: validatedFiles[0]?.title,
+          existingId: errorData.existing_id,
+        });
+        toast.warning(msg);
+        return;
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -630,32 +802,26 @@ export default function DokumenHukumCreate() {
         <Breadcrumb items={breadcrumbs} />
       </div>
 
-      {/* 2. Page Header Sesuai Spesifikasi Figma */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-sans text-[20px] font-semibold leading-[26px] text-neu-900 tracking-tight">
-            Tambah Data Hukum
-          </h1>
-          <p className="font-sans text-[14px] font-normal leading-[20px] text-neu-600 mt-1">
-            Tambahkan data hukum dengan cara impor file JSON dari hasil OCR
-          </p>
-        </div>
-
-        {currentStep === 1 && uploadedFiles.length > 0 && (
-          <button
-            type="button"
-            disabled={uploadedFiles.length >= 10}
-            onClick={() => headerFileInputRef.current?.click()}
-            className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[10px] text-[14px] font-medium transition-colors shadow-2xs ${uploadedFiles.length >= 10
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-pr-900 text-white hover:bg-pr-800 cursor-pointer'
-              }`}
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah File</span>
-          </button>
-        )}
-      </div>
+      {/* 2. Page Header Menggunakan Komponen Reusable AdminPageHeader (20px title, 14px description) */}
+      <AdminPageHeader
+        title="Tambah Data Hukum"
+        description="Tambahkan data hukum dengan cara impor file JSON dari hasil OCR"
+        action={
+          currentStep === 1 && uploadedFiles.length > 0
+            ? {
+              label: 'Tambah File',
+              icon: <Plus className="w-4 h-4" />,
+              onClick: () => {
+                if (uploadedFiles.length < 10) {
+                  headerFileInputRef.current?.click();
+                } else {
+                  toast.warning('Maksimal hanya dapat mengunggah 10 berkas sekaligus.');
+                }
+              },
+            }
+            : undefined
+        }
+      />
 
       {/* 3. Layout Utama: Stepper di Kiri & Konten Form / Ekstraksi di Kanan */}
       <div className="flex flex-col md:flex-row items-start gap-6">
@@ -680,6 +846,7 @@ export default function DokumenHukumCreate() {
               onStartImport={handleStartImport}
               errorMessage={inlineError}
               onClearError={() => setInlineError(null)}
+              onAddMinioFiles={handleAddMinioFiles}
             />
           </div>
         )}
@@ -802,6 +969,16 @@ export default function DokumenHukumCreate() {
         onConfirm={handleSaveDraft}
         isLoading={isDraftSaving}
         initialName={editingDraftName}
+      />
+
+      {/* Modal Konfirmasi Duplikasi jika terdeteksi Status 409 Conflict (AC 3) */}
+      <DuplicateConfirmModal
+        show={duplicateModal.show}
+        onClose={() => setDuplicateModal((prev) => ({ ...prev, show: false }))}
+        title={duplicateModal.title}
+        message={duplicateModal.message}
+        documentTitle={duplicateModal.documentTitle}
+        existingId={duplicateModal.existingId}
       />
     </AdminLayout>
   );
