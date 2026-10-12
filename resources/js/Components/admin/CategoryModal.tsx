@@ -15,6 +15,7 @@ interface CategoryModalProps {
   categoryData?: CategoryItem | null;
   isLoading?: boolean;
   serverError?: string | null;
+  type?: 'kategori' | 'subjek';
 }
 
 export function CategoryModal({
@@ -24,8 +25,12 @@ export function CategoryModal({
   categoryData,
   isLoading = false,
   serverError = null,
+  type = 'kategori',
 }: CategoryModalProps) {
   const isEditing = Boolean(categoryData);
+  const isSubjek = type === 'subjek';
+  const maxChars = isSubjek ? 150 : 50;
+  const entityLabel = isSubjek ? 'Subjek' : 'Kategori';
 
   const [nama, setNama] = useState('');
   const [deskripsi, setDeskripsi] = useState('');
@@ -33,7 +38,12 @@ export function CategoryModal({
 
   useEffect(() => {
     if (categoryData) {
-      setNama(categoryData.kategori || '');
+      setNama(
+        categoryData.nama ||
+        categoryData.subjek ||
+        categoryData.kategori ||
+        ''
+      );
       setDeskripsi(categoryData.deskripsi || '');
     } else {
       setNama('');
@@ -55,12 +65,12 @@ export function CategoryModal({
     const trimmedNama = nama.trim();
 
     if (!trimmedNama) {
-      setClientError('Nama kategori tidak boleh kosong.');
+      setClientError(`Nama ${entityLabel.toLowerCase()} tidak boleh kosong.`);
       return;
     }
 
-    if (trimmedNama.length > 50) {
-      setClientError('Nama kategori maksimal 50 karakter.');
+    if (trimmedNama.length > maxChars) {
+      setClientError(`Nama ${entityLabel.toLowerCase()} maksimal ${maxChars} karakter.`);
       return;
     }
 
@@ -116,12 +126,12 @@ export function CategoryModal({
                         </div>
                         <div>
                           <h2 className="text-[15px] font-bold text-neu-900 leading-tight">
-                            {isEditing ? 'Edit Kategori Hukum' : 'Tambah Kategori Hukum'}
+                            {isEditing ? `Edit ${entityLabel} Hukum` : `Tambah ${entityLabel} Hukum`}
                           </h2>
                           <p className="text-[12px] text-neu-500 mt-0.5 leading-normal">
                             {isEditing
-                              ? 'Perbarui data kategori hukum yang dipilih'
-                              : 'Tambahkan kategori hukum baru untuk standardisasi data peraturan'}
+                              ? `Perbarui data ${entityLabel.toLowerCase()} hukum yang dipilih`
+                              : `Tambahkan ${entityLabel.toLowerCase()} hukum baru untuk standardisasi data peraturan`}
                           </p>
                         </div>
                       </div>
@@ -148,23 +158,23 @@ export function CategoryModal({
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
                           <label className="block text-[13px] font-medium text-neu-800">
-                            Nama Kategori <span className="text-dan-800">*</span>
+                            Nama {entityLabel} <span className="text-dan-800">*</span>
                           </label>
                           <span
                             className={`text-[11px] font-medium ${
-                              nama.length > 50 ? 'text-dan-800' : 'text-neu-400'
+                              nama.length > maxChars ? 'text-dan-800' : 'text-neu-400'
                             }`}
                           >
-                            {nama.length}/50
+                            {nama.length}/{maxChars}
                           </span>
                         </div>
                         <input
                           type="text"
                           required
-                          maxLength={50}
+                          maxLength={maxChars}
                           value={nama}
                           onChange={handleNamaChange}
-                          placeholder="Contoh: Undang Undang"
+                          placeholder={isSubjek ? 'Contoh: Hukum Acara dan Peradilan' : 'Contoh: Undang Undang'}
                           className={`w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border ${
                             displayedError
                               ? 'border-dan-500 bg-dan-50/20 text-neu-900 focus:border-dan-700 focus:ring-dan-700'
@@ -177,7 +187,7 @@ export function CategoryModal({
                           </p>
                         ) : (
                           <p className="mt-1 text-[11px] text-neu-400">
-                            Maksimal 50 karakter
+                            Maksimal {maxChars} karakter
                           </p>
                         )}
                       </div>
@@ -190,7 +200,7 @@ export function CategoryModal({
                           rows={5}
                           value={deskripsi}
                           onChange={(e) => setDeskripsi(e.target.value)}
-                          placeholder="Deskripsi singkat tentang kategori yang akan dibuat (opsional)"
+                          placeholder={`Deskripsi singkat tentang ${entityLabel.toLowerCase()} yang akan dibuat (opsional)`}
                           className="w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border border-neu-200 bg-white text-neu-900 placeholder-neu-400 focus:outline-none focus:border-pr-900 focus:ring-1 focus:ring-pr-900 transition-all resize-none shadow-2xs"
                         />
                       </div>
@@ -208,7 +218,7 @@ export function CategoryModal({
                       </button>
                       <button
                         type="submit"
-                        disabled={isLoading || !nama.trim() || nama.trim().length > 50}
+                        disabled={isLoading || !nama.trim() || nama.trim().length > maxChars}
                         className="inline-flex items-center justify-center gap-2 px-5 py-2 text-[13px] font-medium bg-pr-900 hover:bg-pr-800 text-white rounded-[10px] transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isLoading ? (
@@ -217,7 +227,7 @@ export function CategoryModal({
                             <span>Menyimpan...</span>
                           </>
                         ) : (
-                          <span>Simpan Kategori</span>
+                          <span>{isEditing ? `Perbarui ${entityLabel}` : `Simpan ${entityLabel}`}</span>
                         )}
                       </button>
                     </div>
@@ -231,3 +241,7 @@ export function CategoryModal({
     </Transition>
   );
 }
+
+// Alias untuk semantic consistency
+export const ClassificationModal = CategoryModal;
+
