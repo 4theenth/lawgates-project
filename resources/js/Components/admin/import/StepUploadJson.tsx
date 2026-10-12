@@ -129,7 +129,6 @@ export function StepUploadJson({
     if (onAddMinioFiles && selectedMinioCategory) {
       await onAddMinioFiles(selectedFiles, selectedMinioCategory);
     }
-    setViewMode('dropzone');
   };
 
   const filteredMinioFiles = React.useMemo(() => {
@@ -159,8 +158,8 @@ export function StepUploadJson({
         onChange={handleFileChange}
       />
 
-      {/* KONDISI 1: Belum Ada File yang Diunggah (Empty Dropzone / MinIO View) */}
-      {currentCount === 0 ? (
+      {/* KONDISI 1: Belum Ada File yang Diunggah atau Sedang Berada di Tampilan MinIO */}
+      {currentCount === 0 || viewMode !== 'dropzone' ? (
         <div className="flex flex-col w-full">
           {viewMode === 'dropzone' && (
             <div
@@ -251,6 +250,7 @@ export function StepUploadJson({
                 }
               }}
               onConfirmFiles={handleConfirmMinioFiles}
+              onComplete={() => setViewMode('dropzone')}
               maxFilesAllowed={maxFiles}
             />
           )}
@@ -292,10 +292,31 @@ export function StepUploadJson({
           {/* Kartu Daftar File Terpilih */}
           <div className="bg-white rounded-[16px] border border-neu-100 p-5 shadow-2xs w-full">
             {/* Header Status File */}
-            <div className="flex items-center justify-between mb-4">
-              <span className="font-sans text-[12px] font-semibold text-neu-900">
-                File Terpilih ({currentCount}/{maxFiles})
-              </span>
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <div className="flex items-center gap-3">
+                <span className="font-sans text-[12px] font-semibold text-neu-900">
+                  File Terpilih ({currentCount}/{maxFiles})
+                </span>
+                {!isFull && (
+                  <div className="inline-flex items-center gap-1.5 text-[11px] font-medium">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-pr-900 hover:text-pr-800 underline underline-offset-2 cursor-pointer"
+                    >
+                      + File Lokal
+                    </button>
+                    <span className="text-neu-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('minio_categories')}
+                      className="text-pr-900 hover:text-pr-800 underline underline-offset-2 cursor-pointer"
+                    >
+                      + Dari MinIO
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {isFull ? (
                 <span className="font-sans text-[12px] font-medium text-suc-900">
@@ -305,9 +326,6 @@ export function StepUploadJson({
                 <div className="text-right">
                   <span className="font-sans text-[12px] font-medium text-dan-800 block">
                     Masih ada {remainingSlots} slot file
-                  </span>
-                  <span className="font-sans text-[11px] text-neu-400 block">
-                    Klik "Tambah File" untuk menambahkan file
                   </span>
                 </div>
               )}

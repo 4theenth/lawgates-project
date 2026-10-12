@@ -38,6 +38,7 @@ interface MinioFileSelectTableProps {
   files?: MinioFileItem[];
   onBack?: () => void;
   onConfirmFiles: (files: MinioFileItem[]) => Promise<void> | void;
+  onComplete?: () => void;
   maxFilesAllowed?: number;
 }
 
@@ -46,6 +47,7 @@ export function MinioFileSelectTable({
   files = [],
   onBack,
   onConfirmFiles,
+  onComplete,
   maxFilesAllowed = 10,
 }: MinioFileSelectTableProps) {
   const { toast } = useToast();
@@ -184,22 +186,37 @@ export function MinioFileSelectTable({
     setProgress(15);
     setProgressStatus(`Mengambil ${selectedFiles.length} berkas dari MinIO...`);
 
+    const startTime = Date.now();
     // Animasi progres loading bar yang fill ke samping secara dinamis & mulus
     const interval = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 92) return prev;
-        const remaining = 92 - prev;
-        const step = Math.max(1, Math.round(remaining / 5));
-        return prev + step;
+        if (prev >= 88) return prev;
+        const remaining = 88 - prev;
+        const step = Math.max(2, Math.round(remaining / 4));
+        return Math.min(88, prev + step);
       });
-    }, 200);
+    }, 120);
 
     try {
       await onConfirmFiles(selectedFiles);
+
+      // Beri durasi minimal agar animasi loading bar terlihat jelas dan estetik
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 600) {
+        await new Promise((r) => setTimeout(r, 600 - elapsed));
+      }
+
+      clearInterval(interval);
       setProgress(100);
       setProgressStatus('Berkas berhasil diproses!');
-      await new Promise((r) => setTimeout(r, 350));
+      
+      // Jeda 450ms saat 100% agar user melihat indikator selesai dengan jelas
+      await new Promise((r) => setTimeout(r, 450));
+      if (onComplete) {
+        onComplete();
+      }
     } catch (err) {
+      clearInterval(interval);
       console.error(err);
       toast.error('Gagal memuat berkas dari MinIO.');
     } finally {
