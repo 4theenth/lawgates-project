@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 export interface AdminPageHeaderProps {
   title: string;
   description: string;
+  className?: string;
   action?: {
     label: string;
     icon?: React.ReactNode;
@@ -16,10 +17,11 @@ export interface AdminPageHeaderProps {
 export function AdminPageHeader({
   title,
   description,
+  className = 'mb-6',
   action,
 }: AdminPageHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${className}`}>
       <div>
         <h1 className="font-sans text-[20px] font-semibold leading-[26px] text-neu-900 tracking-tight">
           {title}
