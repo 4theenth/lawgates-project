@@ -167,7 +167,7 @@ The main objectives of LawGates are:
 - Git
 - GitHub
 - Node.js
-- npm
+- pnpm
 
 ### Planned Infrastructure
 
@@ -281,7 +281,7 @@ Before starting development, make sure the following tools are installed.
 | Composer | 2.x |
 | Laravel | 13.x |
 | Node.js | 20.19+ or 22.12+ |
-| npm | Compatible with Node.js |
+| pnpm | 9.x+ (or latest) |
 | PostgreSQL | Supported project version |
 | Git | Latest stable |
 | GitHub Account | Required |
@@ -292,7 +292,7 @@ Check the installed versions:
 php -v
 composer -V
 node -v
-npm -v
+pnpm -v
 git --version
 psql --version
 ```
@@ -350,7 +350,7 @@ composer install
 Install Node dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 5. Create Environment File
@@ -431,7 +431,7 @@ php artisan serve
 In another terminal, start the frontend development server:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 The application will normally be available at:
@@ -451,13 +451,13 @@ The frontend uses:
 Run the development server:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 Build the frontend for production:
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 ---
