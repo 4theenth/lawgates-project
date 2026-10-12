@@ -86,7 +86,7 @@ export const ADMIN_SIDEBAR_MENUS: SidebarMenuItem[] = [
   },
   {
     id: 'kategori-hukum',
-    label: 'Kategori Hukum',
+    label: 'Klasifikasi Hukum',
     href: '/admin/kategori-hukum',
     icon: Gavel,
   },
