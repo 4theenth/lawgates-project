@@ -73,9 +73,9 @@ class MinioOcrIntegrationTest extends TestCase
     }
 
     /**
-     * AC 3: MinIO Write-Back Sync menyimpan file baru dengan sufiks '_edited.json'
+     * AC 3: MinIO Write-Back Sync menyimpan perubahan langsung menimpa file di MinIO
      */
-    public function test_minio_write_back_sync_creates_edited_file()
+    public function test_minio_write_back_sync_overwrites_original_file()
     {
         $admin = User::factory()->create(['role' => 'admin']);
 
@@ -98,7 +98,7 @@ class MinioOcrIntegrationTest extends TestCase
             ->postJson('/admin/dokumen-hukum/draft', $payload);
 
         $response->assertStatus(200);
-        Storage::disk('minio')->assertExists('UU_No_11_2026_edited.json');
+        Storage::disk('minio')->assertExists('UU_No_11_2026.json');
     }
 
     /**
@@ -134,5 +134,87 @@ class MinioOcrIntegrationTest extends TestCase
 
         $this->assertTrue($available->contains('id', $docBerlaku->id));
         $this->assertFalse($available->contains('id', $docDraft->id));
+    }
+
+    /**
+     * AC 3 Extended: Edit peraturan langsung memperbarui file ocr.json di MinIO tanpa membuat folder baru
+     */
+    public function test_update_published_regulation_syncs_directly_to_existing_minio_ocr_json()
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $jenis = JenisPeraturan::create(['kode' => 'UU', 'nama' => 'Undang-Undang']);
+        $statusBerlaku = Status::create(['nama_status' => 'Berlaku']);
+
+        $minioFolderPath = 'documents/uu/uu-9-2025';
+        $initialOcrJson = [
+            'metadata' => [
+                'id_dokumen' => 'uu_9_2025',
+                'judul' => 'Undang-Undang Lama',
+                'nomor' => '9',
+                'tahun' => '2025',
+            ],
+            'chunks' => [
+                [
+                    'tipe' => 'PASAL',
+                    'label' => 'Pasal 1',
+                    'bagian_dokumen' => 'BATANG_TUBUH',
+                    'teks' => 'Teks lama yang belum diedit',
+                ]
+            ]
+        ];
+
+        Storage::disk('minio')->put($minioFolderPath . '/ocr.json', json_encode($initialOcrJson));
+
+        $peraturan = Peraturan::create([
+            'unique_id' => 'uu_9_2025',
+            'judul' => 'Undang-Undang Lama',
+            'nomor' => '9',
+            'tahun' => '2025',
+            'jenis_peraturan_id' => $jenis->id,
+            'status_id' => $statusBerlaku->id,
+            'file_pdf_path' => $minioFolderPath . '/document.pdf'
+        ]);
+        $pasal = $peraturan->pasal()->create([
+            'nomor_pasal' => '1',
+            'isi_pasal' => 'Teks lama yang belum diedit',
+            'urutan' => 1
+        ]);
+
+        $payload = [
+            'judul' => 'Undang-Undang Baru yang Diperbarui',
+            'nomorPeraturan' => '9',
+            'tahun' => '2025',
+            'pembukaan' => [
+                'menimbang' => 'Menimbang teks baru',
+                'mengingat' => 'Mengingat teks baru',
+                'memutuskan' => 'Memutuskan teks baru',
+            ],
+            'babList' => [
+                [
+                    'id' => 'bab_default',
+                    'judul' => 'BAB I',
+                    'pasalList' => [
+                        [
+                            'id' => $pasal->id,
+                            'nomor' => 'Pasal 1',
+                            'isi' => 'Teks pasal baru dengan spasi rapi dan kata yang diperbaiki',
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        $response = $this->actingAs($admin)
+            ->putJson("/admin/dokumen-hukum/{$peraturan->unique_id}", $payload);
+
+        $response->assertStatus(200);
+
+        // Pastikan file ocr.json diperbarui di folder yang sama (tanpa folder baru atau akhiran _edited)
+        Storage::disk('minio')->assertExists($minioFolderPath . '/ocr.json');
+        Storage::disk('minio')->assertMissing($minioFolderPath . '/ocr_edited.json');
+
+        $updatedContent = json_decode(Storage::disk('minio')->get($minioFolderPath . '/ocr.json'), true);
+        $this->assertEquals('Undang-Undang Baru yang Diperbarui', $updatedContent['metadata']['judul']);
+        $this->assertEquals('Teks pasal baru dengan spasi rapi dan kata yang diperbaiki', $updatedContent['chunks'][0]['teks']);
     }
 }

@@ -125,9 +125,9 @@ export function StepUploadJson({
     }
   };
 
-  const handleConfirmMinioFiles = (selectedFiles: MinioFileItem[]) => {
+  const handleConfirmMinioFiles = async (selectedFiles: MinioFileItem[]) => {
     if (onAddMinioFiles && selectedMinioCategory) {
-      onAddMinioFiles(selectedFiles, selectedMinioCategory);
+      await onAddMinioFiles(selectedFiles, selectedMinioCategory);
     }
     setViewMode('dropzone');
   };
