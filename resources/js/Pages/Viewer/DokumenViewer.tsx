@@ -43,13 +43,14 @@ export default function DokumenViewer({ peraturan, pdfUrl, hasPdf }: DokumenView
       <Head title={`Dokumen ${peraturan.judul} - LawGates`} />
 
       <div className="w-full min-w-0 overflow-x-hidden">
-        <div className={`pt-20 sm:pt-24 pb-12 sm:pb-16 ${PAGE_CONTAINER} text-gray-900 min-w-0`}>
+        <div className="pt-24 pb-12 sm:pb-16 w-full max-w-[1240px] mx-auto px-4 sm:px-6 text-gray-900 min-w-0">
           {/* Header Metadata Sesuai Desain Tangkapan Layar */}
           <DetailPeraturanHeader
             breadcrumbItems={[
               { label: 'Beranda', href: '/' },
               { label: 'Pencarian Hukum', href: '/pencarian' },
-              { label: 'Detail Sistem Hukum' },
+              { label: 'Detail Sistem Hukum', href: `/peraturan/${peraturan.unique_id}` },
+              { label: 'Dokumen' },
             ]}
             jenisPeraturan={peraturan.jenis_peraturan?.nama || 'UNDANG - UNDANG DASAR'}
             instansi={peraturan.instansi || peraturan.entitas || (peraturan.jenis_peraturan?.kode === 'PERDA' || (peraturan.jenis_peraturan?.nama || '').toLowerCase().includes('daerah') ? 'Pemerintah Daerah' : 'Pemerintah Pusat')}

@@ -19,6 +19,7 @@ export interface ReadonlyTableOfContentsProps {
   onSearchChange?: (query: string) => void;
   hideHeader?: boolean;
   className?: string;
+  onHeaderClick?: () => void;
 }
 
 /**
@@ -36,6 +37,7 @@ export function ReadonlyTableOfContents({
   onSearchChange,
   hideHeader = false,
   className = '',
+  onHeaderClick,
 }: ReadonlyTableOfContentsProps) {
   return (
     <DocumentTableOfContents
@@ -52,6 +54,7 @@ export function ReadonlyTableOfContents({
       }}
       hideHeader={hideHeader}
       className={`lg:h-[calc(100vh-160px)] ${className}`}
+      onHeaderClick={onHeaderClick}
     />
   );
 }

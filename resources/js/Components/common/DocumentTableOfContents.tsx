@@ -57,6 +57,8 @@ export interface DocumentTableOfContentsProps {
   headerTitle?: string;
   /** Nilai default apakah semua bab terbuka (default: bab ke 1 & 2 terbuka sesuai Figma) */
   defaultExpandFirstCount?: number;
+  /** Callback saat header/ikon Daftar Isi diklik (berguna untuk toggle minimize) */
+  onHeaderClick?: () => void;
 }
 
 export function DocumentTableOfContents({
@@ -73,6 +75,7 @@ export function DocumentTableOfContents({
   hideHeader = false,
   headerTitle = 'DAFTAR ISI',
   defaultExpandFirstCount = 2,
+  onHeaderClick,
 }: DocumentTableOfContentsProps) {
   const [expandedBabs, setExpandedBabs] = useState<Record<string, boolean>>({});
   const [isPembukaanExpanded, setIsPembukaanExpanded] = useState<boolean>(false);
@@ -191,12 +194,16 @@ export function DocumentTableOfContents({
     >
       {/* ── HEADER DAFTAR ISI (Figma node #2258:48480) ───────────────── */}
       {!hideHeader && (
-        <div className="flex items-center gap-1.5 shrink-0">
+        <button 
+          onClick={onHeaderClick}
+          className={`flex items-center gap-1.5 shrink-0 ${onHeaderClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : 'cursor-default'}`}
+          type="button"
+        >
           <AlignLeft className="w-[18px] h-[18px] text-neu-800 shrink-0" />
           <h2 className="text-[12px] font-medium text-neu-800 tracking-wide uppercase leading-[18px]">
             {headerTitle}
           </h2>
-        </div>
+        </button>
       )}
 
       {/* ── LIST STRUKTUR DOKUMEN (Figma node #2258:48483) ────────────── */}

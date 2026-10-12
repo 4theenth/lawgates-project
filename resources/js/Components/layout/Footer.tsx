@@ -24,7 +24,7 @@ function InstagramIcon({ className = 'w-4 h-4' }: { className?: string }) {
 
 const EXPLORE_MENUS = [
   { title: 'Beranda', href: '/', disabled: false },
-  { title: 'Regulasi', href: '#', disabled: true },
+  { title: 'Regulasi', href: '/regulasi', disabled: false },
   { title: 'Langganan', href: '#', disabled: true },
   { title: 'Tentang', href: '#', disabled: true },
 ];

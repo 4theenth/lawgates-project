@@ -22,8 +22,8 @@ export const NAVBAR_MENUS: MenuItem[] = [
   {
     id: 2,
     title: 'Regulasi',
-    path: '#',
-    disabled: true,
+    path: '/regulasi',
+    disabled: false,
   },
   {
     id: 3,
@@ -86,7 +86,7 @@ export const ADMIN_SIDEBAR_MENUS: SidebarMenuItem[] = [
   },
   {
     id: 'kategori-hukum',
-    label: 'Kategori Hukum',
+    label: 'Klasifikasi Hukum',
     href: '/admin/kategori-hukum',
     icon: Gavel,
   },

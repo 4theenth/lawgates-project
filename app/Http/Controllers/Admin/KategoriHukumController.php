@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\JenisPeraturan;
+use App\Models\SubjekPeraturan;
 use App\Models\Peraturan;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,11 +13,66 @@ class KategoriHukumController extends Controller
 {
     public function index(Request $request)
     {
+        $activeTab = $request->input('tab', 'kategori');
+        $pageSize = (int) $request->input('pageSize', 10);
+        $search = $request->input('search');
+        $sortColumn = $request->input('sortColumn');
+        $sortDirection = strtolower($request->input('sortDirection', 'asc')) === 'desc' ? 'desc' : 'asc';
+
+        if ($activeTab === 'subjek') {
+            $query = SubjekPeraturan::query();
+
+            // Search: Nama atau Deskripsi
+            if ($request->filled('search')) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('nama', 'ilike', '%' . $search . '%')
+                      ->orWhere('deskripsi', 'ilike', '%' . $search . '%');
+                });
+            }
+
+            // Sorting
+            if ($request->filled('sortColumn') && $request->filled('sortDirection')) {
+                if (in_array($sortColumn, ['nama', 'subjek', 'kategori'])) {
+                    $query->orderBy('nama', $sortDirection);
+                } elseif ($sortColumn === 'deskripsi') {
+                    $query->orderBy('deskripsi', $sortDirection);
+                } else {
+                    $query->orderBy($sortColumn, $sortDirection);
+                }
+            } else {
+                $query->orderBy('id', 'asc');
+            }
+
+            $paginator = $query->paginate($pageSize)->withQueryString();
+
+            $formattedData = $paginator->getCollection()->map(function ($item) {
+                return [
+                    'id' => (string) $item->id,
+                    'nama' => $item->nama,
+                    'kategori' => $item->nama,
+                    'subjek' => $item->nama,
+                    'deskripsi' => $item->deskripsi ?: ('Dikhususkan untuk subjek ' . strtolower($item->nama)),
+                ];
+            });
+
+            $paginator->setCollection($formattedData);
+
+            return Inertia::render('Admin/KategoriHukum/Index', [
+                'items' => $paginator,
+                'kategori' => $paginator,
+                'activeTab' => 'subjek',
+                'filters' => array_merge(
+                    ['tab' => 'subjek'],
+                    $request->only(['search', 'sortColumn', 'sortDirection', 'pageSize'])
+                ),
+            ]);
+        }
+
+        // Tab Default: Kategori
         $query = JenisPeraturan::query();
 
-        // Search: Nama atau Deskripsi
+        // Search: Nama atau Deskripsi atau Kode
         if ($request->filled('search')) {
-            $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('nama', 'ilike', '%' . $search . '%')
                   ->orWhere('deskripsi', 'ilike', '%' . $search . '%')
@@ -26,21 +82,18 @@ class KategoriHukumController extends Controller
 
         // Sorting
         if ($request->filled('sortColumn') && $request->filled('sortDirection')) {
-            $direction = strtolower($request->sortDirection) === 'desc' ? 'desc' : 'asc';
-
-            if ($request->sortColumn === 'kategori') {
-                $query->orderBy('nama', $direction);
-            } elseif ($request->sortColumn === 'deskripsi') {
-                $query->orderBy('deskripsi', $direction);
+            if (in_array($sortColumn, ['kategori', 'nama'])) {
+                $query->orderBy('nama', $sortDirection);
+            } elseif ($sortColumn === 'deskripsi') {
+                $query->orderBy('deskripsi', $sortDirection);
             } else {
-                $query->orderBy($request->sortColumn, $direction);
+                $query->orderBy($sortColumn, $sortDirection);
             }
         } else {
             // Default sort by id ascending
             $query->orderBy('id', 'asc');
         }
 
-        $pageSize = (int) $request->input('pageSize', 10);
         $paginator = $query->paginate($pageSize)->withQueryString();
 
         // Transform collection to match frontend expectations
@@ -48,7 +101,9 @@ class KategoriHukumController extends Controller
             return [
                 'id' => (string) $item->id,
                 'kode' => $item->kode ?? '',
+                'nama' => $item->nama,
                 'kategori' => $item->nama,
+                'subjek' => $item->nama,
                 'deskripsi' => $item->deskripsi ?: ('Dikhususkan untuk ' . strtolower($item->nama)),
             ];
         });
@@ -56,8 +111,13 @@ class KategoriHukumController extends Controller
         $paginator->setCollection($formattedData);
 
         return Inertia::render('Admin/KategoriHukum/Index', [
+            'items' => $paginator,
             'kategori' => $paginator,
-            'filters' => $request->only(['search', 'sortColumn', 'sortDirection', 'pageSize']),
+            'activeTab' => 'kategori',
+            'filters' => array_merge(
+                ['tab' => 'kategori'],
+                $request->only(['search', 'sortColumn', 'sortDirection', 'pageSize'])
+            ),
         ]);
     }
 

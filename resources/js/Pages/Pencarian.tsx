@@ -3,7 +3,8 @@ import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
 import { useAuthModal } from '@/hooks/useAuthModal';
 import { PublicLayout } from '@/Layouts/PublicLayout';
-import { Breadcrumb } from '@/Components/admin/Breadcrumb';
+import { Breadcrumb } from '@/Components/common/Breadcrumb';
+import { Badge } from '@/Components/common/Badge';
 import { Pagination } from '@/Components/common/Pagination';
 import { RegulationCard } from '@/Components/peraturan/RegulationCard';
 import { RegulationEmptyState } from '@/Components/peraturan/RegulationEmptyState';
@@ -539,9 +540,10 @@ export default function Pencarian() {
           <Breadcrumb
             items={[
               { label: 'Beranda', href: '/' },
-              { label: 'Pencarian Hukum' },
+              { label: 'Pencarian Hukum', href: searchQuery || selectedKategori.length > 0 ? '/pencarian' : undefined },
+              ...(searchQuery ? [{ label: `Hasil: "${searchQuery}"` }] : []),
             ]}
-            className="mb-4 sm:mb-6 text-xs sm:text-sm text-gray-500"
+            className="mb-4 sm:mb-6 text-xs text-neu-500"
           />
           <h1 className="text-2xl sm:text-[32px] font-bold text-gray-900 tracking-tight">
             Pencarian Hukum

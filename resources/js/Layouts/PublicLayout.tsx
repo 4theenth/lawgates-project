@@ -81,7 +81,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
 
   return (
     <AuthModalProvider>
-      <div className="min-h-screen bg-[#F8F9FA] font-sans flex flex-col selection:bg-sec-900 selection:text-white w-full overflow-x-hidden">
+      <div className="min-h-screen bg-[#F8F9FA] font-sans flex flex-col selection:bg-sec-900 selection:text-white w-full">
         {/* Public Navbar */}
         <Navbar isScrolled={isScrolled} />
 

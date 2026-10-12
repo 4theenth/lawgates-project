@@ -25,7 +25,7 @@ export function StatusTabs<T extends string = string>({
       {tabs.map((tab, index) => {
         const isActive = activeTab === tab.id;
 
-        let activeClass = 'bg-gray-100 text-black font-medium';
+        let activeClass = 'bg-neu-50 text-neu-900 border border-neu-200 font-semibold shadow-2xs';
         if (tab.id === 'berlaku') {
           activeClass = 'bg-[#E8F2EC] text-[#15803D] border border-[#B9D9C5] font-semibold shadow-2xs';
         } else if (tab.id === 'tidak_berlaku') {

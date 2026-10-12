@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\Api\PeraturanController;
 use App\Http\Controllers\KategoriController;
+use App\Http\Controllers\RegulasiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -104,9 +105,9 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Pencarian');
     })->name('pencarian');
 
-    // Route alias untuk kompatibilitas /search & /regulasi
+    // Route alias untuk kompatibilitas /search
     Route::redirect('/search', '/pencarian');
-    Route::redirect('/regulasi', '/pencarian');
+    Route::get('/regulasi', [RegulasiController::class, 'index'])->name('regulasi.index');
 
     Route::get('/bandingkan', function () {
         return Inertia::render('Bandingkan');
@@ -131,6 +132,7 @@ Route::middleware('auth')->group(function () {
 */
 use App\Http\Controllers\Admin\DokumenHukumController;
 use App\Http\Controllers\Admin\KategoriHukumController;
+use App\Http\Controllers\Admin\SubjekPeraturanController;
 use App\Http\Controllers\Admin\TeamController;
 
 
@@ -148,6 +150,11 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     Route::post('/kategori-hukum', [KategoriHukumController::class, 'store'])->name('admin.kategori-hukum.store');
     Route::put('/kategori-hukum/{id}', [KategoriHukumController::class, 'update'])->name('admin.kategori-hukum.update');
     Route::delete('/kategori-hukum/{id}', [KategoriHukumController::class, 'destroy'])->name('admin.kategori-hukum.destroy');
+
+    // Subjek Peraturan
+    Route::post('/subjek-peraturan', [SubjekPeraturanController::class, 'store'])->name('admin.subjek-peraturan.store');
+    Route::put('/subjek-peraturan/{id}', [SubjekPeraturanController::class, 'update'])->name('admin.subjek-peraturan.update');
+    Route::delete('/subjek-peraturan/{id}', [SubjekPeraturanController::class, 'destroy'])->name('admin.subjek-peraturan.destroy');
 
     Route::get('/dokumen-hukum', [DokumenHukumController::class, 'index'])->name('admin.dokumen-hukum');
     Route::delete('/dokumen-hukum/{unique_id}', [DokumenHukumController::class, 'destroy'])->name('admin.dokumen-hukum.destroy');
