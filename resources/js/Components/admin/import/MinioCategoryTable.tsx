@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft } from 'lucide-react';
 import {
   Table,
   TableHeader,
@@ -27,7 +27,7 @@ export function MinioCategoryTable({
   categories = [],
   isLoading = false,
   onSelectCategory,
-  onBack: _onBack,
+  onBack,
 }: MinioCategoryTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -88,6 +88,19 @@ export function MinioCategoryTable({
 
   return (
     <div className="w-full space-y-4">
+      {onBack && (
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-[10px] border border-neu-200 bg-white text-neu-800 hover:bg-neu-50 text-[12px] font-medium transition-colors shadow-2xs cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 stroke-[2]" />
+            <span>Kembali ke Area Unggah File</span>
+          </button>
+        </div>
+      )}
+
       {/* Tabel Kategori MinIO (Sesuai Desain Tangkapan Layar 3 & Lampiran 2) */}
       <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-hidden">
         <Table className="w-full min-w-[500px] text-left border-collapse">

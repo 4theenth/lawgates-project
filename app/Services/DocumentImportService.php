@@ -31,7 +31,7 @@ class DocumentImportService
             // 1. METADATA: Jenis & Status
             $metadata = $data['metadata'] ?? $data;
 
-            $tipePeraturan = $metadata['tipe_peraturan']
+            $rawTipe = $metadata['tipe_peraturan']
                 ?? $metadata['kategori']
                 ?? $metadata['jenis']
                 ?? $metadata['jenis_peraturan']
@@ -39,24 +39,61 @@ class DocumentImportService
                 ?? $data['kategori']
                 ?? 'Undang-Undang';
 
-            $jenis = JenisPeraturan::whereRaw('LOWER(nama) = ?', [strtolower($tipePeraturan)])
-                                  ->orWhereRaw('LOWER(kode) = ?', [strtolower($tipePeraturan)])
-                                  ->first();
-            
+            $tipePeraturan = trim($rawTipe);
+            $upperTipe = strtoupper($tipePeraturan);
+
+            // Alias map untuk normalisasi jenis peraturan populer
+            $aliasMap = [
+                'PERDA' => 'Peraturan Daerah',
+                'P' => 'Peraturan Daerah',
+                'PERPRES' => 'Peraturan Presiden',
+                'PERMEN' => 'Peraturan Menteri',
+                'PP' => 'Peraturan Pemerintah',
+                'PERPPU' => 'Peraturan Pemerintah Pengganti Undang-Undang',
+                'PERPU' => 'Peraturan Pemerintah Pengganti Undang-Undang',
+                'UU' => 'Undang-Undang',
+                'UUD' => 'Undang-Undang Dasar',
+                'KEPPRES' => 'Keputusan Presiden',
+                'STAATSBLAD' => 'Staatsblad',
+                'TAP MPR' => 'Ketetapan MPR',
+                'TAP MPRS' => 'Ketetapan MPRS',
+            ];
+
+            $namaTarget = $aliasMap[$upperTipe] ?? $tipePeraturan;
+
+            $jenis = JenisPeraturan::whereRaw('LOWER(nama) = ?', [strtolower($namaTarget)])
+                ->orWhereRaw('LOWER(nama) = ?', [strtolower($tipePeraturan)])
+                ->orWhereRaw('LOWER(kode) = ?', [strtolower($upperTipe)])
+                ->orWhereRaw('LOWER(kode) = ?', [strtolower($tipePeraturan)])
+                ->first();
+
             if (!$jenis) {
-                // Buat singkatan otomatis untuk kode (misal "Undang-Undang Darurat" -> "UUD")
-                $words = preg_split('/[\s\-]+/', trim($tipePeraturan));
-                $initials = '';
-                foreach ($words as $w) {
-                    if (!empty($w)) {
-                        $initials .= strtoupper(substr($w, 0, 1));
+                // Tentukan kode dasar (jika singkatan/nama pendek, gunakan full uppercase-nya)
+                if (strlen($upperTipe) <= 10 && preg_match('/^[A-Z0-9_-]+$/', $upperTipe)) {
+                    $baseKode = $upperTipe;
+                } else {
+                    $words = preg_split('/[\s\-]+/', $tipePeraturan);
+                    $initials = '';
+                    foreach ($words as $w) {
+                        if (!empty($w)) {
+                            $initials .= strtoupper(substr($w, 0, 1));
+                        }
                     }
+                    $baseKode = substr($initials, 0, 10) ?: 'KAT';
                 }
-                $kode = substr($initials, 0, 10) ?: 'KAT';
+
+                // Pastikan kode benar-benar unik di tabel jenis_peraturan
+                $kode = $baseKode;
+                $counter = 1;
+                while (JenisPeraturan::where('kode', $kode)->exists()) {
+                    $suffix = (string) $counter;
+                    $kode = substr($baseKode, 0, 10 - strlen($suffix)) . $suffix;
+                    $counter++;
+                }
 
                 $jenis = JenisPeraturan::create([
                     'kode' => $kode,
-                    'nama' => $tipePeraturan
+                    'nama' => $namaTarget,
                 ]);
             }
 

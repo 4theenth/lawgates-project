@@ -132,7 +132,7 @@ export default function KlasifikasiHukumIndex({
     if (finalPageSize !== 10) query.pageSize = finalPageSize;
 
     const finalPage = overrides.page !== undefined ? overrides.page : currentPage;
-    if (finalPage > 1) query.page = finalPage;
+    if (finalPage) query.page = finalPage;
 
     router.get('/admin/kategori-hukum', query, {
       preserveState: true,
@@ -141,13 +141,26 @@ export default function KlasifikasiHukumIndex({
     });
   };
 
+  useEffect(() => {
+    if (kategori?.current_page !== undefined) {
+      setCurrentPage(kategori.current_page);
+    }
+  }, [kategori?.current_page]);
+
   // Debounced search
   const isInitialRender = useRef(true);
+  const prevSearchRef = useRef(searchQuery);
   useEffect(() => {
     if (isInitialRender.current) {
       isInitialRender.current = false;
       return;
     }
+
+    if (prevSearchRef.current === searchQuery) {
+      return;
+    }
+
+    prevSearchRef.current = searchQuery;
 
     const debounce = setTimeout(() => {
       fetchData({ search: searchQuery, page: 1 });

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Loader2 } from 'lucide-react';
 import {
   Table,
   TableHeader,
@@ -37,15 +37,17 @@ interface MinioFileSelectTableProps {
   category?: MinioCategory;
   files?: MinioFileItem[];
   onBack?: () => void;
-  onConfirmFiles: (files: MinioFileItem[]) => void;
+  onConfirmFiles: (files: MinioFileItem[]) => Promise<void> | void;
+  onComplete?: () => void;
   maxFilesAllowed?: number;
 }
 
 export function MinioFileSelectTable({
-  category: _category,
+  category,
   files = [],
-  onBack: _onBack,
+  onBack,
   onConfirmFiles,
+  onComplete,
   maxFilesAllowed = 10,
 }: MinioFileSelectTableProps) {
   const { toast } = useToast();
@@ -53,6 +55,11 @@ export function MinioFileSelectTable({
   const sourceFiles = files;
   // Tidak ada yang langsung kepilih secara default (mulai dari kosong [])
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // State loading bar sederhana yang fill ke samping saat proses Pilih File
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [progressStatus, setProgressStatus] = useState('');
 
   // 3-State Sorting: Klik 1 (A-Z) -> Klik 2 (Z-A / Z-1) -> Klik 3 (Reset kembali ke awal)
   const [sortField, setSortField] = useState<'title' | 'sizeKb' | null>(null);
@@ -163,46 +170,142 @@ export function MinioFileSelectTable({
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    if (isLoading) return;
     if (selectedIds.length === 0) {
       toast.warning('Pilih minimal 1 berkas terlebih dahulu.');
       return;
     }
     const selectedFiles = sourceFiles.filter((f) => selectedIds.includes(f.id));
-    onConfirmFiles(selectedFiles);
+    if (maxFilesAllowed && selectedFiles.length > maxFilesAllowed) {
+      toast.error(`Maksimal hanya dapat memilih ${maxFilesAllowed} berkas.`);
+      return;
+    }
+
+    setIsLoading(true);
+    setProgress(15);
+    setProgressStatus(`Mengambil ${selectedFiles.length} berkas dari MinIO...`);
+
+    const startTime = Date.now();
+    // Animasi progres loading bar yang fill ke samping secara dinamis & mulus
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 88) return prev;
+        const remaining = 88 - prev;
+        const step = Math.max(2, Math.round(remaining / 4));
+        return Math.min(88, prev + step);
+      });
+    }, 120);
+
+    try {
+      await onConfirmFiles(selectedFiles);
+
+      // Beri durasi minimal agar animasi loading bar terlihat jelas dan estetik
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 600) {
+        await new Promise((r) => setTimeout(r, 600 - elapsed));
+      }
+
+      clearInterval(interval);
+      setProgress(100);
+      setProgressStatus('Berkas berhasil diproses!');
+      
+      // Jeda 450ms saat 100% agar user melihat indikator selesai dengan jelas
+      await new Promise((r) => setTimeout(r, 450));
+      if (onComplete) {
+        onComplete();
+      }
+    } catch (err) {
+      clearInterval(interval);
+      console.error(err);
+      toast.error('Gagal memuat berkas dari MinIO.');
+    } finally {
+      clearInterval(interval);
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="w-full space-y-4">
-      {/* Bar Atas: Search Input di Kiri Sejajar dengan Tombol "Pilih File" di Kanan */}
-      <div className="flex items-center justify-between gap-4">
-        {/* Input Pencarian Sesuai Gambar: "Cari file hasil OCR" */}
-        <div className="relative w-full max-w-xs">
-          <Search className="w-4 h-4 text-neu-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-            placeholder="Cari file hasil OCR"
-            className="w-full pl-9 pr-4 py-2 border border-neu-200 rounded-[10px] text-[12px] text-neu-900 placeholder:text-neu-400 bg-white focus:outline-none focus:border-neu-400 focus:ring-1 focus:ring-neu-400 transition-all"
-          />
+      {/* Bar Atas: Tombol Kembali + Search Input di Kiri Sejajar dengan Tombol "Pilih File" di Kanan */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={isLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] border border-neu-200 bg-white text-neu-800 hover:bg-neu-50 disabled:opacity-50 disabled:cursor-not-allowed text-[12px] font-medium transition-colors shadow-2xs cursor-pointer shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4 stroke-[2]" />
+              <span>Kembali</span>
+            </button>
+          )}
+
+          {category && (
+            <span className="font-sans text-[13px] font-medium text-neu-600 truncate">
+              Kategori: <strong className="text-neu-900 font-semibold">{category.name}</strong>
+            </span>
+          )}
         </div>
 
-        {/* Tombol Pilih File di Kanan Atas Sejajar dengan Search */}
-        <button
-          type="button"
-          onClick={handleConfirm}
-          className="inline-flex items-center justify-center px-6 py-2.5 rounded-[10px] bg-pr-900 text-white hover:bg-pr-800 text-[12px] font-medium transition-colors shadow-2xs cursor-pointer shrink-0"
-        >
-          Pilih File
-        </button>
+        <div className="flex items-center gap-3 ml-auto">
+          {/* Input Pencarian Sesuai Gambar: "Cari file hasil OCR" */}
+          <div className="relative w-full max-w-xs">
+            <Search className="w-4 h-4 text-neu-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              disabled={isLoading}
+              placeholder="Cari file hasil OCR"
+              className="w-full pl-9 pr-4 py-2 border border-neu-200 rounded-[10px] text-[12px] text-neu-900 placeholder:text-neu-400 bg-white disabled:bg-neu-50 disabled:cursor-not-allowed focus:outline-none focus:border-neu-400 focus:ring-1 focus:ring-neu-400 transition-all"
+            />
+          </div>
+
+          {/* Tombol Pilih File di Kanan Atas Sejajar dengan Search */}
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={isLoading || selectedIds.length === 0}
+            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-[10px] bg-pr-900 text-white hover:bg-pr-800 disabled:opacity-60 disabled:cursor-not-allowed text-[12px] font-medium transition-all shadow-2xs cursor-pointer shrink-0"
+          >
+            {isLoading && (
+              <Loader2 className="w-3.5 h-3.5 text-white animate-spin shrink-0" />
+            )}
+            <span>{isLoading ? 'Memproses...' : 'Pilih File'}</span>
+          </button>
+        </div>
       </div>
 
+      {/* Loading bar sederhana yang fill ke samping (Animasi visual progress) */}
+      {isLoading && (
+        <div className="w-full bg-white border border-neu-200 rounded-[12px] p-4 shadow-2xs space-y-2.5 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between text-[13px] font-medium text-neu-700">
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 text-pr-900 animate-spin shrink-0" />
+              <span>{progressStatus}</span>
+            </div>
+            <span className="font-semibold text-pr-900 font-mono text-[12px]">
+              {Math.round(progress)}%
+            </span>
+          </div>
+
+          {/* Progress bar container dengan fill ke samping */}
+          <div className="w-full bg-neu-100 rounded-full h-2.5 overflow-hidden p-0.5">
+            <div
+              className="bg-pr-900 h-full rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Tabel File OCR MinIO */}
-      <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-hidden">
+      <div className={`w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-hidden transition-opacity duration-200 ${isLoading ? 'pointer-events-none opacity-60' : ''}`}>
         <Table className="w-full min-w-[600px] text-left border-collapse">
           <colgroup>
             <col className="w-[54px]" />
