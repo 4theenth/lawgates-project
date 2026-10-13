@@ -108,8 +108,12 @@ export default function DokumenHukumCreate() {
   const [validatedFiles, setValidatedFiles] = useState<ValidatedFileItem[]>([]);
   const [editingFile, setEditingFile] = useState<ValidatedFileItem | null>(null);
 
+  // State status publikasi & progress bar saat Publish
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishProcessList, setPublishProcessList] = useState<ProcessedFileItem[]>([]);
+
   // State status publikasi Langkah 4
-  const [isSavedSuccess, setIsSavedSuccess] = useState(false);
+  const [_isSavedSuccess, setIsSavedSuccess] = useState(false);
   const [savedAsDraft, setSavedAsDraft] = useState(false);
   const [isDraftModalOpen, setIsDraftModalOpen] = useState(false);
   const [isDraftSaving, setIsDraftSaving] = useState(false);
@@ -517,7 +521,7 @@ export default function DokumenHukumCreate() {
       // Siapkan berkas tervalidasi dari file yang berhasil diproses
       const validated: ValidatedFileItem[] = processList
         .filter((f) => f.status === 'selesai')
-        .map((f, idx) => {
+        .map((f, _idx) => {
           const meta = f.parsedData?.metadata || f.parsedData || {};
           let title =
             meta.judul ||
@@ -642,12 +646,37 @@ export default function DokumenHukumCreate() {
     }
   };
 
-  // Handler publikasi seluruh berkas ke database
+  // Handler publikasi seluruh berkas ke database dengan visual progress bar
   const handlePublishToDatabase = async () => {
+    if (validatedFiles.length === 0) return;
+
+    // 1. Inisialisasi daftar progress file untuk visual loading bar
+    const initialPublish: ProcessedFileItem[] = validatedFiles.map((file) => ({
+      id: file.id,
+      name: file.name || file.title || 'dokumen.json',
+      status: 'memproses',
+      progressPercent: 15,
+      rawFile: file.rawFile,
+      parsedData: file.parsedData,
+    }));
+
+    setPublishProcessList(initialPublish);
+    setIsPublishing(true);
+
+    // 2. Timer pergerakan progress bar secara halus selama HTTP request berlangsung
+    const progressInterval = setInterval(() => {
+      setPublishProcessList((prev) =>
+        prev.map((item) => {
+          if (item.status === 'selesai' || item.status === 'gagal') return item;
+          const nextPercent = Math.min(92, item.progressPercent + 20);
+          return { ...item, progressPercent: nextPercent };
+        })
+      );
+    }, 250);
+
     try {
       const payload = new FormData();
       validatedFiles.forEach((file, index) => {
-        // Stringify JSON data with ensured metadata fields
         const parsed = typeof file.parsedData === 'object' && file.parsedData !== null
           ? { ...file.parsedData }
           : {};
@@ -669,7 +698,6 @@ export default function DokumenHukumCreate() {
           payload.append(`files[${index}][correctionData]`, JSON.stringify(file.correctionData));
         }
 
-        // Append actual file if available
         if (file.rawFile) {
           payload.append(`files[${index}][rawFile]`, file.rawFile);
         }
@@ -686,9 +714,12 @@ export default function DokumenHukumCreate() {
         body: payload
       });
 
+      clearInterval(progressInterval);
+
       if (response.status === 409) {
         const errorData = await response.json().catch(() => ({}));
         const msg = errorData.message || 'Dokumen sudah ada di sistem (Duplikasi terdeteksi).';
+        setIsPublishing(false);
         setDuplicateModal({
           show: true,
           title: 'Duplikasi Dokumen Terdeteksi (409 Conflict)',
@@ -701,21 +732,34 @@ export default function DokumenHukumCreate() {
       }
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         let errorMsg = errorData.message || 'Gagal mempublikasikan data ke database';
         if (errorData.errors && errorData.errors.length > 0) {
           errorMsg += '\nDetail: ' + errorData.errors.join(', ');
         }
+        setIsPublishing(false);
         throw new Error(errorMsg);
       }
 
-      setSavedAsDraft(false);
-      setCurrentStep(4);
-      setIsSavedSuccess(true);
-      toast.success('Data hukum berhasil dipublikasikan!');
+      // Tandai progress selesai 100%
+      setPublishProcessList((prev) =>
+        prev.map((item) => ({ ...item, status: 'selesai', progressPercent: 100 }))
+      );
+
+      // Jeda 800ms agar animasi progress bar 100% dan pesan sukses terbaca oleh user
+      setTimeout(() => {
+        setIsPublishing(false);
+        setSavedAsDraft(false);
+        setCurrentStep(4);
+        setIsSavedSuccess(true);
+        toast.success('Data hukum berhasil dipublikasikan!');
+      }, 800);
+
     } catch (error: any) {
+      clearInterval(progressInterval);
+      setIsPublishing(false);
       console.error(error);
-      toast.error('Data gagal dipublikasikan');
+      toast.error(error.message || 'Data gagal dipublikasikan');
     }
   };
 
@@ -862,32 +906,41 @@ export default function DokumenHukumCreate() {
 
         {/* KONTEN LANGKAH 3: Validasi & Koreksi Data (Sesuai Gambar Figma Tangkapan Layar 1) */}
         {currentStep === 3 && (
-          <div className="flex-1 min-w-0 flex flex-col w-full">
-            {/* Tombol Simpan & Publish di Kanan Atas Di Atas Kartu */}
-            <div className="flex items-center justify-end gap-3 mb-4">
-              <button
-                type="button"
-                onClick={() => setIsDraftModalOpen(true)}
-                className="inline-flex items-center justify-center px-6 py-2 rounded-[10px] border border-neu-800 text-neu-900 text-[14px] font-medium hover:bg-neu-50 transition-colors shadow-2xs cursor-pointer"
-              >
-                <span>Simpan</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handlePublishToDatabase}
-                className="inline-flex items-center justify-center px-6 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer"
-              >
-                <span>Publish</span>
-              </button>
-            </div>
-
-            <StepValidationCorrection
-              files={validatedFiles}
-              onEditFile={(file) => setEditingFile(file)}
-              onRemoveFile={handleRemoveValidatedFile}
+          isPublishing ? (
+            <StepProcessExtraction
+              files={publishProcessList}
+              title="Detail Publikasi Berjalan"
+              successMessage="Publikasi selesai, mengalihkan..."
+              onCancel={() => setIsPublishing(false)}
             />
-          </div>
+          ) : (
+            <div className="flex-1 min-w-0 flex flex-col w-full">
+              {/* Tombol Simpan & Publish di Kanan Atas Di Atas Kartu */}
+              <div className="flex items-center justify-end gap-3 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setIsDraftModalOpen(true)}
+                  className="inline-flex items-center justify-center px-6 py-2 rounded-[10px] border border-neu-800 text-neu-900 text-[14px] font-medium hover:bg-neu-50 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <span>Simpan</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePublishToDatabase}
+                  className="inline-flex items-center justify-center px-6 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <span>Publish</span>
+                </button>
+              </div>
+
+              <StepValidationCorrection
+                files={validatedFiles}
+                onEditFile={(file) => setEditingFile(file)}
+                onRemoveFile={handleRemoveValidatedFile}
+              />
+            </div>
+          )
         )}
 
         {/* KONTEN LANGKAH 4: Simpan & Publikasi (Sesuai Gambar Figma 4 & 5) */}

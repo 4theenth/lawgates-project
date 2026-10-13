@@ -82,7 +82,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
     if (finalPageSize !== 10) query.pageSize = finalPageSize;
     
     const finalPage = overrides.page !== undefined ? overrides.page : currentPage;
-    if (finalPage > 1) query.page = finalPage;
+    if (finalPage) query.page = finalPage;
 
     router.get('/admin/dokumen-hukum', query, {
         preserveState: true,
@@ -91,22 +91,37 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
     });
   }, [activeTab, searchQuery, selectedCategories, selectedLokasi, selectedSubjek, sortColumn, sortDirection, pageSize, currentPage]);
 
-  // Mencegah trigger di initial render
+  // Sync currentPage dengan paginator aktif dari backend
+  const currentPaginator = activeTab === 'draft' ? drafts : peraturans;
+  useEffect(() => {
+    if (currentPaginator?.current_page !== undefined) {
+      setCurrentPage(currentPaginator.current_page);
+    }
+  }, [currentPaginator?.current_page]);
+
+  // Mencegah trigger di initial render & re-render tidak perlu
   const isInitialRender = useRef(true);
+  const prevSearchRef = useRef(searchQuery);
 
   // Effect KHUSUS untuk search (debounced)
   useEffect(() => {
     if (isInitialRender.current) {
-        isInitialRender.current = false;
-        return;
+      isInitialRender.current = false;
+      return;
     }
 
+    if (prevSearchRef.current === searchQuery) {
+      return;
+    }
+
+    prevSearchRef.current = searchQuery;
+
     const debounce = setTimeout(() => {
-        fetchData({ search: searchQuery, page: 1 });
+      fetchData({ search: searchQuery, page: 1 });
     }, 300);
-    
+
     return () => clearTimeout(debounce);
-  }, [searchQuery, fetchData]);
+  }, [searchQuery]);
 
 
   // In-place Modal Overlay states (Nimpa bukan buka halaman baru)
@@ -731,7 +746,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
 
       {/* 5. Pagination Bawah (Responsif dan dinamis sesuai jumlah data hasil filter) */}
       <Pagination
-        currentPage={currentPage}
+        currentPage={activePaginator?.current_page || currentPage}
         totalPages={totalPages}
         pageSize={pageSize}
         onPageChange={handlePageChange}

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Folder, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Folder, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft } from 'lucide-react';
 import {
   Table,
   TableHeader,
@@ -29,7 +29,7 @@ export function MinioSubfolderTable({
   category,
   subfolders = [],
   onSelectSubfolder,
-  onBack: _onBack,
+  onBack,
 }: MinioSubfolderTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -99,7 +99,17 @@ export function MinioSubfolderTable({
     <div className="w-full space-y-4">
       {/* Header Info Folder & Search */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-neu-200 bg-white text-neu-800 hover:bg-neu-50 text-[12px] font-medium transition-colors shadow-2xs cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 stroke-[2]" />
+              <span>Kembali</span>
+            </button>
+          )}
           <span className="font-sans text-[13px] font-medium text-neu-600">
             Kategori: <strong className="text-neu-900 font-semibold">{category.name}</strong>
           </span>
