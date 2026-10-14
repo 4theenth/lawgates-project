@@ -71,7 +71,7 @@ export function AdminSidebar({
 
       if (hasSub) {
         return (
-          <div key={item.id} className="relative w-full">
+          <div key={item.id} className="relative w-full group/submenu">
             <button
               type="button"
               onClick={() => toggleSubmenu(item.id)}
@@ -80,7 +80,7 @@ export function AdminSidebar({
                 isChildActive
                   ? SIDEBAR_THEME.activeItem.container
                   : SIDEBAR_THEME.dropdownParent.container
-              } ${collapsed ? 'justify-center px-0' : 'justify-between'}`}
+              } ${collapsed ? 'justify-center !px-0' : 'justify-between'}`}
             >
               <div className="flex items-center gap-[12px]">
                 <Icon
@@ -139,6 +139,43 @@ export function AdminSidebar({
                 })}
               </div>
             )}
+
+            {/* Submenu Popover saat Collapsed di Desktop */}
+            {collapsed && !isMobile && item.subItems && (
+              <div className="absolute left-full top-0 ml-2 hidden group-hover/submenu:flex flex-col w-[170px] bg-white border border-neu-100 rounded-xl shadow-lg p-1.5 z-50">
+                <div className="px-2.5 py-1 text-[11px] font-semibold text-neu-400 uppercase tracking-wider border-b border-neu-50 mb-1">
+                  {item.label}
+                </div>
+                {item.subItems.map((sub) => {
+                  const isSubActive = url === sub.href;
+
+                  if (sub.disabled) {
+                    return (
+                      <span
+                        key={sub.id}
+                        className="block py-1.5 px-2.5 rounded-lg text-[12px] text-neu-400 select-none cursor-default"
+                      >
+                        {sub.label}
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={sub.id}
+                      href={sub.href}
+                      className={`block py-1.5 px-2.5 rounded-lg text-[12px] transition-colors ${
+                        isSubActive
+                          ? 'font-semibold text-pr-900 bg-gray-50'
+                          : 'text-neu-600 hover:text-black hover:bg-gray-50'
+                      }`}
+                    >
+                      {sub.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       }
@@ -149,7 +186,7 @@ export function AdminSidebar({
             key={item.id}
             title="Fitur belum tersedia"
             className={`relative ${SIDEBAR_THEME.itemBase} group text-neu-400 opacity-50 cursor-not-allowed select-none ${
-              collapsed ? 'justify-center px-0' : 'justify-start gap-[12px]'
+              collapsed ? 'justify-center !px-0' : 'justify-start gap-[12px]'
             }`}
           >
             <Icon className="w-[18px] h-[18px] shrink-0" />
@@ -169,7 +206,7 @@ export function AdminSidebar({
           onClick={() => isMobile && onMobileClose?.()}
           title={collapsed ? item.label : undefined}
           className={`relative ${SIDEBAR_THEME.itemBase} group ${
-            collapsed ? 'justify-center px-0' : 'justify-start gap-[12px]'
+            collapsed ? 'justify-center !px-0' : 'justify-start gap-[12px]'
           } ${
             isActive
               ? SIDEBAR_THEME.activeItem.container
@@ -240,13 +277,13 @@ export function AdminSidebar({
 
       {/* ── 2. DESKTOP SIDEBAR (Hanya tampil di layar >= md) ── */}
       <aside
-        className={`hidden md:flex shrink-0 h-full bg-white border-r border-neu-50 transition-all duration-300 ease-in-out flex-col pt-[13px] px-[10px] pb-6 gap-[9px] overflow-y-auto ${
+        className={`hidden md:flex shrink-0 h-full bg-white border-r border-neu-50 transition-all duration-300 ease-in-out flex-col pt-[13px] px-[10px] pb-6 gap-[9px] ${
           isCollapsed
-            ? 'w-0 -translate-x-full overflow-hidden !p-0 !border-r-0 opacity-0 pointer-events-none'
-            : 'w-[195px] opacity-100'
+            ? 'w-[64px] overflow-visible'
+            : 'w-[195px] overflow-y-auto overflow-x-hidden'
         }`}
       >
-        {/* Label Kategori 'Menu' */}
+        {/* Label Kategori 'Menu' (Pertahankan area kosong saat collapse agar icon tidak berpindah posisi vertikal) */}
         <div className="h-[18px] flex items-center">
           <p className={`${SIDEBAR_THEME.categoryLabel} ${isCollapsed ? 'invisible' : 'visible'}`}>
             Menu
