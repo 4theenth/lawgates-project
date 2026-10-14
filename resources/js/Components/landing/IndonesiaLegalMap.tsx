@@ -712,10 +712,10 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
                   ? { height: isViewingAllKabupaten || !activeProvince ? `${activeHeight}px` : undefined }
                   : undefined
               }
-              className="lg:col-span-4 w-full max-w-[361px] lg:max-w-none mx-auto flex flex-col gap-4"
+              className="lg:col-span-4 w-full max-w-[361px] lg:max-w-none mx-auto flex flex-col gap-4 min-h-0"
             >
               {/* Desktop Only Search Card */}
-              <div className="hidden lg:block">
+              <div className="hidden lg:block shrink-0">
                 <MapSearchCard
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
