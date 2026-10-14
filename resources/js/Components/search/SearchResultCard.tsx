@@ -154,7 +154,7 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
 
         <Link
           href={detailUrl}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-pr-50 hover:bg-pr-900 text-pr-900 hover:text-white border border-pr-100 rounded-[10px] text-xs font-semibold transition-colors duration-150 cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-pr-50 hover:bg-pr-900 text-pr-900 hover:text-white rounded-[10px] text-xs font-semibold transition-colors duration-150 cursor-pointer"
         >
           <Eye className="w-3.5 h-3.5 stroke-[2]" />
           <span>Lihat Detail</span>

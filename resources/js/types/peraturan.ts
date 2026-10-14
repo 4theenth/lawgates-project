@@ -24,4 +24,5 @@ export interface FilterOption {
 export interface ReferensiData {
   status: Array<{ id: number; nama_status: string }>;
   tahun: string[];
+  subjek?: Array<{ id: number; nama: string }> | string[];
 }

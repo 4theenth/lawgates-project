@@ -32,36 +32,72 @@ class RegulasiController extends Controller
             'putusan-mk-ma'        => 0,
         ];
 
-        $countsPerJenis = Peraturan::selectRaw('jenis_peraturan_id, count(*) as total')
+        $categoryLatestDates = [
+            'uud'                  => null,
+            'tap-mpr'              => null,
+            'undang-undang'        => null,
+            'uu-perpu'             => null,
+            'peraturan-pemerintah' => null,
+            'pp'                   => null,
+            'perpres'              => null,
+            'peraturan-presiden'   => null,
+            'perda'                => null,
+            'peraturan-daerah'     => null,
+            'permen-perban'        => null,
+            'putusan-mk-ma'        => null,
+        ];
+
+        $statsPerJenis = Peraturan::selectRaw('jenis_peraturan_id, count(*) as total, max(updated_at) as latest_update, max(created_at) as latest_create')
             ->groupBy('jenis_peraturan_id')
-            ->pluck('total', 'jenis_peraturan_id');
+            ->get()
+            ->keyBy('jenis_peraturan_id');
 
         $allJenis = JenisPeraturan::all();
         foreach ($allJenis as $jenis) {
-            $total = (int) ($countsPerJenis[$jenis->id] ?? 0);
+            $row = $statsPerJenis[$jenis->id] ?? null;
+            $total = (int) ($row->total ?? 0);
+            $latest = $row ? ($row->latest_update ?? $row->latest_create) : null;
             $kode = strtolower($jenis->kode ?? '');
             $nama = strtolower($jenis->nama ?? '');
 
+            $updateLatest = function ($slug) use (&$categoryLatestDates, $latest) {
+                if ($latest && (!$categoryLatestDates[$slug] || $latest > $categoryLatestDates[$slug])) {
+                    $categoryLatestDates[$slug] = (string) $latest;
+                }
+            };
+
             if (str_contains($nama, 'dasar') || $kode === 'uud') {
                 $categoryCounts['uud'] += $total;
+                $updateLatest('uud');
             } elseif (str_contains($nama, 'mpr') || str_contains($kode, 'mpr')) {
                 $categoryCounts['tap-mpr'] += $total;
+                $updateLatest('tap-mpr');
             } elseif (str_contains($nama, 'undang') || $kode === 'uu' || str_contains($nama, 'perpu')) {
                 $categoryCounts['undang-undang'] += $total;
                 $categoryCounts['uu-perpu'] += $total;
+                $updateLatest('undang-undang');
+                $updateLatest('uu-perpu');
             } elseif (str_contains($nama, 'pemerintah') || $kode === 'pp') {
                 $categoryCounts['peraturan-pemerintah'] += $total;
                 $categoryCounts['pp'] += $total;
+                $updateLatest('peraturan-pemerintah');
+                $updateLatest('pp');
             } elseif (str_contains($nama, 'presiden') || $kode === 'perpres') {
                 $categoryCounts['peraturan-presiden'] += $total;
                 $categoryCounts['perpres'] += $total;
+                $updateLatest('peraturan-presiden');
+                $updateLatest('perpres');
             } elseif (str_contains($nama, 'daerah') || $kode === 'perda') {
                 $categoryCounts['peraturan-daerah'] += $total;
                 $categoryCounts['perda'] += $total;
+                $updateLatest('peraturan-daerah');
+                $updateLatest('perda');
             } elseif (str_contains($nama, 'menteri') || str_contains($nama, 'lembaga') || str_contains($nama, 'badan') || str_contains($kode, 'permen')) {
                 $categoryCounts['permen-perban'] += $total;
+                $updateLatest('permen-perban');
             } elseif (str_contains($nama, 'putusan') || str_contains($nama, 'mahkamah') || str_contains($kode, 'mk') || str_contains($kode, 'ma')) {
                 $categoryCounts['putusan-mk-ma'] += $total;
+                $updateLatest('putusan-mk-ma');
             }
         }
 
@@ -120,8 +156,9 @@ class RegulasiController extends Controller
             ->pluck('tahun');
 
         return Inertia::render('Regulasi', [
-            'categoryCounts' => $categoryCounts,
-            'dailyStats'     => [
+            'categoryCounts'      => $categoryCounts,
+            'categoryLatestDates' => $categoryLatestDates,
+            'dailyStats'          => [
                 'total'         => $totalPeraturan ?: 1492,
                 'berlaku'       => $berlaku ?: 1292,
                 'tidak_berlaku' => $tidakBerlaku ?: 200,

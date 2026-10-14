@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, Check } from 'lucide-react';
 import { CountUp } from '@/Components/common/CountUp';
 import hierarchyCardBg from '@/assets/regulation-hierarchy-card.webp';
 
@@ -82,21 +82,62 @@ const defaultHierarchyData: HierarchyCardItem[] = [
 
 interface RegulasiHierarchySectionProps {
   counts?: Record<string, number>;
+  latestDates?: Record<string, string | null>;
 }
 
-export function RegulasiHierarchySection({ counts }: RegulasiHierarchySectionProps) {
+export function RegulasiHierarchySection({ counts, latestDates }: RegulasiHierarchySectionProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'terbanyak' | 'paling_sedikit' | null>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  // Tutup dropdown saat klik di luar area
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setIsFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const filteredCards = useMemo(() => {
-    if (!searchQuery.trim()) return defaultHierarchyData;
-    const query = searchQuery.toLowerCase().trim();
-    return defaultHierarchyData.filter(
-      (item) =>
-        item.title.toLowerCase().includes(query) ||
-        item.description.toLowerCase().includes(query) ||
-        item.badge.toLowerCase().includes(query)
-    );
-  }, [searchQuery]);
+    let list = defaultHierarchyData.map((item, originalIndex) => ({
+      ...item,
+      displayCount: counts?.[item.slug] ?? counts?.[item.id] ?? item.count,
+      latestDate: latestDates?.[item.slug] ?? latestDates?.[item.id] ?? null,
+      originalIndex,
+    }));
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (item) =>
+          item.title.toLowerCase().includes(query) ||
+          item.description.toLowerCase().includes(query) ||
+          item.badge.toLowerCase().includes(query)
+      );
+    }
+
+    if (sortOrder === 'terbanyak') {
+      list.sort((a, b) => b.displayCount - a.displayCount);
+    } else if (sortOrder === 'paling_sedikit') {
+      list.sort((a, b) => a.displayCount - b.displayCount);
+    } else {
+      // Default (saat tidak ada di select/pilih): urutkan yang terakhir diperbaharui / ditambahkan
+      list.sort((a, b) => {
+        const timeA = a.latestDate ? new Date(a.latestDate).getTime() : 0;
+        const timeB = b.latestDate ? new Date(b.latestDate).getTime() : 0;
+        if (timeA !== timeB) {
+          return timeB - timeA;
+        }
+        return a.originalIndex - b.originalIndex;
+      });
+    }
+
+    return list;
+  }, [searchQuery, sortOrder, counts, latestDates]);
 
   return (
     <section className="w-full my-12 sm:my-16">
@@ -119,31 +160,83 @@ export function RegulasiHierarchySection({ counts }: RegulasiHierarchySectionPro
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari kategori hukum indonesia..."
-              className="w-full bg-white border border-neu-100 rounded-2xl py-2.5 pl-10 pr-4 text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none focus:ring-2 focus:ring-pr-900 shadow-2xs transition-all"
+              className="w-full bg-white border border-neu-100 hover:border-neu-300 rounded-2xl py-2.5 pl-10 pr-4 text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none focus:border-neu-300 focus:ring-2 focus:ring-neu-100 shadow-2xs transition-all"
             />
             <Search className="w-4 h-4 text-neu-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-neu-100 rounded-2xl text-xs font-semibold text-neu-700 hover:bg-neu-50 shadow-2xs transition-colors shrink-0 cursor-pointer"
-          >
-            <Filter className="w-3.5 h-3.5 text-neu-500" />
-            <span>Filter</span>
-          </button>
+          <div className="relative" ref={filterRef}>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border rounded-2xl text-xs font-semibold transition-colors shrink-0 cursor-pointer shadow-2xs focus:outline-none ${
+                sortOrder || isFilterOpen
+                  ? 'border-neu-300 text-pr-900 bg-pr-50/40'
+                  : 'border-neu-100 text-neu-700 hover:bg-neu-50 hover:border-neu-300'
+              }`}
+            >
+              <Filter className={`w-3.5 h-3.5 ${sortOrder ? 'text-pr-900' : 'text-neu-500'}`} />
+              <span>Filter</span>
+            </button>
+
+            {/* Dropdown Popover Filter Sesuai Screenshot */}
+            {isFilterOpen && (
+              <div className="absolute right-0 top-full mt-2 w-44 bg-white border border-neu-100 rounded-xl shadow-lg p-2 z-50 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-100">
+                {/* Option 1: Terbanyak */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSortOrder((curr) => (curr === 'terbanyak' ? null : 'terbanyak'));
+                  }}
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-neu-50 text-left transition-colors cursor-pointer w-full select-none"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-[4px] border flex items-center justify-center transition-colors shrink-0 ${
+                      sortOrder === 'terbanyak'
+                        ? 'bg-pr-900 border-pr-900 text-white'
+                        : 'border-neu-300 bg-white'
+                    }`}
+                  >
+                    {sortOrder === 'terbanyak' && <Check className="w-3 h-3 text-white stroke-[2.5]" />}
+                  </div>
+                  <span className="text-xs sm:text-[13px] text-neu-900 font-normal">Terbanyak</span>
+                </button>
+
+                {/* Option 2: Paling Sedikit */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSortOrder((curr) => (curr === 'paling_sedikit' ? null : 'paling_sedikit'));
+                  }}
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-neu-50 text-left transition-colors cursor-pointer w-full select-none"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-[4px] border flex items-center justify-center transition-colors shrink-0 ${
+                      sortOrder === 'paling_sedikit'
+                        ? 'bg-pr-900 border-pr-900 text-white'
+                        : 'border-neu-300 bg-white'
+                    }`}
+                  >
+                    {sortOrder === 'paling_sedikit' && <Check className="w-3 h-3 text-white stroke-[2.5]" />}
+                  </div>
+                  <span className="text-xs sm:text-[13px] text-neu-900 font-normal">Paling Sedikit</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ── 8 Cards Grid ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 xl:gap-[30px] gap-y-[28px]">
         {filteredCards.map((item) => {
-          const displayCount = counts?.[item.slug] ?? counts?.[item.id] ?? item.count;
+          const displayCount = item.displayCount;
 
           return (
             <Link
               key={item.id}
               href={`/kategori/${item.slug || item.id}`}
-              className="group relative w-full h-[280px] p-[5px] bg-white border border-[#E9E9E9] rounded-[20px] overflow-hidden shadow-2xs hover:shadow-md hover:border-pr-900/40 transition-all duration-300 block"
+              className="group relative w-full h-[280px] p-[5px] bg-white border border-neu-50 rounded-[20px] overflow-hidden shadow-2xs hover:shadow-md hover:border-pr-900/40 transition-all duration-300 block"
             >
               {/* Photo top rim */}
               <div className="absolute inset-x-[5px] top-[5px] h-[140px] rounded-t-[15px] overflow-hidden z-0">
