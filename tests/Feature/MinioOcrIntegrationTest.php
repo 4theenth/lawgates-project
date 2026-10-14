@@ -217,4 +217,58 @@ class MinioOcrIntegrationTest extends TestCase
         $this->assertEquals('Undang-Undang Baru yang Diperbarui', $updatedContent['metadata']['judul']);
         $this->assertEquals('Teks pasal baru dengan spasi rapi dan kata yang diperbaiki', $updatedContent['chunks'][0]['teks']);
     }
+
+    /**
+     * Test import Perda otomatis mengekstrak lokasi_daerah dan subjek baik dari Upload maupun MinIO
+     */
+    public function test_import_perda_extracts_lokasi_daerah_and_syncs_subjek()
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        JenisPeraturan::create(['kode' => 'PERDA', 'nama' => 'Peraturan Daerah']);
+        Status::create(['nama_status' => 'Berlaku']);
+
+        $minioFolderPath = 'documents/perda/peraturan-daerah-provinsi-bali-1-2010';
+        $jsonPayload = [
+            'metadata' => [
+                'standard_id' => 'peraturan-daerah-provinsi-bali-1-2010',
+                'tipe_peraturan' => 'Perda',
+                'judul' => 'Peraturan Daerah (Perda) Provinsi Bali Nomor 1 Tahun 2010',
+                'tahun' => '2010',
+                'tempat_penetapan' => 'Bali',
+                'pemrakarsa' => 'Pemerintah Provinsi Bali',
+                'subjek' => 'Pariwisata',
+                'status' => 'Berlaku',
+            ],
+            'chunks' => [
+                [
+                    'tipe' => 'PASAL',
+                    'label' => 'Pasal 1',
+                    'teks' => 'Ketentuan Umum...',
+                ]
+            ]
+        ];
+
+        Storage::disk('minio')->put($minioFolderPath . '/ocr.json', json_encode($jsonPayload));
+
+        $response = $this->actingAs($admin)
+            ->postJson('/admin/dokumen-hukum/minio/import', [
+                'folder_path' => $minioFolderPath
+            ]);
+
+        $response->assertStatus(200);
+
+        $peraturan = Peraturan::where('unique_id', 'peraturan-daerah-provinsi-bali-1-2010')->first();
+        $this->assertNotNull($peraturan);
+        $this->assertEquals('Pemerintah Provinsi Bali', $peraturan->lokasi_daerah);
+        $this->assertEquals('Pariwisata', $peraturan->subjek);
+
+        // Verifikasi master subjek_peraturan terbuat secara otomatis
+        $this->assertTrue(\App\Models\SubjekPeraturan::where('nama', 'Pariwisata')->exists());
+
+        // Verifikasi MinIO write-back juga menyertakan lokasi_daerah
+        $minioData = json_decode(Storage::disk('minio')->get($minioFolderPath . '/ocr.json'), true);
+        $this->assertArrayHasKey('lokasi_daerah', $minioData['metadata']);
+        $this->assertEquals('Pemerintah Provinsi Bali', $minioData['metadata']['lokasi_daerah']);
+    }
 }
+
