@@ -27,9 +27,9 @@ export function MapKabupatenFullListCard({
   }, [provinceData.regencies, searchQuery]);
 
   return (
-    <div className="w-full bg-white rounded-[16px] sm:rounded-[20px] border border-neu-100 sm:border-neu-50 p-3.5 sm:p-4 flex flex-col h-full max-h-[536px] shadow-sm sm:shadow-none animate-in fade-in duration-150">
+    <div className="w-full bg-white rounded-[16px] sm:rounded-[20px] border border-neu-100 sm:border-neu-50 p-3.5 sm:p-4 flex flex-col h-[460px] sm:h-[500px] lg:h-auto lg:flex-1 min-h-0 shadow-sm sm:shadow-none animate-in fade-in duration-150">
       {/* 1. Header: Tombol Kembali Sesuai Figma node #2595:56765 */}
-      <div className="pb-1 border-b border-neu-50/60">
+      <div className="pb-1 border-b border-neu-50/60 shrink-0">
         <button
           type="button"
           onClick={onBack}
