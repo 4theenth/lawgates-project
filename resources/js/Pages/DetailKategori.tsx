@@ -30,6 +30,7 @@ interface DetailKategoriProps {
     keyword?: string;
     status_id?: string;
     tahun?: string;
+    subjek?: string;
     sort?: string;
     per_page?: number;
   };
@@ -46,6 +47,9 @@ export default function DetailKategori({
   const [searchQuery, setSearchQuery] = useState(filters.keyword || '');
   const [selectedStatus, setSelectedStatus] = useState<string[]>(
     filters.status_id ? filters.status_id.split(',').filter(Boolean) : []
+  );
+  const [selectedSubjek, setSelectedSubjek] = useState<string[]>(
+    filters.subjek ? filters.subjek.split(',').filter(Boolean) : []
   );
 
   // ── Tahun rentang ──
@@ -86,6 +90,12 @@ export default function DetailKategori({
       String(currentYear - 6),
     ])
   ).sort((a, b) => Number(b) - Number(a));
+
+  // ── Opsi Subjek ──
+  const subjekOptions: FilterOption[] = (referensi.subjek || []).map((s) => {
+    if (typeof s === 'string') return { value: s, label: s };
+    return { value: s.nama, label: s.nama };
+  });
 
   const applyFilters = (newParams: Record<string, string | number>) => {
     const params: Record<string, string | number> = {
@@ -144,6 +154,12 @@ export default function DetailKategori({
       params.status_id = '';
     }
 
+    if (selectedSubjek.length > 0) {
+      params.subjek = selectedSubjek.join(',');
+    } else {
+      params.subjek = '';
+    }
+
     if (tahunDari && tahunSampai) {
       params.tahun = `${tahunDari}-${tahunSampai}`;
     } else if (tahunDari) {
@@ -160,6 +176,7 @@ export default function DetailKategori({
   const handleResetFilter = () => {
     setSearchQuery('');
     setSelectedStatus([]);
+    setSelectedSubjek([]);
     setTahunDari('');
     setTahunSampai('');
 
@@ -188,7 +205,8 @@ export default function DetailKategori({
     (filters.keyword && filters.keyword.trim().length > 0) ||
       searchQuery.trim().length > 0 ||
       filters.status_id ||
-      filters.tahun
+      filters.tahun ||
+      filters.subjek
   );
 
   const isSearchNotFound =
@@ -205,7 +223,6 @@ export default function DetailKategori({
           <Breadcrumb
             items={[
               { label: 'Beranda', href: '/' },
-              { label: 'Regulasi', href: '/regulasi' },
               { label: kategori.nama },
             ]}
             className="mb-4 sm:mb-6 text-xs text-neu-500"
@@ -237,6 +254,10 @@ export default function DetailKategori({
             setTahunSampai={setTahunSampai}
             statusOptions={statusOptions}
             availableYears={availableYears}
+            showSubjek={true}
+            selectedSubjek={selectedSubjek}
+            setSelectedSubjek={setSelectedSubjek}
+            subjekOptions={subjekOptions}
             onApply={handleApplyFilter}
             onReset={handleResetFilter}
           />
