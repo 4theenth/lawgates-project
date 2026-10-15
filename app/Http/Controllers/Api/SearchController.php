@@ -76,9 +76,27 @@ class SearchController extends Controller
             $q->whereIn('status_id', $ids);
         });
 
-        // 5. Filter Lokasi Daerah
+        // 5. Filter Lokasi Daerah (Mendukung Provinsi & Kabupaten)
         $query->when($request->filled('lokasi_daerah'), function ($q) use ($request) {
-            $q->where('lokasi_daerah', 'ilike', '%' . trim($request->lokasi_daerah) . '%');
+            $lokasiList = is_array($request->lokasi_daerah)
+                ? $request->lokasi_daerah
+                : explode(',', $request->lokasi_daerah);
+
+            $q->where(function ($subQ) use ($lokasiList) {
+                foreach ($lokasiList as $item) {
+                    $trimmed = trim($item);
+                    if ($trimmed === '') continue;
+
+                    // Hilangkan prefix umum (misal: "Pemerintah Provinsi", "Pemerintah Kabupaten", "Kabupaten", "Kota")
+                    $clean = preg_replace('/^(pemerintah\s+provinsi|pemerintah\s+kabupaten|pemerintah\s+kota|pemerintah\s+daerah|kabupaten|kota)\s+/i', '', $trimmed);
+                    $clean = trim($clean);
+
+                    $subQ->orWhere('lokasi_daerah', 'ilike', '%' . $trimmed . '%')
+                         ->orWhere('lokasi_daerah', 'ilike', '%' . $clean . '%')
+                         ->orWhere('tempat_penetapan', 'ilike', '%' . $clean . '%')
+                         ->orWhere('judul', 'ilike', '%' . $clean . '%');
+                }
+            });
         });
 
         // 5.5. Filter Subjek

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Peraturan;
 use App\Models\JenisPeraturan;
+use App\Models\SubjekPeraturan;
 use App\Models\Status;
 use App\Services\DocumentStorageService;
 use Illuminate\Http\Request;
@@ -302,8 +303,8 @@ class PeraturanController extends Controller
     // Fungsi baru untuk mengambil data filter secara dinamis
     public function referensiFilter()
     {
-        // 1. Ambil Jenis Peraturan (Kategori) yang ID-nya benar-benar ada di tabel peraturan sah
-        $kategori = JenisPeraturan::whereIn('id', Peraturan::available()->select('jenis_peraturan_id')->distinct())
+        // 1. Ambil seluruh Jenis Peraturan (Kategori) dari panel admin
+        $kategori = JenisPeraturan::orderBy('nama', 'asc')
             ->get()
             ->groupBy('nama')
             ->map(function ($items, $nama) {
@@ -341,15 +342,21 @@ class PeraturanController extends Controller
             ->orderBy('lokasi_daerah', 'asc')
             ->pluck('lokasi_daerah');
 
-        // 5. Ambil Subjek yang unik
+        // 5. Ambil Subjek dari master tabel subjek_peraturan (panel admin) & digabung dengan subjek di tabel peraturan
+        $adminSubjek = SubjekPeraturan::pluck('nama');
         $rawSubjek = Peraturan::select('subjek')
             ->whereNotNull('subjek')
             ->where('subjek', '!=', '')
             ->distinct()
             ->pluck('subjek');
 
-        // Do not split the subject string, keep it exactly as provided in the data
         $subjekList = collect();
+        foreach ($adminSubjek as $s) {
+            $trimmed = trim($s);
+            if (!empty($trimmed)) {
+                $subjekList->push($trimmed);
+            }
+        }
         foreach ($rawSubjek as $subjekStr) {
             $trimmed = trim($subjekStr);
             if (!empty($trimmed)) {
