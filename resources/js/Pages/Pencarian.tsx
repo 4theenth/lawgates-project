@@ -12,6 +12,7 @@ import { SearchInput } from '@/Components/common/SearchInput';
 import { CategoryFilterPopover } from '@/Components/kategori/CategoryFilterPopover';
 import { FilterOption } from '@/types/peraturan';
 import { SearchSortBar } from '@/Components/search/SearchSortBar';
+import { getRegenciesForProvince, extractProvinceName } from '@/Components/landing/map/regencyData';
 import {
   Search,
   Filter,
@@ -52,6 +53,7 @@ export default function Pencarian() {
   const [isResetSpinning, setIsResetSpinning] = useState(false);
 
   const [lokasiSearchQuery, setLokasiSearchQuery] = useState('');
+  const [expandedProvinces, setExpandedProvinces] = useState<Record<string, boolean>>({});
   const [subjekSearchQuery, setSubjekSearchQuery] = useState('');
 
   // State referensi dropdown
@@ -488,8 +490,21 @@ export default function Pencarian() {
     lokasiLabel = `${selectedLokasi.length} Daerah`;
   }
 
-  const filteredLokasi = listLokasi
-    .filter(l => l.toLowerCase().includes(lokasiSearchQuery.toLowerCase()))
+  const baseLokasiList = listLokasi.length > 0
+    ? listLokasi
+    : ['Pemerintah Provinsi Bali', 'Pemerintah Provinsi Nusa Tenggara Timur'];
+
+  const filteredLokasi = baseLokasiList
+    .filter((l: string) => {
+      const q = lokasiSearchQuery.toLowerCase().trim();
+      if (!q) return true;
+      if (l.toLowerCase().includes(q)) return true;
+      const { key, name } = extractProvinceName(l);
+      const regData = getRegenciesForProvince(key, name);
+      return regData.regencies.some(
+        (r) => r.name.toLowerCase().includes(q) || `${r.type} ${r.name}`.toLowerCase().includes(q)
+      );
+    })
     .sort((a, b) => {
       const aSelected = selectedLokasi.includes(a);
       const bSelected = selectedLokasi.includes(b);
@@ -615,7 +630,7 @@ export default function Pencarian() {
 
                     {/* Floating Dropdown Kategori (Menimpa di atas tanpa menggeser tombol TERAPKAN dan input lain) */}
                     {activeDropdown === 'kategori' && (
-                      <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-gray-200 rounded-xl p-3 space-y-2.5 shadow-2xl z-50 max-h-60 overflow-y-auto custom-scrollbar">
+                      <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-gray-200 rounded-xl p-3 space-y-2.5 shadow-2xl z-50 max-h-80 overflow-y-auto no-scrollbar">
                         {kategoriOptions.map((item) => {
                           const isChecked = selectedKategori.includes(item.value);
                           const isPerdaItem = item.label.toLowerCase().includes('perda') || item.label.toLowerCase().includes('peraturan daerah');
@@ -645,7 +660,7 @@ export default function Pencarian() {
                               </button>
 
                               {isPerdaItem && isChecked && (
-                                <div className="pl-[30px] pr-1 pb-1 flex flex-col gap-2">
+                                <div className="pl-6 pr-1 pb-1 flex flex-col gap-2 border-l-2 border-gray-100 ml-2.5 my-1">
                                   <div className="relative">
                                     <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                     <input
@@ -653,11 +668,11 @@ export default function Pencarian() {
                                       value={lokasiSearchQuery}
                                       onChange={(e) => setLokasiSearchQuery(e.target.value)}
                                       onClick={(e) => e.stopPropagation()}
-                                      placeholder="Cari daerah..."
+                                      placeholder="Cari provinsi / kabupaten..."
                                       className="w-full pl-9 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-pr-900 focus:bg-white transition-all"
                                     />
                                   </div>
-                                  <div className="max-h-40 overflow-y-auto space-y-1 custom-scrollbar pr-1">
+                                  <div className="max-h-48 overflow-y-auto space-y-1 no-scrollbar">
                                     {filteredLokasi.length === 0 ? (
                                       <div className="text-center py-2 text-xs text-gray-400">
                                         Daerah tidak ditemukan
@@ -665,31 +680,120 @@ export default function Pencarian() {
                                     ) : (
                                       filteredLokasi.map((lokasi) => {
                                         const isLokasiChecked = selectedLokasi.includes(lokasi);
+                                        const { key: provKey, name: provName } = extractProvinceName(lokasi);
+                                        const regData = getRegenciesForProvince(provKey, provName);
+
+                                        const q = lokasiSearchQuery.toLowerCase().trim();
+                                        const hasMatchingRegency = q.length > 0 && regData.regencies.some(
+                                          (r) => r.name.toLowerCase().includes(q) || `${r.type} ${r.name}`.toLowerCase().includes(q)
+                                        );
+                                        const isExpanded = expandedProvinces[lokasi] || hasMatchingRegency;
+                                        const matchingRegencies = q.length > 0
+                                          ? regData.regencies.filter(
+                                              (r) => r.name.toLowerCase().includes(q) || `${r.type} ${r.name}`.toLowerCase().includes(q) || lokasi.toLowerCase().includes(q)
+                                            )
+                                          : regData.regencies;
+
+                                        const checkedRegCount = regData.regencies.filter((r) =>
+                                          selectedLokasi.includes(`${r.type} ${r.name}`)
+                                        ).length;
+
                                         return (
-                                          <label
-                                            key={lokasi}
-                                            className="flex items-start gap-2.5 cursor-pointer group py-1"
-                                            onClick={(e) => {
-                                              e.preventDefault();
-                                              setSelectedLokasi((prev) =>
-                                                prev.includes(lokasi)
-                                                  ? prev.filter((v) => v !== lokasi)
-                                                  : [...prev, lokasi]
-                                              );
-                                            }}
-                                          >
-                                            <div
-                                              className={`w-[14px] h-[14px] mt-0.5 rounded-[3px] border flex items-center justify-center shrink-0 transition-colors ${isLokasiChecked
-                                                ? 'bg-[#0B1A3A] border-[#0B1A3A] text-white'
-                                                : 'border-gray-300 bg-white group-hover:border-gray-400'
-                                                }`}
-                                            >
-                                              {isLokasiChecked && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
+                                          <div key={lokasi} className="flex flex-col">
+                                            <div className="flex items-center justify-between gap-1 group py-1 px-1 rounded hover:bg-gray-50">
+                                              <label
+                                                className="flex items-start gap-2.5 cursor-pointer flex-1 min-w-0"
+                                                onClick={(e) => {
+                                                  e.preventDefault();
+                                                  setSelectedLokasi((prev) =>
+                                                    prev.includes(lokasi)
+                                                      ? prev.filter((v) => v !== lokasi)
+                                                      : [...prev, lokasi]
+                                                  );
+                                                }}
+                                              >
+                                                <div
+                                                  className={`w-[14px] h-[14px] mt-0.5 rounded-[3px] border flex items-center justify-center shrink-0 transition-colors ${
+                                                    isLokasiChecked
+                                                      ? 'bg-[#0B1A3A] border-[#0B1A3A] text-white'
+                                                      : 'border-gray-300 bg-white group-hover:border-gray-400'
+                                                  }`}
+                                                >
+                                                  {isLokasiChecked && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
+                                                </div>
+                                                <span className="text-xs text-gray-700 leading-[1.4] break-words flex-1 select-none">
+                                                  {lokasi}
+                                                </span>
+                                              </label>
+
+                                              {/* Dropdown toggle untuk Kabupaten/Kota */}
+                                              {regData.regencies.length > 0 && (
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setExpandedProvinces((prev) => ({
+                                                      ...prev,
+                                                      [lokasi]: !prev[lokasi],
+                                                    }));
+                                                  }}
+                                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-gray-500 hover:text-pr-900 hover:bg-gray-100 transition-colors shrink-0"
+                                                  title="Buka daftar Kabupaten/Kota"
+                                                >
+                                                  {checkedRegCount > 0 ? (
+                                                    <span className="text-[9px] font-semibold text-pr-900 bg-pr-100 px-1 py-0.2 rounded">
+                                                      {checkedRegCount} dipilih
+                                                    </span>
+                                                  ) : (
+                                                    <span className="text-[9px] text-gray-400 hidden sm:inline">
+                                                      {regData.regencies.length} Kab/Kota
+                                                    </span>
+                                                  )}
+                                                  <ChevronDown
+                                                    className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180 text-pr-900' : ''}`}
+                                                  />
+                                                </button>
+                                              )}
                                             </div>
-                                            <span className="text-xs text-gray-600 leading-[1.4] break-words flex-1 select-none">
-                                              {lokasi}
-                                            </span>
-                                          </label>
+
+                                            {/* Sub-list Kabupaten/Kota */}
+                                            {isExpanded && matchingRegencies.length > 0 && (
+                                              <div className="ml-5 pl-2 my-0.5 space-y-0.5 border-l border-gray-200 animate-in fade-in duration-150">
+                                                {matchingRegencies.map((reg) => {
+                                                  const regValue = `${reg.type} ${reg.name}`;
+                                                  const isRegChecked = selectedLokasi.includes(regValue);
+                                                  return (
+                                                    <label
+                                                      key={reg.id || reg.name}
+                                                      className="flex items-start gap-2 cursor-pointer group px-1 py-0.5 rounded hover:bg-gray-50"
+                                                      onClick={(e) => {
+                                                        e.preventDefault();
+                                                        setSelectedLokasi((prev) =>
+                                                          prev.includes(regValue)
+                                                            ? prev.filter((v) => v !== regValue)
+                                                            : [...prev, regValue]
+                                                        );
+                                                      }}
+                                                    >
+                                                      <div
+                                                        className={`w-[13px] h-[13px] mt-0.5 rounded-[2.5px] border flex items-center justify-center shrink-0 transition-colors ${
+                                                          isRegChecked
+                                                            ? 'bg-[#0B1A3A] border-[#0B1A3A] text-white'
+                                                            : 'border-gray-300 bg-white group-hover:border-gray-400'
+                                                        }`}
+                                                      >
+                                                        {isRegChecked && <Check className="w-2 h-2 text-white stroke-[3]" />}
+                                                      </div>
+                                                      <span className="text-[11px] text-gray-600 truncate select-none">
+                                                        {reg.type} {reg.name}
+                                                      </span>
+                                                    </label>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+                                          </div>
                                         );
                                       })
                                     )}
@@ -850,7 +954,7 @@ export default function Pencarian() {
 
                     {/* Floating Dropdown Status (Menimpa di atas tombol TERAPKAN - tombol TERAPKAN tidak bergeser) */}
                     {activeDropdown === 'status' && (
-                      <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-gray-200 rounded-xl p-3 space-y-2.5 shadow-2xl z-50 max-h-60 overflow-y-auto custom-scrollbar">
+                      <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-gray-200 rounded-xl p-3 space-y-2.5 shadow-2xl z-50 max-h-60 overflow-y-auto no-scrollbar">
                         {statusOptions.map((item) => {
                           const isChecked = selectedStatus.includes(item.value);
                           return (
