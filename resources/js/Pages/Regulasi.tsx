@@ -30,6 +30,7 @@ interface FilterReferences {
 
 interface RegulasiProps {
   categoryCounts?: Record<string, number>;
+  categoryLatestDates?: Record<string, string | null>;
   dailyStats?: DailyStats;
   heroStats?: HeroStats;
   filterReferences?: FilterReferences;
@@ -37,6 +38,7 @@ interface RegulasiProps {
 
 export default function Regulasi({
   categoryCounts,
+  categoryLatestDates,
   dailyStats,
   heroStats,
   filterReferences,
@@ -61,7 +63,7 @@ export default function Regulasi({
 
         {/* 2. Peta Hukum Indonesia (Di atas background default #F8F9FA) */}
         <div className="w-full max-w-[1240px] mx-auto px-4 sm:px-6 mt-12 sm:mt-16">
-          <IndonesiaLegalMap />
+          <IndonesiaLegalMap variant="regulasi" />
         </div>
 
         {/* 3. Sistem Hukum Terbaru (Frame warna putih background: #FFF sesuai Figma #2358:57719) */}
@@ -76,7 +78,10 @@ export default function Regulasi({
 
         {/* 4. Statistik Peraturan (Hierarki Peraturan Indonesia) */}
         <div className="w-full max-w-[1240px] mx-auto px-4 sm:px-6 mt-14 sm:mt-20">
-          <RegulasiHierarchySection counts={categoryCounts} />
+          <RegulasiHierarchySection
+            counts={categoryCounts}
+            latestDates={categoryLatestDates}
+          />
         </div>
       </div>
     </PublicLayout>

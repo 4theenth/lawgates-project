@@ -188,6 +188,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     // Users & Team Management Routes
     Route::get('/team', [TeamController::class, 'index'])->name('admin.team');
     Route::get('/users/tim', [TeamController::class, 'index'])->name('admin.users.tim');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('admin.profile');
 });
 
 /*
@@ -199,6 +200,8 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
+    Route::delete('/profile/avatar', [ProfileController::class, 'deleteAvatar'])->name('profile.avatar.delete');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 

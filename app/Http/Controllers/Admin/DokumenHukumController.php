@@ -906,16 +906,31 @@ class DokumenHukumController extends Controller
         }
         if (isset($data['metadata']['pemrakarsa'])) {
             $peraturan->instansi = $data['metadata']['pemrakarsa'];
-            // Fill lokasi_daerah default using pemrakarsa if not set
-            if (empty($peraturan->lokasi_daerah)) {
-                $peraturan->lokasi_daerah = $data['metadata']['pemrakarsa'];
+            // Fill lokasi_daerah default using pemrakarsa if not set and not Pemerintah Pusat
+            if (empty($peraturan->lokasi_daerah) && strtolower(trim($data['metadata']['pemrakarsa'])) !== 'pemerintah pusat') {
+                $peraturan->lokasi_daerah = trim($data['metadata']['pemrakarsa']);
             }
         }
         if (isset($data['metadata']['lokasiDaerah'])) {
             $peraturan->lokasi_daerah = $data['metadata']['lokasiDaerah'];
         }
+        if (isset($data['metadata']['lokasi_daerah'])) {
+            $peraturan->lokasi_daerah = $data['metadata']['lokasi_daerah'];
+        }
+        if (isset($data['lokasiDaerah'])) {
+            $peraturan->lokasi_daerah = $data['lokasiDaerah'];
+        }
+        if (isset($data['lokasi_daerah'])) {
+            $peraturan->lokasi_daerah = $data['lokasi_daerah'];
+        }
         if (isset($data['metadata']['subjek'])) {
             $peraturan->subjek = $data['metadata']['subjek'];
+            if ($peraturan->subjek && class_exists(\App\Models\SubjekPeraturan::class)) {
+                \App\Models\SubjekPeraturan::firstOrCreate(
+                    ['nama' => trim($peraturan->subjek)],
+                    ['is_active' => true]
+                );
+            }
         }
         if (isset($data['status'])) {
             $statusInput = strtolower($data['status']);
@@ -1321,6 +1336,9 @@ class DokumenHukumController extends Controller
                 $peraturan->update([
                     'file_pdf_path' => $folderPath . '/document.pdf'
                 ]);
+                if (!empty($peraturan->lokasi_daerah)) {
+                    $parsedData['metadata']['lokasi_daerah'] = $peraturan->lokasi_daerah;
+                }
                 // AC 3: MinIO Write-Back Sync
                 $this->writeBackToMinio($folderPath . '/ocr.json', $parsedData);
             }
@@ -1602,9 +1620,21 @@ class DokumenHukumController extends Controller
             if (isset($data['metadata']['pemrakarsa'])) {
                 $metadata['pemrakarsa'] = $data['metadata']['pemrakarsa'];
                 $metadata['instansi'] = $data['metadata']['pemrakarsa'];
+                if (empty($metadata['lokasi_daerah']) && strtolower(trim($data['metadata']['pemrakarsa'])) !== 'pemerintah pusat') {
+                    $metadata['lokasi_daerah'] = trim($data['metadata']['pemrakarsa']);
+                }
             }
             if (isset($data['metadata']['lokasiDaerah'])) {
                 $metadata['lokasi_daerah'] = $data['metadata']['lokasiDaerah'];
+            }
+            if (isset($data['metadata']['lokasi_daerah'])) {
+                $metadata['lokasi_daerah'] = $data['metadata']['lokasi_daerah'];
+            }
+            if (isset($data['lokasiDaerah'])) {
+                $metadata['lokasi_daerah'] = $data['lokasiDaerah'];
+            }
+            if (isset($data['lokasi_daerah'])) {
+                $metadata['lokasi_daerah'] = $data['lokasi_daerah'];
             }
             if (isset($data['metadata']['subjek'])) {
                 $metadata['subjek'] = $data['metadata']['subjek'];

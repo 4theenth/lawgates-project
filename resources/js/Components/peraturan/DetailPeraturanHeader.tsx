@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from '@inertiajs/react';
-import { Calendar, MapPin, ArrowRightLeft, Download, Check, Copy, Share2 } from 'lucide-react';
+import { Calendar, MapPin, ArrowRightLeft, Download, Check, Copy, Bookmark, CheckCircle2, XCircle } from 'lucide-react';
 import { Breadcrumb } from '@/Components/common/Breadcrumb';
 import { useAuthModal } from '@/hooks/useAuthModal';
 
@@ -17,6 +17,8 @@ export interface DetailPeraturanHeaderProps {
   downloadHref?: string;
   viewerHref?: string;
   showCompare?: boolean;
+  isBookmarked?: boolean;
+  onBookmarkToggle?: () => void;
 }
 
 export function DetailPeraturanHeader({
@@ -36,9 +38,22 @@ export function DetailPeraturanHeader({
   downloadHref,
   viewerHref,
   showCompare = true,
+  isBookmarked: externalBookmarked,
+  onBookmarkToggle,
 }: DetailPeraturanHeaderProps) {
   const { requireAuth } = useAuthModal();
   const [isLinkCopied, setIsLinkCopied] = useState(false);
+  const [internalBookmarked, setInternalBookmarked] = useState(false);
+
+  const isBookmarked = externalBookmarked !== undefined ? externalBookmarked : internalBookmarked;
+
+  const handleBookmarkToggle = () => {
+    if (onBookmarkToggle) {
+      onBookmarkToggle();
+    } else {
+      setInternalBookmarked((prev) => !prev);
+    }
+  };
 
   const isBerlaku =
     !statusPeraturan.toLowerCase().includes('tidak') &&
@@ -64,17 +79,15 @@ export function DetailPeraturanHeader({
           <span className="text-neu-400">•</span>
           {instansi}
         </span>
-      </div>
-
-      {/* 3. Judul Dokumen Hukum & Action Buttons Row */}
+      </div>      {/* 3. Judul Dokumen Hukum & Action Buttons Row Sesuai Figma node #97:286 */}
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6 pt-1">
         <h1 className="text-[20px] sm:text-[22px] lg:text-[24px] font-bold text-neu-900 leading-[1.3] tracking-tight flex-1 min-w-0">
           {judul}
         </h1>
 
-        {/* Action Buttons */}
+        {/* Action Buttons Row: Salin Link, Bandingkan, Download Dokumen */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 self-start flex-wrap">
-          {/* Tombol Salin Link (Lebar tetap terkunci min-w-[125px] agar tidak goyang) */}
+          {/* Tombol Salin Link */}
           <button
             type="button"
             onClick={handleCopyLink}
@@ -83,17 +96,6 @@ export function DetailPeraturanHeader({
           >
             {isLinkCopied ? <Check className="w-3.5 h-3.5 text-suc-900" /> : <Copy className="w-3.5 h-3.5 text-neu-500" />}
             <span>{isLinkCopied ? 'Link Tersalin!' : 'Salin Link'}</span>
-          </button>
-
-          {/* Tombol Bagikan (Dinonaktifkan / Segera Hadir) */}
-          <button
-            type="button"
-            disabled
-            title="Fitur bagikan segera hadir"
-            className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full bg-neu-50 text-neu-400 text-xs sm:text-sm font-semibold border border-neu-200 opacity-60 cursor-not-allowed select-none"
-          >
-            <Share2 className="w-3.5 h-3.5 text-neu-400" />
-            <span>Bagikan</span>
           </button>
 
           {/* Tombol Bandingkan */}
@@ -108,7 +110,7 @@ export function DetailPeraturanHeader({
             </button>
           )}
 
-          {/* Tombol Download / Lihat Dokumen */}
+          {/* Tombol Download Dokumen */}
           {downloadHref ? (
             <Link
               href={downloadHref}
@@ -124,35 +126,67 @@ export function DetailPeraturanHeader({
               className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-pr-900 hover:bg-pr-800 text-white text-sm font-semibold transition-all cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-white stroke-[2]" />
-              <span>Download</span>
+              <span>Download Dokumen</span>
             </button>
           ) : null}
         </div>
       </div>
 
-      {/* 4. Badges Status & Tanggal Row */}
-      <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 pt-1">
-        {/* Status Badge */}
-        <div
-          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isBerlaku
-            ? 'bg-suc-50 text-suc-900 border border-suc-200'
-            : 'bg-dan-50 text-dan-900 border border-dan-200'
+      {/* 4. Badges Status, Penetapan & Tombol Simpan Sejajar Sesuai Figma node #2174:39521 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
+        {/* Sisi Kiri: Status, Tanggal Ditetapkan & Tempat Penetapan (Neu Blok) */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+          {/* Status Badge */}
+          <div
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+              isBerlaku
+                ? 'bg-suc-100 text-suc-900'
+                : 'bg-dan-50 text-dan-900 border border-dan-200'
             }`}
-        >
-          {isBerlaku && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
-          <span>{statusPeraturan}</span>
+          >
+            {isBerlaku ? (
+              <CheckCircle2 className="w-4 h-4 text-suc-900 stroke-[2]" />
+            ) : (
+              <XCircle className="w-4 h-4 text-dan-700 stroke-[2]" />
+            )}
+            <span>{statusPeraturan}</span>
+          </div>
+
+          {/* Tanggal Penetapan - Neu Blok */}
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-neu-50 text-neu-800 text-xs font-medium">
+            <Calendar className="w-4 h-4 text-neu-600" />
+            <span>Ditetapkan: {tanggalPenetapan || '-'}</span>
+          </div>
+
+          {/* Tempat Penetapan - Neu Blok */}
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-neu-50 text-neu-800 text-xs font-medium">
+            <MapPin className="w-4 h-4 text-neu-600" />
+            <span>Tempat Penetapan : {tempatPenetapan || '-'}</span>
+          </div>
         </div>
 
-        {/* Tanggal Penetapan */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-neu-200 bg-white text-neu-700 text-xs font-medium">
-          <Calendar className="w-3.5 h-3.5 text-neu-400" />
-          <span>Ditetapkan: {tanggalPenetapan || '-'}</span>
-        </div>
-
-        {/* Tempat Penetapan */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-neu-200 bg-white text-neu-700 text-xs font-medium">
-          <MapPin className="w-3.5 h-3.5 text-neu-400" />
-          <span>Tempat Penetapan : {tempatPenetapan || '-'}</span>
+        {/* Sisi Kanan: Tombol Simpan (Bookmark) sejajar horizontal dengan badges, di bawah Download Dokumen */}
+        <div className="shrink-0 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={handleBookmarkToggle}
+            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer ${
+              isBookmarked
+                ? 'bg-pr-100 text-pr-900 border border-pr-200 font-semibold'
+                : 'bg-pr-50 hover:bg-pr-100 text-pr-900'
+            }`}
+            title={isBookmarked ? 'Hapus dari daftar simpan' : 'Simpan peraturan'}
+            aria-label="Simpan peraturan"
+          >
+            <Bookmark
+              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
+                isBookmarked
+                  ? 'fill-pr-900 text-pr-900'
+                  : 'text-pr-900 stroke-[1.75]'
+              }`}
+            />
+            <span>{isBookmarked ? 'Tersimpan' : 'Simpan'}</span>
+          </button>
         </div>
       </div>
     </div>

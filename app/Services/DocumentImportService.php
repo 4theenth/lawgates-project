@@ -14,6 +14,7 @@ use App\Models\PerubahanType;
 use App\Models\PasalPerubahan;
 use App\Models\StrukturDokumen; 
 use App\Models\PenjelasanPasal; 
+use App\Models\SubjekPeraturan;
 
 class DocumentImportService
 {
@@ -130,6 +131,31 @@ class DocumentImportService
             $docFolder = $metadata['standard_id'] ?? $idDokumen;
             $pdfPath = "documents/{$tipeFolder}/{$docFolder}/document.pdf";
 
+            // Tentukan lokasi_daerah:
+            // 1. Cek dari field metadata eksplisit (lokasi_daerah atau lokasiDaerah)
+            // 2. Jika tidak ada dan pemrakarsa bukan 'Pemerintah Pusat', gunakan pemrakarsa
+            // 3. Jika masih kosong dan jenis/tipe adalah Perda, gunakan tempat_penetapan sebagai fallback
+            $lokasiDaerah = $metadata['lokasi_daerah'] ?? $metadata['lokasiDaerah'] ?? null;
+            if (!$lokasiDaerah && !empty($metadata['pemrakarsa']) && strtolower(trim($metadata['pemrakarsa'])) !== 'pemerintah pusat') {
+                $lokasiDaerah = trim($metadata['pemrakarsa']);
+            }
+            $isPerda = str_contains(strtolower($tipePeraturan ?? ''), 'perda')
+                || str_contains(strtolower($tipePeraturan ?? ''), 'daerah')
+                || str_contains(strtolower($jenis->nama ?? ''), 'perda')
+                || str_contains(strtolower($jenis->nama ?? ''), 'daerah');
+            if (!$lokasiDaerah && $isPerda && !empty($metadata['tempat_penetapan'])) {
+                $lokasiDaerah = trim($metadata['tempat_penetapan']);
+            }
+
+            // Sync master subjek_peraturan jika field subjek tersedia
+            $subjekNama = $metadata['subjek'] ?? null;
+            if ($subjekNama) {
+                SubjekPeraturan::firstOrCreate(
+                    ['nama' => trim($subjekNama)],
+                    ['is_active' => true]
+                );
+            }
+
             $attributes = [
                 'unique_id'            => $idDokumen,
                 'judul'                => $judul,
@@ -142,8 +168,9 @@ class DocumentImportService
                 'tanggal_pengundangan' => $this->formatTanggal($metadata['tanggal_pengundangan'] ?? null),
                 'tanggal_berlaku'      => $this->formatTanggal($metadata['tanggal_berlaku'] ?? null),
                 'instansi'             => $metadata['pemrakarsa'] ?? null,
+                'lokasi_daerah'        => $lokasiDaerah,
                 'url_pdf'              => $metadata['sumber_dokumen'] ?? null,
-                'subjek'               => $metadata['subjek'] ?? null,
+                'subjek'               => $subjekNama,
                 'file_pdf_path'        => $pdfPath,
             ];
 

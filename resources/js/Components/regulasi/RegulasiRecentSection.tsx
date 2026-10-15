@@ -224,7 +224,7 @@ export function RegulasiRecentSection({
       >
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
           {/* Dropdown Filters (Kategori, Subjek, Tahun, Status) */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 flex-1">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 shrink-0">
             {/* 1. Dropdown Kategori */}
             <div className="relative min-w-[140px] sm:min-w-[150px] flex-1 sm:flex-initial">
               <label className="block text-[12px] font-normal text-neu-600 mb-1.5">
@@ -489,8 +489,8 @@ export function RegulasiRecentSection({
             )}
           </div>
 
-          {/* Search Input Box (Figma: width 301, height 48, radius 20) */}
-          <div className="relative w-full lg:w-[301px] shrink-0">
+          {/* Search Input Box (Melebar ke kiri mengisi ruang kosong) */}
+          <div className="relative w-full lg:flex-1 shrink-0 min-w-[260px]">
             <input
               type="text"
               value={keyword}
@@ -499,7 +499,7 @@ export function RegulasiRecentSection({
                 setCurrentPage(1);
               }}
               placeholder="Cari peraturan..."
-              className="w-full h-[48px] bg-white border border-neu-100 rounded-[20px] py-2 pl-11 pr-4 text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none focus:ring-2 focus:ring-pr-900 shadow-2xs transition-all"
+              className="w-full h-[48px] bg-white border border-neu-100 hover:border-neu-300 rounded-[20px] py-2 pl-11 pr-4 text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none focus:border-neu-300 focus:ring-2 focus:ring-neu-100 shadow-2xs transition-all"
             />
             <Search className="w-4 h-4 text-neu-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -557,7 +557,7 @@ export function RegulasiRecentSection({
         </div>
 
         {/* ── Right Column: Statistik Harian Sidebar (Figma node #2358:57903) ── */}
-        <div className="lg:col-span-4 sticky top-24">
+        <div className="lg:col-span-4">
           <div className="bg-white border border-neu-100 rounded-[15px] p-4 sm:p-5 shadow-2xs flex flex-col gap-3.5">
             <h3 className="text-[14px] font-medium text-neu-900">
               Statistik Harian

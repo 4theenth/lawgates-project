@@ -2,6 +2,7 @@ import React from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
+import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
 import { StatCard } from '@/Components/admin/StatCard';
 import { RevenueTrendChart } from '@/Components/admin/RevenueTrendChart';
 import { SubscriptionDonutChart } from '@/Components/admin/SubscriptionDonutChart';
@@ -23,17 +24,11 @@ export default function AdminDashboard() {
         <Breadcrumb items={breadcrumbs} />
       </div>
 
-      {/* 2. Page Header Sesuai Figma */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-sans text-[20px] font-semibold leading-[26px] text-neu-900 tracking-tight">
-            Selamat datang, Super Admin
-          </h1>
-          <p className="font-sans text-[14px] font-normal leading-[20px] text-neu-600 mt-1">
-            Berikut adalah ringkasan performa bulanan LawGates
-          </p>
-        </div>
-      </div>
+      {/* 2. Page Header Menggunakan Reusable Component AdminPageHeader */}
+      <AdminPageHeader
+        title="Selamat datang, Super Admin"
+        description="Berikut adalah ringkasan performa bulanan LawGates"
+      />
 
       {/* 3. Baris 1: 4 Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-6">
