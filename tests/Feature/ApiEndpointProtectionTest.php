@@ -43,4 +43,71 @@ class ApiEndpointProtectionTest extends TestCase
         $response->assertStatus(200);
         $response->assertJson(['email' => $user->email]);
     }
+
+    public function test_standard_user_cannot_list_users_via_api(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+        $token = $user->createToken('user_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => "Bearer {$token}",
+            'Accept' => 'application/json',
+        ])->get('/api/users');
+
+        $response->assertStatus(403);
+        $response->assertJson(['message' => 'Forbidden. Akses ditolak untuk role Anda.']);
+    }
+
+    public function test_admin_can_list_users_via_api(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $token = $admin->createToken('admin_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => "Bearer {$token}",
+            'Accept' => 'application/json',
+        ])->get('/api/users');
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'success',
+            'message',
+            'data',
+        ]);
+    }
+
+    public function test_superadmin_can_list_users_via_api(): void
+    {
+        $superadmin = User::factory()->create(['role' => 'superadmin']);
+        $token = $superadmin->createToken('superadmin_token')->plainTextToken;
+
+        $response = $this->withHeaders([
+            'Authorization' => "Bearer {$token}",
+            'Accept' => 'application/json',
+        ])->get('/api/users');
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'success',
+            'message',
+            'data',
+        ]);
+    }
+
+    public function test_unauthenticated_user_cannot_access_debug_test_peraturan_route(): void
+    {
+        $response = $this->get('/test-peraturan/1');
+
+        $response->assertRedirect('/login');
+    }
+
+    public function test_unauthenticated_json_request_to_debug_test_peraturan_returns_401(): void
+    {
+        $response = $this->withHeaders([
+            'Accept' => 'application/json',
+        ])->get('/test-peraturan/1');
+
+        $response->assertStatus(401);
+    }
 }
+
