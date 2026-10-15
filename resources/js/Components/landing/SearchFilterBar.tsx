@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '@/Components/ui/button';
 import { Icon } from '@/Components/ui/icon';
 import { useAuthModal } from '@/hooks/useAuthModal';
+import { extractProvinceName, getRegenciesForProvince } from './map/regencyData';
 
 interface SearchFilterBarProps {
   isScrolled: boolean;
@@ -38,6 +39,7 @@ interface MultiSelectDropdownProps {
   onToggle: () => void;
   onClose: () => void;
   renderOptionExtra?: (item: FilterOption, isChecked: boolean) => React.ReactNode;
+  showPills?: boolean;
 }
 
 interface YearRangeDropdownProps {
@@ -64,6 +66,7 @@ function MultiSelectDropdown({
   onToggle,
   onClose,
   renderOptionExtra,
+  showPills = false,
 }: MultiSelectDropdownProps) {
   let displayLabel = placeholder;
   if (
@@ -87,19 +90,40 @@ function MultiSelectDropdown({
       <button
         type="button"
         onClick={onToggle}
-        className="flex items-center justify-between w-full h-[36px] sm:h-[37px] px-2.5 sm:px-3.5 bg-white/5 border border-white/10 rounded-[12px] text-neu-200 text-[12px] font-normal leading-[18px] text-left backdrop-blur-[14px] hover:bg-white/10 hover:text-white cursor-pointer outline-none focus:ring-1 focus:ring-sec-900/60 transition-all"
+        className="flex items-center justify-between w-full min-h-[36px] sm:min-h-[37px] py-1 px-2.5 sm:px-3.5 bg-white/5 border border-white/10 rounded-[12px] text-neu-200 text-[12px] font-normal leading-[18px] text-left backdrop-blur-[14px] hover:bg-white/10 hover:text-white cursor-pointer outline-none focus:outline-none focus:ring-0 transition-colors"
       >
-        <span className="truncate pr-1.5">{displayLabel}</span>
+        {showPills && selectedValues.length > 0 && selectedValues.length < 5 ? (
+          <div className="flex-1 flex flex-wrap gap-1 items-center min-w-0 pr-1.5">
+            {selectedValues.map((val) => {
+              const opt = options.find((o) => o.value === val);
+              return (
+                <span
+                  key={val}
+                  className="flex items-center gap-1.5 px-2 py-0.5 bg-white/10 rounded-full text-[11px] text-white"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleValue(val);
+                  }}
+                >
+                  <Icon name="x" className="w-3 h-3 shrink-0 text-neu-300 hover:text-white cursor-pointer transition-colors" />
+                  {opt ? opt.label : val}
+                </span>
+              );
+            })}
+          </div>
+        ) : (
+          <span className="truncate pr-1.5">{displayLabel}</span>
+        )}
         <Icon
           name="chevron-down"
           className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${
-            isOpen ? 'rotate-180 text-sec-900' : ''
+            isOpen ? 'rotate-180 text-white' : ''
           }`}
         />
       </button>
 
       {isOpen && (
-        <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-pr-900 border border-white/10 rounded-[14px] py-2 px-1.5 z-50 max-h-80 overflow-y-auto custom-scrollbar shadow-2xl">
+        <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-pr-900 border border-white/10 rounded-[14px] py-2 px-1.5 z-50 max-h-80 overflow-y-auto no-scrollbar shadow-2xl">
           {options.map((item) => {
             const isChecked = selectedValues.includes(item.value);
             return (
@@ -107,16 +131,16 @@ function MultiSelectDropdown({
                 <button
                   type="button"
                   onClick={() => onToggleValue(item.value)}
-                  className="w-full px-2.5 py-1.5 text-left text-[12px] flex items-center gap-2.5 rounded-[8px] transition-colors hover:bg-white/10 text-neu-200 hover:text-white group cursor-pointer"
+                  className={`w-full px-2.5 py-1.5 text-left text-[12px] flex items-center gap-2.5 rounded-[8px] transition-colors hover:bg-white/10 group cursor-pointer ${
+                    isChecked ? 'text-white' : 'text-neu-200 hover:text-white'
+                  }`}
                 >
-                  <div
-                    className={`w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-all ${
-                      isChecked
-                        ? 'bg-[#0F224A] border-sec-400 text-sec-400'
-                        : 'border-neu-400/40 bg-white/5 group-hover:border-white/40'
-                    }`}
-                  >
-                    {isChecked && <Icon name="check" className="w-3 h-3 text-sec-400 stroke-[3]" />}
+                  <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                    {isChecked ? (
+                      <Icon name="check" className="w-3.5 h-3.5 text-white stroke-[2.5]" />
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-[3px] border border-white/20 bg-white/5 group-hover:border-white/40 transition-colors" />
+                    )}
                   </div>
                   <span className="truncate">{item.label}</span>
                 </button>
@@ -175,13 +199,13 @@ function SearchableMultiSelectDropdown({
       <button
         type="button"
         onClick={onToggle}
-        className="flex items-center justify-between w-full h-[36px] sm:h-[37px] px-2.5 sm:px-3.5 bg-white/5 border border-white/10 rounded-[12px] text-neu-200 text-[12px] font-normal leading-[18px] text-left backdrop-blur-[14px] hover:bg-white/10 hover:text-white cursor-pointer outline-none focus:ring-1 focus:ring-sec-900/60 transition-all"
+        className="flex items-center justify-between w-full h-[36px] sm:h-[37px] px-2.5 sm:px-3.5 bg-white/5 border border-white/10 rounded-[12px] text-neu-200 text-[12px] font-normal leading-[18px] text-left backdrop-blur-[14px] hover:bg-white/10 hover:text-white cursor-pointer outline-none focus:outline-none focus:ring-0 transition-colors"
       >
         <span className="truncate pr-1.5">{displayLabel}</span>
         <Icon
           name="chevron-down"
           className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${
-            isOpen ? 'rotate-180 text-sec-900' : ''
+            isOpen ? 'rotate-180 text-white' : ''
           }`}
         />
       </button>
@@ -202,7 +226,7 @@ function SearchableMultiSelectDropdown({
             </div>
           </div>
           
-          <div className="max-h-48 overflow-y-auto custom-scrollbar px-1">
+          <div className="max-h-48 overflow-y-auto no-scrollbar px-1">
             {filteredOptions.length === 0 ? (
               <div className="text-[11px] text-neu-400 text-center py-3">Tidak ditemukan</div>
             ) : (
@@ -216,16 +240,16 @@ function SearchableMultiSelectDropdown({
                       e.stopPropagation();
                       onToggleValue(item.value);
                     }}
-                    className="w-full px-2 py-1.5 text-left text-[12px] flex items-start gap-2.5 rounded-[8px] transition-colors hover:bg-white/10 text-neu-200 hover:text-white group cursor-pointer"
+                    className={`w-full px-2 py-1.5 text-left text-[12px] flex items-center gap-2.5 rounded-[8px] transition-colors hover:bg-white/10 group cursor-pointer ${
+                      isChecked ? 'text-white' : 'text-neu-200 hover:text-white'
+                    }`}
                   >
-                    <div
-                      className={`w-4 h-4 mt-[1px] rounded-[4px] border flex items-center justify-center shrink-0 transition-all ${
-                        isChecked
-                          ? 'bg-[#0F224A] border-sec-400 text-sec-400'
-                          : 'border-neu-400/40 bg-white/5 group-hover:border-white/40'
-                      }`}
-                    >
-                      {isChecked && <Icon name="check" className="w-3 h-3 text-sec-400 stroke-[3]" />}
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                      {isChecked ? (
+                        <Icon name="check" className="w-3.5 h-3.5 text-white stroke-[2.5]" />
+                      ) : (
+                        <div className="w-3.5 h-3.5 rounded-[3px] border border-white/20 bg-white/5 group-hover:border-white/40 transition-colors" />
+                      )}
                     </div>
                     <span className="leading-[1.3] break-words flex-1">{item.label}</span>
                   </button>
@@ -298,13 +322,13 @@ function YearRangeDropdown({
       <button
         type="button"
         onClick={onToggle}
-        className="flex items-center justify-between w-full h-[36px] sm:h-[37px] px-2.5 sm:px-3.5 bg-white/5 border border-white/10 rounded-[12px] text-neu-200 text-[12px] font-normal leading-[18px] text-left backdrop-blur-[14px] hover:bg-white/10 hover:text-white cursor-pointer outline-none focus:ring-1 focus:ring-sec-900/60 transition-all"
+        className="flex items-center justify-between w-full h-[36px] sm:h-[37px] px-2.5 sm:px-3.5 bg-white/5 border border-white/10 rounded-[12px] text-neu-200 text-[12px] font-normal leading-[18px] text-left backdrop-blur-[14px] hover:bg-white/10 hover:text-white cursor-pointer outline-none focus:outline-none focus:ring-0 transition-colors"
       >
         <span className="truncate pr-1.5">{displayLabel}</span>
         <Icon
           name="chevron-down"
           className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${
-            isOpen ? 'rotate-180 text-sec-900' : ''
+            isOpen ? 'rotate-180 text-white' : ''
           }`}
         />
       </button>
@@ -317,7 +341,7 @@ function YearRangeDropdown({
               <button
                 type="button"
                 onClick={onReset}
-                className="text-sec-900 text-[12px] font-medium transition-colors cursor-pointer"
+                className="text-neu-400 hover:text-white text-[12px] font-medium transition-colors cursor-pointer"
               >
                 Reset
               </button>
@@ -336,13 +360,13 @@ function YearRangeDropdown({
                 <Icon
                   name="chevron-down"
                   className={`w-3 h-3 text-neu-300 shrink-0 transition-transform duration-200 ${
-                    openSub.dari ? 'rotate-180 text-sec-400' : ''
+                    openSub.dari ? 'rotate-180 text-white' : ''
                   }`}
                 />
               </button>
 
               {openSub.dari && (
-                <div className="mt-1.5 bg-pr-900 border border-pr-700/80 rounded-[8px] max-h-36 overflow-y-auto custom-scrollbar py-1">
+                <div className="mt-1.5 bg-pr-900 border border-pr-700/80 rounded-[8px] max-h-36 overflow-y-auto no-scrollbar py-1">
                   {options.map((yr) => {
                     const isSelected = tahunDari === yr;
                     return (
@@ -350,14 +374,14 @@ function YearRangeDropdown({
                         key={`dari-${yr}`}
                         type="button"
                         onClick={() => onChangeDari(yr)}
-                        className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer ${
+                        className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer hover:bg-white/10 ${
                           isSelected
-                            ? 'bg-sec-900/20 text-sec-900 font-semibold'
-                            : 'text-neu-200 hover:bg-white/10 hover:text-white'
+                            ? 'bg-white/10 text-white font-medium'
+                            : 'text-neu-200 hover:text-white'
                         }`}
                       >
                         <span className="truncate">{yr}</span>
-                        {isSelected && <Icon name="check" className="w-3 h-3 text-sec-900 shrink-0" />}
+                        {isSelected && <Icon name="check" className="w-3.5 h-3.5 text-white stroke-[2.5] shrink-0" />}
                       </button>
                     );
                   })}
@@ -376,13 +400,13 @@ function YearRangeDropdown({
                 <Icon
                   name="chevron-down"
                   className={`w-3 h-3 text-neu-300 shrink-0 transition-transform duration-200 ${
-                    openSub.sampai ? 'rotate-180 text-sec-400' : ''
+                    openSub.sampai ? 'rotate-180 text-white' : ''
                   }`}
                 />
               </button>
 
               {openSub.sampai && (
-                <div className="mt-1.5 bg-pr-900 border border-pr-700/80 rounded-[8px] max-h-36 overflow-y-auto custom-scrollbar py-1">
+                <div className="mt-1.5 bg-pr-900 border border-pr-700/80 rounded-[8px] max-h-36 overflow-y-auto no-scrollbar py-1">
                   {options.map((yr) => {
                     const isSelected = tahunSampai === yr;
                     return (
@@ -390,14 +414,14 @@ function YearRangeDropdown({
                         key={`sampai-${yr}`}
                         type="button"
                         onClick={() => onChangeSampai(yr)}
-                        className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer ${
+                        className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer hover:bg-white/10 ${
                           isSelected
-                            ? 'bg-sec-900/20 text-sec-900 font-semibold'
-                            : 'text-neu-200 hover:bg-white/10 hover:text-white'
+                            ? 'bg-white/10 text-white font-medium'
+                            : 'text-neu-200 hover:text-white'
                         }`}
                       >
                         <span className="truncate">{yr}</span>
-                        {isSelected && <Icon name="check" className="w-3 h-3 text-sec-900 shrink-0" />}
+                        {isSelected && <Icon name="check" className="w-3.5 h-3.5 text-white stroke-[2.5] shrink-0" />}
                       </button>
                     );
                   })}
@@ -425,9 +449,7 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
   const [selectedSubjek, setSelectedSubjek] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedLokasi, setSelectedLokasi] = useState<string[]>([]);
-  
   const [lokasiSearchQuery, setLokasiSearchQuery] = useState('');
-  const [subjekSearchQuery, setSubjekSearchQuery] = useState('');
 
   // Year range state
   const [tahunDari, setTahunDari] = useState('');
@@ -545,7 +567,6 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
   }));
 
   const subjekOptions: FilterOption[] = listSubjek
-    .filter(s => s.toLowerCase().includes(subjekSearchQuery.toLowerCase()))
     .map((s) => ({
       value: s,
       label: s,
@@ -571,15 +592,29 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
     }
   }, [isPerdaSelected]);
 
-  const filteredLokasi = listLokasi
-    .filter((l: string) => l.toLowerCase().includes(lokasiSearchQuery.toLowerCase()))
-    .sort((a, b) => {
-      const aSelected = selectedLokasi.includes(a);
-      const bSelected = selectedLokasi.includes(b);
-      if (aSelected && !bSelected) return -1;
-      if (!aSelected && bSelected) return 1;
-      return 0;
+  const baseLokasiList = listLokasi.length > 0
+    ? listLokasi
+    : ['Pemerintah Provinsi Bali', 'Pemerintah Provinsi Nusa Tenggara Timur'];
+
+  // Flat list sejajar untuk semua entitas (Provinsi, Kabupaten, dan Kota)
+  const allFlatLokasi = useMemo(() => {
+    const items = new Set<string>();
+    baseLokasiList.forEach((prov: string) => {
+      items.add(prov);
+      const { key, name } = extractProvinceName(prov);
+      const regData = getRegenciesForProvince(key, name);
+      regData.regencies.forEach((r) => {
+        items.add(`${r.type} ${r.name}`);
+      });
     });
+    return Array.from(items).sort((a, b) => a.localeCompare(b, 'id'));
+  }, [baseLokasiList]);
+
+  const filteredFlatLokasi = allFlatLokasi.filter((item: string) => {
+    const q = lokasiSearchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return item.toLowerCase().includes(q);
+  });
 
   const currentYear = new Date().getFullYear();
   const availableYears = Array.from(
@@ -665,79 +700,23 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-[16px] w-full">
               <div className="col-span-1">
-                <MultiSelectDropdown
-                  label="Kategori"
-                  selectedValues={selectedKategori}
-                  options={kategoriOptions}
-                  placeholder="Semua kategori"
+                <SearchableMultiSelectDropdown
+                  label="Subjek"
+                  selectedValues={selectedSubjek}
+                  options={subjekOptions}
+                  placeholder="Semua subjek"
+                  searchPlaceholder="Cari subjek..."
                   onToggleValue={(val) => {
-                    setSelectedKategori((prev) =>
+                    setSelectedSubjek((prev) =>
                       prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]
                     );
                   }}
-                  onClear={() => setSelectedKategori([])}
-                  isOpen={activeDropdown === 'kategori'}
+                  onClear={() => setSelectedSubjek([])}
+                  isOpen={activeDropdown === 'subjek'}
                   onToggle={() =>
-                    setActiveDropdown((prev) => (prev === 'kategori' ? null : 'kategori'))
+                    setActiveDropdown((prev) => (prev === 'subjek' ? null : 'subjek'))
                   }
                   onClose={() => setActiveDropdown(null)}
-                  renderOptionExtra={(item, isChecked) => {
-                    if (!isChecked) return null;
-                    const isPerda = item.label.toLowerCase().includes('perda') || item.label.toLowerCase().includes('peraturan daerah');
-                    if (!isPerda) return null;
-
-                    return (
-                      <div className="mt-1 mb-2 ml-7 pr-1 pl-2 border-l border-white/20">
-                        <div className="relative mb-2">
-                          <Icon name="search" className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-neu-400" />
-                          <input
-                            type="text"
-                            value={lokasiSearchQuery}
-                            onChange={(e) => setLokasiSearchQuery(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            placeholder="Cari daerah..."
-                            className="w-full pl-6 pr-2 py-1.5 bg-white/5 border border-white/10 rounded-md text-[11px] text-white outline-none focus:ring-1 focus:ring-sec-900/60 placeholder:text-neu-400"
-                          />
-                        </div>
-                        <div className="max-h-32 overflow-y-auto custom-scrollbar pr-1">
-                          {filteredLokasi.length === 0 ? (
-                            <div className="text-[10px] text-neu-400 text-center py-2">Daerah tidak ditemukan</div>
-                          ) : (
-                            filteredLokasi.map((lokasi: string) => {
-                              const isLokasiChecked = selectedLokasi.includes(lokasi);
-                              return (
-                                <label
-                                  key={lokasi}
-                                  className="flex items-start gap-2 cursor-pointer group px-1 py-1 rounded hover:bg-white/5"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    setSelectedLokasi((prev) =>
-                                      prev.includes(lokasi)
-                                        ? prev.filter((v) => v !== lokasi)
-                                        : [...prev, lokasi]
-                                    );
-                                  }}
-                                >
-                                  <div
-                                    className={`w-[14px] h-[14px] mt-[1px] rounded-[3px] border flex items-center justify-center shrink-0 transition-colors ${
-                                      isLokasiChecked
-                                        ? 'bg-[#0F224A] border-sec-400 text-sec-400'
-                                        : 'border-white/20 bg-white/5 group-hover:border-white/40'
-                                    }`}
-                                  >
-                                    {isLokasiChecked && <Icon name="check" className="w-2.5 h-2.5 text-sec-400 stroke-[3]" />}
-                                  </div>
-                                  <span className="text-[11px] text-neu-200 leading-[1.3] break-words flex-1 select-none">
-                                    {lokasi}
-                                  </span>
-                                </label>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    );
-                  }}
                 />
               </div>
 
@@ -780,96 +759,106 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
               </div>
             </div>
 
-            {/* Baris Khusus untuk Subjek */}
+            {/* Baris Khusus untuk Kategori */}
             <div className="mt-2 sm:mt-3 w-full">
-              <div className="text-left text-neu-200 text-[12px] font-normal leading-[16px] sm:leading-[18px] mb-1">
-                Subjek
-              </div>
-              <div className="relative w-full">
-                <button
-                  type="button"
-                  onClick={() => setActiveDropdown((prev) => (prev === 'subjek' ? null : 'subjek'))}
-                  className="flex items-center w-full min-h-[36px] sm:min-h-[37px] py-1 px-2.5 sm:px-3.5 bg-white/5 border border-white/10 rounded-[12px] text-left backdrop-blur-[14px] hover:bg-white/10 cursor-pointer outline-none focus:ring-1 focus:ring-sec-900/60 transition-all"
-                >
-                  <div className="flex-1 flex flex-wrap gap-1 items-center">
-                    {selectedSubjek.map((subjek) => (
-                      <span
-                        key={subjek}
-                        className="flex items-center gap-1.5 px-2 py-0.5 bg-white/10 rounded-full text-[11px] text-white"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedSubjek((prev) => prev.filter((s) => s !== subjek));
-                        }}
-                      >
-                        <Icon name="x" className="w-3 h-3 shrink-0 text-neu-300 hover:text-white cursor-pointer transition-colors" />
-                        {subjek}
-                      </span>
-                    ))}
-                    {activeDropdown === 'subjek' ? (
-                      <input
-                        type="text"
-                        value={subjekSearchQuery}
-                        onChange={(e) => setSubjekSearchQuery(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        placeholder="Cari subjek..."
-                        className="flex-1 min-w-[80px] bg-transparent border-none p-0 text-[12px] text-white outline-none focus:ring-0 placeholder:text-neu-400"
-                        autoFocus
-                      />
-                    ) : (
-                      selectedSubjek.length === 0 && (
-                        <span className="text-[12px] text-neu-200">Semua subjek</span>
-                      )
-                    )}
-                  </div>
-                  <Icon
-                    name="chevron-down"
-                    className={`w-3.5 h-3.5 text-neu-300 shrink-0 ml-2 transition-transform duration-200 ${
-                      activeDropdown === 'subjek' ? 'rotate-180 text-sec-900' : ''
-                    }`}
-                  />
-                </button>
+              <MultiSelectDropdown
+                label="Kategori"
+                showPills={true}
+                selectedValues={selectedKategori}
+                options={kategoriOptions}
+                placeholder="Semua kategori"
+                onToggleValue={(val) => {
+                  setSelectedKategori((prev) =>
+                    prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]
+                  );
+                }}
+                onClear={() => setSelectedKategori([])}
+                isOpen={activeDropdown === 'kategori'}
+                onToggle={() =>
+                  setActiveDropdown((prev) => (prev === 'kategori' ? null : 'kategori'))
+                }
+                onClose={() => setActiveDropdown(null)}
+                renderOptionExtra={(item, isChecked) => {
+                  if (!isChecked) return null;
+                  const isPerda = item.label.toLowerCase().includes('perda') || item.label.toLowerCase().includes('peraturan daerah');
+                  if (!isPerda) return null;
 
-                {activeDropdown === 'subjek' && (
-                  <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-pr-900 border border-white/10 rounded-[14px] py-2 px-1.5 z-50 shadow-2xl">
-                    <div className="max-h-52 overflow-y-auto custom-thin-scrollbar pr-1">
-                      {subjekOptions.length === 0 ? (
-                        <div className="text-[11px] text-neu-400 text-center py-2">Tidak ada subjek</div>
-                      ) : (
-                        subjekOptions.map((item) => {
-                          const isChecked = selectedSubjek.includes(item.value);
-                          return (
-                            <label
-                              key={item.value}
-                              className="flex items-start gap-2.5 cursor-pointer group px-2.5 py-1.5 rounded-[8px] hover:bg-white/10"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setSelectedSubjek((prev) =>
-                                  prev.includes(item.value)
-                                    ? prev.filter((v) => v !== item.value)
-                                    : [...prev, item.value]
-                                );
-                              }}
+                  return (
+                    <div className="mt-1 mb-2 ml-7 pr-1 pl-2 border-l border-white/20">
+                      <div className="relative mb-2">
+                        <Icon name="search" className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-neu-400" />
+                        <input
+                          type="text"
+                          value={lokasiSearchQuery}
+                          onChange={(e) => setLokasiSearchQuery(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          placeholder="Cari provinsi / kabupaten..."
+                          className="w-full pl-6 pr-2 py-1.5 bg-white/5 border border-white/10 rounded-md text-[11px] text-white outline-none focus:outline-none focus:ring-0 focus:border-white/20 placeholder:text-neu-400 transition-colors"
+                        />
+                      </div>
+
+                      {/* Tag pill daerah yang dipilih (seperti entitas di referensi gambar) */}
+                      {selectedLokasi.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-2 p-1.5 bg-white/5 rounded-lg border border-white/10 max-h-24 overflow-y-auto no-scrollbar">
+                          {selectedLokasi.map((lokasi) => (
+                            <span
+                              key={lokasi}
+                              className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white/10 hover:bg-white/15 text-white text-[11px] rounded-md transition-colors"
                             >
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedLokasi((prev) => prev.filter((v) => v !== lokasi));
+                                }}
+                                className="text-neu-400 hover:text-white cursor-pointer"
+                              >
+                                <Icon name="x" className="w-3 h-3" />
+                              </button>
+                              <span>{lokasi}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="max-h-56 overflow-y-auto no-scrollbar space-y-0.5">
+                        {filteredFlatLokasi.length === 0 ? (
+                          <div className="text-[10px] text-neu-400 text-center py-2">Daerah tidak ditemukan</div>
+                        ) : (
+                          filteredFlatLokasi.map((item: string) => {
+                            const isChecked = selectedLokasi.includes(item);
+                            return (
                               <div
-                                className={`w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-all ${
+                                key={item}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setSelectedLokasi((prev) =>
+                                    prev.includes(item)
+                                      ? prev.filter((v) => v !== item)
+                                      : [...prev, item]
+                                  );
+                                }}
+                                className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors hover:bg-white/10 ${
                                   isChecked
-                                    ? 'bg-[#0F224A] border-sec-400 text-sec-400'
-                                    : 'border-neu-400/40 bg-white/5 group-hover:border-white/40'
+                                    ? 'text-white font-medium bg-white/5'
+                                    : 'text-neu-200 hover:text-white'
                                 }`}
                               >
-                                {isChecked && <Icon name="check" className="w-3 h-3 text-sec-400 stroke-[3]" />}
+                                <span className="text-[11.5px] leading-[1.3] truncate select-none flex-1">
+                                  {item}
+                                </span>
+                                {isChecked && (
+                                  <Icon name="check" className="w-3.5 h-3.5 text-white stroke-[2.5] shrink-0" />
+                                )}
                               </div>
-                              <span className="text-[12px] text-neu-200 group-hover:text-white select-none transition-colors">
-                                {item.label}
-                              </span>
-                            </label>
-                          );
-                        })
-                      )}
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  );
+                }}
+              />
             </div>
 
             {errorMsg && (

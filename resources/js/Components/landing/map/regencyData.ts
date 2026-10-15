@@ -120,7 +120,47 @@ export const PROVINCE_REGENCY_MAP: Record<string, ProvinceRegencyData> = {
       { id: 'binjai', name: 'Binjai', type: 'Kota' },
     ],
   },
+  'nusa-tenggara-timur': {
+    provinceId: 'nusa-tenggara-timur',
+    provinceName: 'Nusa Tenggara Timur',
+    kabupatenCount: 21,
+    kotaCount: 1,
+    totalCount: 22,
+    regencies: [
+      { id: 'kota-kupang', name: 'Kupang', type: 'Kota', totalPeraturan: 142 },
+      { id: 'kab-kupang', name: 'Kupang', type: 'Kabupaten', totalPeraturan: 98 },
+      { id: 'timor-tengah-selatan', name: 'Timor Tengah Selatan', type: 'Kabupaten', totalPeraturan: 64 },
+      { id: 'timor-tengah-utara', name: 'Timor Tengah Utara', type: 'Kabupaten', totalPeraturan: 52 },
+      { id: 'belu', name: 'Belu', type: 'Kabupaten', totalPeraturan: 48 },
+      { id: 'alor', name: 'Alor', type: 'Kabupaten', totalPeraturan: 38 },
+      { id: 'flores-timur', name: 'Flores Timur', type: 'Kabupaten', totalPeraturan: 56 },
+      { id: 'sikka', name: 'Sikka', type: 'Kabupaten', totalPeraturan: 71 },
+      { id: 'ende', name: 'Ende', type: 'Kabupaten', totalPeraturan: 63 },
+      { id: 'ngada', name: 'Ngada', type: 'Kabupaten', totalPeraturan: 45 },
+      { id: 'manggarai', name: 'Manggarai', type: 'Kabupaten', totalPeraturan: 59 },
+      { id: 'manggarai-barat', name: 'Manggarai Barat', type: 'Kabupaten', totalPeraturan: 82 },
+      { id: 'sumba-timur', name: 'Sumba Timur', type: 'Kabupaten', totalPeraturan: 44 },
+    ],
+  },
 };
+
+/**
+ * Ekstraksi nama dan normalized key provinsi dari string lokasi (misal: "Pemerintah Provinsi Bali" -> { key: 'bali', name: 'Bali' })
+ */
+export function extractProvinceName(rawName: string): { key: string; name: string } {
+  const cleaned = rawName
+    .replace(/^pemerintah\s+provinsi\s+/i, '')
+    .replace(/^provinsi\s+/i, '')
+    .trim();
+  const key = cleaned
+    .toLowerCase()
+    .replace(/^daerah istimewa yogyakarta$/, 'di-yogyakarta')
+    .replace(/^dki jakarta$/, 'dki-jakarta')
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return { key, name: cleaned || rawName };
+}
 
 /**
  * Mengambil data kabupaten/kota untuk provinsi tertentu.
