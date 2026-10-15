@@ -15,14 +15,7 @@ use App\Http\Controllers\RegulasiController;
 |--------------------------------------------------------------------------
 */
 
-// Route Testing Murni Backend (Merender file Blade)
-Route::get('/test-peraturan/{id}', function ($id) {
-    $peraturan = Peraturan::with(['pasal' => function ($query) {
-        $query->orderBy('urutan', 'asc');
-    }])->findOrFail($id);
 
-    return view('test-peraturan', compact('peraturan'));
-});
 
 /*
 |--------------------------------------------------------------------------
@@ -93,6 +86,15 @@ Route::get('/api/regions/statistics', [\App\Http\Controllers\Api\RegionControlle
 
 // ── PROTECTED ROUTES (MANDATORY LOGIN) ──────────────────────────────────
 Route::middleware('auth')->group(function () {
+    // Route Testing Backend (Merender file Blade)
+    Route::get('/test-peraturan/{id}', function ($id) {
+        $peraturan = Peraturan::with(['pasal' => function ($query) {
+            $query->orderBy('urutan', 'asc');
+        }])->findOrFail($id);
+
+        return view('test-peraturan', compact('peraturan'));
+    });
+
     Route::get('/dashboard', function () {
         $user = auth()->user();
         if ($user && in_array($user->role, ['admin', 'superadmin'])) {
