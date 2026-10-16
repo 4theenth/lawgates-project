@@ -27,7 +27,50 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect('/');
+    }
+
+    public function test_admin_redirects_to_admin_dashboard_on_login(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->post('/login', [
+            'email' => $admin->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect(route('admin.dashboard'));
+    }
+
+    public function test_admin_redirects_to_admin_dashboard_even_if_intended_is_root(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        // Simulate intended url set to root '/'
+        session(['url.intended' => '/']);
+
+        $response = $this->post('/login', [
+            'email' => $admin->email,
+            'password' => 'password',
+            'redirect' => '/',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect(route('admin.dashboard'));
+    }
+
+    public function test_superadmin_redirects_to_admin_dashboard_on_login(): void
+    {
+        $superadmin = User::factory()->create(['role' => 'superadmin']);
+
+        $response = $this->post('/login', [
+            'email' => $superadmin->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect(route('admin.dashboard'));
     }
 
     public function test_users_can_not_authenticate_with_invalid_password(): void
