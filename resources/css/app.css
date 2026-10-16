@@ -505,34 +505,45 @@ path.leaflet-interactive {
 }
 
 /* Custom Thin Scrollbar Utility (Tipis & Warna Neu) */
-.custom-thin-scrollbar {
+.custom-thin-scrollbar,
+.thin-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: var(--color-neu-300) transparent;
 }
-.custom-thin-scrollbar::-webkit-scrollbar {
-  width: 5px !important;
-  height: 5px !important;
+.custom-thin-scrollbar::-webkit-scrollbar,
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
 }
 .custom-thin-scrollbar::-webkit-scrollbar-button,
 .custom-thin-scrollbar::-webkit-scrollbar-button:single-button,
 .custom-thin-scrollbar::-webkit-scrollbar-button:vertical:decrement,
 .custom-thin-scrollbar::-webkit-scrollbar-button:vertical:increment,
 .custom-thin-scrollbar::-webkit-scrollbar-button:start,
-.custom-thin-scrollbar::-webkit-scrollbar-button:end {
+.custom-thin-scrollbar::-webkit-scrollbar-button:end,
+.thin-scrollbar::-webkit-scrollbar-button,
+.thin-scrollbar::-webkit-scrollbar-button:single-button,
+.thin-scrollbar::-webkit-scrollbar-button:vertical:decrement,
+.thin-scrollbar::-webkit-scrollbar-button:vertical:increment,
+.thin-scrollbar::-webkit-scrollbar-button:start,
+.thin-scrollbar::-webkit-scrollbar-button:end {
   display: none !important;
   width: 0px !important;
   height: 0px !important;
 }
-.custom-thin-scrollbar::-webkit-scrollbar-track {
+.custom-thin-scrollbar::-webkit-scrollbar-track,
+.thin-scrollbar::-webkit-scrollbar-track {
   background: transparent !important;
   border-radius: 9999px !important;
 }
-.custom-thin-scrollbar::-webkit-scrollbar-thumb {
+.custom-thin-scrollbar::-webkit-scrollbar-thumb,
+.thin-scrollbar::-webkit-scrollbar-thumb {
   background-color: var(--color-neu-300) !important;
   background-clip: padding-box !important;
   border-radius: 9999px !important;
 }
-.custom-thin-scrollbar::-webkit-scrollbar-thumb:hover {
+.custom-thin-scrollbar::-webkit-scrollbar-thumb:hover,
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: var(--color-neu-400) !important;
 }
 

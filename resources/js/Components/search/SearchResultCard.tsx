@@ -105,7 +105,7 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
   };
 
   return (
-    <div className="bg-white border border-neu-100 rounded-[20px] p-5 sm:p-6 shadow-2xs hover:shadow-md hover:border-pr-900/30 transition-all duration-200 flex flex-col justify-between group">
+    <div className="bg-white border border-neu-50 rounded-[20px] p-5 sm:p-6 shadow-2xs hover:shadow-md hover:border-pr-900/30 transition-all duration-200 flex flex-col justify-between group">
       <div>
         {/* Top Badges: Status Keberlakuan & Kategori */}
         <div className="flex flex-wrap items-center gap-2 mb-3.5">
@@ -143,12 +143,12 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
               setIsBookmarked(!isBookmarked);
             }}
             className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-              isBookmarked ? 'text-pr-900 fill-pr-900 bg-pr-50' : 'text-neu-400 hover:text-neu-700 hover:bg-neu-50'
+              isBookmarked ? 'text-pr-900 fill-pr-900 ' : 'text-neu-400 hover:text-neu-700 '
             }`}
             title={isBookmarked ? 'Hapus penanda' : 'Simpan peraturan'}
             aria-label="Bookmark"
           >
-            <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-pr-900 text-pr-900' : ''}`} />
+            <Bookmark className={`w-[18px] h-[18px] ${isBookmarked ? 'fill-pr-900 text-pr-900' : ''}`} />
           </button>
         </div>
 

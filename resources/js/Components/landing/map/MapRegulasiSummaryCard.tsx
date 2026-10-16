@@ -17,7 +17,7 @@ export function MapRegulasiSummaryCard({
 }: MapRegulasiSummaryCardProps) {
   if (!activeProvince) {
     return (
-      <div className="w-full bg-white rounded-[20px] border border-neu-100 p-8 flex flex-col items-center justify-center text-center shadow-xs min-h-[420px]">
+      <div className="w-full bg-white rounded-[20px] border border-neu-50 p-8 flex flex-col items-center justify-center text-center  min-h-[420px]">
         <div className="w-14 h-14 rounded-[16px] bg-neu-50 border border-neu-100 flex items-center justify-center text-neu-400 mb-3">
           <Scale className="w-7 h-7" strokeWidth={1.5} />
         </div>
@@ -68,7 +68,7 @@ export function MapRegulasiSummaryCard({
       };
 
   return (
-    <div className="w-full bg-white rounded-[20px] border border-neu-100 p-6 sm:p-7 flex flex-col gap-5 shadow-xs">
+    <div className="w-full bg-white rounded-[20px] border border-neu-50 p-6 sm:p-7 flex flex-col gap-5 ">
       {/* ── 1. Header Card Sesuai Figma node #2628:58938 ── */}
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -79,16 +79,16 @@ export function MapRegulasiSummaryCard({
             Provinsi <span className="font-medium text-neu-800">{activeProvince.name}</span> dipilih sebagai kondisi aktif.
           </p>
         </div>
-        <div className="flex items-center gap-1.5 px-3 py-1 bg-neu-50/80 rounded-full border border-neu-100 text-[11px] sm:text-[12px] font-medium text-neu-800 shrink-0">
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-bg-900 rounded-full border border-neu-50 text-[11px] sm:text-[12px] font-medium text-neu-800 shrink-0">
           <Scale className="w-3.5 h-3.5 text-neu-700" />
           <span>Provinsi dipilih</span>
         </div>
       </div>
 
       {/* ── 2. Box Hero Provinsi (Scale Icon + Nama + Subtitle + Badge Kab/Kota) ── */}
-      <div className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-[14px] bg-neu-50/50 border border-neu-100">
+      <div className="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-[14px] bg-bg-900 border border-neu-50">
         <div className="flex items-center gap-3.5 min-w-0">
-          <div className="w-[46px] h-[46px] sm:w-[50px] sm:h-[50px] rounded-[12px] bg-white border border-neu-100 flex items-center justify-center text-neu-800 shadow-2xs shrink-0">
+          <div className="w-[46px] h-[46px] sm:w-[50px] sm:h-[50px] rounded-[12px] bg-bg-900 border border-neu-50 flex items-center justify-center text-neu-800  shrink-0">
             <Scale className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.75} />
           </div>
           <div className="flex flex-col min-w-0">
@@ -109,21 +109,21 @@ export function MapRegulasiSummaryCard({
 
       {/* ── 3. Tiga Box Statistik (Total, Berlaku, Tidak Berlaku) ── */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="p-3.5 rounded-[14px] bg-neu-50/60 border border-neu-100 flex flex-col gap-0.5">
+        <div className="p-3.5 rounded-[14px] bg-bg-900 border border-neu-50 flex flex-col gap-0.5">
           <span className="text-[11px] sm:text-[12px] text-neu-500">Total peraturan</span>
           <span className="text-[16px] sm:text-[18px] font-bold text-neu-900 tabular-nums">
             {total.toLocaleString('id-ID')}
           </span>
         </div>
-        <div className="p-3.5 rounded-[14px] bg-neu-50/60 border border-neu-100 flex flex-col gap-0.5">
+        <div className="p-3.5 rounded-[14px] bg-bg-900 border border-neu-50 flex flex-col gap-0.5">
           <span className="text-[11px] sm:text-[12px] text-neu-500">Berlaku</span>
-          <span className="text-[16px] sm:text-[18px] font-bold text-emerald-600 tabular-nums">
+          <span className="text-[16px] sm:text-[18px] font-bold text-suc-900 tabular-nums">
             {berlaku.toLocaleString('id-ID')}
           </span>
         </div>
-        <div className="p-3.5 rounded-[14px] bg-neu-50/60 border border-neu-100 flex flex-col gap-0.5">
+        <div className="p-3.5 rounded-[14px] bg-bg-900 border border-neu-50 flex flex-col gap-0.5">
           <span className="text-[11px] sm:text-[12px] text-neu-500">Tidak berlaku</span>
-          <span className="text-[16px] sm:text-[18px] font-bold text-rose-600 tabular-nums">
+          <span className="text-[16px] sm:text-[18px] font-bold text-dan-900 tabular-nums">
             {tidakBerlaku.toLocaleString('id-ID')}
           </span>
         </div>
@@ -139,9 +139,9 @@ export function MapRegulasiSummaryCard({
               {berlaku.toLocaleString('id-ID')}
             </span>
           </div>
-          <div className="w-full h-2 rounded-full bg-neu-100 overflow-hidden">
+          <div className="w-full h-2 rounded-full bg-suc-50 overflow-hidden">
             <div
-              className="h-full rounded-full bg-emerald-600 transition-all duration-500 ease-out"
+              className="h-full rounded-full bg-suc-900 transition-all duration-500 ease-out"
               style={{ width: `${berlakuPercent}%` }}
             />
           </div>
@@ -155,9 +155,9 @@ export function MapRegulasiSummaryCard({
               {tidakBerlaku.toLocaleString('id-ID')}
             </span>
           </div>
-          <div className="w-full h-2 rounded-full bg-neu-100 overflow-hidden">
+          <div className="w-full h-2 rounded-full bg-dan-50 overflow-hidden">
             <div
-              className="h-full rounded-full bg-rose-600 transition-all duration-500 ease-out"
+              className="h-full rounded-full bg-dan-900 transition-all duration-500 ease-out"
               style={{ width: `${tidakBerlakuPercent}%` }}
             />
           </div>
@@ -173,9 +173,9 @@ export function MapRegulasiSummaryCard({
       <button
         type="button"
         onClick={() => onNavigateAllRegulations(activeProvince.name)}
-        className="flex items-center justify-between pt-2 border-t border-neu-100 text-[12px] sm:text-[13px] font-medium text-neu-600 hover:text-pr-900 transition-colors group cursor-pointer"
+        className="flex items-center justify-between pt-2 border-t border-neu-50 text-[12px] sm:text-[13px] font-medium text-neu-600 hover:text-pr-900 transition-colors group cursor-pointer"
       >
-        <span>Lihat semua peraturan di {activeProvince.name}</span>
+        <span className="text-sm text-neu-600">Lihat semua peraturan di {activeProvince.name}</span>
         <ChevronRight className="w-4 h-4 text-neu-400 group-hover:text-pr-900 group-hover:translate-x-0.5 transition-all" />
       </button>
     </div>

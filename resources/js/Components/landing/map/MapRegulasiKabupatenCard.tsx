@@ -27,7 +27,7 @@ export function MapRegulasiKabupatenCard({
 
   if (!provinceData) {
     return (
-      <div className="w-full bg-white rounded-[20px] border border-neu-100 p-8 flex flex-col items-center justify-center text-center shadow-xs min-h-[420px]">
+      <div className="w-full bg-white rounded-[20px] border border-neu-50 p-8 flex flex-col items-center justify-center text-center min-h-[420px]">
         <div className="w-14 h-14 rounded-[16px] bg-neu-50 border border-neu-100 flex items-center justify-center text-neu-400 mb-3">
           <Building2 className="w-7 h-7" strokeWidth={1.5} />
         </div>
@@ -42,7 +42,7 @@ export function MapRegulasiKabupatenCard({
   }
 
   return (
-    <div className="w-full bg-white rounded-[20px] border border-neu-100 p-6 sm:p-7 flex flex-col gap-5 shadow-xs">
+    <div className="w-full bg-white rounded-[20px] border border-neu-50 p-6 sm:p-7 flex flex-col gap-5 ">
       {/* ── 1. Header Card Sesuai Figma node #2642:59158 ── */}
       <div>
         <h3 className="text-[17px] sm:text-[18px] font-semibold text-neu-900 tracking-tight">
@@ -67,19 +67,19 @@ export function MapRegulasiKabupatenCard({
 
       {/* ── 3. Tiga Box Ringkasan Wilayah (Kabupaten, Kota, Total) Sesuai Figma node #2642:59165 ── */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="p-3.5 rounded-[14px] bg-neu-50/60 border border-neu-100 flex flex-col gap-0.5">
+        <div className="p-3.5 rounded-[14px] bg-bg-900 border border-neu-50 flex flex-col gap-[8px]">
           <span className="text-[11px] sm:text-[12px] text-neu-500">Kabupaten</span>
           <span className="text-[16px] sm:text-[18px] font-bold text-neu-900 tabular-nums">
             {provinceData.kabupatenCount}
           </span>
         </div>
-        <div className="p-3.5 rounded-[14px] bg-neu-50/60 border border-neu-100 flex flex-col gap-0.5">
+        <div className="p-3.5 rounded-[14px] bg-bg-900 border border-neu-50 flex flex-col gap-[8px]">
           <span className="text-[11px] sm:text-[12px] text-neu-500">Kota</span>
           <span className="text-[16px] sm:text-[18px] font-bold text-neu-900 tabular-nums">
             {provinceData.kotaCount}
           </span>
         </div>
-        <div className="p-3.5 rounded-[14px] bg-neu-50/60 border border-neu-100 flex flex-col gap-0.5">
+        <div className="p-3.5 rounded-[14px] bg-bg-900 border border-neu-50 flex flex-col gap-[8px]">
           <span className="text-[11px] sm:text-[12px] text-neu-500">Total</span>
           <span className="text-[16px] sm:text-[18px] font-bold text-neu-900 tabular-nums">
             {provinceData.totalCount}
@@ -88,12 +88,12 @@ export function MapRegulasiKabupatenCard({
       </div>
 
       {/* ── 4. List Kabupaten/Kota Scrollable Sesuai Figma node #2642:59175 ── */}
-      <div className="flex flex-col gap-2 max-h-[380px] overflow-y-auto thin-scrollbar pr-1">
+      <div className="flex flex-col gap-2 max-h-[380px] overflow-y-auto custom-thin-scrollbar pr-1.5">
         {filteredRegencies.length > 0 ? (
           filteredRegencies.map((regency) => (
             <div
               key={regency.id}
-              className="flex items-center justify-between p-3 rounded-[12px] bg-neu-50/40 hover:bg-neu-50 border border-neu-100/80 transition-colors group"
+              className="flex items-center justify-between p-3 rounded-[12px] bg-bg-900  border border-neu-50 transition-colors group"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-lg bg-white border border-neu-100 flex items-center justify-center text-neu-500 shrink-0 shadow-2xs group-hover:text-neu-900 transition-colors">
@@ -112,9 +112,9 @@ export function MapRegulasiKabupatenCard({
               <button
                 type="button"
                 onClick={() => onSelectRegency(regency)}
-                className="flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-neu-100/80 text-neu-700 hover:text-neu-900 rounded-full border border-neu-200 text-[11px] font-medium transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
+                className="flex items-center gap-1.5 px-3 py-1 bg-pr-50  text-pr-900  rounded-full text-[11px] font-medium transition-all active:scale-95 cursor-pointer shrink-0"
               >
-                <Eye className="w-3.5 h-3.5 text-neu-500" />
+                <Eye className="w-3.5 h-3.5 text-pr-900" />
                 <span>Lihat</span>
               </button>
             </div>
