@@ -207,8 +207,15 @@ class RegulationLevelDetector
      * Deteksi tingkatan peraturan (Provinsi, Kabupaten, Kota, atau Pusat)
      * berdasarkan string pemrakarsa (instansi), lokasi_daerah, atau judul.
      */
-    public static function detect(?string $pemrakarsa, ?string $lokasiDaerah = null, ?string $judul = null): array
+    public static function detect($pemrakarsa, ?string $lokasiDaerah = null, ?string $judul = null): array
     {
+        if ($pemrakarsa instanceof \App\Models\Peraturan) {
+            $model = $pemrakarsa;
+            $pemrakarsa = $model->instansi;
+            $lokasiDaerah = $model->lokasi_daerah;
+            $judul = $model->judul;
+        }
+
         $raw = trim((string) ($pemrakarsa ?: $lokasiDaerah ?: ''));
         
         // Normalisasi format snake_case (seperti folder MinIO: pemerintah_kabupaten_badung)

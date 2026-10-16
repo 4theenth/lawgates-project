@@ -21,7 +21,7 @@ import {
 } from './indonesiaMapData';
 import { MAP_THEME } from '../../config/mapTheme';
 import { getRegenciesForProvince } from './map/regencyData';
-import { MapSearchCard } from './map/MapSearchCard';
+import { MapSearchCard, WilayahSearchResult } from './map/MapSearchCard';
 import { MapProvinceDetailCard } from './map/MapProvinceDetailCard';
 import { MapKabupatenPreviewCard } from './map/MapKabupatenPreviewCard';
 import { MapKabupatenFullListCard } from './map/MapKabupatenFullListCard';
@@ -199,10 +199,24 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
     ? provincesData[selectedProvinceId] || null
     : null;
 
-  // Data kabupaten/kota untuk provinsi terpilih (Figma node #2622:43699 & #2587:56232)
+  // Data kabupaten/kota untuk provinsi terpilih yang disinkronkan dengan hitungan riil database
   const activeProvinceRegencies = useMemo(() => {
     if (!activeProvince) return null;
-    return getRegenciesForProvince(activeProvince.id, activeProvince.name);
+    const base = getRegenciesForProvince(activeProvince.id, activeProvince.name);
+    const counts = (activeProvince as any).regencyCounts || {};
+
+    const regencies = base.regencies.map((reg) => ({
+      ...reg,
+      totalPeraturan: counts[reg.name] ?? 0,
+    }));
+
+    // Prioritaskan kabupaten yang memiliki peraturan di database agar muncul di daftar teratas popup
+    regencies.sort((a, b) => (b.totalPeraturan ?? 0) - (a.totalPeraturan ?? 0));
+
+    return {
+      ...base,
+      regencies,
+    };
   }, [activeProvince]);
 
   // Patokan tinggi aktif (default ~556px sesuai natural height kartu provinsi + daftar kabupaten/kota)
@@ -234,16 +248,81 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
     observer.observe(rightPanelRef.current);
     return () => observer.disconnect();
   }, [activeProvince, isViewingAllKabupaten]);
-  // Filter daftar provinsi untuk autocomplete search (mendukung pencarian nama provinsi & kabupaten)
-  const filteredProvinces = useMemo(() => {
-    const list = Object.values(provincesData);
-    if (!searchQuery.trim()) return list;
+
+  // Hasil pencarian gabungan (Provinsi & Kabupaten/Kota) untuk autocomplete dropdown
+  const searchResults = useMemo<WilayahSearchResult[]>(() => {
+    if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase().trim();
-    return list.filter((p) => {
-      if (p.name.toLowerCase().includes(q)) return true;
-      const regData = getRegenciesForProvince(p.id, p.name);
-      return regData.regencies.some((r) => r.name.toLowerCase().includes(q));
+    const results: WilayahSearchResult[] = [];
+
+    const provList = Object.values(provincesData);
+
+    for (const prov of provList) {
+      const provNameLower = prov.name.toLowerCase();
+      const provMatches = provNameLower.includes(q);
+
+      // 1. Tambahkan provinsi jika cocok dengan query
+      if (provMatches) {
+        results.push({
+          key: `prov-${prov.id}`,
+          category: 'provinsi',
+          name: prov.name,
+          label: 'Provinsi',
+          provinceId: prov.id,
+          provinceName: prov.name,
+          total: prov.total ?? 0,
+        });
+      }
+
+      // 2. Ambil data kabupaten/kota untuk provinsi ini
+      const regData = getRegenciesForProvince(prov.id, prov.name);
+      const counts = (prov as any).regencyCounts || {};
+
+      for (const reg of regData.regencies) {
+        const regNameLower = reg.name.toLowerCase();
+        const fullRegLower = `${reg.type.toLowerCase()} ${regNameLower}`;
+
+        if (regNameLower.includes(q) || fullRegLower.includes(q)) {
+          const regTotal = counts[reg.name] ?? 0;
+          results.push({
+            key: `reg-${prov.id}-${reg.name}`,
+            category: reg.type.toLowerCase().includes('kota') ? 'kota' : 'kabupaten',
+            name: `${reg.type} ${reg.name}`,
+            label: `${reg.type} di ${prov.name}`,
+            provinceId: prov.id,
+            provinceName: prov.name,
+            total: regTotal,
+          });
+        }
+      }
+    }
+
+    // Urutkan hasil pencarian:
+    // 1. Exact match di nama item
+    // 2. Prefix match di nama item
+    // 3. Item dengan jumlah peraturan > 0 diprioritaskan
+    // 4. Urutan alfabetis
+    results.sort((a, b) => {
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+      const aExact = aName === q || aName.replace(/^(kabupaten|kota)\s+/i, '') === q;
+      const bExact = bName === q || bName.replace(/^(kabupaten|kota)\s+/i, '') === q;
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+
+      const aStarts = aName.startsWith(q) || aName.replace(/^(kabupaten|kota)\s+/i, '').startsWith(q);
+      const bStarts = bName.startsWith(q) || bName.replace(/^(kabupaten|kota)\s+/i, '').startsWith(q);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+
+      if ((b.total > 0) !== (a.total > 0)) {
+        return b.total - a.total;
+      }
+
+      return a.name.localeCompare(b.name);
     });
+
+    return results.slice(0, 30);
   }, [provincesData, searchQuery]);
 
   // Handler saat memilih provinsi (dari klik peta atau search dropdown)
@@ -306,6 +385,23 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
         });
       }
     }
+  }, []);
+
+  // Handler pemilihan kabupaten (dari dropdown search atau kartu kabupaten)
+  const handleSelectRegency = useCallback((regencyFullName: string, provinceId?: string) => {
+    if (provinceId) {
+      handleSelectProvince(provinceId);
+    }
+    // Langsung arahkan ke pencarian dengan filter Perda (kategori_id=15) dan lokasi_daerah
+    router.visit(
+      `/pencarian?kategori_id=15&lokasi_daerah=${encodeURIComponent(regencyFullName)}`
+    );
+  }, [handleSelectProvince]);
+
+  // Handler saat user menekan Enter pada input search
+  const handleSubmitSearch = useCallback((query: string) => {
+    if (!query.trim()) return;
+    router.visit(`/pencarian?keyword=${encodeURIComponent(query.trim())}`);
   }, []);
 
   // Reset zoom & kamera kembali ke Indonesia penuh serta HAPUS PILIHAN (Empty State)
@@ -616,8 +712,10 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
             <MapSearchCard
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
-              filteredProvinces={filteredProvinces}
+              searchResults={searchResults}
               onSelectProvince={handleSelectProvince}
+              onSelectRegency={handleSelectRegency}
+              onSubmitSearch={handleSubmitSearch}
               inputOnly
             />
           </div>
@@ -665,7 +763,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
               <MapRegulasiKabupatenCard
                 provinceData={activeProvinceRegencies}
                 onSelectRegency={(regency) => {
-                  router.visit(`/pencarian?q=${encodeURIComponent(regency.name)}`);
+                  handleSelectRegency(`${regency.type} ${regency.name}`, activeProvince?.id);
                 }}
               />
             </div>
@@ -691,8 +789,10 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
               <MapSearchCard
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
-                filteredProvinces={filteredProvinces}
+                searchResults={searchResults}
                 onSelectProvince={handleSelectProvince}
+                onSelectRegency={handleSelectRegency}
+                onSubmitSearch={handleSubmitSearch}
               />
             </div>
 
@@ -719,8 +819,10 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
                 <MapSearchCard
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
-                  filteredProvinces={filteredProvinces}
+                  searchResults={searchResults}
                   onSelectProvince={handleSelectProvince}
+                  onSelectRegency={handleSelectRegency}
+                  onSubmitSearch={handleSubmitSearch}
                 />
               </div>
 
@@ -729,7 +831,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
                   provinceData={activeProvinceRegencies}
                   onBack={() => setIsViewingAllKabupaten(false)}
                   onSelectRegency={(regency) => {
-                    router.visit(`/pencarian?q=${encodeURIComponent(regency.name)}`);
+                    handleSelectRegency(`${regency.type} ${regency.name}`, activeProvince?.id);
                   }}
                 />
               ) : activeProvince ? (
@@ -744,7 +846,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
                     provinceData={activeProvinceRegencies}
                     onViewAll={() => setIsViewingAllKabupaten(true)}
                     onSelectRegency={(regency) => {
-                      router.visit(`/pencarian?q=${encodeURIComponent(regency.name)}`);
+                      handleSelectRegency(`${regency.type} ${regency.name}`, activeProvince?.id);
                     }}
                   />
                 </>
