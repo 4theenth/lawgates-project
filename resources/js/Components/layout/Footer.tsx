@@ -48,7 +48,7 @@ export function Footer() {
     <footer className="relative w-full min-h-[386px] bg-pr-900 text-white overflow-hidden z-10 select-none">
       {/* Endless Clouds SVG Pattern Overlay */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-15"
+        className="absolute inset-0 pointer-events-none opacity-12"
         style={{
           backgroundImage: `url("${endlessClouds}")`,
           backgroundRepeat: 'repeat',
