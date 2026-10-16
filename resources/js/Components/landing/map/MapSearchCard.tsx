@@ -1,12 +1,25 @@
 import React, { useState } from 'react';
-import { Earth, Search } from 'lucide-react';
+import { Earth, Search, Building2 } from 'lucide-react';
 import { ProvinceDetail } from '../indonesiaMapData';
+
+export interface WilayahSearchResult {
+  key: string;
+  category: 'provinsi' | 'kabupaten' | 'kota';
+  name: string;
+  label: string;
+  provinceId: string;
+  provinceName: string;
+  total: number;
+}
 
 export interface MapSearchCardProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  filteredProvinces: ProvinceDetail[];
+  filteredProvinces?: ProvinceDetail[];
+  searchResults?: WilayahSearchResult[];
   onSelectProvince: (provinceId: string) => void;
+  onSelectRegency?: (regencyName: string, provinceId: string) => void;
+  onSubmitSearch?: (query: string) => void;
   className?: string;
   inputOnly?: boolean;
 }
@@ -14,12 +27,51 @@ export interface MapSearchCardProps {
 export function MapSearchCard({
   searchQuery,
   onSearchChange,
-  filteredProvinces,
+  filteredProvinces = [],
+  searchResults,
   onSelectProvince,
+  onSelectRegency,
+  onSubmitSearch,
   className = '',
   inputOnly = false,
 }: MapSearchCardProps) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Jika searchResults disediakan gunakan itu, jika tidak fallback ke filteredProvinces
+  const items: WilayahSearchResult[] = searchResults ?? filteredProvinces.map((prov) => ({
+    key: `prov-${prov.id}`,
+    category: 'provinsi',
+    name: prov.name,
+    label: 'Provinsi',
+    provinceId: prov.id,
+    provinceName: prov.name,
+    total: prov.total ?? 0,
+  }));
+
+  const handleSelect = (item: WilayahSearchResult) => {
+    setIsSearchFocused(false);
+    if (item.category === 'provinsi') {
+      onSelectProvince(item.provinceId);
+    } else if (onSelectRegency) {
+      onSelectRegency(item.name, item.provinceId);
+    } else {
+      onSelectProvince(item.provinceId);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (items.length > 0) {
+        handleSelect(items[0]);
+      } else if (onSubmitSearch && searchQuery.trim()) {
+        setIsSearchFocused(false);
+        onSubmitSearch(searchQuery.trim());
+      }
+    } else if (e.key === 'Escape') {
+      setIsSearchFocused(false);
+    }
+  };
 
   const searchInput = (
     <div className="relative w-full">
@@ -32,35 +84,67 @@ export function MapSearchCard({
         onChange={(e) => onSearchChange(e.target.value)}
         onFocus={() => setIsSearchFocused(true)}
         onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+        onKeyDown={handleKeyDown}
         placeholder="Cari provinsi/kabupaten/kota"
         className={`w-full pl-10 sm:pl-11 pr-4 py-2 sm:py-2.5 bg-white ${
-          inputOnly ? 'rounded-full border border-neu-50 shadow-2xs hover:border-neu-100 focus:ring-2 focus:ring-neu-100 focus:border-neu-400' : 'rounded-lg sm:rounded-xl border border-neu-50 focus:ring-1 focus:ring-pr-900 focus:border-pr-900'
+          inputOnly
+            ? 'rounded-full border border-neu-100 shadow-2xs hover:border-neu-300 focus:ring-2 focus:ring-neu-100 focus:border-neu-400'
+            : 'rounded-lg sm:rounded-xl border border-neu-50 focus:ring-1 focus:ring-pr-900 focus:border-pr-900'
         } text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none transition-all`}
       />
 
-      {/* Dropdown Pencarian Otomatis */}
+      {/* Dropdown Pencarian Otomatis (Mendukung Provinsi & Kabupaten/Kota) */}
       {isSearchFocused && searchQuery.trim().length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-neu-200 rounded-xl shadow-lg max-h-56 overflow-y-auto custom-thin-scrollbar z-30 py-1">
-          {filteredProvinces.length > 0 ? (
-            filteredProvinces.map((prov) => (
+        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-neu-200 rounded-xl shadow-lg max-h-64 overflow-y-auto custom-thin-scrollbar z-50 py-1">
+          {items.length > 0 ? (
+            items.map((item) => (
               <button
-                key={prov.id}
+                key={item.key}
                 type="button"
-                onMouseDown={() => {
-                  onSelectProvince(prov.id);
-                  setIsSearchFocused(false);
+                onMouseDown={(e) => {
+                  e.preventDefault(); // Mencegah onBlur sebelum click dieksekusi
+                  handleSelect(item);
                 }}
-                className="w-full text-left px-3.5 py-2 hover:bg-neu-50 text-xs sm:text-sm text-neu-800 flex items-center justify-between transition-colors cursor-pointer"
+                className="w-full text-left px-3.5 py-2 hover:bg-neu-50 text-xs sm:text-sm text-neu-800 flex items-center justify-between transition-colors cursor-pointer group"
               >
-                <span className="font-medium">{prov.name}</span>
-                <span className="text-[11px] text-neu-500 font-semibold">
-                  {prov.total.toLocaleString('id-ID')}
+                <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                  <div className="w-6 h-6 rounded-md bg-neu-100/70 border border-neu-200/60 flex items-center justify-center shrink-0 text-neu-600 group-hover:text-pr-900 group-hover:bg-pr-50 transition-colors">
+                    {item.category === 'provinsi' ? (
+                      <Earth className="w-3.5 h-3.5" />
+                    ) : (
+                      <Building2 className="w-3.5 h-3.5" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-medium text-neu-900 truncate">
+                      {item.name}
+                    </div>
+                    <div className="text-[10px] sm:text-[11px] text-neu-400 truncate">
+                      {item.label}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-neu-500 bg-neu-100/80 px-2 py-0.5 rounded-full tabular-nums shrink-0">
+                  {item.total.toLocaleString('id-ID')}
                 </span>
               </button>
             ))
           ) : (
-            <div className="px-3 py-2 text-xs text-neu-500 text-center">
+            <div className="px-3 py-3 text-xs text-neu-500 text-center">
               Wilayah tidak ditemukan
+              {onSubmitSearch && searchQuery.trim() && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setIsSearchFocused(false);
+                    onSubmitSearch(searchQuery.trim());
+                  }}
+                  className="block mx-auto mt-1.5 text-pr-900 hover:underline font-medium cursor-pointer"
+                >
+                  Cari peraturan &quot;{searchQuery.trim()}&quot; &rarr;
+                </button>
+              )}
             </div>
           )}
         </div>

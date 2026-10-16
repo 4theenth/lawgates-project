@@ -110,6 +110,11 @@ class Peraturan extends Model
         return $this->hasMany(\App\Models\LawRelation::class, 'from_peraturan_id');
     }
 
+    public function bookmarks()
+    {
+        return $this->hasMany(\App\Models\Bookmark::class, 'peraturan_id');
+    }
+
     public function getHasPembukaanAttribute(): bool
     {
         if (isset($this->attributes['pembukaan_count'])) {
@@ -143,5 +148,33 @@ class Peraturan extends Model
         }
 
         return $this->has_pembukaan && $this->has_pasal;
+    }
+
+    /**
+     * Dapatkan informasi tingkatan hierarki peraturan (Provinsi, Kabupaten, Kota, atau Pusat)
+     * berdasarkan pemrakarsa, instansi, lokasi_daerah, atau judul.
+     */
+    public function getLevelInfo(): array
+    {
+        return \App\Services\RegulationLevelDetector::detect(
+            $this->instansi,
+            $this->lokasi_daerah,
+            $this->judul
+        );
+    }
+
+    public function getTingkatAttribute(): string
+    {
+        return $this->getLevelInfo()['tingkat'];
+    }
+
+    public function getNamaDaerahAttribute(): string
+    {
+        return $this->getLevelInfo()['nama_daerah'];
+    }
+
+    public function getProvinsiIndukAttribute(): ?string
+    {
+        return $this->getLevelInfo()['provinsi'];
     }
 }
