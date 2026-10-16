@@ -143,13 +143,22 @@ class KategoriController extends Controller
             $canonicalKey = 'perda';
             $matchedJenis = null;
 
-            // Query peraturan untuk provinsi ini (berdasarkan judul, tempat penetapan, atau instansi)
+            $regencyNames = \App\Services\RegulationLevelDetector::getRegenciesForProvinceName($matchedProvince);
+
+            // Query peraturan untuk provinsi ini (berdasarkan judul, tempat penetapan, instansi, lokasi_daerah, atau nama kabupaten/kota)
             $peraturanQuery = Peraturan::available()
                 ->with(['jenisPeraturan', 'statusPeraturan'])
-                ->where(function ($q) use ($matchedProvince) {
+                ->where(function ($q) use ($matchedProvince, $regencyNames) {
                     $q->where('judul', 'ilike', '%' . $matchedProvince . '%')
                       ->orWhere('tempat_penetapan', 'ilike', '%' . $matchedProvince . '%')
-                      ->orWhere('instansi', 'ilike', '%' . $matchedProvince . '%');
+                      ->orWhere('instansi', 'ilike', '%' . $matchedProvince . '%')
+                      ->orWhere('lokasi_daerah', 'ilike', '%' . $matchedProvince . '%');
+
+                    foreach ($regencyNames as $regName) {
+                        $q->orWhere('instansi', 'ilike', '%' . $regName . '%')
+                          ->orWhere('lokasi_daerah', 'ilike', '%' . $regName . '%')
+                          ->orWhere('tempat_penetapan', 'ilike', '%' . $regName . '%');
+                    }
                 });
 
             $totalCategoryCount = (clone $peraturanQuery)->count();

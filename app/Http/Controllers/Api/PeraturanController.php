@@ -90,10 +90,28 @@ class PeraturanController extends Controller
             }
         });
 
+        $likeOp = \Illuminate\Support\Facades\DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
         // 5. Filter Lokasi Daerah / Entitas
-        $query->when($request->filled('lokasi_daerah') || $request->filled('entitas'), function ($q) use ($request) {
-            $lokasi = $request->query('lokasi_daerah') ?? $request->query('entitas');
-            $q->where('lokasi_daerah', 'LIKE', "%{$lokasi}%");
+        $query->when($request->filled('lokasi_daerah') || $request->filled('entitas'), function ($q) use ($request, $likeOp) {
+            $lokasi = trim((string) ($request->query('lokasi_daerah') ?? $request->query('entitas')));
+            $clean = preg_replace('/^(pemerintah\s+provinsi|pemerintah\s+kabupaten|pemerintah\s+kota|pemerintah\s+daerah|kabupaten|kota)\s+/i', '', $lokasi);
+            $clean = trim($clean);
+            $snake = str_replace(' ', '_', strtolower($lokasi));
+            $cleanSnake = str_replace(' ', '_', strtolower($clean));
+
+            $q->where(function ($subQ) use ($lokasi, $clean, $snake, $cleanSnake, $likeOp) {
+                $subQ->where('instansi', $likeOp, "%{$lokasi}%")
+                     ->orWhere('instansi', $likeOp, "%{$clean}%")
+                     ->orWhere('instansi', $likeOp, "%{$snake}%")
+                     ->orWhere('instansi', $likeOp, "%{$cleanSnake}%")
+                     ->orWhere('lokasi_daerah', $likeOp, "%{$lokasi}%")
+                     ->orWhere('lokasi_daerah', $likeOp, "%{$clean}%")
+                     ->orWhere('lokasi_daerah', $likeOp, "%{$snake}%")
+                     ->orWhere('lokasi_daerah', $likeOp, "%{$cleanSnake}%")
+                     ->orWhere('tempat_penetapan', $likeOp, "%{$clean}%")
+                     ->orWhere('judul', $likeOp, "%{$clean}%");
+            });
         });
 
         // 5.5. Filter Subjek
@@ -334,13 +352,31 @@ class PeraturanController extends Controller
             ->pluck('tahun');
 
         // 4. Ambil Entitas/Lokasi Daerah yang unik, abaikan 'Pemerintah Pusat'
-        $lokasiDaerah = Peraturan::select('lokasi_daerah')
+        $rawLokasi = Peraturan::select('lokasi_daerah')
             ->whereNotNull('lokasi_daerah')
             ->where('lokasi_daerah', '!=', '')
             ->where('lokasi_daerah', '!=', 'Pemerintah Pusat')
             ->distinct()
-            ->orderBy('lokasi_daerah', 'asc')
             ->pluck('lokasi_daerah');
+
+        $rawInstansi = Peraturan::select('instansi')
+            ->whereNotNull('instansi')
+            ->where('instansi', '!=', '')
+            ->where('instansi', '!=', 'Pemerintah Pusat')
+            ->distinct()
+            ->pluck('instansi');
+
+        $lokasiSet = collect();
+        foreach ($rawLokasi->concat($rawInstansi) as $item) {
+            $info = \App\Services\RegulationLevelDetector::detect($item);
+            if (!empty($info['provinsi'])) {
+                // Tambahkan entitas tingkat provinsi untuk dropdown induk frontend
+                $lokasiSet->push("Pemerintah Provinsi " . $info['provinsi']);
+            } elseif ($info['tingkat'] === 'Provinsi' && !empty($info['nama_daerah'])) {
+                $lokasiSet->push("Pemerintah Provinsi " . $info['nama_daerah']);
+            }
+        }
+        $lokasiDaerah = $lokasiSet->unique()->sort()->values();
 
         // 5. Ambil Subjek dari master tabel subjek_peraturan (panel admin) & digabung dengan subjek di tabel peraturan
         $adminSubjek = SubjekPeraturan::pluck('nama');

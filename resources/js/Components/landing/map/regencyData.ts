@@ -9,15 +9,15 @@ export const PROVINCE_REGENCY_MAP: Record<string, ProvinceRegencyData> = {
     kotaCount: 1,
     totalCount: 9,
     regencies: [
-      { id: 'denpasar', name: 'Denpasar', type: 'Kota', totalPeraturan: 204 },
-      { id: 'badung', name: 'Badung', type: 'Kabupaten', totalPeraturan: 534 },
-      { id: 'tabanan', name: 'Tabanan', type: 'Kabupaten', totalPeraturan: 192 },
-      { id: 'klungkung', name: 'Klungkung', type: 'Kabupaten', totalPeraturan: 342 },
-      { id: 'gianyar', name: 'Gianyar', type: 'Kabupaten', totalPeraturan: 412 },
-      { id: 'buleleng', name: 'Buleleng', type: 'Kabupaten', totalPeraturan: 388 },
-      { id: 'karangasem', name: 'Karangasem', type: 'Kabupaten', totalPeraturan: 295 },
-      { id: 'jembrana', name: 'Jembrana', type: 'Kabupaten', totalPeraturan: 265 },
-      { id: 'bangli', name: 'Bangli', type: 'Kabupaten', totalPeraturan: 218 },
+      { id: 'denpasar', name: 'Denpasar', type: 'Kota', totalPeraturan: 0 },
+      { id: 'badung', name: 'Badung', type: 'Kabupaten', totalPeraturan: 0 },
+      { id: 'tabanan', name: 'Tabanan', type: 'Kabupaten', totalPeraturan: 0 },
+      { id: 'klungkung', name: 'Klungkung', type: 'Kabupaten', totalPeraturan: 0 },
+      { id: 'gianyar', name: 'Gianyar', type: 'Kabupaten', totalPeraturan: 0 },
+      { id: 'buleleng', name: 'Buleleng', type: 'Kabupaten', totalPeraturan: 0 },
+      { id: 'karangasem', name: 'Karangasem', type: 'Kabupaten', totalPeraturan: 0 },
+      { id: 'jembrana', name: 'Jembrana', type: 'Kabupaten', totalPeraturan: 0 },
+      { id: 'bangli', name: 'Bangli', type: 'Kabupaten', totalPeraturan: 0 },
     ],
   },
   'dki-jakarta': {
@@ -178,12 +178,12 @@ export function getRegenciesForProvince(
   // Fallback seragam untuk provinsi lainnya agar UI selalu terisi dan tidak kosong
   const formattedName = provinceName.trim() || 'Wilayah';
   const defaultList: RegencyItem[] = [
-    { id: `${normalizedId}-pusat`, name: `${formattedName} Pusat`, type: 'Kabupaten', totalPeraturan: 312 },
-    { id: `${normalizedId}-kota`, name: `Kota ${formattedName}`, type: 'Kota', totalPeraturan: 284 },
-    { id: `${normalizedId}-utara`, name: `${formattedName} Utara`, type: 'Kabupaten', totalPeraturan: 220 },
-    { id: `${normalizedId}-selatan`, name: `${formattedName} Selatan`, type: 'Kabupaten', totalPeraturan: 195 },
-    { id: `${normalizedId}-barat`, name: `${formattedName} Barat`, type: 'Kabupaten', totalPeraturan: 180 },
-    { id: `${normalizedId}-timur`, name: `${formattedName} Timur`, type: 'Kabupaten', totalPeraturan: 154 },
+    { id: `${normalizedId}-pusat`, name: `${formattedName} Pusat`, type: 'Kabupaten', totalPeraturan: 0 },
+    { id: `${normalizedId}-kota`, name: `Kota ${formattedName}`, type: 'Kota', totalPeraturan: 0 },
+    { id: `${normalizedId}-utara`, name: `${formattedName} Utara`, type: 'Kabupaten', totalPeraturan: 0 },
+    { id: `${normalizedId}-selatan`, name: `${formattedName} Selatan`, type: 'Kabupaten', totalPeraturan: 0 },
+    { id: `${normalizedId}-barat`, name: `${formattedName} Barat`, type: 'Kabupaten', totalPeraturan: 0 },
+    { id: `${normalizedId}-timur`, name: `${formattedName} Timur`, type: 'Kabupaten', totalPeraturan: 0 },
   ];
 
   return {
