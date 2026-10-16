@@ -33,6 +33,14 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+                'bookmarkIds' => fn () => $request->user()
+                    ? $request->user()->bookmarkedPeraturans()
+                        ->select('peraturan.id', 'peraturan.unique_id')
+                        ->get()
+                        ->flatMap(fn ($p) => array_filter([(string) $p->id, (string) $p->unique_id]))
+                        ->values()
+                        ->all()
+                    : [],
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

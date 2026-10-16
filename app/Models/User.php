@@ -64,4 +64,14 @@ class User extends Authenticatable
     {
         $this->notify(new \App\Notifications\ResetPasswordNotification($token));
     }
+
+    public function bookmarks()
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
+    public function bookmarkedPeraturans()
+    {
+        return $this->belongsToMany(Peraturan::class, 'bookmarks', 'user_id', 'peraturan_id')->withTimestamps();
+    }
 }

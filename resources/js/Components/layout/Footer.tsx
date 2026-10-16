@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { Mail, Phone, ChevronRight } from 'lucide-react';
 import endlessClouds from '@/assets/endless-clouds.svg';
 import ApplicationLogo from '@/Components/common/ApplicationLogo';
@@ -30,11 +30,25 @@ const EXPLORE_MENUS = [
 ];
 
 export function Footer() {
+  const { url } = usePage();
+
+  // Bersihkan parameter query dan hash agar pengecekan path URL akurat
+  const currentPath = url ? url.split('?')[0].split('#')[0] : '/';
+
+  // Helper untuk menentukan apakah menu jelajahi sedang aktif berdasarkan rute saat ini
+  const isMenuActive = (href: string) => {
+    if (!href || href === '#') return false;
+    if (href === '/') {
+      return currentPath === '/' || currentPath === '';
+    }
+    return currentPath === href || currentPath.startsWith(`${href}/`);
+  };
+
   return (
     <footer className="relative w-full min-h-[386px] bg-pr-900 text-white overflow-hidden z-10 select-none">
       {/* Endless Clouds SVG Pattern Overlay */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-15"
+        className="absolute inset-0 pointer-events-none opacity-12"
         style={{
           backgroundImage: `url("${endlessClouds}")`,
           backgroundRepeat: 'repeat',
@@ -85,24 +99,42 @@ export function Footer() {
               JELAJAHI
             </h4>
             <ul className="space-y-3">
-              {EXPLORE_MENUS.map((item) => (
-                <li key={item.title}>
-                  {item.disabled ? (
-                    <span className="inline-flex items-center gap-2 text-[14px] text-white/40 cursor-default select-none">
-                      <ChevronRight className="w-3.5 h-3.5 text-white/30" />
-                      <span>{item.title}</span>
-                    </span>
-                  ) : (
+              {EXPLORE_MENUS.map((item) => {
+                if (item.disabled) {
+                  return (
+                    <li key={item.title}>
+                      <span className="inline-flex items-center gap-2 text-[14px] text-white/40 cursor-default select-none">
+                        <ChevronRight className="w-3.5 h-3.5 text-white/30" />
+                        <span>{item.title}</span>
+                      </span>
+                    </li>
+                  );
+                }
+
+                const isActive = isMenuActive(item.href);
+
+                return (
+                  <li key={item.title}>
                     <Link
                       href={item.href}
-                      className="group inline-flex items-center gap-2 text-[14px] text-white font-medium hover:text-white transition-colors"
+                      className={`group inline-flex items-center gap-2 text-[14px] transition-colors ${
+                        isActive
+                          ? 'text-white font-medium'
+                          : 'text-white/60 hover:text-white font-normal'
+                      }`}
                     >
-                      <ChevronRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-all" />
+                      <ChevronRight
+                        className={`w-3.5 h-3.5 transition-all ${
+                          isActive
+                            ? 'text-white'
+                            : 'text-white/40 group-hover:text-white group-hover:translate-x-0.5'
+                        }`}
+                      />
                       <span>{item.title}</span>
                     </Link>
-                  )}
-                </li>
-              ))}
+                  </li>
+                );
+              })}
               </ul>
             </div>
           </div>

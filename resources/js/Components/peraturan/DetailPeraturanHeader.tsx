@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from '@inertiajs/react';
-import { Calendar, MapPin, ArrowRightLeft, Download, Check, Copy, Bookmark, CheckCircle2, XCircle } from 'lucide-react';
+import { Calendar, MapPin, ArrowRightLeft, Download, Check, Copy, CheckCircle2, XCircle } from 'lucide-react';
 import { Breadcrumb } from '@/Components/common/Breadcrumb';
-import { useAuthModal } from '@/hooks/useAuthModal';
+import { BookmarkButton } from '@/Components/common/BookmarkButton';
 
 export interface DetailPeraturanHeaderProps {
   breadcrumbItems?: { label: string; href?: string }[];
@@ -17,8 +17,9 @@ export interface DetailPeraturanHeaderProps {
   downloadHref?: string;
   viewerHref?: string;
   showCompare?: boolean;
+  peraturanId?: string | number;
   isBookmarked?: boolean;
-  onBookmarkToggle?: () => void;
+  onBookmarkToggle?: (isBookmarked: boolean) => void;
 }
 
 export function DetailPeraturanHeader({
@@ -36,24 +37,13 @@ export function DetailPeraturanHeader({
   onCompare,
   onDownload,
   downloadHref,
-  viewerHref,
-  showCompare = true,
-  isBookmarked: externalBookmarked,
+  viewerHref: _viewerHref,
+  showCompare: _showCompare = true,
+  peraturanId,
+  isBookmarked,
   onBookmarkToggle,
 }: DetailPeraturanHeaderProps) {
-  const { requireAuth } = useAuthModal();
   const [isLinkCopied, setIsLinkCopied] = useState(false);
-  const [internalBookmarked, setInternalBookmarked] = useState(false);
-
-  const isBookmarked = externalBookmarked !== undefined ? externalBookmarked : internalBookmarked;
-
-  const handleBookmarkToggle = () => {
-    if (onBookmarkToggle) {
-      onBookmarkToggle();
-    } else {
-      setInternalBookmarked((prev) => !prev);
-    }
-  };
 
   const isBerlaku =
     !statusPeraturan.toLowerCase().includes('tidak') &&
@@ -165,28 +155,14 @@ export function DetailPeraturanHeader({
           </div>
         </div>
 
-        {/* Sisi Kanan: Tombol Simpan (Bookmark) sejajar horizontal dengan badges, di bawah Download Dokumen */}
+        {/* Sisi Kanan: Tombol Simpan (Bookmark) Reusable Component */}
         <div className="shrink-0 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={handleBookmarkToggle}
-            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer ${
-              isBookmarked
-                ? 'bg-pr-100 text-pr-900 border border-pr-200 font-semibold'
-                : 'bg-pr-50 hover:bg-pr-100 text-pr-900'
-            }`}
-            title={isBookmarked ? 'Hapus dari daftar simpan' : 'Simpan peraturan'}
-            aria-label="Simpan peraturan"
-          >
-            <Bookmark
-              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
-                isBookmarked
-                  ? 'fill-pr-900 text-pr-900'
-                  : 'text-pr-900 stroke-[1.75]'
-              }`}
-            />
-            <span>{isBookmarked ? 'Tersimpan' : 'Simpan'}</span>
-          </button>
+          <BookmarkButton
+            variant="pill"
+            peraturanId={peraturanId || ''}
+            isBookmarked={isBookmarked}
+            onToggle={onBookmarkToggle}
+          />
         </div>
       </div>
     </div>

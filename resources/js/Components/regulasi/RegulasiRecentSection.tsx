@@ -236,13 +236,13 @@ export function RegulasiRecentSection({
         <h2 className="text-2xl sm:text-[26px] font-bold text-neu-900 tracking-tight">
           Sistem Hukum Terbaru
         </h2>
-        <p className="text-xs sm:text-sm text-neu-500 mt-1">
+        <p className="text-xs sm:text-md text-neu-500 mt-1">
           Pembaruan hukum harian
         </p>
       </div>
 
       {/* ── Filter Bar Container ── */}
-      <div className="bg-white border border-neu-100 rounded-[15px] p-4 sm:p-6 shadow-2xs mb-8">
+      <div className="bg-white border border-neu-50 rounded-[15px] p-4 sm:p-6 shadow-2xs mb-8">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
           {/* Dropdown Filters (Kategori, Subjek, Tahun, Status via CategoryFilterPopover) */}
           <CategoryFilterPopover
@@ -357,7 +357,7 @@ export function RegulasiRecentSection({
 
         {/* ── Right Column: Statistik Harian Sidebar (Figma node #2358:57903) ── */}
         <div className="lg:col-span-4">
-          <div className="bg-white border border-neu-100 rounded-[15px] p-4 sm:p-5 shadow-2xs flex flex-col gap-3.5">
+          <div className="bg-white border border-neu-50 rounded-[15px] p-4 sm:p-5 shadow-2xs flex flex-col gap-3.5">
             <h3 className="text-[14px] font-medium text-neu-900">
               Statistik Harian
             </h3>
