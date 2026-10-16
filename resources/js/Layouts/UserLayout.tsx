@@ -157,9 +157,9 @@ export default function UserLayout({ children }: PropsWithChildren<UserLayoutPro
           onMobileClose={handleMobileClose}
         />
 
-        {/* Konten Halaman (Main Body) - Scroll vertikal, ukuran 1:1 dengan AdminLayout */}
+        {/* Konten Halaman (Main Body) - Scroll vertikal, ukuran 1:1 dengan AdminLayout tanpa gap mx-auto */}
         <main className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden transition-all duration-300 bg-[#FCFEFF]">
-          <div className="w-full max-w-[1440px] mx-auto p-4 sm:p-6 lg:p-7 min-w-0">
+          <div className="w-full p-4 sm:p-6 lg:p-7 min-w-0">
             {children}
           </div>
         </main>
