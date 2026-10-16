@@ -42,18 +42,21 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
   const displayRole = user?.role || 'user';
   const isAdmin = user && ['admin', 'superadmin'].includes(user.role);
 
+  // Bersihkan parameter query dan hash agar pengecekan path URL akurat
+  const currentPath = url ? url.split('?')[0].split('#')[0] : '/';
+
   // Helper untuk menentukan apakah menu sedang aktif berdasarkan URL saat ini
   const isMenuActive = (path: string, isIndex?: boolean) => {
     if (isIndex || path === '/') {
-      return url === '/' || url === '';
+      return currentPath === '/' || currentPath === '';
     }
     if (path === '#' || !path) {
       return false;
     }
-    return url === path || (path !== '/' && url.startsWith(`${path}/`));
+    return currentPath === path || (path !== '/' && currentPath.startsWith(`${path}/`));
   };
 
-  const isHome = url === '/' || url.startsWith('/?');
+  const isHome = currentPath === '/' || currentPath === '';
   const isPill = isScrolled;
   const isLightPage = !isHome;
   const theme = isLightPage || isPill ? NAVBAR_THEME.scrolled : NAVBAR_THEME.default;
