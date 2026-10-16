@@ -8,6 +8,8 @@ use Inertia\Inertia;
 use App\Http\Controllers\Api\PeraturanController;
 use App\Http\Controllers\KategoriController;
 use App\Http\Controllers\RegulasiController;
+use App\Http\Controllers\User\UserDashboardController;
+use App\Http\Controllers\User\BookmarkController;
 
 /*
 |--------------------------------------------------------------------------
@@ -95,13 +97,10 @@ Route::middleware('auth')->group(function () {
         return view('test-peraturan', compact('peraturan'));
     });
 
-    Route::get('/dashboard', function () {
-        $user = auth()->user();
-        if ($user && in_array($user->role, ['admin', 'superadmin'])) {
-            return redirect()->route('admin.dashboard');
-        }
-        return redirect('/');
-    })->name('dashboard');
+    Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('user.bookmarks');
+    Route::post('/api/bookmarks/{peraturanId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
+    Route::delete('/bookmarks/{peraturanId}', [BookmarkController::class, 'destroy'])->name('bookmarks.destroy');
 
     Route::get('/pencarian', function () {
         return Inertia::render('Pencarian');
