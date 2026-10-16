@@ -67,7 +67,7 @@ export default function Regulasi({
         </div>
 
         {/* 3. Sistem Hukum Terbaru (Frame warna putih background: #FFF sesuai Figma #2358:57719) */}
-        <div className="w-full bg-white mt-14 sm:mt-20 py-12 sm:py-16 border-y border-neu-100 shadow-2xs">
+        <div className="w-full bg-white mt-14 sm:mt-20 py-12 sm:py-16">
           <div className="w-full max-w-[1240px] mx-auto px-4 sm:px-6">
             <RegulasiRecentSection
               dailyStats={dailyStats}

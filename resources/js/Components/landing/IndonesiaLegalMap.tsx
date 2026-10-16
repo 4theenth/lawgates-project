@@ -249,6 +249,13 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
     return () => observer.disconnect();
   }, [activeProvince, isViewingAllKabupaten]);
 
+  // Sinkronkan canvas Leaflet map saat tinggi kontainer berubah
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.invalidateSize();
+    }
+  }, [activeHeight]);
+
   // Hasil pencarian gabungan (Provinsi & Kabupaten/Kota) untuk autocomplete dropdown
   const searchResults = useMemo<WilayahSearchResult[]>(() => {
     if (!searchQuery.trim()) return [];
@@ -707,8 +714,8 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
             </p>
           </div>
 
-          {/* 2. Full-Width Search Input Bar */}
-          <div className="w-full mb-6">
+          {/* 2. Full-Width Search Input Bar dengan Frame Background Putih */}
+          <div className="w-full bg-white rounded-[20px] border border-neu-50 p-2.5 sm:p-3 mb-6 ">
             <MapSearchCard
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
@@ -721,7 +728,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
           </div>
 
           {/* 3. Card Peta Indonesia Landscape Full-Width */}
-          <div className="w-full bg-white rounded-[20px] border border-neu-100 p-4 sm:p-6 shadow-xs flex flex-col gap-4 mb-6">
+          <div className="w-full bg-white rounded-[20px] border border-neu-50 p-4 sm:p-6  flex flex-col gap-4 mb-6">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-[17px] sm:text-[18px] font-semibold text-neu-900 tracking-tight">
@@ -796,12 +803,12 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
               />
             </div>
 
-            {/* 2. CARD CONTAINER MAP */}
+            {/* 2. KANVAS MAP LANGSUNG (TANPA CONTAINER PUTIH) */}
             <div
               style={isDesktop ? { height: `${activeHeight}px` } : undefined}
-              className="lg:col-span-8 w-full max-w-[361px] lg:max-w-none mx-auto bg-white rounded-[16px] sm:rounded-[20px] border border-neu-50 p-3 sm:p-[19px] shadow-sm flex flex-col h-[260px] sm:h-[300px] lg:h-full"
+              className="lg:col-span-8 w-full max-w-[361px] lg:max-w-none mx-auto flex flex-col h-[260px] sm:h-[300px] lg:h-full"
             >
-              {renderMapCanvas()}
+              {renderMapCanvas('w-full h-full bg-[#71D4E9] rounded-[16px] sm:rounded-[20px] border border-neu-100 overflow-hidden relative shadow-xs')}
             </div>
 
             {/* 3. RIGHT COLUMN: KABUPATEN & PROVINSI PANELS */}

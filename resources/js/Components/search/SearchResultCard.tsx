@@ -104,7 +104,7 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
   };
 
   return (
-    <div className="bg-white border border-neu-100 rounded-[20px] p-5 sm:p-6 shadow-2xs hover:shadow-md hover:border-pr-900/30 transition-all duration-200 flex flex-col justify-between group">
+    <div className="bg-white border border-neu-50 rounded-[20px] p-5 sm:p-6 shadow-2xs hover:shadow-md hover:border-pr-900/30 transition-all duration-200 flex flex-col justify-between group">
       <div>
         {/* Top Badges: Status Keberlakuan & Kategori */}
         <div className="flex flex-wrap items-center gap-2 mb-3.5">

@@ -29,14 +29,14 @@ export function MapProvinceDetailCard({
             <h4 className="font-semibold text-xs sm:text-sm text-neu-900 uppercase truncate">
               {activeProvince.name}
             </h4>
-            <p className="text-[11px] sm:text-xs text-neu-600 truncate">
+            <p className="text-[11px] sm:text-sm text-neu-600 truncate">
               {activeProvince.total.toLocaleString('id-ID')} peraturan
             </p>
           </div>
         </div>
 
         {/* Badge Kabupaten/Kota */}
-        <div className="px-2.5 py-1 rounded-[12px] bg-[#F8F9FA] border border-neu-50 text-[11px] font-medium text-pr-900 shrink-0 whitespace-nowrap">
+        <div className="px-2.5 py-1 rounded-[12px] bg-bg-900 border border-neu-50 text-[11px] font-medium text-pr-900 shrink-0 whitespace-nowrap">
           {totalKabupatenKota} kabupaten/kota
         </div>
       </div>
@@ -45,7 +45,7 @@ export function MapProvinceDetailCard({
       <button
         type="button"
         onClick={() => onNavigateAllRegulations(activeProvince.name)}
-        className="w-full flex items-center justify-between text-xs text-neu-600 hover:text-pr-900 font-normal transition-colors py-1 cursor-pointer"
+        className="w-full flex items-center justify-between text-sm text-neu-600 hover:text-pr-900 font-normal transition-colors py-1 cursor-pointer"
       >
         <span>Lihat semua peraturan</span>
         <ChevronRight className="w-4 h-4 text-neu-500" />
@@ -54,31 +54,31 @@ export function MapProvinceDetailCard({
       {/* 3 Stat Boxes: Total, Berlaku, Tidak Berlaku (Figma node #2622:43798) */}
       <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
         {/* Total */}
-        <div className="bg-[#F8F9FA] border border-neu-50 rounded-[12px] p-2 sm:p-2.5 flex flex-col justify-center">
-          <span className="text-neu-700 text-[10px] sm:text-[11px] font-normal truncate">
+        <div className="bg-bg-900 border border-neu-50 rounded-[12px] p-2 sm:p-2.5 flex flex-col justify-center gap-[4px] ">
+          <span className="text-neu-700 text-[10px] sm:text-[12px] font-normal truncate">
             Total peraturan
           </span>
-          <span className="text-pr-900 text-xs sm:text-sm font-semibold mt-0.5">
+          <span className="text-pr-900 text-xs sm:text-md font-semibold mt-0.5">
             {activeProvince.total.toLocaleString('id-ID')}
           </span>
         </div>
 
         {/* Berlaku */}
-        <div className="bg-[#F8F9FA] border border-neu-50 rounded-[12px] p-2 sm:p-2.5 flex flex-col justify-center">
-          <span className="text-neu-700 text-[10px] sm:text-[11px] font-normal truncate">
+        <div className="bg-bg-900 border border-neu-50 rounded-[12px] p-2 sm:p-2.5 flex flex-col justify-center gap-[4px]">
+          <span className="text-neu-700 text-[10px] sm:text-[12px] font-normal truncate">
             Berlaku
           </span>
-          <span className="text-suc-900 text-xs sm:text-sm font-semibold mt-0.5">
+          <span className="text-suc-900 text-xs sm:text-md font-semibold mt-0.5">
             {activeProvince.berlaku.toLocaleString('id-ID')}
           </span>
         </div>
 
         {/* Tidak Berlaku */}
-        <div className="bg-[#F8F9FA] border border-neu-50 rounded-[12px] p-2 sm:p-2.5 flex flex-col justify-center">
-          <span className="text-neu-700 text-[10px] sm:text-[11px] font-normal truncate">
+        <div className="bg-bg-900 border border-neu-50 rounded-[12px] p-2 sm:p-2.5 flex flex-col justify-center gap-[4px] ">
+          <span className="text-neu-700 text-[10px] sm:text-[12px] font-normal truncate">
             Tidak berlaku
           </span>
-          <span className="text-dan-900 text-xs sm:text-sm font-semibold mt-0.5">
+          <span className="text-dan-900 text-xs sm:text-md font-semibold mt-0.5">
             {activeProvince.tidakBerlaku.toLocaleString('id-ID')}
           </span>
         </div>
