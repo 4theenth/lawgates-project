@@ -133,7 +133,27 @@
   }
   html {
     @apply font-sans;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-neu-300) transparent;
+    scrollbar-gutter: stable;
+  }
 
+  html::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  html::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html::-webkit-scrollbar-thumb {
+    background-color: var(--color-neu-300);
+    border-radius: 9999px;
+  }
+
+  html::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-neu-400);
   }
 }
 
@@ -173,6 +193,35 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-neu-400);
+  }
+
+  /* ── Custom Neu Thin Scrollbar Utility (Tipis & Neu) ── */
+  .custom-neu-scrollbar,
+  .custom-thin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-neu-300) transparent;
+  }
+
+  .custom-neu-scrollbar::-webkit-scrollbar,
+  .custom-thin-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .custom-neu-scrollbar::-webkit-scrollbar-track,
+  .custom-thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-neu-scrollbar::-webkit-scrollbar-thumb,
+  .custom-thin-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-neu-300);
+    border-radius: 9999px;
+  }
+
+  .custom-neu-scrollbar::-webkit-scrollbar-thumb:hover,
+  .custom-thin-scrollbar::-webkit-scrollbar-thumb:hover {
     background-color: var(--color-neu-400);
   }
 
@@ -455,14 +504,14 @@ path.leaflet-interactive {
   background: transparent !important;
 }
 
-/* Custom Thin Scrollbar Utility */
+/* Custom Thin Scrollbar Utility (Tipis & Warna Neu) */
 .custom-thin-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: var(--color-neu-300) transparent;
 }
 .custom-thin-scrollbar::-webkit-scrollbar {
-  width: 6px !important;
-  height: 6px !important;
+  width: 5px !important;
+  height: 5px !important;
 }
 .custom-thin-scrollbar::-webkit-scrollbar-button,
 .custom-thin-scrollbar::-webkit-scrollbar-button:single-button,
@@ -479,14 +528,40 @@ path.leaflet-interactive {
   border-radius: 9999px !important;
 }
 .custom-thin-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1 !important;
+  background-color: var(--color-neu-300) !important;
   background-clip: padding-box !important;
   border-radius: 9999px !important;
-  border-top: 14px solid transparent !important;
-  border-bottom: 14px solid transparent !important;
-  border-left: 1px solid transparent !important;
-  border-right: 1px solid transparent !important;
 }
 .custom-thin-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #94a3b8 !important;
+  background-color: var(--color-neu-400) !important;
+}
+
+/* Custom Scrollbar Utility (Tipis Modern & Transparan) */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
+}
+.custom-scrollbar::-webkit-scrollbar-button,
+.custom-scrollbar::-webkit-scrollbar-button:single-button,
+.custom-scrollbar::-webkit-scrollbar-button:vertical:decrement,
+.custom-scrollbar::-webkit-scrollbar-button:vertical:increment,
+.custom-scrollbar::-webkit-scrollbar-button:start,
+.custom-scrollbar::-webkit-scrollbar-button:end {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 9999px !important;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.4) !important;
 }

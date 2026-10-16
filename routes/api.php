@@ -34,22 +34,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Referensi & Kategori Hukum
     Route::get('/kategori-hukum/all', [\App\Http\Controllers\Api\KategoriHukumController::class, 'getAllKategori']);
-    Route::get('/referensi-filter', function () {
-        return response()->json([
-            'kategori' => JenisPeraturan::select('id', 'nama')->get(),
-            'status' => Status::select('id', 'nama_status as nama')->get(),
-        ]);
-    });
+    Route::get('/referensi-filter', [PeraturanController::class, 'referensiFilter']);
 
     // Cek informasi pengguna sendiri
     Route::get('/me', function (Request $request) {
         return $request->user();
     });
 
-    Route::get('/users', [UserController::class, 'index']);
-
     // Khusus Admin & Superadmin
     Route::middleware('role:superadmin,admin')->group(function () {
+        Route::get('/users', [UserController::class, 'index']);
         Route::post('/peraturan', [PeraturanController::class, 'store']);
         Route::get('/admin/minio/files/{filename?}', [\App\Http\Controllers\Admin\DokumenHukumController::class, 'getMinioFileContent'])->where('filename', '.*');
         Route::post('/admin/import/manual', [\App\Http\Controllers\Admin\DokumenHukumController::class, 'importManual']);

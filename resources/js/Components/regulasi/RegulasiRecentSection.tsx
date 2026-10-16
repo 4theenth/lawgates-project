@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, ChevronDown, RotateCcw, Check, FileText } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Search, FileText } from 'lucide-react';
 import { SearchResultCard } from '@/Components/search/SearchResultCard';
 import { Pagination } from '@/Components/admin/Pagination';
 import { CountUp } from '@/Components/common/CountUp';
+import { CategoryFilterPopover } from '@/Components/kategori/CategoryFilterPopover';
+import { FilterOption } from '@/types/peraturan';
 
 // Default dummy regulations mirroring the exact Figma mockups (node #2337:54385)
 const FIGMA_DUMMY_REGULATIONS = [
@@ -44,17 +46,6 @@ const FIGMA_DUMMY_REGULATIONS = [
   },
 ];
 
-const SUBJEK_OPTIONS = [
-  { value: 'perpajakan', label: 'Perpajakan' },
-  { value: 'ketenagakerjaan', label: 'Ketenagakerjaan' },
-  { value: 'keuangan', label: 'Keuangan & Perbankan' },
-  { value: 'kesehatan', label: 'Kesehatan' },
-  { value: 'pendidikan', label: 'Pendidikan' },
-  { value: 'lingkungan', label: 'Lingkungan Hidup' },
-  { value: 'perdagangan', label: 'Perdagangan & Industri' },
-  { value: 'hukum-peradilan', label: 'Hukum & Peradilan' },
-];
-
 interface DailyStats {
   total: number;
   berlaku: number;
@@ -67,6 +58,8 @@ interface FilterReferences {
   kategori: { id: string | number; nama: string }[];
   status: { id: string | number; nama: string }[];
   tahun: (string | number)[];
+  subjek?: string[];
+  lokasi_daerah?: string[];
 }
 
 interface RegulasiRecentSectionProps {
@@ -86,12 +79,12 @@ export function RegulasiRecentSection({
 }: RegulasiRecentSectionProps) {
   // Filter States
   const [keyword, setKeyword] = useState('');
-  const [selectedKategori, setSelectedKategori] = useState<string>('');
-  const [selectedSubjek, setSelectedSubjek] = useState<string>('');
-  const [selectedTahun, setSelectedTahun] = useState<string>('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('');
-
-  const [openDropdown, setOpenDropdown] = useState<'kategori' | 'subjek' | 'tahun' | 'status' | null>(null);
+  const [selectedKategori, setSelectedKategori] = useState<string[]>([]);
+  const [selectedSubjek, setSelectedSubjek] = useState<string[]>([]);
+  const [selectedLokasi, setSelectedLokasi] = useState<string[]>([]);
+  const [tahunDari, setTahunDari] = useState<string>('');
+  const [tahunSampai, setTahunSampai] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
 
   // Pagination & Data states
   const [regulations, setRegulations] = useState<any[]>(FIGMA_DUMMY_REGULATIONS);
@@ -100,11 +93,60 @@ export function RegulasiRecentSection({
   const [lastPage, setLastPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
 
+  // Dynamic references loaded from DB / API
   const [kategoriList, setKategoriList] = useState(filterReferences?.kategori || []);
   const [statusList, setStatusList] = useState(filterReferences?.status || []);
   const [tahunList, setTahunList] = useState(filterReferences?.tahun || []);
+  const [subjekList, setSubjekList] = useState<string[]>(filterReferences?.subjek || []);
+  const [lokasiList, setLokasiList] = useState<string[]>(filterReferences?.lokasi_daerah || []);
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const kategoriOptions: FilterOption[] = useMemo(() => {
+    return kategoriList.map((k) => ({
+      value: String(k.id),
+      label: k.nama,
+    }));
+  }, [kategoriList]);
+
+  const statusOptions: FilterOption[] = useMemo(() => {
+    return statusList.map((s) => ({
+      value: String(s.id),
+      label: s.nama,
+    }));
+  }, [statusList]);
+
+  const subjekOptions: FilterOption[] = useMemo(() => {
+    if (subjekList && subjekList.length > 0) {
+      return subjekList.map((s) => ({
+        value: s,
+        label: s,
+      }));
+    }
+    return [
+      { value: 'perpajakan', label: 'Perpajakan' },
+      { value: 'ketenagakerjaan', label: 'Ketenagakerjaan' },
+      { value: 'keuangan', label: 'Keuangan & Perbankan' },
+      { value: 'kesehatan', label: 'Kesehatan' },
+      { value: 'pendidikan', label: 'Pendidikan' },
+      { value: 'lingkungan', label: 'Lingkungan Hidup' },
+      { value: 'perdagangan', label: 'Perdagangan & Industri' },
+      { value: 'hukum-peradilan', label: 'Hukum & Peradilan' },
+    ];
+  }, [subjekList]);
+
+  const lokasiOptions: FilterOption[] = useMemo(() => {
+    return (lokasiList || []).map((l) => ({
+      value: l,
+      label: l,
+    }));
+  }, [lokasiList]);
+
+  const availableYears = useMemo(() => {
+    if (tahunList && tahunList.length > 0) {
+      return [...tahunList].map(String).sort((a, b) => Number(b) - Number(a));
+    }
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 15 }, (_, i) => String(currentYear - i));
+  }, [tahunList]);
 
   useEffect(() => {
     if (!filterReferences?.kategori?.length) {
@@ -114,30 +156,33 @@ export function RegulasiRecentSection({
           if (data.kategori) setKategoriList(data.kategori);
           if (data.status) setStatusList(data.status);
           if (data.tahun) setTahunList(data.tahun);
+          if (data.subjek) setSubjekList(data.subjek);
+          if (data.lokasi_daerah) setLokasiList(data.lokasi_daerah);
         })
         .catch(() => {});
     }
   }, [filterReferences]);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setOpenDropdown(null);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const fetchRegulations = useCallback(async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (keyword.trim()) params.append('keyword', keyword.trim());
-      if (selectedKategori) params.append('kategori_id', selectedKategori);
-      if (selectedTahun) params.append('tahun', selectedTahun);
-      if (selectedStatus) params.append('status_id', selectedStatus);
-      if (selectedSubjek) params.append('subjek', selectedSubjek);
+      if (selectedKategori.length > 0) params.append('kategori_id', selectedKategori.join(','));
+      if (selectedLokasi.length > 0) params.append('lokasi_daerah', selectedLokasi.join(','));
+
+      let tahunParam = '';
+      if (tahunDari && tahunSampai) {
+        tahunParam = tahunDari === tahunSampai ? tahunDari : `${tahunDari}-${tahunSampai}`;
+      } else if (tahunDari) {
+        tahunParam = tahunDari;
+      } else if (tahunSampai) {
+        tahunParam = tahunSampai;
+      }
+      if (tahunParam) params.append('tahun', tahunParam);
+
+      if (selectedStatus.length > 0) params.append('status_id', selectedStatus.join(','));
+      if (selectedSubjek.length > 0) params.append('subjek', selectedSubjek.join(','));
       params.append('page', currentPage.toString());
       params.append('per_page', perPage.toString());
 
@@ -148,7 +193,7 @@ export function RegulasiRecentSection({
           setRegulations(json.data);
           setCurrentPage(json.current_page || 1);
           setLastPage(json.last_page || 1);
-        } else if (!keyword && !selectedKategori && !selectedTahun && !selectedStatus && !selectedSubjek) {
+        } else if (!keyword && selectedKategori.length === 0 && !tahunParam && selectedStatus.length === 0 && selectedSubjek.length === 0) {
           // Gunakan Figma dummy fallback jika belum ada data di database
           setRegulations(FIGMA_DUMMY_REGULATIONS);
           setLastPage(1);
@@ -164,7 +209,7 @@ export function RegulasiRecentSection({
     } finally {
       setIsLoading(false);
     }
-  }, [keyword, selectedKategori, selectedSubjek, selectedTahun, selectedStatus, currentPage, perPage]);
+  }, [keyword, selectedKategori, selectedLokasi, selectedSubjek, tahunDari, tahunSampai, selectedStatus, currentPage, perPage]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -175,34 +220,13 @@ export function RegulasiRecentSection({
 
   const handleResetFilters = () => {
     setKeyword('');
-    setSelectedKategori('');
-    setSelectedSubjek('');
-    setSelectedTahun('');
-    setSelectedStatus('');
+    setSelectedKategori([]);
+    setSelectedSubjek([]);
+    setSelectedLokasi([]);
+    setTahunDari('');
+    setTahunSampai('');
+    setSelectedStatus([]);
     setCurrentPage(1);
-  };
-
-  const getKategoriLabel = () => {
-    if (!selectedKategori) return 'Semua kategori';
-    const found = kategoriList.find((k) => String(k.id) === String(selectedKategori));
-    return found ? found.nama : 'Kategori';
-  };
-
-  const getSubjekLabel = () => {
-    if (!selectedSubjek) return 'Semua subjek';
-    const found = SUBJEK_OPTIONS.find((s) => s.value === selectedSubjek);
-    return found ? found.label : 'Subjek';
-  };
-
-  const getTahunLabel = () => {
-    if (!selectedTahun) return '2020 - 2026';
-    return selectedTahun;
-  };
-
-  const getStatusLabel = () => {
-    if (!selectedStatus) return 'Semua';
-    const found = statusList.find((s) => String(s.id) === String(selectedStatus));
-    return found ? found.nama : 'Status';
   };
 
   return (
@@ -218,279 +242,54 @@ export function RegulasiRecentSection({
       </div>
 
       {/* ── Filter Bar Container ── */}
-      <div
-        ref={dropdownRef}
-        className="bg-white border border-neu-100 rounded-[15px] p-4 sm:p-6 shadow-2xs mb-8"
-      >
+      <div className="bg-white border border-neu-100 rounded-[15px] p-4 sm:p-6 shadow-2xs mb-8">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-          {/* Dropdown Filters (Kategori, Subjek, Tahun, Status) */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 flex-1">
-            {/* 1. Dropdown Kategori */}
-            <div className="relative min-w-[140px] sm:min-w-[150px] flex-1 sm:flex-initial">
-              <label className="block text-[12px] font-normal text-neu-600 mb-1.5">
-                Kategori
-              </label>
-              <button
-                type="button"
-                onClick={() => setOpenDropdown((prev) => (prev === 'kategori' ? null : 'kategori'))}
-                className="flex items-center justify-between w-full h-[44px] px-3.5 bg-white border border-neu-100 rounded-xl text-xs sm:text-sm text-neu-700 hover:border-neu-300 shadow-2xs transition-all cursor-pointer"
-              >
-                <span className="truncate">{getKategoriLabel()}</span>
-                <ChevronDown
-                  className={`w-4 h-4 text-neu-400 shrink-0 transition-transform ${
-                    openDropdown === 'kategori' ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
+          {/* Dropdown Filters (Kategori, Subjek, Tahun, Status via CategoryFilterPopover) */}
+          <CategoryFilterPopover
+            variant="horizontal"
+            showKategori={true}
+            kategoriOptions={kategoriOptions}
+            selectedKategori={selectedKategori}
+            setSelectedKategori={(k: string[]) => {
+              setSelectedKategori(k);
+              setCurrentPage(1);
+            }}
+            selectedLokasi={selectedLokasi}
+            setSelectedLokasi={(l: string[]) => {
+              setSelectedLokasi(l);
+              setCurrentPage(1);
+            }}
+            lokasiOptions={lokasiOptions}
+            showSubjek={true}
+            subjekOptions={subjekOptions}
+            selectedSubjek={selectedSubjek}
+            setSelectedSubjek={(s: string[]) => {
+              setSelectedSubjek(s);
+              setCurrentPage(1);
+            }}
+            availableYears={availableYears}
+            tahunDari={tahunDari}
+            setTahunDari={(y) => {
+              setTahunDari(y);
+              setCurrentPage(1);
+            }}
+            tahunSampai={tahunSampai}
+            setTahunSampai={(y) => {
+              setTahunSampai(y);
+              setCurrentPage(1);
+            }}
+            statusOptions={statusOptions}
+            selectedStatus={selectedStatus}
+            setSelectedStatus={(st: string[]) => {
+              setSelectedStatus(st);
+              setCurrentPage(1);
+            }}
+            onApply={() => {}}
+            onReset={handleResetFilters}
+          />
 
-              {openDropdown === 'kategori' && (
-                <div className="absolute top-[calc(100%+6px)] left-0 w-64 bg-white border border-neu-200 rounded-xl shadow-xl p-2 z-50 max-h-60 overflow-y-auto custom-scrollbar">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedKategori('');
-                      setOpenDropdown(null);
-                      setCurrentPage(1);
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                      selectedKategori === '' ? 'bg-pr-50 text-pr-900 font-semibold' : 'text-neu-700 hover:bg-neu-50'
-                    }`}
-                  >
-                    <span>Semua kategori</span>
-                    {selectedKategori === '' && <Check className="w-3.5 h-3.5 text-pr-900" />}
-                  </button>
-                  {kategoriList.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedKategori(String(item.id));
-                        setOpenDropdown(null);
-                        setCurrentPage(1);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                        selectedKategori === String(item.id)
-                          ? 'bg-pr-50 text-pr-900 font-semibold'
-                          : 'text-neu-700 hover:bg-neu-50'
-                      }`}
-                    >
-                      <span className="truncate">{item.nama}</span>
-                      {selectedKategori === String(item.id) && (
-                        <Check className="w-3.5 h-3.5 text-pr-900 shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 2. Dropdown Subjek (Konteks baru subjek hukum sesuai request) */}
-            <div className="relative min-w-[140px] sm:min-w-[150px] flex-1 sm:flex-initial">
-              <label className="block text-[12px] font-normal text-neu-600 mb-1.5">
-                Subjek
-              </label>
-              <button
-                type="button"
-                onClick={() => setOpenDropdown((prev) => (prev === 'subjek' ? null : 'subjek'))}
-                className="flex items-center justify-between w-full h-[44px] px-3.5 bg-white border border-neu-100 rounded-xl text-xs sm:text-sm text-neu-700 hover:border-neu-300 shadow-2xs transition-all cursor-pointer"
-              >
-                <span className="truncate">{getSubjekLabel()}</span>
-                <ChevronDown
-                  className={`w-4 h-4 text-neu-400 shrink-0 transition-transform ${
-                    openDropdown === 'subjek' ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {openDropdown === 'subjek' && (
-                <div className="absolute top-[calc(100%+6px)] left-0 w-56 bg-white border border-neu-200 rounded-xl shadow-xl p-2 z-50 max-h-60 overflow-y-auto custom-scrollbar">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedSubjek('');
-                      setOpenDropdown(null);
-                      setCurrentPage(1);
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                      selectedSubjek === '' ? 'bg-pr-50 text-pr-900 font-semibold' : 'text-neu-700 hover:bg-neu-50'
-                    }`}
-                  >
-                    <span>Semua subjek</span>
-                    {selectedSubjek === '' && <Check className="w-3.5 h-3.5 text-pr-900" />}
-                  </button>
-                  {SUBJEK_OPTIONS.map((subj) => (
-                    <button
-                      key={subj.value}
-                      type="button"
-                      onClick={() => {
-                        setSelectedSubjek(subj.value);
-                        setOpenDropdown(null);
-                        setCurrentPage(1);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                        selectedSubjek === subj.value
-                          ? 'bg-pr-50 text-pr-900 font-semibold'
-                          : 'text-neu-700 hover:bg-neu-50'
-                      }`}
-                    >
-                      <span className="truncate">{subj.label}</span>
-                      {selectedSubjek === subj.value && (
-                        <Check className="w-3.5 h-3.5 text-pr-900 shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 3. Dropdown Tahun */}
-            <div className="relative min-w-[130px] sm:min-w-[140px] flex-1 sm:flex-initial">
-              <label className="block text-[12px] font-normal text-neu-600 mb-1.5">
-                Tahun
-              </label>
-              <button
-                type="button"
-                onClick={() => setOpenDropdown((prev) => (prev === 'tahun' ? null : 'tahun'))}
-                className="flex items-center justify-between w-full h-[44px] px-3.5 bg-white border border-neu-100 rounded-xl text-xs sm:text-sm text-neu-700 hover:border-neu-300 shadow-2xs transition-all cursor-pointer"
-              >
-                <span className="truncate">{getTahunLabel()}</span>
-                <ChevronDown
-                  className={`w-4 h-4 text-neu-400 shrink-0 transition-transform ${
-                    openDropdown === 'tahun' ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {openDropdown === 'tahun' && (
-                <div className="absolute top-[calc(100%+6px)] left-0 w-48 bg-white border border-neu-200 rounded-xl shadow-xl p-2 z-50 max-h-60 overflow-y-auto custom-scrollbar">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedTahun('');
-                      setOpenDropdown(null);
-                      setCurrentPage(1);
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                      selectedTahun === '' ? 'bg-pr-50 text-pr-900 font-semibold' : 'text-neu-700 hover:bg-neu-50'
-                    }`}
-                  >
-                    <span>Semua tahun</span>
-                    {selectedTahun === '' && <Check className="w-3.5 h-3.5 text-pr-900" />}
-                  </button>
-                  {['2020-2026', '2015-2019', '2010-2014'].map((range) => (
-                    <button
-                      key={range}
-                      type="button"
-                      onClick={() => {
-                        setSelectedTahun(range);
-                        setOpenDropdown(null);
-                        setCurrentPage(1);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                        selectedTahun === range ? 'bg-pr-50 text-pr-900 font-semibold' : 'text-neu-700 hover:bg-neu-50'
-                      }`}
-                    >
-                      <span>{range.replace('-', ' - ')}</span>
-                      {selectedTahun === range && <Check className="w-3.5 h-3.5 text-pr-900" />}
-                    </button>
-                  ))}
-                  {tahunList.map((yr) => (
-                    <button
-                      key={yr}
-                      type="button"
-                      onClick={() => {
-                        setSelectedTahun(String(yr));
-                        setOpenDropdown(null);
-                        setCurrentPage(1);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                        selectedTahun === String(yr)
-                          ? 'bg-pr-50 text-pr-900 font-semibold'
-                          : 'text-neu-700 hover:bg-neu-50'
-                      }`}
-                    >
-                      <span>Tahun {yr}</span>
-                      {selectedTahun === String(yr) && <Check className="w-3.5 h-3.5 text-pr-900" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 4. Dropdown Status */}
-            <div className="relative min-w-[130px] sm:min-w-[140px] flex-1 sm:flex-initial">
-              <label className="block text-[12px] font-normal text-neu-600 mb-1.5">
-                Status
-              </label>
-              <button
-                type="button"
-                onClick={() => setOpenDropdown((prev) => (prev === 'status' ? null : 'status'))}
-                className="flex items-center justify-between w-full h-[44px] px-3.5 bg-white border border-neu-100 rounded-xl text-xs sm:text-sm text-neu-700 hover:border-neu-300 shadow-2xs transition-all cursor-pointer"
-              >
-                <span className="truncate">{getStatusLabel()}</span>
-                <ChevronDown
-                  className={`w-4 h-4 text-neu-400 shrink-0 transition-transform ${
-                    openDropdown === 'status' ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {openDropdown === 'status' && (
-                <div className="absolute top-[calc(100%+6px)] left-0 w-48 bg-white border border-neu-200 rounded-xl shadow-xl p-2 z-50 max-h-60 overflow-y-auto custom-scrollbar">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedStatus('');
-                      setOpenDropdown(null);
-                      setCurrentPage(1);
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                      selectedStatus === '' ? 'bg-pr-50 text-pr-900 font-semibold' : 'text-neu-700 hover:bg-neu-50'
-                    }`}
-                  >
-                    <span>Semua</span>
-                    {selectedStatus === '' && <Check className="w-3.5 h-3.5 text-pr-900" />}
-                  </button>
-                  {statusList.map((st) => (
-                    <button
-                      key={st.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedStatus(String(st.id));
-                        setOpenDropdown(null);
-                        setCurrentPage(1);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
-                        selectedStatus === String(st.id)
-                          ? 'bg-pr-50 text-pr-900 font-semibold'
-                          : 'text-neu-700 hover:bg-neu-50'
-                      }`}
-                    >
-                      <span className="truncate">{st.nama}</span>
-                      {selectedStatus === String(st.id) && (
-                        <Check className="w-3.5 h-3.5 text-pr-900 shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Reset Filters */}
-            {(selectedKategori || selectedSubjek || selectedTahun || selectedStatus || keyword) && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="mt-6 p-2.5 rounded-xl border border-neu-200 text-neu-500 hover:text-neu-900 hover:bg-neu-50 transition-colors shadow-2xs cursor-pointer"
-                title="Reset semua filter"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Search Input Box (Figma: width 301, height 48, radius 20) */}
-          <div className="relative w-full lg:w-[301px] shrink-0">
+          {/* Search Input Box (Melebar ke kiri mengisi ruang kosong) */}
+          <div className="relative w-full lg:flex-1 shrink-0 min-w-[260px]">
             <input
               type="text"
               value={keyword}
@@ -499,7 +298,7 @@ export function RegulasiRecentSection({
                 setCurrentPage(1);
               }}
               placeholder="Cari peraturan..."
-              className="w-full h-[48px] bg-white border border-neu-100 rounded-[20px] py-2 pl-11 pr-4 text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none focus:ring-2 focus:ring-pr-900 shadow-2xs transition-all"
+              className="w-full h-[48px] bg-white border border-neu-100 hover:border-neu-300 rounded-[20px] py-2 pl-11 pr-4 text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none focus:border-neu-300 focus:ring-2 focus:ring-neu-100 shadow-2xs transition-all"
             />
             <Search className="w-4 h-4 text-neu-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -557,7 +356,7 @@ export function RegulasiRecentSection({
         </div>
 
         {/* ── Right Column: Statistik Harian Sidebar (Figma node #2358:57903) ── */}
-        <div className="lg:col-span-4 sticky top-24">
+        <div className="lg:col-span-4">
           <div className="bg-white border border-neu-100 rounded-[15px] p-4 sm:p-5 shadow-2xs flex flex-col gap-3.5">
             <h3 className="text-[14px] font-medium text-neu-900">
               Statistik Harian

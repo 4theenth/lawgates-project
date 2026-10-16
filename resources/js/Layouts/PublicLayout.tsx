@@ -86,7 +86,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
         <Navbar isScrolled={isScrolled} />
 
         {/* Main Page Content */}
-        <main className="flex-1 w-full max-w-full min-w-0 flex flex-col items-center">
+        <main className="flex-1 w-full max-w-full min-w-0 flex flex-col items-center relative z-20">
           {children}
         </main>
 

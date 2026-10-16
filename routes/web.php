@@ -15,14 +15,7 @@ use App\Http\Controllers\RegulasiController;
 |--------------------------------------------------------------------------
 */
 
-// Route Testing Murni Backend (Merender file Blade)
-Route::get('/test-peraturan/{id}', function ($id) {
-    $peraturan = Peraturan::with(['pasal' => function ($query) {
-        $query->orderBy('urutan', 'asc');
-    }])->findOrFail($id);
 
-    return view('test-peraturan', compact('peraturan'));
-});
 
 /*
 |--------------------------------------------------------------------------
@@ -93,6 +86,15 @@ Route::get('/api/regions/statistics', [\App\Http\Controllers\Api\RegionControlle
 
 // ── PROTECTED ROUTES (MANDATORY LOGIN) ──────────────────────────────────
 Route::middleware('auth')->group(function () {
+    // Route Testing Backend (Merender file Blade)
+    Route::get('/test-peraturan/{id}', function ($id) {
+        $peraturan = Peraturan::with(['pasal' => function ($query) {
+            $query->orderBy('urutan', 'asc');
+        }])->findOrFail($id);
+
+        return view('test-peraturan', compact('peraturan'));
+    });
+
     Route::get('/dashboard', function () {
         $user = auth()->user();
         if ($user && in_array($user->role, ['admin', 'superadmin'])) {
@@ -186,6 +188,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     // Users & Team Management Routes
     Route::get('/team', [TeamController::class, 'index'])->name('admin.team');
     Route::get('/users/tim', [TeamController::class, 'index'])->name('admin.users.tim');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('admin.profile');
 });
 
 /*
@@ -197,6 +200,8 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
+    Route::delete('/profile/avatar', [ProfileController::class, 'deleteAvatar'])->name('profile.avatar.delete');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 

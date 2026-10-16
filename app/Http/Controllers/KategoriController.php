@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\JenisPeraturan;
 use App\Models\Peraturan;
 use App\Models\Status;
+use App\Models\SubjekPeraturan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -240,6 +241,19 @@ class KategoriController extends Controller
             }
         }
 
+        // Filter subjek
+        if ($request->filled('subjek') && \Illuminate\Support\Facades\Schema::hasColumn('peraturan', 'subjek')) {
+            $subjekList = is_array($request->subjek) ? $request->subjek : explode(',', (string) $request->subjek);
+            $subjekList = array_filter(array_map('trim', $subjekList));
+            if (!empty($subjekList)) {
+                $peraturanQuery->where(function ($subQ) use ($subjekList) {
+                    foreach ($subjekList as $subjekItem) {
+                        $subQ->orWhere('subjek', 'ilike', '%' . $subjekItem . '%');
+                    }
+                });
+            }
+        }
+
         // Sorting
         $sort = $request->get('sort', 'relevansi');
         if ($sort === 'terbaru') {
@@ -253,13 +267,35 @@ class KategoriController extends Controller
         $perPage = (int) $request->get('per_page', 10);
         $paginatedResults = $peraturanQuery->paginate($perPage)->withQueryString();
 
-        // Data referensi status & tahun untuk dropdown filter
+        // Data referensi status, tahun, & subjek untuk dropdown filter
         $statuses = Status::select('id', 'nama_status')->get();
         $years = Peraturan::select('tahun')
             ->whereNotNull('tahun')
             ->distinct()
             ->orderBy('tahun', 'desc')
             ->pluck('tahun');
+        $subjekOptions = collect();
+        if (\Illuminate\Support\Facades\Schema::hasTable('subjek_peraturan')) {
+            try {
+                $subjekOptions = SubjekPeraturan::select('id', 'nama')->orderBy('nama')->get();
+            } catch (\Throwable $e) {
+                $subjekOptions = collect();
+            }
+        }
+
+        if ($subjekOptions->isEmpty()) {
+            try {
+                $subjekOptions = Peraturan::whereNotNull('subjek')
+                    ->where('subjek', '!=', '')
+                    ->distinct()
+                    ->orderBy('subjek', 'asc')
+                    ->pluck('subjek')
+                    ->map(fn($nama, $idx) => ['id' => $idx + 1, 'nama' => $nama])
+                    ->values();
+            } catch (\Throwable $e) {
+                $subjekOptions = collect();
+            }
+        }
 
         return Inertia::render('DetailKategori', [
             'kategori' => [
@@ -276,12 +312,14 @@ class KategoriController extends Controller
                 'keyword' => $request->get('keyword', ''),
                 'status_id' => $request->get('status_id', ''),
                 'tahun' => $request->get('tahun', ''),
+                'subjek' => $request->get('subjek', ''),
                 'sort' => $sort,
                 'per_page' => $perPage,
             ],
             'referensi' => [
                 'status' => $statuses,
                 'tahun' => $years,
+                'subjek' => $subjekOptions,
             ],
         ]);
     }
