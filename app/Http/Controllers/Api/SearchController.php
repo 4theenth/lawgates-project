@@ -24,9 +24,11 @@ class SearchController extends Controller
         $isRelevanceSort = $request->get('sort', 'relevansi') === 'relevansi';
         $likeOp = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
 
+        $rawKeyword = $request->input('keyword') ?? $request->input('q') ?? $request->input('search');
+        $keyword = trim((string) $rawKeyword);
+
         // 1. Filter Keyword & Semantic Search
-        if ($request->filled('keyword')) {
-            $keyword = trim($request->keyword);
+        if ($keyword !== '') {
 
             // Jika sort adalah relevansi (default), jalankan Semantic Search via Gemini
             if ($isRelevanceSort) {
@@ -120,21 +122,28 @@ class SearchController extends Controller
                     $sub->orWhereIn('id', $lexicalPasalMatches->keys()->toArray());
                 }
 
-                // 3. Pencarian eksak & token pada judul atau nomor peraturan
+                // 3. Pencarian eksak & token pada judul, nomor, instansi, atau lokasi
                 $sub->orWhere(function ($keywordSub) use ($keyword, $smartKeyword, $tokens, $likeOp) {
                     $keywordSub->where('judul', $likeOp, '%'.$keyword.'%')
-                        ->orWhere('nomor', $likeOp, '%'.$keyword.'%');
+                        ->orWhere('nomor', $likeOp, '%'.$keyword.'%')
+                        ->orWhere('instansi', $likeOp, '%'.$keyword.'%')
+                        ->orWhere('lokasi_daerah', $likeOp, '%'.$keyword.'%')
+                        ->orWhere('tempat_penetapan', $likeOp, '%'.$keyword.'%');
 
                     if ($smartKeyword !== $keyword && $smartKeyword !== '%') {
                         $keywordSub->orWhere('judul', $likeOp, '%'.$smartKeyword.'%')
-                            ->orWhere('nomor', $likeOp, '%'.$smartKeyword.'%');
+                            ->orWhere('nomor', $likeOp, '%'.$smartKeyword.'%')
+                            ->orWhere('instansi', $likeOp, '%'.$smartKeyword.'%')
+                            ->orWhere('lokasi_daerah', $likeOp, '%'.$smartKeyword.'%');
                     }
 
                     if (! empty($tokens)) {
                         $keywordSub->orWhere(function ($tq) use ($tokens, $likeOp) {
                             foreach ($tokens as $token) {
                                 $tq->orWhere('judul', $likeOp, '%'.$token.'%')
-                                    ->orWhere('subjek', $likeOp, '%'.$token.'%');
+                                    ->orWhere('subjek', $likeOp, '%'.$token.'%')
+                                    ->orWhere('instansi', $likeOp, '%'.$token.'%')
+                                    ->orWhere('lokasi_daerah', $likeOp, '%'.$token.'%');
                             }
                         });
                     }
@@ -143,14 +152,16 @@ class SearchController extends Controller
         }
 
         // 2. Filter Kategori
-        $query->when($request->filled('kategori_id'), function ($q) use ($request) {
-            $ids = explode(',', $request->kategori_id);
+        $kategoriParam = $request->input('kategori_id') ?? $request->input('kategori');
+        $query->when(!empty($kategoriParam), function ($q) use ($kategoriParam) {
+            $ids = is_array($kategoriParam) ? $kategoriParam : explode(',', (string) $kategoriParam);
             $q->whereIn('jenis_peraturan_id', $ids);
         });
 
         // 3. Filter Tahun (Mendukung tahun tunggal atau rentang seperti 2020-2026)
-        $query->when($request->filled('tahun'), function ($q) use ($request) {
-            $tahun = trim((string) $request->tahun);
+        $tahunParam = $request->input('tahun') ?? $request->input('year');
+        $query->when(!empty($tahunParam), function ($q) use ($tahunParam) {
+            $tahun = trim((string) $tahunParam);
             if (str_contains($tahun, '-')) {
                 $parts = array_map('trim', explode('-', $tahun));
                 $start = (int) ($parts[0] ?? 0);
@@ -168,18 +179,19 @@ class SearchController extends Controller
         });
 
         // 4. Filter Status
-        $query->when($request->filled('status_id'), function ($q) use ($request) {
-            $ids = explode(',', $request->status_id);
+        $statusParam = $request->input('status_id') ?? $request->input('status');
+        $query->when(!empty($statusParam), function ($q) use ($statusParam) {
+            $ids = is_array($statusParam) ? $statusParam : explode(',', (string) $statusParam);
             $q->whereIn('status_id', $ids);
         });
 
         // 5. Filter Lokasi Daerah (Mendukung Provinsi & Kabupaten)
-        $query->when($request->filled('lokasi_daerah'), function ($q) use ($request) {
+        $query->when($request->filled('lokasi_daerah'), function ($q) use ($request, $likeOp) {
             $lokasiList = is_array($request->lokasi_daerah)
                 ? $request->lokasi_daerah
                 : explode(',', $request->lokasi_daerah);
 
-            $q->where(function ($subQ) use ($lokasiList) {
+            $q->where(function ($subQ) use ($lokasiList, $likeOp) {
                 foreach ($lokasiList as $item) {
                     $trimmed = trim($item);
                     if ($trimmed === '') continue;
@@ -188,10 +200,19 @@ class SearchController extends Controller
                     $clean = preg_replace('/^(pemerintah\s+provinsi|pemerintah\s+kabupaten|pemerintah\s+kota|pemerintah\s+daerah|kabupaten|kota)\s+/i', '', $trimmed);
                     $clean = trim($clean);
 
-                    $subQ->orWhere('lokasi_daerah', 'ilike', '%' . $trimmed . '%')
-                         ->orWhere('lokasi_daerah', 'ilike', '%' . $clean . '%')
-                         ->orWhere('tempat_penetapan', 'ilike', '%' . $clean . '%')
-                         ->orWhere('judul', 'ilike', '%' . $clean . '%');
+                    $snake = str_replace(' ', '_', strtolower($trimmed));
+                    $cleanSnake = str_replace(' ', '_', strtolower($clean));
+
+                    $subQ->orWhere('instansi', $likeOp, '%' . $trimmed . '%')
+                         ->orWhere('instansi', $likeOp, '%' . $clean . '%')
+                         ->orWhere('instansi', $likeOp, '%' . $snake . '%')
+                         ->orWhere('instansi', $likeOp, '%' . $cleanSnake . '%')
+                         ->orWhere('lokasi_daerah', $likeOp, '%' . $trimmed . '%')
+                         ->orWhere('lokasi_daerah', $likeOp, '%' . $clean . '%')
+                         ->orWhere('lokasi_daerah', $likeOp, '%' . $snake . '%')
+                         ->orWhere('lokasi_daerah', $likeOp, '%' . $cleanSnake . '%')
+                         ->orWhere('tempat_penetapan', $likeOp, '%' . $clean . '%')
+                         ->orWhere('judul', $likeOp, '%' . $clean . '%');
                 }
             });
         });
@@ -213,7 +234,20 @@ class SearchController extends Controller
         } elseif ($sort === 'terlama') {
             $query->orderBy('tahun', 'asc');
         } else {
-            // Urutan Relevansi: Prioritaskan peraturan yang memiliki skor semantik atau leksikal tertinggi
+            // Urutan Relevansi:
+            // 1. Jika ada pencarian kata kunci, prioritaskan yang instansi / lokasi / judulnya langsung cocok
+            if ($keyword !== '') {
+                $escapedKeyword = str_replace("'", "''", $keyword);
+                $query->orderByRaw("
+                    CASE 
+                        WHEN instansi {$likeOp} '%{$escapedKeyword}%' OR lokasi_daerah {$likeOp} '%{$escapedKeyword}%' THEN 0
+                        WHEN judul {$likeOp} '%{$escapedKeyword}%' THEN 1
+                        ELSE 2
+                    END ASC
+                ");
+            }
+
+            // 2. Prioritaskan peraturan yang memiliki skor semantik atau leksikal tertinggi
             $activeMatches = $semanticMatches->isNotEmpty() ? $semanticMatches : $lexicalPasalMatches;
 
             if ($activeMatches->isNotEmpty()) {
@@ -224,9 +258,9 @@ class SearchController extends Controller
                 } else {
                     $query->orderByRaw("CASE WHEN id IN ({$idOrder}) THEN 0 ELSE 1 END");
                 }
-            } else {
-                $query->orderBy('created_at', 'desc');
             }
+
+            $query->orderBy('created_at', 'desc');
         }
 
         // Kembalikan hasil dengan pagination dinamis

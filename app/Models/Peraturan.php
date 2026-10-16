@@ -43,6 +43,9 @@ class Peraturan extends Model
         'is_available',
         'has_pembukaan',
         'has_pasal',
+        'tingkat',
+        'nama_daerah',
+        'provinsi_induk',
     ];
 
     protected $fillable = [
@@ -143,5 +146,32 @@ class Peraturan extends Model
         }
 
         return $this->has_pembukaan && $this->has_pasal;
+    }
+
+    /**
+     * Dapatkan informasi lengkap tingkatan regulasi (Pusat, Provinsi, Kabupaten, Kota)
+     */
+    public function getLevelInfo(): array
+    {
+        return \App\Services\RegulationLevelDetector::detect(
+            $this->instansi,
+            $this->lokasi_daerah,
+            $this->judul
+        );
+    }
+
+    public function getTingkatAttribute(): string
+    {
+        return $this->getLevelInfo()['tingkat'];
+    }
+
+    public function getNamaDaerahAttribute(): string
+    {
+        return $this->getLevelInfo()['nama_daerah'];
+    }
+
+    public function getProvinsiIndukAttribute(): ?string
+    {
+        return $this->getLevelInfo()['provinsi'];
     }
 }

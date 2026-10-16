@@ -85,20 +85,45 @@ class RegionController extends Controller
         // Preload seluruh peraturan sah (bukan placeholder 'menunggu import') beserta relasi statusPeraturan
         $allPeraturan = Peraturan::available()
             ->with('statusPeraturan')
-            ->select('id', 'unique_id', 'nomor', 'tahun', 'judul', 'status_id', 'tempat_penetapan', 'instansi', 'created_at')
+            ->select('id', 'unique_id', 'nomor', 'tahun', 'judul', 'status_id', 'tempat_penetapan', 'instansi', 'lokasi_daerah', 'created_at')
             ->orderBy('created_at', 'desc')
             ->get();
 
         foreach ($this->provinces as $slug => $provinceName) {
-            $matched = $allPeraturan->filter(function ($p) use ($provinceName) {
-                return Str::contains($p->judul ?? '', $provinceName, true) ||
-                       Str::contains($p->tempat_penetapan ?? '', $provinceName, true) ||
-                       Str::contains($p->instansi ?? '', $provinceName, true);
+            $regencyNames = \App\Services\RegulationLevelDetector::getRegenciesForProvinceName($provinceName);
+
+            $matched = $allPeraturan->filter(function ($p) use ($provinceName, $regencyNames) {
+                if (
+                    Str::contains($p->judul ?? '', $provinceName, true) ||
+                    Str::contains($p->tempat_penetapan ?? '', $provinceName, true) ||
+                    Str::contains($p->instansi ?? '', $provinceName, true) ||
+                    Str::contains($p->lokasi_daerah ?? '', $provinceName, true)
+                ) {
+                    return true;
+                }
+
+                $info = $p->getLevelInfo();
+                if (!empty($info['provinsi']) && strtolower($info['provinsi']) === strtolower($provinceName)) {
+                    return true;
+                }
+
+                foreach ($regencyNames as $regName) {
+                    if (
+                        Str::contains($p->instansi ?? '', $regName, true) ||
+                        Str::contains($p->lokasi_daerah ?? '', $regName, true) ||
+                        Str::contains($p->tempat_penetapan ?? '', $regName, true)
+                    ) {
+                        return true;
+                    }
+                }
+
+                return false;
             });
 
             $total = $matched->count();
             $berlakuCount = 0;
             $tidakBerlakuCount = 0;
+            $regencyCounts = [];
 
             foreach ($matched as $p) {
                 $statusName = strtolower($p->statusPeraturan->nama_status ?? 'berlaku');
@@ -106,6 +131,12 @@ class RegionController extends Controller
                     $tidakBerlakuCount++;
                 } else {
                     $berlakuCount++;
+                }
+
+                $info = $p->getLevelInfo();
+                if ($info['tingkat'] === 'Kabupaten' || $info['tingkat'] === 'Kota') {
+                    $rName = $info['nama_daerah'];
+                    $regencyCounts[$rName] = ($regencyCounts[$rName] ?? 0) + 1;
                 }
             }
 
@@ -143,6 +174,7 @@ class RegionController extends Controller
                 'total' => $total,
                 'berlaku' => $berlakuCount,
                 'tidakBerlaku' => $tidakBerlakuCount,
+                'regencyCounts' => $regencyCounts,
                 'samplePerda' => $samplePerda,
                 'samplePerdaList' => $samplePerdaList,
             ];
