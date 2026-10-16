@@ -110,6 +110,11 @@ class Peraturan extends Model
         return $this->hasMany(\App\Models\LawRelation::class, 'from_peraturan_id');
     }
 
+    public function bookmarks()
+    {
+        return $this->hasMany(\App\Models\Bookmark::class, 'peraturan_id');
+    }
+
     public function getHasPembukaanAttribute(): bool
     {
         if (isset($this->attributes['pembukaan_count'])) {

@@ -3,7 +3,6 @@ import { LogIn, Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
 import { Link, usePage } from '@inertiajs/react';
 import { NAVBAR_MENUS, NAVBAR_THEME } from '../../config/navigation';
 import type { MenuItem } from '../../types/navigation';
-import { PAGE_CONTAINER } from '../../Layouts/PublicLayout';
 import Dropdown from '@/Components/common/Dropdown';
 import ApplicationLogo from '@/Components/common/ApplicationLogo';
 import profileAvatar from '@/assets/profile-avatar.webp';
@@ -123,14 +122,13 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
 
                   {/* Menu Items */}
                   <div className="py-1">
-                    <button
-                      type="button"
-                      onClick={(e) => e.preventDefault()}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors text-left cursor-default select-none"
+                    <Dropdown.Link
+                      href={route('profile.edit')}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors text-left cursor-pointer"
                     >
                       <User className="w-3.5 h-3.5 text-neu-500" />
                       <span>Pengaturan Profil</span>
-                    </button>
+                    </Dropdown.Link>
 
                     <Dropdown.Link
                       href={route('logout')}
@@ -326,14 +324,14 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                       <span>Dashboard Admin</span>
                     </Link>
                   ) : (
-                    <button
-                      type="button"
+                    <Link
+                      href={route('profile.edit')}
                       onClick={() => setMobileMenuOpen(false)}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-neu-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-default select-none"
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-neu-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
                     >
                       <User className="w-4 h-4 text-neu-300" />
                       <span>Pengaturan Profil</span>
-                    </button>
+                    </Link>
                   )}
 
                   <Link

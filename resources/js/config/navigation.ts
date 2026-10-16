@@ -3,6 +3,7 @@ import {
   Gavel,
   FileText,
   Users,
+  Bookmark,
 } from 'lucide-react';
 import type { MenuItem, SidebarMenuItem } from '../types/navigation';
 
@@ -109,6 +110,27 @@ export const ADMIN_SIDEBAR_MENUS: SidebarMenuItem[] = [
 
 // Alias untuk backwards compatibility jika ada modul yang import SIDEBAR_MENUS
 export const SIDEBAR_MENUS = ADMIN_SIDEBAR_MENUS;
+
+/**
+ * ─────────────────────────────────────────────────────────────
+ * KONFIGURASI MENU SIDEBAR USER (Panel Dashboard User)
+ * ─────────────────────────────────────────────────────────────
+ * Menampilkan menu Dashboard dan Bookmark untuk pengguna terdaftar.
+ */
+export const USER_SIDEBAR_MENUS: SidebarMenuItem[] = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    href: '/dashboard',
+    icon: LayoutGrid,
+  },
+  {
+    id: 'bookmark',
+    label: 'Bookmark',
+    href: '/bookmarks',
+    icon: Bookmark,
+  },
+];
 
 /**
  * ─────────────────────────────────────────────────────────────
