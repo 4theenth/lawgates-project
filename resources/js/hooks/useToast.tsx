@@ -44,6 +44,7 @@ export function ToastProvider({
 }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const processedFlashRef = useRef<string>('');
+  const lastToastRef = useRef<{ message: string; timestamp: number }>({ message: '', timestamp: 0 });
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -56,6 +57,17 @@ export function ToastProvider({
     description,
     duration = 3500,
   }: ToastOptions) => {
+    const now = Date.now();
+    // Normalisasi pesan untuk mendeteksi pesan duplikat (abaikan huruf besar/kecil & tanda titik di akhir)
+    const normalized = (message || '').trim().toLowerCase().replace(/\.+$/, '');
+    const lastNormalized = (lastToastRef.current.message || '').trim().toLowerCase().replace(/\.+$/, '');
+
+    // Jika pesan identik dipicu dalam selang 1.2 detik, abaikan duplikatnya
+    if (normalized && normalized === lastNormalized && (now - lastToastRef.current.timestamp) < 1200) {
+      return;
+    }
+    lastToastRef.current = { message: message || '', timestamp: now };
+
     setToasts((prev) => [
       ...prev.slice(-2), // Batasi maksimal 3 toast sekaligus agar tidak menumpuk layar
       { id, type, message, description, duration },
