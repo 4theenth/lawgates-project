@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'embedding_model' => env('GEMINI_EMBEDDING_MODEL', 'gemini-embedding-001'),
+        'output_dimensionality' => (int) env('GEMINI_OUTPUT_DIMENSIONALITY', 768),
+        'ssl_verify' => env('GEMINI_SSL_VERIFY', false),
+    ],
+
 ];

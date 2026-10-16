@@ -7,6 +7,7 @@ import {
   RefreshCw,
   XOctagon,
   Eye,
+  Sparkles,
 } from 'lucide-react';
 
 export interface RegulationCardItem {
@@ -24,6 +25,12 @@ export interface RegulationCardItem {
   status_peraturan?: {
     id?: number;
     nama_status: string;
+  };
+  relevant_pasal?: {
+    pasal_id: number;
+    nomor_pasal: string;
+    cuplikan: string;
+    similarity: number;
   };
 }
 
@@ -100,6 +107,23 @@ export function RegulationCard({
           <h3 className="text-sm sm:text-base font-bold text-neu-900 group-hover:text-pr-900 transition-colors line-clamp-3 leading-snug mb-3">
             {item.judul}
           </h3>
+
+          {item.relevant_pasal && (
+            <div className="mb-3 p-2.5 bg-blue-50/70 border border-blue-100 rounded-xl">
+              <div className="flex items-center justify-between gap-1 mb-1">
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-pr-900">
+                  <Sparkles className="w-3 h-3 text-sec-900 shrink-0" />
+                  <span>{item.relevant_pasal.nomor_pasal}</span>
+                </span>
+                <span className="text-[10px] font-bold text-sec-900 bg-sec-900/10 px-1.5 py-0.5 rounded">
+                  {Math.round(item.relevant_pasal.similarity * 100)}% Relevansi
+                </span>
+              </div>
+              <p className="text-[11px] text-neu-700 italic line-clamp-2 leading-tight">
+                "{item.relevant_pasal.cuplikan}..."
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between pt-3 border-t border-neu-100 text-xs text-neu-500 mt-2">
@@ -140,6 +164,23 @@ export function RegulationCard({
       <h3 className="text-[14px] sm:text-[15px] font-bold text-neu-900 mb-3 sm:mb-4 line-clamp-2 leading-snug group-hover:text-pr-900 transition-colors">
         {item.judul}
       </h3>
+
+      {item.relevant_pasal && (
+        <div className="mb-4 p-3 sm:p-3.5 bg-blue-50/60 border border-blue-100/90 rounded-xl">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-pr-900">
+              <Sparkles className="w-3.5 h-3.5 text-sec-900 shrink-0" />
+              <span>Pasal Paling Relevan: {item.relevant_pasal.nomor_pasal}</span>
+            </span>
+            <span className="text-[11px] font-bold text-sec-900 bg-sec-900/10 px-2 py-0.5 rounded-full">
+              {Math.round(item.relevant_pasal.similarity * 100)}% Relevansi AI
+            </span>
+          </div>
+          <p className="text-xs text-neu-700 leading-relaxed italic line-clamp-2">
+            "{item.relevant_pasal.cuplikan}..."
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-neu-50">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[12px] text-neu-500 font-medium">

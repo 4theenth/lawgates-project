@@ -15,7 +15,8 @@ return [
     */
     'connections' => [
         'default' => [
-            'scheme' => 'bolt',
+            'uri' => env('NEO4J_URI'),
+            'scheme' => env('NEO4J_SCHEME', 'bolt'),
             'host' => env('NEO4J_HOST', 'localhost'),
             'port' => env('NEO4J_PORT', '7687'),
             'username' => env('NEO4J_USERNAME', 'neo4j'),

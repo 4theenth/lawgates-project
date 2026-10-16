@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Laudis\Neo4j\Authentication\Authenticate;
 use Laudis\Neo4j\ClientBuilder;
 use Laudis\Neo4j\Contracts\ClientInterface;
 
@@ -11,17 +12,25 @@ class Neo4jGraphService
 
     public function __construct()
     {
-        // Build the Neo4j client using config values
-        $host = config('neo4j.connections.default.host');
-        $port = config('neo4j.connections.default.port');
-        $username = config('neo4j.connections.default.username');
-        $password = config('neo4j.connections.default.password');
-        
-        // Bolt URI: bolt://username:password@host:port
-        $uri = "bolt://{$username}:{$password}@{$host}:{$port}";
-        
+        $uriConfig = config('neo4j.connections.default.uri');
+        $username = (string) config('neo4j.connections.default.username');
+        $password = (string) config('neo4j.connections.default.password');
+
+        if (!empty($uriConfig)) {
+            $uri = $uriConfig;
+        } else {
+            $scheme = config('neo4j.connections.default.scheme', 'bolt');
+            $host = config('neo4j.connections.default.host', 'localhost');
+            $port = config('neo4j.connections.default.port', '7687');
+            $uri = "{$scheme}://{$host}:{$port}";
+        }
+
+        $auth = (!empty($username) && $password !== '')
+            ? Authenticate::basic($username, $password)
+            : Authenticate::disabled();
+
         $this->client = ClientBuilder::create()
-            ->withDriver('default', $uri)
+            ->withDriver('default', $uri, $auth)
             ->withDefaultDriver('default')
             ->build();
     }
@@ -89,14 +98,22 @@ class Neo4jGraphService
     }
 
     /**
-     * Check if Neo4j server is reachable with a fast 0.2s socket check
+     * Check if Neo4j server is reachable
      */
     public function isNeo4jAvailable(): bool
     {
-        $host = config('neo4j.connections.default.host', 'localhost');
-        $port = (int) config('neo4j.connections.default.port', 7687);
+        $uriConfig = config('neo4j.connections.default.uri');
+        if (!empty($uriConfig)) {
+            $parsed = parse_url($uriConfig);
+            $host = $parsed['host'] ?? $uriConfig;
+            $port = isset($parsed['port']) ? (int) $parsed['port'] : 7687;
+        } else {
+            $host = config('neo4j.connections.default.host', 'localhost');
+            $port = (int) config('neo4j.connections.default.port', 7687);
+        }
 
-        $connection = @fsockopen($host, $port, $errno, $errstr, 0.2);
+        // 1.5s timeout to accommodate internet latency for cloud AuraDB
+        $connection = @fsockopen($host, $port, $errno, $errstr, 1.5);
         if (is_resource($connection)) {
             fclose($connection);
             return true;

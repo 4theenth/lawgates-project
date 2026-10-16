@@ -7,13 +7,19 @@ use Illuminate\Database\Eloquent\Model;
 class Pasal extends Model
 {
     protected $table = 'pasal';
+
     protected $guarded = [];
+
     public $timestamps = false;
+
+    protected $casts = [
+        'embedding' => 'array',
+    ];
 
     // Tambahan relasi balik ke tabel peraturan
     public function peraturan()
     {
-        return $this->belongsTo(\App\Models\Peraturan::class, 'peraturan_id');
+        return $this->belongsTo(Peraturan::class, 'peraturan_id');
     }
 
     // Relasi ke tabel struktur_dokumen (Bab/Bagian/Paragraf) yang baru kita buat

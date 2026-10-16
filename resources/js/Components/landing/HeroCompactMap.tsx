@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Minus, RotateCcw } from 'lucide-react';
 import { MapContainer, GeoJSON, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -46,6 +46,7 @@ export function HeroCompactMap() {
   const [geoJsonBounds, setGeoJsonBounds] = useState<L.LatLngBounds | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
+  const svgRenderer = useMemo(() => L.svg({ padding: 1.5 }), []);
 
   const activeProvince: ProvinceDetail | null = PROVINCES_DATA[selectedProvinceId] || PROVINCES_DATA['bali'];
 
@@ -122,6 +123,12 @@ export function HeroCompactMap() {
         maxZoom={8}
         zoomControl={false}
         attributionControl={false}
+        renderer={svgRenderer}
+        maxBounds={[
+          [24, 85],
+          [-20, 152],
+        ]}
+        maxBoundsViscosity={1.0}
         className="w-full h-full bg-[#07132B]"
         style={{ width: '100%', height: '100%', background: '#07132B' }}
       >

@@ -124,6 +124,9 @@ export function IndonesiaLegalMap() {
   const mapRef = useRef<L.Map | null>(null);
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
 
+  // SVG Renderer dengan padding diperluas (1.5x) agar tidak ada garis terpotong saat peta digeser
+  const svgRenderer = useMemo(() => L.svg({ padding: 1.5 }), []);
+
   // Selalu sinkronkan state selectedProvinceId ke Ref agar event listener tidak stale
   const selectedProvinceRef = useRef<string | null>(selectedProvinceId);
 
@@ -451,91 +454,92 @@ export function IndonesiaLegalMap() {
               )}
 
               <MapContainer
-                center={[-2.5, 118]}
-                zoom={4.5}
-                minZoom={3.5}
-                maxZoom={8}
-                zoomSnap={0.25}
-                zoomDelta={0.5}
-                wheelDebounceTime={40}
-                wheelPxPerZoomLevel={120}
-                scrollWheelZoom={true}
-                zoomControl={false}
-                attributionControl={false}
-                maxBounds={[
-                  [16, 86],
-                  [-18, 150],
-                ]}
-                maxBoundsViscosity={0.6}
-                className="w-full h-full bg-[#71D4E9] z-0 focus:outline-none custom-leaflet-map"
-              >
-                <MapController
-                  geoJsonBounds={geoJsonBounds}
-                  onDeselect={handleResetMap}
-                  onDragStateChange={handleDragStateChange}
-                  onMapReady={(map) => {
-                    mapRef.current = map;
-                  }}
-                />
-
-                {/* Basemap Google Maps Terrain */}
-                <TileLayer
-                  url="https://{s}.google.com/vt/lyrs=p&apistyle=s.e:l%7Cp.v:off,s.t:2%7Cs.e:l%7Cp.v:on&x={x}&y={y}&z={z}"
-                  subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
-                  maxZoom={20}
-                />
-
-                {/* Layer Wilayah Negara Tetangga */}
-                <GeoJSON
-                  data={NEIGHBORING_COUNTRIES as any}
-                  style={{
-                    fillColor: MAP_THEME.neighbors.fillColor,
-                    fillOpacity: MAP_THEME.neighbors.fillOpacity,
-                    weight: MAP_THEME.neighbors.weight,
-                    color: MAP_THEME.neighbors.color,
-                    opacity: MAP_THEME.neighbors.opacity,
-                    smoothFactor: 0,
-                  } as any}
-                  interactive={false}
-                />
-
-                {/* Layer GeoJSON 38 Provinsi Resmi Indonesia */}
-                <GeoJSON
-                  ref={(instance) => {
-                    geoJsonRef.current = instance;
-                    if (instance && !geoJsonBounds) {
-                      setGeoJsonBounds(instance.getBounds());
-                    }
-                  }}
-                  data={INDONESIA_GEOJSON as any}
-                  style={getFeatureStyle}
-                  onEachFeature={onEachFeature}
-                />
-
-                {/* Layer Garis Batas Daratan Antar Provinsi */}
-                <GeoJSON
-                  data={INDONESIA_LAND_BORDERS as any}
-                  style={{
-                    color: MAP_THEME.borders.color,
-                    weight: MAP_THEME.borders.weight,
-                    opacity: MAP_THEME.borders.opacity,
-                    lineCap: 'round',
-                    lineJoin: 'round',
-                    smoothFactor: 0,
-                  } as any}
-                  interactive={false}
-                />
-
-                {/* Floating Popup Card saat provinsi dipilih dengan Garis Pin Stem (Sesuai Figma node #2358:57596) */}
-                {activeProvince && popupPos && (
-                  <Popup
-                    key={activeProvince.id}
-                    position={popupPos}
-                    closeButton={false}
-                    autoPan={false}
-                    offset={[0, -2]}
-                    className="custom-leaflet-popup"
+                    center={[-2.5, 118]}
+                    zoom={4.5}
+                    minZoom={3.5}
+                    maxZoom={8}
+                    zoomSnap={0.25}
+                    zoomDelta={0.5}
+                    wheelDebounceTime={40}
+                    wheelPxPerZoomLevel={120}
+                    scrollWheelZoom={true}
+                    zoomControl={false}
+                    attributionControl={false}
+                    renderer={svgRenderer}
+                    maxBounds={[
+                      [24, 85],
+                      [-20, 152],
+                    ]}
+                    maxBoundsViscosity={1.0}
+                    className="w-full h-full bg-[#71D4E9] z-0 focus:outline-none custom-leaflet-map"
                   >
+                    <MapController
+                      geoJsonBounds={geoJsonBounds}
+                      onDeselect={handleResetMap}
+                      onDragStateChange={handleDragStateChange}
+                      onMapReady={(map) => {
+                        mapRef.current = map;
+                      }}
+                    />
+
+                    {/* Basemap Google Maps Terrain */}
+                    <TileLayer
+                      url="https://{s}.google.com/vt/lyrs=p&apistyle=s.e:l%7Cp.v:off,s.t:2%7Cs.e:l%7Cp.v:on&x={x}&y={y}&z={z}"
+                      subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+                      maxZoom={20}
+                    />
+
+                    {/* Layer Wilayah Negara Tetangga (Konsisten Abu-abu / Tanpa Warna) */}
+                    <GeoJSON
+                      data={NEIGHBORING_COUNTRIES as any}
+                      style={{
+                        fillColor: MAP_THEME.neighbors.fillColor,
+                        fillOpacity: MAP_THEME.neighbors.fillOpacity,
+                        weight: MAP_THEME.neighbors.weight,
+                        color: MAP_THEME.neighbors.color,
+                        opacity: MAP_THEME.neighbors.opacity,
+                        smoothFactor: 0,
+                      } as any}
+                      interactive={false}
+                    />
+
+                    {/* Layer GeoJSON 38 Provinsi Resmi Indonesia */}
+                    <GeoJSON
+                      ref={(instance) => {
+                        geoJsonRef.current = instance;
+                        if (instance && !geoJsonBounds) {
+                          setGeoJsonBounds(instance.getBounds());
+                        }
+                      }}
+                      data={INDONESIA_GEOJSON as any}
+                      style={getFeatureStyle}
+                      onEachFeature={onEachFeature}
+                    />
+
+                    {/* Layer Garis Batas Daratan Antar Provinsi */}
+                    <GeoJSON
+                      data={INDONESIA_LAND_BORDERS as any}
+                      style={{
+                        color: MAP_THEME.borders.color,
+                        weight: MAP_THEME.borders.weight,
+                        opacity: MAP_THEME.borders.opacity,
+                        lineCap: 'round',
+                        lineJoin: 'round',
+                        smoothFactor: 0,
+                      } as any}
+                      interactive={false}
+                    />
+
+                    {/* Floating Popup Card saat provinsi dipilih dengan Garis Pin Stem (Sesuai Figma node #2358:57596) */}
+                    {activeProvince && popupPos && (
+                      <Popup
+                        key={activeProvince.id}
+                        position={popupPos}
+                        closeButton={false}
+                        autoPan={false}
+                        offset={[0, -2]}
+                        className="custom-leaflet-popup"
+                      >
                     <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
                       <div className="bg-white rounded-lg sm:rounded-xl shadow-xl border border-neu-200/90 p-2.5 sm:p-3.5 min-w-[170px] sm:min-w-[200px] select-none">
                         {/* Header Card: NAMA PROVINSI | Total Regulasi */}
