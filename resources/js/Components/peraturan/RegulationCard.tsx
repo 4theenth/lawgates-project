@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from '@inertiajs/react';
 import {
   CheckCircle,
@@ -6,8 +6,8 @@ import {
   RefreshCw,
   XOctagon,
   Eye,
-  Bookmark,
 } from 'lucide-react';
+import { BookmarkButton } from '@/Components/common/BookmarkButton';
 
 export interface RegulationCardItem {
   id: number | string;
@@ -70,8 +70,6 @@ export function RegulationCard({
   variant = 'list',
   onClick,
 }: RegulationCardProps) {
-  const [isBookmarked, setIsBookmarked] = useState(false);
-
   const statusName = item.status_peraturan?.nama_status ?? 'Berlaku';
   const jenisNama = item.jenis_peraturan?.nama ?? 'Peraturan';
   const instansiNama = item.instansi || 'Pemerintah Pusat';
@@ -98,12 +96,6 @@ export function RegulationCard({
       e.preventDefault();
       onClick(e);
     }
-  };
-
-  const handleBookmarkClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsBookmarked(!isBookmarked);
   };
 
   return (
@@ -149,22 +141,12 @@ export function RegulationCard({
             {instansiNama}
           </span>
 
-          {/* Icon Simpan (Bookmark) ditaruh di sebelah Pemerintah Pusat */}
-          <button
-            type="button"
-            onClick={handleBookmarkClick}
-            className={`p-1 rounded-md transition-colors cursor-pointer ${
-              isBookmarked ? 'text-pr-900 fill-pr-900' : 'text-neu-400 hover:text-neu-800'
-            }`}
-            title={isBookmarked ? 'Hapus penanda' : 'Simpan peraturan'}
-            aria-label="Bookmark"
-          >
-            <Bookmark
-              className={`w-4 h-4 ${
-                isBookmarked ? 'fill-pr-900 text-pr-900' : 'stroke-[1.75]'
-              }`}
-            />
-          </button>
+          {/* Reusable Bookmark Button */}
+          <BookmarkButton
+            peraturanId={item.unique_id || item.id}
+            variant="icon"
+            size="sm"
+          />
         </div>
 
         {/* Tombol Lihat Detail (Tetap lembut #E7E8EC dan text-pr-900 sesuai Figma node #1684:24754) */}
