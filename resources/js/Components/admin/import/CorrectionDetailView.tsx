@@ -232,17 +232,20 @@ export function CorrectionDetailView({
         if (newData.pembukaan.memutuskan) newData.pembukaan.memutuskan = cleanOcrText(newData.pembukaan.memutuskan);
       }
       
+      const cleanChapterNode = (node: typeof prev.babList[0]): typeof prev.babList[0] => ({
+        ...node,
+        judul: cleanOcrText(node.judul || ''),
+        deskripsi: cleanOcrText(node.deskripsi || ''),
+        pasalList: (node.pasalList || []).map((pasal) => ({
+          ...pasal,
+          isi: cleanOcrText(pasal.isi || ''),
+          penjelasan: cleanOcrText(pasal.penjelasan || ''),
+        })),
+        children: node.children ? node.children.map(cleanChapterNode) : node.children,
+      });
+
       if (newData.babList) {
-        newData.babList = newData.babList.map(bab => ({
-          ...bab,
-          judul: cleanOcrText(bab.judul || ''),
-          deskripsi: cleanOcrText(bab.deskripsi || ''),
-          pasalList: bab.pasalList.map(pasal => ({
-            ...pasal,
-            isi: cleanOcrText(pasal.isi || ''),
-            penjelasan: cleanOcrText(pasal.penjelasan || '')
-          }))
-        }));
+        newData.babList = newData.babList.map(cleanChapterNode);
       }
       
       return newData;

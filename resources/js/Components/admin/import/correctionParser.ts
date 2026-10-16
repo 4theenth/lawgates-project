@@ -1,4 +1,5 @@
 import { ValidatedFileItem } from './StepValidationCorrection';
+import { cleanOcrText } from '../../../utils/ocrTextCleaner';
 
 export interface TargetIndukInfo {
   standardId: string;
@@ -116,7 +117,7 @@ export function detectTargetPeraturan(teks: string, explicitTarget?: string): Ta
 
   // Pattern pencarian peraturan target di dalam teks pasal perubah
   const match = teks.match(
-    /(?:ketentuan\s+dalam\s+|perubahan\s+atas\s+|mengubah\s+)?(Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah\s+Pengganti\s+Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah|Peraturan[-_\s]?Presiden|Peraturan[-_\s]?Menteri)\s+Nomor\s+(\d+)\s+Tahun\s+(\d{4})(?:\s+tentang\s+([^,.\n()]+))?/i
+    /(?:ketentuan\s+dalam\s+|perubahan\s+atas\s+|mengubah\s+)?(Peraturan[-_\s]?Daerah|Peraturan[-_\s]?Gubernur|Peraturan[-_\s]?Bupati|Peraturan[-_\s]?Wali[-_\s]?Kota|Perda|Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah\s+Pengganti\s+Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah|Peraturan[-_\s]?Presiden|Peraturan[-_\s]?Menteri|Instruksi[-_\s]?Presiden|Keputusan[-_\s]?Presiden|Keputusan[-_\s]?Menteri)\s+Nomor\s+(\d+)\s+Tahun\s+(\d{4})(?:\s+tentang\s+([^,.\n()]+))?/i
   );
 
   if (match) {
@@ -165,45 +166,88 @@ export function detectActionType(teks: string): { type: LegalActionType; label: 
  */
 export function formatStandardId(rawId: string): string {
   if (!rawId) return '';
-  const trimmed = String(rawId).trim();
+  const trimmed = cleanOcrText(String(rawId)).trim();
 
   // Jika sudah dalam format baku UU_No_6_2023 atau sejenisnya
   if (/^[A-Za-z0-9_]+_No_\d+_\d{4}$/.test(trimmed)) {
     return trimmed;
   }
 
-  // Pola slug OCR: "undang-undang-6-2023", "peraturan-pemerintah-2-2022", "perpu-2-2022"
-  const slugMatch = trimmed.match(/^([a-z-]+)-(\d+)-(\d{4})$/i);
+  // 1. Pola slug OCR: "undang-undang-6-2023", "peraturan-pemerintah-2-2022", "perpu-2-2022", "inpres-1-1981", "perda-12-2025", "pojk-10-2023"
+  const slugMatch = trimmed.match(/^([a-z0-9_-]+)-(\d+)-(\d{4})$/i);
   if (slugMatch) {
     const typeSlug = slugMatch[1].toLowerCase().replace(/_/g, '-');
     const nomor = slugMatch[2];
     const tahun = slugMatch[3];
-    let prefix = 'UU';
-    if (typeSlug.includes('perpu') || typeSlug.includes('perppu')) prefix = 'PERPPU';
-    else if (typeSlug.includes('pemerintah') || typeSlug === 'pp') prefix = 'PP';
-    else if (typeSlug.includes('presiden') || typeSlug === 'perpres') prefix = 'PERPRES';
-    else if (typeSlug.includes('menteri') || typeSlug === 'permen') prefix = 'PERMEN';
-    else if (typeSlug.includes('uud')) prefix = 'UUD';
-    else if (typeSlug.includes('daerah') || typeSlug === 'perda') prefix = 'PERDA';
-    return `${prefix}_No_${nomor}_${tahun}`;
+
+    // Kamus cepat tipe slug umum
+    if (typeSlug.includes('daerah') || typeSlug.includes('perda') || typeSlug.includes('pergub') || typeSlug.includes('perbup') || typeSlug.includes('perwali')) return `PERDA_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('inpres') || typeSlug.includes('instruksi-presiden')) return `INPRES_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('keppres') || typeSlug.includes('keputusan-presiden')) return `KEPPRES_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('perpu') || typeSlug.includes('perppu')) return `PERPPU_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('pemerintah') || typeSlug === 'pp') return `PP_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('presiden') || typeSlug === 'perpres') return `PERPRES_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('menteri') || typeSlug === 'permen') return `PERMEN_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('badan') || typeSlug.includes('lembaga') || typeSlug === 'perban') return `PERBAN_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('uud')) return `UUD_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('mpr')) return `TAP_MPR_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('darurat') || typeSlug.includes('uudrt')) return `UU_DRT_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('undang') || typeSlug === 'uu') return `UU_No_${nomor}_${tahun}`;
+
+    // Dinamis untuk slug jenis baru (misal: "pojk", "pkpu", "perma", "sema", "pbi", dll.)
+    const cleanPrefix = typeSlug.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+    return `${cleanPrefix}_No_${nomor}_${tahun}`;
   }
 
-  // Pola teks: "undang undang nomor 6 tahun 2023"
-  const textMatch = trimmed.match(
-    /(undang[-_\s]?undang|perpu|perppu|peraturan[-_\s]?pemerintah|perpres|permen|uud)[^0-9]*(\d+)[^0-9]+(\d{4})/i
+  // 2. Pola teks dengan ekstraksi dinamis: "[Jenis Dokumen] Nomor [X] Tahun [Y]"
+  const genericMatch = trimmed.match(
+    /(?:tentang\s+|perubahan\s+atas\s+|mengenai\s+)?(.+?)\s+(?:Nomor|No\.?)\s*(\d+)[^0-9]+(?:Tahun|Thn\.?)\s*(\d{4})/i
   );
-  if (textMatch) {
-    let prefix = 'UU';
-    const t = textMatch[1].toLowerCase();
-    if (t.includes('perpu') || t.includes('perppu')) prefix = 'PERPPU';
-    else if (t.includes('pemerintah')) prefix = 'PP';
-    else if (t.includes('presiden') || t.includes('perpres')) prefix = 'PERPRES';
-    else if (t.includes('menteri') || t.includes('permen')) prefix = 'PERMEN';
-    else if (t.includes('uud')) prefix = 'UUD';
-    return `${prefix}_No_${textMatch[2]}_${textMatch[3]}`;
+  if (genericMatch) {
+    const rawType = genericMatch[1].trim();
+    const nomor = genericMatch[2];
+    const tahun = genericMatch[3];
+    const lower = rawType.toLowerCase();
+
+    // A. Kamus pemetaan akronim resmi lembaga & peraturan di Indonesia
+    if (lower.includes('mahkamah agung') || lower.includes('perma')) return `PERMA_No_${nomor}_${tahun}`;
+    if (lower.includes('komisi pemilihan umum') || lower.includes('pkpu')) return `PKPU_No_${nomor}_${tahun}`;
+    if (lower.includes('otoritas jasa keuangan') || lower.includes('pojk')) return `POJK_No_${nomor}_${tahun}`;
+    if (lower.includes('bank indonesia') || lower.includes('pbi')) return `PBI_No_${nomor}_${tahun}`;
+    if (lower.includes('surat edaran')) return `SE_No_${nomor}_${tahun}`;
+    if (lower.includes('daerah') || lower.includes('perda') || lower.includes('gubernur') || lower.includes('bupati') || lower.includes('wali')) return `PERDA_No_${nomor}_${tahun}`;
+    if (lower.includes('badan') || lower.includes('lembaga') || lower.includes('perban')) return `PERBAN_No_${nomor}_${tahun}`;
+    if (lower.includes('inpres') || lower.includes('instruksi presiden')) return `INPRES_No_${nomor}_${tahun}`;
+    if (lower.includes('keppres') || (lower.includes('keputusan') && lower.includes('presiden'))) return `KEPPRES_No_${nomor}_${tahun}`;
+    if (lower.includes('kepmen') || (lower.includes('keputusan') && lower.includes('menteri'))) return `KEPMEN_No_${nomor}_${tahun}`;
+    if (lower.includes('perpu') || lower.includes('perppu')) return `PERPPU_No_${nomor}_${tahun}`;
+    if (lower.includes('pemerintah') || lower.includes('pp')) return `PP_No_${nomor}_${tahun}`;
+    if (lower.includes('presiden') || lower.includes('perpres')) return `PERPRES_No_${nomor}_${tahun}`;
+    if (lower.includes('menteri') || lower.includes('permen')) return `PERMEN_No_${nomor}_${tahun}`;
+    if (lower.includes('mpr')) return `TAP_MPR_No_${nomor}_${tahun}`;
+    if (lower.includes('darurat') || lower.includes('drt')) return `UU_DRT_No_${nomor}_${tahun}`;
+    if (lower.includes('uud') || lower.includes('dasar')) return `UUD_No_${nomor}_${tahun}`;
+    if (lower.includes('undang')) return `UU_No_${nomor}_${tahun}`;
+
+    // B. Dinamis untuk dokumen tipe masa depan yang belum terdaftar:
+    // Jika kata terakhir atau tipe itu sendiri adalah akronim (misal: "POJK", "BKN", "KMA")
+    const words = rawType.split(/\s+/).filter(Boolean);
+    const lastWord = words[words.length - 1];
+    let dynamicPrefix = '';
+    if (/^[A-Za-z]{2,8}$/.test(lastWord) && lastWord === lastWord.toUpperCase()) {
+      dynamicPrefix = lastWord;
+    } else if (words.length <= 3) {
+      dynamicPrefix = words.map(w => w.toUpperCase().replace(/[^A-Z0-9]/g, '')).filter(Boolean).join('_');
+    } else {
+      dynamicPrefix = words.map(w => w[0].toUpperCase()).join('');
+    }
+
+    if (dynamicPrefix) {
+      return `${dynamicPrefix}_No_${nomor}_${tahun}`;
+    }
   }
 
-  // Khusus dokumen kolonial / staatsblad
+  // 3. Khusus dokumen kolonial / staatsblad
   if (trimmed.toLowerCase().includes('staatsblad')) {
     const stMatch = trimmed.match(/(\d{4})[^0-9]+(\d+)/);
     if (stMatch) {
@@ -212,16 +256,26 @@ export function formatStandardId(rawId: string): string {
     return 'Staatsblad_1926_No_226';
   }
 
-  // Jika string terlalu panjang (misal nama file panjang), ekstrak nomor & tahun
-  if (trimmed.length > 30) {
-    const numYearMatch = trimmed.match(/(\d+)[^0-9]+(\d{4})/);
-    if (numYearMatch) {
-      return `UU_No_${numYearMatch[1]}_${numYearMatch[2]}`;
-    }
-    return trimmed.substring(0, 25).replace(/[^a-zA-Z0-9_]/g, '_');
+  // 4. Fallback cerdas jika string panjang
+  const numYearMatch = trimmed.match(/(\d+)[^0-9]+(\d{4})/);
+  if (numYearMatch) {
+    const lower = trimmed.toLowerCase();
+    let prefix = 'UU';
+    if (lower.includes('daerah') || lower.includes('perda') || lower.includes('gubernur') || lower.includes('bupati') || lower.includes('walikota')) prefix = 'PERDA';
+    else if (lower.includes('menteri') || lower.includes('permen')) prefix = 'PERMEN';
+    else if (lower.includes('presiden') || lower.includes('perpres')) prefix = 'PERPRES';
+    else if (lower.includes('inpres') || lower.includes('instruksi')) prefix = 'INPRES';
+    else if (lower.includes('keppres') || lower.includes('keputusan')) prefix = 'KEPPRES';
+    else if (lower.includes('pemerintah') || lower.includes('pp')) prefix = 'PP';
+    else if (lower.includes('perpu') || lower.includes('perppu')) prefix = 'PERPPU';
+    else if (lower.includes('badan') || lower.includes('perban')) prefix = 'PERBAN';
+    else if (lower.includes('darurat')) prefix = 'UU_DRT';
+    else if (lower.includes('mpr')) prefix = 'TAP_MPR';
+    else if (lower.includes('uud')) prefix = 'UUD';
+    return `${prefix}_No_${numYearMatch[1]}_${numYearMatch[2]}`;
   }
 
-  return trimmed.replace(/[^a-zA-Z0-9_]/g, '_');
+  return trimmed.substring(0, 25).replace(/[^a-zA-Z0-9_]/g, '_');
 }
 
 /**
@@ -263,8 +317,8 @@ export function generateInitialCorrectionData(
     standarId = formatStandardId(`${fileName} ${meta.judul || raw.judul || ''}`);
   }
 
-  // 2. JUDUL PERATURAN
-  const judul =
+  // 2. JUDUL PERATURAN (Otomatis dibersihkan dari icon/bintang hasil OCR)
+  const rawJudul =
     meta.judul ||
     meta.title ||
     meta.nama ||
@@ -272,6 +326,7 @@ export function generateInitialCorrectionData(
     raw.title ||
     file.title ||
     fileName.replace(/_/g, ' ');
+  const judul = cleanOcrText(rawJudul);
 
   // 3. PEMBUKAAN (Ekstraksi murni dari chunks / field JSON)
   let menimbang = '';
