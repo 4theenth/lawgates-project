@@ -319,7 +319,7 @@ export default function Pencarian() {
     const currentLokasi =
       overrides.lokasi_daerah !== undefined
         ? overrides.lokasi_daerah
-        : selectedLokasi.length > 0 && isPerdaSelected
+        : selectedLokasi.length > 0 && (isPerdaSelected || selectedKategori.length === 0)
           ? selectedLokasi.join(',')
           : '';
 
