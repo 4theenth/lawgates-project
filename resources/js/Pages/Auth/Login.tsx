@@ -13,7 +13,8 @@ export interface LoginProps {
 }
 
 export default function Login({ status, canResetPassword = true, redirect }: LoginProps) {
-    const redirectUrl = redirect || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null);
+    const rawRedirect = redirect || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null);
+    const redirectUrl = rawRedirect && rawRedirect !== '/' ? rawRedirect : null;
     const { data, setData, post, processing, errors, reset, setError, clearErrors } = useForm({
         email: '',
         password: '',
