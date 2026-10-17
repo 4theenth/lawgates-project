@@ -15,6 +15,8 @@ export interface UploadedJsonFile {
   error?: string;
   isDuplicate?: boolean;
   duplicateMessage?: string;
+  folder_path?: string;
+  file_path?: string;
 }
 
 interface StepUploadJsonProps {

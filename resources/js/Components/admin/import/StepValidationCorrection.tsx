@@ -10,6 +10,8 @@ export interface ValidatedFileItem {
   rawFile?: File;
   parsedData?: any;
   correctionData?: any;
+  folder_path?: string;
+  file_path?: string;
 }
 
 interface StepValidationCorrectionProps {
