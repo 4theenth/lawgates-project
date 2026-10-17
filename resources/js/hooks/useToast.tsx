@@ -44,6 +44,7 @@ export function ToastProvider({
 }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const processedFlashRef = useRef<string>('');
+  const lastToastRef = useRef<{ message: string; timestamp: number }>({ message: '', timestamp: 0 });
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -56,6 +57,17 @@ export function ToastProvider({
     description,
     duration = 3500,
   }: ToastOptions) => {
+    const now = Date.now();
+    // Normalisasi pesan untuk mendeteksi pesan duplikat (abaikan huruf besar/kecil & tanda titik di akhir)
+    const normalized = (message || '').trim().toLowerCase().replace(/\.+$/, '');
+    const lastNormalized = (lastToastRef.current.message || '').trim().toLowerCase().replace(/\.+$/, '');
+
+    // Jika pesan identik dipicu dalam selang 1.2 detik, abaikan duplikatnya
+    if (normalized && normalized === lastNormalized && (now - lastToastRef.current.timestamp) < 1200) {
+      return;
+    }
+    lastToastRef.current = { message: message || '', timestamp: now };
+
     setToasts((prev) => [
       ...prev.slice(-2), // Batasi maksimal 3 toast sekaligus agar tidak menumpuk layar
       { id, type, message, description, duration },
@@ -163,8 +175,8 @@ export function ToastProvider({
     <ToastContext.Provider value={{ showToast, removeToast, toast }}>
       {children}
 
-      {/* Floating Container di Kanan Atas Layar */}
-      <div className="fixed top-5 right-4 sm:right-6 z-[9999] flex flex-col items-end gap-2.5 pointer-events-none max-w-[calc(100vw-2rem)]">
+      {/* Floating Container di Kanan Bawah Layar */}
+      <div className="fixed bottom-5 right-4 sm:right-6 z-[9999] flex flex-col items-end gap-2 pointer-events-none max-w-[calc(100vw-2rem)]">
         {toasts.map((item) => (
           <Toast key={item.id} toast={item} onClose={removeToast} />
         ))}

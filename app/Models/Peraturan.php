@@ -13,6 +13,32 @@ class Peraturan extends Model
 
     protected $table = 'peraturan';
 
+    protected static function booted(): void
+    {
+        static::saved(function () {
+            \App\Http\Controllers\Api\RegionController::clearCache();
+        });
+
+        static::deleted(function () {
+            \App\Http\Controllers\Api\RegionController::clearCache();
+        });
+    }
+
+    /**
+     * Scope query untuk hanya memilih peraturan sah yang memiliki isi (pasal), bukan placeholder "Menunggu import", dan bukan berstatus DRAFT.
+     */
+    public function scopeAvailable($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('judul')
+              ->orWhereRaw('LOWER(judul) NOT LIKE ?', ['%menunggu import%']);
+        })
+        ->whereDoesntHave('statusPeraturan', function ($q) {
+            $q->whereRaw('LOWER(nama_status) LIKE ?', ['%draft%']);
+        })
+        ->has('pasal');
+    }
+
     protected $appends = [
         'is_available',
         'has_pembukaan',
@@ -32,6 +58,8 @@ class Peraturan extends Model
         'tanggal_pengundangan',
         'tanggal_berlaku',
         'instansi',
+        'lokasi_daerah',
+        'subjek',
         'url_detail',
         'url_pdf',
         'embedding',
@@ -57,6 +85,16 @@ class Peraturan extends Model
         return $this->belongsTo(\App\Models\Status::class, 'status_id');
     }
 
+    public function creator()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
+    }
+
+    public function updater()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'updated_by');
+    }
+
     // Tambahan relasi ke tabel pasal
     public function pasal()
     {
@@ -70,6 +108,11 @@ class Peraturan extends Model
     public function lawRelations()
     {
         return $this->hasMany(\App\Models\LawRelation::class, 'from_peraturan_id');
+    }
+
+    public function bookmarks()
+    {
+        return $this->hasMany(\App\Models\Bookmark::class, 'peraturan_id');
     }
 
     public function getHasPembukaanAttribute(): bool
@@ -105,5 +148,33 @@ class Peraturan extends Model
         }
 
         return $this->has_pembukaan && $this->has_pasal;
+    }
+
+    /**
+     * Dapatkan informasi tingkatan hierarki peraturan (Provinsi, Kabupaten, Kota, atau Pusat)
+     * berdasarkan pemrakarsa, instansi, lokasi_daerah, atau judul.
+     */
+    public function getLevelInfo(): array
+    {
+        return \App\Services\RegulationLevelDetector::detect(
+            $this->instansi,
+            $this->lokasi_daerah,
+            $this->judul
+        );
+    }
+
+    public function getTingkatAttribute(): string
+    {
+        return $this->getLevelInfo()['tingkat'];
+    }
+
+    public function getNamaDaerahAttribute(): string
+    {
+        return $this->getLevelInfo()['nama_daerah'];
+    }
+
+    public function getProvinsiIndukAttribute(): ?string
+    {
+        return $this->getLevelInfo()['provinsi'];
     }
 }

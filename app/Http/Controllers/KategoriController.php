@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\JenisPeraturan;
 use App\Models\Peraturan;
 use App\Models\Status;
+use App\Models\SubjekPeraturan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -142,12 +143,22 @@ class KategoriController extends Controller
             $canonicalKey = 'perda';
             $matchedJenis = null;
 
-            // Query peraturan untuk provinsi ini (berdasarkan judul, tempat penetapan, atau instansi)
-            $peraturanQuery = Peraturan::with(['jenisPeraturan', 'statusPeraturan'])
-                ->where(function ($q) use ($matchedProvince) {
+            $regencyNames = \App\Services\RegulationLevelDetector::getRegenciesForProvinceName($matchedProvince);
+
+            // Query peraturan untuk provinsi ini (berdasarkan judul, tempat penetapan, instansi, lokasi_daerah, atau nama kabupaten/kota)
+            $peraturanQuery = Peraturan::available()
+                ->with(['jenisPeraturan', 'statusPeraturan'])
+                ->where(function ($q) use ($matchedProvince, $regencyNames) {
                     $q->where('judul', 'ilike', '%' . $matchedProvince . '%')
                       ->orWhere('tempat_penetapan', 'ilike', '%' . $matchedProvince . '%')
-                      ->orWhere('instansi', 'ilike', '%' . $matchedProvince . '%');
+                      ->orWhere('instansi', 'ilike', '%' . $matchedProvince . '%')
+                      ->orWhere('lokasi_daerah', 'ilike', '%' . $matchedProvince . '%');
+
+                    foreach ($regencyNames as $regName) {
+                        $q->orWhere('instansi', 'ilike', '%' . $regName . '%')
+                          ->orWhere('lokasi_daerah', 'ilike', '%' . $regName . '%')
+                          ->orWhere('tempat_penetapan', 'ilike', '%' . $regName . '%');
+                    }
                 });
 
             $totalCategoryCount = (clone $peraturanQuery)->count();
@@ -194,8 +205,8 @@ class KategoriController extends Controller
             $categoryBadge = $matchedPredefined['badge'] ?? ($matchedJenis?->kode ?? 'Regulasi');
             $categoryDescription = $matchedJenis?->deskripsi ?? ($matchedPredefined['deskripsi'] ?? '');
 
-            // 3. Query Peraturan
-            $peraturanQuery = Peraturan::with(['jenisPeraturan', 'statusPeraturan']);
+            // 3. Query Peraturan Sah
+            $peraturanQuery = Peraturan::available()->with(['jenisPeraturan', 'statusPeraturan']);
 
             if ($matchedJenis) {
                 $peraturanQuery->where('jenis_peraturan_id', $matchedJenis->id);
@@ -204,7 +215,7 @@ class KategoriController extends Controller
                 $peraturanQuery->whereRaw('1 = 0');
             }
 
-            $totalCategoryCount = $matchedJenis ? Peraturan::where('jenis_peraturan_id', $matchedJenis->id)->count() : 0;
+            $totalCategoryCount = $matchedJenis ? Peraturan::available()->where('jenis_peraturan_id', $matchedJenis->id)->count() : 0;
         }
 
         // Filter keyword pencarian
@@ -239,6 +250,19 @@ class KategoriController extends Controller
             }
         }
 
+        // Filter subjek
+        if ($request->filled('subjek') && \Illuminate\Support\Facades\Schema::hasColumn('peraturan', 'subjek')) {
+            $subjekList = is_array($request->subjek) ? $request->subjek : explode(',', (string) $request->subjek);
+            $subjekList = array_filter(array_map('trim', $subjekList));
+            if (!empty($subjekList)) {
+                $peraturanQuery->where(function ($subQ) use ($subjekList) {
+                    foreach ($subjekList as $subjekItem) {
+                        $subQ->orWhere('subjek', 'ilike', '%' . $subjekItem . '%');
+                    }
+                });
+            }
+        }
+
         // Sorting
         $sort = $request->get('sort', 'relevansi');
         if ($sort === 'terbaru') {
@@ -252,13 +276,35 @@ class KategoriController extends Controller
         $perPage = (int) $request->get('per_page', 10);
         $paginatedResults = $peraturanQuery->paginate($perPage)->withQueryString();
 
-        // Data referensi status & tahun untuk dropdown filter
+        // Data referensi status, tahun, & subjek untuk dropdown filter
         $statuses = Status::select('id', 'nama_status')->get();
         $years = Peraturan::select('tahun')
             ->whereNotNull('tahun')
             ->distinct()
             ->orderBy('tahun', 'desc')
             ->pluck('tahun');
+        $subjekOptions = collect();
+        if (\Illuminate\Support\Facades\Schema::hasTable('subjek_peraturan')) {
+            try {
+                $subjekOptions = SubjekPeraturan::select('id', 'nama')->orderBy('nama')->get();
+            } catch (\Throwable $e) {
+                $subjekOptions = collect();
+            }
+        }
+
+        if ($subjekOptions->isEmpty()) {
+            try {
+                $subjekOptions = Peraturan::whereNotNull('subjek')
+                    ->where('subjek', '!=', '')
+                    ->distinct()
+                    ->orderBy('subjek', 'asc')
+                    ->pluck('subjek')
+                    ->map(fn($nama, $idx) => ['id' => $idx + 1, 'nama' => $nama])
+                    ->values();
+            } catch (\Throwable $e) {
+                $subjekOptions = collect();
+            }
+        }
 
         return Inertia::render('DetailKategori', [
             'kategori' => [
@@ -275,12 +321,14 @@ class KategoriController extends Controller
                 'keyword' => $request->get('keyword', ''),
                 'status_id' => $request->get('status_id', ''),
                 'tahun' => $request->get('tahun', ''),
+                'subjek' => $request->get('subjek', ''),
                 'sort' => $sort,
                 'per_page' => $perPage,
             ],
             'referensi' => [
                 'status' => $statuses,
                 'tahun' => $years,
+                'subjek' => $subjekOptions,
             ],
         ]);
     }

@@ -180,18 +180,22 @@ export default function Register() {
 
         if (hasError) return;
 
-        post(route('register'), {
+        const redirectUrl = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null;
+
+        post(route('register', redirectUrl ? { redirect: redirectUrl } : {}), {
             onFinish: () => reset('password', 'password_confirmation'),
         });
     };
 
     const { toast } = useToast();
+    const redirectUrl = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null;
 
     const handleGoogleLogin = useGoogleLogin({
         onSuccess: (tokenResponse) => {
             router.post('/auth/google/callback', {
                 access_token: tokenResponse.access_token,
-                remember: true
+                remember: true,
+                redirect: redirectUrl || undefined,
             }, {
                 onError: () => {
                     toast.error('Terjadi kesalahan saat verifikasi login Google');
@@ -215,7 +219,7 @@ export default function Register() {
                 onSocialClick={handleGoogleLogin}
                 footerText="Sudah punya akun?"
                 footerLinkText="Login"
-                footerLinkHref={route('login')}
+                footerLinkHref={redirectUrl ? `${route('login')}?redirect=${encodeURIComponent(redirectUrl)}` : route('login')}
             >
                 <form onSubmit={submit} noValidate className="space-y-4">
                     {/* Nama Field with User Icon */}

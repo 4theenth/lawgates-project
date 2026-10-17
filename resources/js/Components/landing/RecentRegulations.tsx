@@ -1,3 +1,5 @@
+import { router } from '@inertiajs/react';
+import { useAuthModal } from '@/hooks/useAuthModal';
 import recentFeaturedRegulation from '@/assets/recent-featured-regulation.webp';
 import recentRegulationThumb from '@/assets/recent-regulation-thumb.webp';
 
@@ -45,6 +47,13 @@ const recentList: RecentItem[] = [
 ];
 
 export function RecentRegulations() {
+  const { requireAuth } = useAuthModal();
+
+  const handleItemClick = (title: string) => {
+    requireAuth(() => {
+      router.visit(`/pencarian?keyword=${encodeURIComponent(title)}`);
+    });
+  };
   return (
     <section className=" mt-[66px] w-full">
       {/* Section Header */}
@@ -65,7 +74,10 @@ export function RecentRegulations() {
             FEATURED REGULATION
         ========================== */}
         <div className="lg:col-span-7">
-          <div className="relative w-full h-[380px] rounded-[20px] overflow-hidden  group">
+          <div
+            onClick={() => handleItemClick('Peraturan Presiden Nomor 29 Tahun 2026')}
+            className="relative w-full h-[380px] rounded-[20px] overflow-hidden border border-pr-800 shadow-md group cursor-pointer"
+          >
 
             {/* Main Featured Regulation Image */}
             <img
@@ -152,6 +164,7 @@ export function RecentRegulations() {
             {recentList.map((item) => (
               <div
                 key={item.id}
+                onClick={() => handleItemClick(item.title)}
                 className="
                   flex
                   items-center

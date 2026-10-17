@@ -1,4 +1,11 @@
 import { ValidatedFileItem } from './StepValidationCorrection';
+import { cleanOcrText } from '../../../utils/ocrTextCleaner';
+
+export interface TargetIndukInfo {
+  standardId: string;
+  labelSingkat?: string;
+  namaLengkap?: string;
+}
 
 export interface ArticleItem {
   id: string;
@@ -7,15 +14,49 @@ export interface ArticleItem {
   penjelasan?: string;
   isExpanded?: boolean;
   pasalList?: ArticleItem[];
+  pasalDiubahList?: ArticleItem[];
+
+  // 9 Field Utama & Core Metadata Hukum
+  tipe?: string; // 'PASAL' | 'PASAL_PERUBAHAN' | 'PASAL_PERUBAHAN_CONTAINER'
+  label?: string;
+  bagianDokumen?: string;
+  hierarki?: string;
+  parentBab?: string;
+  parentBagian?: string;
+  parentParagraf?: string;
+  parentPasalPerubahan?: string;
+  targetInduk?: TargetIndukInfo;
+}
+
+export interface ParagraphItem {
+  id: string;
+  judul: string;
+  deskripsi?: string;
+  pasalList: ArticleItem[];
+  isExpanded?: boolean;
+}
+
+export interface BagianItem {
+  id: string;
+  judul: string;
+  deskripsi?: string;
+  paragrafList?: ParagraphItem[];
+  pasalList?: ArticleItem[];
+  children?: ChapterItem[];
+  isExpanded?: boolean;
 }
 
 export interface ChapterItem {
   id: string;
   judul: string;
   deskripsi?: string;
+  tipe?: 'BAB' | 'BAGIAN' | 'PARAGRAF';
+  label?: string;
+  parentBab?: string;
+  parentBagian?: string;
   pasalList: ArticleItem[];
-  isExpanded?: boolean;
   children?: ChapterItem[];
+  isExpanded?: boolean;
 }
 
 export interface TimelineRelationItem {
@@ -54,50 +95,159 @@ export interface LegalDocumentCorrectionData {
   };
 }
 
+export type LegalActionType = 'DIUBAH' | 'DITAMBAH' | 'DIHAPUS' | 'DIUBAH_DAN_DITAMBAH';
+
+/**
+ * Ekstrak ID & Nama Peraturan Target yang diubah dari teks pasal (misal UU No 26 Tahun 2007)
+ */
+export function detectTargetPeraturan(teks: string, explicitTarget?: string): TargetIndukInfo | undefined {
+  if (explicitTarget && explicitTarget.trim()) {
+    const formatted = formatStandardId(explicitTarget);
+    // Ubah slug seperti "undang-undang-26-2007" menjadi label yang mudah dibaca "UU 26/2007"
+    const slugMatch = formatted.match(/^([A-Z]+)_No_(\d+)_(\d{4})$/i);
+    const labelSingkat = slugMatch ? `${slugMatch[1]} ${slugMatch[2]}/${slugMatch[3]}` : formatted;
+    return {
+      standardId: formatted,
+      labelSingkat,
+      namaLengkap: explicitTarget,
+    };
+  }
+
+  if (!teks) return undefined;
+
+  // Pattern pencarian peraturan target di dalam teks pasal perubah
+  const match = teks.match(
+    /(?:ketentuan\s+dalam\s+|perubahan\s+atas\s+|mengubah\s+)?(Peraturan[-_\s]?Daerah|Peraturan[-_\s]?Gubernur|Peraturan[-_\s]?Bupati|Peraturan[-_\s]?Wali[-_\s]?Kota|Perda|Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah\s+Pengganti\s+Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah|Peraturan[-_\s]?Presiden|Peraturan[-_\s]?Menteri|Instruksi[-_\s]?Presiden|Keputusan[-_\s]?Presiden|Keputusan[-_\s]?Menteri)\s+Nomor\s+(\d+)\s+Tahun\s+(\d{4})(?:\s+tentang\s+([^,.\n()]+))?/i
+  );
+
+  if (match) {
+    const rawJenis = match[1];
+    const nomor = match[2];
+    const tahun = match[3];
+    const tentang = match[4] ? match[4].trim() : '';
+
+    const stdId = formatStandardId(`${rawJenis} ${nomor} ${tahun}`);
+    const prefix = stdId.split('_No_')[0] || 'UU';
+    const labelSingkat = `${prefix} ${nomor}/${tahun}`;
+    const namaLengkap = `${rawJenis} Nomor ${nomor} Tahun ${tahun}${tentang ? ` tentang ${tentang}` : ''}`;
+
+    return {
+      standardId: stdId,
+      labelSingkat,
+      namaLengkap,
+    };
+  }
+
+  return undefined;
+}
+
+export function detectActionType(teks: string): { type: LegalActionType; label: string; badgeColor: string } {
+  if (!teks) return { type: 'DIUBAH', label: 'Diubah', badgeColor: 'bg-pr-50 text-pr-900 border-pr-300' };
+
+  const lower = teks.toLowerCase();
+  const isTambah = lower.includes('disisipkan') || lower.includes('ditambah') || lower.includes('pasal selipan') || lower.includes('pasal baru');
+  const isHapus = lower.includes('dihapus') || lower.includes('dicabut');
+  const isUbah = lower.includes('diubah') || lower.includes('berbunyi sebagai berikut') || lower.includes('ketentuan pasal');
+
+  if (isTambah && isUbah) {
+    return { type: 'DIUBAH_DAN_DITAMBAH', label: 'Diubah & Ditambah', badgeColor: 'bg-sec-50 text-sec-900 border-sec-300' };
+  }
+  if (isTambah) {
+    return { type: 'DITAMBAH', label: 'Ditambah', badgeColor: 'bg-suc-50 text-suc-900 border-suc-300' };
+  }
+  if (isHapus) {
+    return { type: 'DIHAPUS', label: 'Dihapus', badgeColor: 'bg-dan-50 text-dan-900 border-dan-300' };
+  }
+  return { type: 'DIUBAH', label: 'Diubah', badgeColor: 'bg-pr-50 text-pr-900 border-pr-300' };
+}
+
 /**
  * Format string atau slug ID menjadi format standar hukum (e.g. UU_No_6_2023, PP_No_2_2022)
  */
 export function formatStandardId(rawId: string): string {
   if (!rawId) return '';
-  const trimmed = String(rawId).trim();
+  const trimmed = cleanOcrText(String(rawId)).trim();
 
   // Jika sudah dalam format baku UU_No_6_2023 atau sejenisnya
   if (/^[A-Za-z0-9_]+_No_\d+_\d{4}$/.test(trimmed)) {
     return trimmed;
   }
 
-  // Pola slug OCR: "undang-undang-6-2023", "peraturan-pemerintah-2-2022", "perpu-2-2022"
-  const slugMatch = trimmed.match(/^([a-z-]+)-(\d+)-(\d{4})$/i);
+  // 1. Pola slug OCR: "undang-undang-6-2023", "peraturan-pemerintah-2-2022", "perpu-2-2022", "inpres-1-1981", "perda-12-2025", "pojk-10-2023"
+  const slugMatch = trimmed.match(/^([a-z0-9_-]+)-(\d+)-(\d{4})$/i);
   if (slugMatch) {
     const typeSlug = slugMatch[1].toLowerCase().replace(/_/g, '-');
     const nomor = slugMatch[2];
     const tahun = slugMatch[3];
-    let prefix = 'UU';
-    if (typeSlug.includes('perpu') || typeSlug.includes('perppu')) prefix = 'PERPPU';
-    else if (typeSlug.includes('pemerintah') || typeSlug === 'pp') prefix = 'PP';
-    else if (typeSlug.includes('presiden') || typeSlug === 'perpres') prefix = 'PERPRES';
-    else if (typeSlug.includes('menteri') || typeSlug === 'permen') prefix = 'PERMEN';
-    else if (typeSlug.includes('uud')) prefix = 'UUD';
-    else if (typeSlug.includes('daerah') || typeSlug === 'perda') prefix = 'PERDA';
-    return `${prefix}_No_${nomor}_${tahun}`;
+
+    // Kamus cepat tipe slug umum
+    if (typeSlug.includes('daerah') || typeSlug.includes('perda') || typeSlug.includes('pergub') || typeSlug.includes('perbup') || typeSlug.includes('perwali')) return `PERDA_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('inpres') || typeSlug.includes('instruksi-presiden')) return `INPRES_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('keppres') || typeSlug.includes('keputusan-presiden')) return `KEPPRES_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('perpu') || typeSlug.includes('perppu')) return `PERPPU_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('pemerintah') || typeSlug === 'pp') return `PP_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('presiden') || typeSlug === 'perpres') return `PERPRES_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('menteri') || typeSlug === 'permen') return `PERMEN_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('badan') || typeSlug.includes('lembaga') || typeSlug === 'perban') return `PERBAN_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('uud')) return `UUD_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('mpr')) return `TAP_MPR_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('darurat') || typeSlug.includes('uudrt')) return `UU_DRT_No_${nomor}_${tahun}`;
+    if (typeSlug.includes('undang') || typeSlug === 'uu') return `UU_No_${nomor}_${tahun}`;
+
+    // Dinamis untuk slug jenis baru (misal: "pojk", "pkpu", "perma", "sema", "pbi", dll.)
+    const cleanPrefix = typeSlug.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+    return `${cleanPrefix}_No_${nomor}_${tahun}`;
   }
 
-  // Pola teks: "undang undang nomor 6 tahun 2023"
-  const textMatch = trimmed.match(
-    /(undang[-_\s]?undang|perpu|perppu|peraturan[-_\s]?pemerintah|perpres|permen|uud)[^0-9]*(\d+)[^0-9]+(\d{4})/i
+  // 2. Pola teks dengan ekstraksi dinamis: "[Jenis Dokumen] Nomor [X] Tahun [Y]"
+  const genericMatch = trimmed.match(
+    /(?:tentang\s+|perubahan\s+atas\s+|mengenai\s+)?(.+?)\s+(?:Nomor|No\.?)\s*(\d+)[^0-9]+(?:Tahun|Thn\.?)\s*(\d{4})/i
   );
-  if (textMatch) {
-    let prefix = 'UU';
-    const t = textMatch[1].toLowerCase();
-    if (t.includes('perpu') || t.includes('perppu')) prefix = 'PERPPU';
-    else if (t.includes('pemerintah')) prefix = 'PP';
-    else if (t.includes('presiden') || t.includes('perpres')) prefix = 'PERPRES';
-    else if (t.includes('menteri') || t.includes('permen')) prefix = 'PERMEN';
-    else if (t.includes('uud')) prefix = 'UUD';
-    return `${prefix}_No_${textMatch[2]}_${textMatch[3]}`;
+  if (genericMatch) {
+    const rawType = genericMatch[1].trim();
+    const nomor = genericMatch[2];
+    const tahun = genericMatch[3];
+    const lower = rawType.toLowerCase();
+
+    // A. Kamus pemetaan akronim resmi lembaga & peraturan di Indonesia
+    if (lower.includes('mahkamah agung') || lower.includes('perma')) return `PERMA_No_${nomor}_${tahun}`;
+    if (lower.includes('komisi pemilihan umum') || lower.includes('pkpu')) return `PKPU_No_${nomor}_${tahun}`;
+    if (lower.includes('otoritas jasa keuangan') || lower.includes('pojk')) return `POJK_No_${nomor}_${tahun}`;
+    if (lower.includes('bank indonesia') || lower.includes('pbi')) return `PBI_No_${nomor}_${tahun}`;
+    if (lower.includes('surat edaran')) return `SE_No_${nomor}_${tahun}`;
+    if (lower.includes('daerah') || lower.includes('perda') || lower.includes('gubernur') || lower.includes('bupati') || lower.includes('wali')) return `PERDA_No_${nomor}_${tahun}`;
+    if (lower.includes('badan') || lower.includes('lembaga') || lower.includes('perban')) return `PERBAN_No_${nomor}_${tahun}`;
+    if (lower.includes('inpres') || lower.includes('instruksi presiden')) return `INPRES_No_${nomor}_${tahun}`;
+    if (lower.includes('keppres') || (lower.includes('keputusan') && lower.includes('presiden'))) return `KEPPRES_No_${nomor}_${tahun}`;
+    if (lower.includes('kepmen') || (lower.includes('keputusan') && lower.includes('menteri'))) return `KEPMEN_No_${nomor}_${tahun}`;
+    if (lower.includes('perpu') || lower.includes('perppu')) return `PERPPU_No_${nomor}_${tahun}`;
+    if (lower.includes('pemerintah') || lower.includes('pp')) return `PP_No_${nomor}_${tahun}`;
+    if (lower.includes('presiden') || lower.includes('perpres')) return `PERPRES_No_${nomor}_${tahun}`;
+    if (lower.includes('menteri') || lower.includes('permen')) return `PERMEN_No_${nomor}_${tahun}`;
+    if (lower.includes('mpr')) return `TAP_MPR_No_${nomor}_${tahun}`;
+    if (lower.includes('darurat') || lower.includes('drt')) return `UU_DRT_No_${nomor}_${tahun}`;
+    if (lower.includes('uud') || lower.includes('dasar')) return `UUD_No_${nomor}_${tahun}`;
+    if (lower.includes('undang')) return `UU_No_${nomor}_${tahun}`;
+
+    // B. Dinamis untuk dokumen tipe masa depan yang belum terdaftar:
+    // Jika kata terakhir atau tipe itu sendiri adalah akronim (misal: "POJK", "BKN", "KMA")
+    const words = rawType.split(/\s+/).filter(Boolean);
+    const lastWord = words[words.length - 1];
+    let dynamicPrefix = '';
+    if (/^[A-Za-z]{2,8}$/.test(lastWord) && lastWord === lastWord.toUpperCase()) {
+      dynamicPrefix = lastWord;
+    } else if (words.length <= 3) {
+      dynamicPrefix = words.map(w => w.toUpperCase().replace(/[^A-Z0-9]/g, '')).filter(Boolean).join('_');
+    } else {
+      dynamicPrefix = words.map(w => w[0].toUpperCase()).join('');
+    }
+
+    if (dynamicPrefix) {
+      return `${dynamicPrefix}_No_${nomor}_${tahun}`;
+    }
   }
 
-  // Khusus dokumen kolonial / staatsblad
+  // 3. Khusus dokumen kolonial / staatsblad
   if (trimmed.toLowerCase().includes('staatsblad')) {
     const stMatch = trimmed.match(/(\d{4})[^0-9]+(\d+)/);
     if (stMatch) {
@@ -106,16 +256,26 @@ export function formatStandardId(rawId: string): string {
     return 'Staatsblad_1926_No_226';
   }
 
-  // Jika string terlalu panjang (misal nama file panjang), ekstrak nomor & tahun
-  if (trimmed.length > 30) {
-    const numYearMatch = trimmed.match(/(\d+)[^0-9]+(\d{4})/);
-    if (numYearMatch) {
-      return `UU_No_${numYearMatch[1]}_${numYearMatch[2]}`;
-    }
-    return trimmed.substring(0, 25).replace(/[^a-zA-Z0-9_]/g, '_');
+  // 4. Fallback cerdas jika string panjang
+  const numYearMatch = trimmed.match(/(\d+)[^0-9]+(\d{4})/);
+  if (numYearMatch) {
+    const lower = trimmed.toLowerCase();
+    let prefix = 'UU';
+    if (lower.includes('daerah') || lower.includes('perda') || lower.includes('gubernur') || lower.includes('bupati') || lower.includes('walikota')) prefix = 'PERDA';
+    else if (lower.includes('menteri') || lower.includes('permen')) prefix = 'PERMEN';
+    else if (lower.includes('presiden') || lower.includes('perpres')) prefix = 'PERPRES';
+    else if (lower.includes('inpres') || lower.includes('instruksi')) prefix = 'INPRES';
+    else if (lower.includes('keppres') || lower.includes('keputusan')) prefix = 'KEPPRES';
+    else if (lower.includes('pemerintah') || lower.includes('pp')) prefix = 'PP';
+    else if (lower.includes('perpu') || lower.includes('perppu')) prefix = 'PERPPU';
+    else if (lower.includes('badan') || lower.includes('perban')) prefix = 'PERBAN';
+    else if (lower.includes('darurat')) prefix = 'UU_DRT';
+    else if (lower.includes('mpr')) prefix = 'TAP_MPR';
+    else if (lower.includes('uud')) prefix = 'UUD';
+    return `${prefix}_No_${numYearMatch[1]}_${numYearMatch[2]}`;
   }
 
-  return trimmed.replace(/[^a-zA-Z0-9_]/g, '_');
+  return trimmed.substring(0, 25).replace(/[^a-zA-Z0-9_]/g, '_');
 }
 
 /**
@@ -157,8 +317,8 @@ export function generateInitialCorrectionData(
     standarId = formatStandardId(`${fileName} ${meta.judul || raw.judul || ''}`);
   }
 
-  // 2. JUDUL PERATURAN
-  const judul =
+  // 2. JUDUL PERATURAN (Otomatis dibersihkan dari icon/bintang hasil OCR)
+  const rawJudul =
     meta.judul ||
     meta.title ||
     meta.nama ||
@@ -166,6 +326,7 @@ export function generateInitialCorrectionData(
     raw.title ||
     file.title ||
     fileName.replace(/_/g, ' ');
+  const judul = cleanOcrText(rawJudul);
 
   // 3. PEMBUKAAN (Ekstraksi murni dari chunks / field JSON)
   let menimbang = '';
@@ -215,75 +376,240 @@ export function generateInitialCorrectionData(
 
   const judulPembukaan = pembukaanRaw.judul || judul || 'Pembukaan';
 
-  // 4. BATANG TUBUH (BAB & PASAL DARI BERKAS JSON)
+  // 4. BATANG TUBUH (BAB, BAGIAN, PARAGRAF, & PASAL ADAPTIF BERPERINGKAT)
   let babList: ChapterItem[] = [];
 
-  if (Array.isArray(raw.chunks)) {
-    // Ambil HANYA chunk bertipe PASAL murni (hindari PENJELASAN_PASAL atau LAMPIRAN)
-    const pasalChunks = raw.chunks.filter(
-      (c: any) => String(c.tipe || '').toUpperCase() === 'PASAL'
-    );
+  if (Array.isArray(raw.chunks) && raw.chunks.length > 0) {
+    // A. Peta Penjelasan dari chunks bertipe PENJELASAN_PASAL
+    const penjelasanMap = new Map<string, string>();
+    raw.chunks.forEach((c: any) => {
+      const tipe = String(c.tipe || '').toUpperCase();
+      const bagian = String(c.bagian_dokumen || '').toUpperCase();
+      if (tipe === 'PENJELASAN_PASAL' || (tipe === 'PASAL' && bagian === 'PENJELASAN')) {
+        const labelKey = String(c.label || '').trim();
+        if (labelKey) {
+          penjelasanMap.set(labelKey, String(c.teks || c.isi || '').trim());
+        }
+      }
+    });
 
-    if (pasalChunks.length > 0) {
-      // Periksa apakah ada chunk bertipe BAB
-      const hasBabChunks = raw.chunks.some((c: any) => String(c.tipe || '').toUpperCase() === 'BAB');
+    // State Machine untuk pelacakan konteks hierarki (Self-Healing Parser)
+    let currentBab: ChapterItem | null = null;
+    let currentBagian: ChapterItem | null = null;
+    let currentParagraf: ChapterItem | null = null;
+    let currentContainerPasal: ArticleItem | null = null;
+    const containerPasalMap = new Map<string, ArticleItem>(); // Key: label pasal perubah (e.g. "Pasal 17")
 
-      if (hasBabChunks) {
-        let currentBab: ChapterItem = {
+    // Filter chunk non-pembukaan / non-penjelasan umum
+    const mainChunks = raw.chunks.filter((c: any) => {
+      const tipe = String(c.tipe || '').toUpperCase();
+      return (
+        tipe !== 'PEMBUKAAN' &&
+        tipe !== 'KONSIDERANS' &&
+        tipe !== 'DASAR_HUKUM' &&
+        tipe !== 'DIKTUM' &&
+        tipe !== 'PENJELASAN_UMUM'
+      );
+    });
+
+    // Cek keberadaan chunk bertipe BAB
+    const hasBabChunks = mainChunks.some((c: any) => String(c.tipe || '').toUpperCase() === 'BAB');
+
+    // Jika tidak ada chunk BAB sama sekali, buat Batang Tubuh bawaan
+    if (!hasBabChunks) {
+      currentBab = {
+        id: 'bab-1',
+        judul: 'Batang Tubuh',
+        deskripsi: '',
+        tipe: 'BAB',
+        isExpanded: true,
+        pasalList: [],
+        children: [],
+      };
+      babList.push(currentBab);
+    }
+
+    mainChunks.forEach((c: any, idx: number) => {
+      const tipe = String(c.tipe || '').toUpperCase();
+      const label = String(c.label || '').trim();
+      const teks = String(c.teks || c.isi || '').trim();
+      const bagianDok = String(c.bagian_dokumen || 'BATANG_TUBUH').toUpperCase();
+
+      // Abaikan jika chunk ini adalah penjelasan pasal yang sudah dipetakan
+      if (tipe === 'PENJELASAN_PASAL' || (tipe === 'PASAL' && bagianDok === 'PENJELASAN')) {
+        return;
+      }
+
+      // --- 1. PROSES BAB ---
+      if (tipe === 'BAB') {
+        const babNum = babList.length + 1;
+        const babJudul = label.startsWith('BAB') ? label : `BAB ${babNum}${label ? ` - ${label}` : ''}`;
+        
+        currentBab = {
+          id: `bab-${babNum}`,
+          judul: babJudul,
+          deskripsi: teks,
+          tipe: 'BAB',
+          label: label,
+          isExpanded: babList.length < 2,
+          pasalList: [],
+          children: [],
+        };
+        babList.push(currentBab);
+
+        // Reset sub-state
+        currentBagian = null;
+        currentParagraf = null;
+        currentContainerPasal = null;
+        return;
+      }
+
+      // Pastikan ada currentBab aktif
+      if (!currentBab) {
+        currentBab = {
           id: 'bab-1',
-          judul: 'BAB I',
+          judul: 'Batang Tubuh',
           deskripsi: '',
+          tipe: 'BAB',
           isExpanded: true,
           pasalList: [],
+          children: [],
+        };
+        babList.push(currentBab);
+      }
+
+      // --- 2. PROSES BAGIAN ---
+      if (tipe === 'BAGIAN') {
+        const bagianCount = (currentBab.children || []).filter((ch) => ch.tipe === 'BAGIAN').length + 1;
+        const bagianJudul = label.toLowerCase().startsWith('bagian')
+          ? label
+          : `Bagian ${bagianCount}${label ? ` - ${label}` : ''}`;
+
+        currentBagian = {
+          id: `${currentBab.id}-bagian-${bagianCount}`,
+          judul: bagianJudul,
+          deskripsi: teks,
+          tipe: 'BAGIAN',
+          label: label,
+          parentBab: currentBab.judul,
+          isExpanded: true,
+          pasalList: [],
+          children: [],
         };
 
-        raw.chunks.forEach((c: any) => {
-          const tipe = String(c.tipe || '').toUpperCase();
-          const label = String(c.label || '').trim();
+        if (!currentBab.children) currentBab.children = [];
+        currentBab.children.push(currentBagian);
 
-          if (tipe === 'BAB') {
-            if (currentBab.pasalList.length > 0) {
-              babList.push(currentBab);
-            }
-            currentBab = {
-              id: `bab-${babList.length + 1}`,
-              judul: label.startsWith('BAB') ? label : `BAB ${babList.length + 1} - ${label}`,
-              deskripsi: c.teks || '',
-              isExpanded: babList.length < 2,
-              pasalList: [],
-            };
-          } else if (tipe === 'PASAL') {
-            const pasalNum = label || `Pasal ${currentBab.pasalList.length + 1}`;
-            currentBab.pasalList.push({
-              id: c.id || `pasal-${currentBab.id}-${currentBab.pasalList.length + 1}`,
-              nomor: pasalNum,
-              isi: c.teks || c.isi || '',
-              isExpanded: true,
-            });
-          }
-        });
-
-        if (currentBab.pasalList.length > 0) {
-          babList.push(currentBab);
-        }
-      } else {
-        // Jika tidak ada chunk BAB khusus, kelompokkan pasal ke Batang Tubuh
-        babList = [
-          {
-            id: 'bab-1',
-            judul: 'Batang Tubuh',
-            deskripsi: '',
-            isExpanded: true,
-            pasalList: pasalChunks.map((c: any, idx: number) => ({
-              id: c.id || `pasal-${idx + 1}`,
-              nomor: c.label || `Pasal ${idx + 1}`,
-              isi: c.teks || c.isi || '',
-              isExpanded: true,
-            })),
-          },
-        ];
+        // Reset sub-state di bawah bagian
+        currentParagraf = null;
+        currentContainerPasal = null;
+        return;
       }
-    }
+
+      // --- 3. PROSES PARAGRAF ---
+      if (tipe === 'PARAGRAF') {
+        const parentNode = currentBagian || currentBab;
+        const paragrafCount = (parentNode.children || []).filter((ch) => ch.tipe === 'PARAGRAF').length + 1;
+        const paragrafJudul = label.toLowerCase().startsWith('paragraf')
+          ? label
+          : `Paragraf ${paragrafCount}${label ? ` - ${label}` : ''}`;
+
+        currentParagraf = {
+          id: `${parentNode.id}-paragraf-${paragrafCount}`,
+          judul: paragrafJudul,
+          deskripsi: teks,
+          tipe: 'PARAGRAF',
+          label: label,
+          parentBab: currentBab.judul,
+          parentBagian: currentBagian?.judul,
+          isExpanded: true,
+          pasalList: [],
+          children: [],
+        };
+
+        if (!parentNode.children) parentNode.children = [];
+        parentNode.children.push(currentParagraf);
+
+        currentContainerPasal = null;
+        return;
+      }
+
+      // --- 4. PROSES PASAL & PASAL PERUBAHAN ---
+      if (tipe === 'PASAL' || tipe === 'PASAL_PERUBAHAN') {
+        const parentPasalPerubahanRef = c.parent_pasal_perubahan || c.parentPasalPerubahan || '';
+
+        // Kasus A: Chunk ini adalah anak dari Pasal Perubahan (Anakan Pasal Target)
+        if (parentPasalPerubahanRef) {
+          const parentContainer = containerPasalMap.get(parentPasalPerubahanRef) || currentContainerPasal;
+          const targetInfo = detectTargetPeraturan(teks, c.target_induk || parentContainer?.targetInduk?.standardId);
+
+          const childPasalItem: ArticleItem = {
+            id: c.id || `pasal-sub-${idx + 1}`,
+            nomor: label || `Angka ${idx + 1}`,
+            isi: teks,
+            penjelasan: penjelasanMap.get(label) || '',
+            tipe: 'PASAL_PERUBAHAN',
+            label: label,
+            bagianDokumen: bagianDok,
+            hierarki: c.hierarki || '',
+            parentBab: c.parent_bab || currentBab.judul,
+            parentBagian: c.parent_bagian || currentBagian?.judul,
+            parentParagraf: c.parent_paragraf || currentParagraf?.judul,
+            parentPasalPerubahan: parentPasalPerubahanRef,
+            targetInduk: targetInfo,
+            isExpanded: true,
+          };
+
+          if (parentContainer) {
+            if (!parentContainer.pasalList) parentContainer.pasalList = [];
+            parentContainer.pasalList.push(childPasalItem);
+          } else {
+            // Fallback jika container pasal perubah tidak terdaftar, masukkan ke parent node aktif
+            const activeNode = currentParagraf || currentBagian || currentBab;
+            activeNode.pasalList.push(childPasalItem);
+          }
+          return;
+        }
+
+        // Kasus B: Chunk ini adalah Pasal Utama dari Peraturan Ini
+        const pasalLabel = label || `Pasal ${idx + 1}`;
+        const targetInfo = detectTargetPeraturan(teks, c.target_induk);
+        const isContainerPerubahan =
+          tipe === 'PASAL_PERUBAHAN' ||
+          Boolean(targetInfo) ||
+          /diubah\s+sebagai\s+berikut/i.test(teks) ||
+          /beberapa\s+ketentuan\s+dalam/i.test(teks);
+
+        const pasalItem: ArticleItem = {
+          id: c.id || `pasal-${currentBab.id}-${idx + 1}`,
+          nomor: pasalLabel,
+          isi: teks,
+          penjelasan: penjelasanMap.get(pasalLabel) || '',
+          tipe: isContainerPerubahan ? 'PASAL_PERUBAHAN_CONTAINER' : 'PASAL',
+          label: pasalLabel,
+          bagianDokumen: bagianDok,
+          hierarki: c.hierarki || '',
+          parentBab: c.parent_bab || currentBab.judul,
+          parentBagian: c.parent_bagian || currentBagian?.judul,
+          parentParagraf: c.parent_paragraf || currentParagraf?.judul,
+          targetInduk: targetInfo,
+          pasalList: [],
+          isExpanded: true,
+        };
+
+        // Simpan ke peta container pasal jika berpola perubah
+        if (isContainerPerubahan) {
+          containerPasalMap.set(pasalLabel, pasalItem);
+          currentContainerPasal = pasalItem;
+        } else {
+          currentContainerPasal = null;
+        }
+
+        // Masukkan pasal ke parent node aktif (Paragraf > Bagian > Bab)
+        const activeNode = currentParagraf || currentBagian || currentBab;
+        activeNode.pasalList.push(pasalItem);
+      }
+    });
   }
 
   // Jika belum terbentuk dari chunks, periksa struktur babList / pasal standar
@@ -302,6 +628,7 @@ export function generateInitialCorrectionData(
           id: b.id || `bab-${bIdx + 1}`,
           judul: b.judul || b.nama || `BAB ${bIdx + 1}`,
           deskripsi: b.deskripsi || '',
+          tipe: 'BAB',
           isExpanded: bIdx < 2,
           pasalList: Array.isArray(rawPasals)
             ? rawPasals.map((p: any, pIdx: number) => ({
@@ -320,6 +647,7 @@ export function generateInitialCorrectionData(
           id: 'bab-1',
           judul: 'Batang Tubuh',
           deskripsi: '',
+          tipe: 'BAB',
           isExpanded: true,
           pasalList: pasals.map((p, pIdx) => ({
             id: p.id || `pasal-${pIdx + 1}`,

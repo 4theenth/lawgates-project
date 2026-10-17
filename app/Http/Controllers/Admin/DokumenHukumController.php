@@ -20,7 +20,7 @@ class DokumenHukumController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan']);
+        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'creator', 'updater']);
 
         // Filter: Status (Berlaku / Tidak Berlaku / Draft)
         if ($request->filled('status') && $request->status !== 'all') {
@@ -47,6 +47,22 @@ class DokumenHukumController extends Controller
             $kategoriFilters = is_array($request->kategori) ? $request->kategori : explode(',', $request->kategori);
             $query->whereHas('jenisPeraturan', function ($q) use ($kategoriFilters) {
                 $q->whereIn('nama', $kategoriFilters);
+            });
+        }
+
+        // Filter: Lokasi Daerah
+        if ($request->filled('lokasi_daerah')) {
+            $lokasiFilters = is_array($request->lokasi_daerah) ? $request->lokasi_daerah : explode(',', $request->lokasi_daerah);
+            $query->whereIn('lokasi_daerah', $lokasiFilters);
+        }
+
+        // Filter: Subjek
+        if ($request->filled('subjek')) {
+            $subjekFilters = is_array($request->subjek) ? $request->subjek : explode(',', $request->subjek);
+            $query->where(function ($subQ) use ($subjekFilters) {
+                foreach ($subjekFilters as $subjekItem) {
+                    $subQ->orWhere('subjek', 'ilike', '%' . trim($subjekItem) . '%');
+                }
             });
         }
 
@@ -84,6 +100,12 @@ class DokumenHukumController extends Controller
             } else if ($request->sortColumn === 'judul') {
                 $query->orderByRaw("judul {$direction} NULLS LAST")
                       ->orderBy('peraturan.updated_at', 'desc');
+            } else if ($request->sortColumn === 'author') {
+                $query->leftJoin('users as creator', 'peraturan.created_by', '=', 'creator.id')
+                      ->leftJoin('users as updater', 'peraturan.updated_by', '=', 'updater.id')
+                      ->orderByRaw("COALESCE(updater.username, creator.username, 'Sistem') {$direction}")
+                      ->orderBy('peraturan.updated_at', 'desc')
+                      ->select('peraturan.*');
             } else {
                 $query->orderBy($request->sortColumn, $direction);
             }
@@ -108,9 +130,12 @@ class DokumenHukumController extends Controller
             return [
                 'id' => (string) $item->unique_id, // unique_id used for URL and deletion
                 'kategori' => $item->jenisPeraturan ? $item->jenisPeraturan->nama : '-',
+                'lokasi_daerah' => $item->lokasi_daerah,
+                'subjek' => $item->subjek,
                 'judul' => $item->judul,
                 'status' => $status,
                 'tgl_ditetapkan' => $item->tanggal_penetapan ? $item->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-',
+                'author' => $item->updater ? $item->updater->username : ($item->creator ? $item->creator->username : 'Sistem'),
                 'real_status' => $item->statusPeraturan ? $item->statusPeraturan->nama_status : '-',
             ];
         });
@@ -122,6 +147,28 @@ class DokumenHukumController extends Controller
             ->pluck('nama')
             ->unique()
             ->values();
+
+        $lokasiDaerah = Peraturan::select('lokasi_daerah')
+            ->whereNotNull('lokasi_daerah')
+            ->where('lokasi_daerah', '!=', '')
+            ->distinct()
+            ->pluck('lokasi_daerah')
+            ->values();
+
+        $rawSubjek = Peraturan::select('subjek')
+            ->whereNotNull('subjek')
+            ->where('subjek', '!=', '')
+            ->distinct()
+            ->pluck('subjek');
+
+        $subjekList = collect();
+        foreach ($rawSubjek as $subjekStr) {
+            $trimmed = trim($subjekStr);
+            if (!empty($trimmed)) {
+                $subjekList->push($trimmed);
+            }
+        }
+        $subjekList = $subjekList->unique()->sort()->values();
 
         // Khusus Tab Draft: Ambil data dari tabel draft_dokumen
         $draftsPaginator = null;
@@ -163,12 +210,29 @@ class DokumenHukumController extends Controller
             $draftsPaginator->setCollection($formattedDrafts);
         }
 
+        // Statistik ringkasan dokumen hukum untuk StatCards
+        $stats = [
+            'total_dokumen' => Peraturan::count(),
+            'total_berlaku' => Peraturan::whereHas('statusPeraturan', function ($q) {
+                $q->where('nama_status', 'not ilike', '%tidak berlaku%')
+                  ->where('nama_status', 'not ilike', '%belum berlaku%');
+            })->count(),
+            'total_tidak_berlaku' => Peraturan::whereHas('statusPeraturan', function ($q) {
+                $q->where('nama_status', 'ilike', '%tidak berlaku%');
+            })->count(),
+            'total_draft' => DraftDokumen::where('status', 'draft')->count(),
+            'penambahan_baru' => 12,
+        ];
+
         return Inertia::render('Admin/DokumenHukum/Index', [
             'peraturans' => $paginator,
             'drafts' => $draftsPaginator,
-            'filters' => $request->only(['search', 'status', 'kategori', 'sortColumn', 'sortDirection', 'pageSize']),
+            'stats' => $stats,
+            'filters' => $request->only(['search', 'status', 'kategori', 'lokasi_daerah', 'sortColumn', 'sortDirection', 'pageSize']),
             'referensi' => [
-                'kategori' => $categories
+                'kategori' => $categories,
+                'lokasi_daerah' => $lokasiDaerah,
+                'subjek' => $subjekList
             ]
         ]);
     }
@@ -184,6 +248,54 @@ class DokumenHukumController extends Controller
         $user = auth()->user();
         $autor = $user ? ($user->name ?? 'Admin') : 'Admin';
         $files = $request->input('files');
+
+        // Pengecekan duplikasi terhadap peraturan aktif di sistem (AC 2)
+        foreach ($files as $f) {
+            $fileTitle = $f['title'] ?? ($f['correctionData']['judul'] ?? null);
+            $fileNomor = $f['nomor'] ?? ($f['correctionData']['nomorPeraturan'] ?? ($f['parsedData']['metadata']['nomor'] ?? null));
+            $fileTahun = $f['tahun'] ?? ($f['correctionData']['tahun'] ?? ($f['parsedData']['metadata']['tahun'] ?? null));
+
+            if ($fileNomor && $fileTahun) {
+                $duplicateByNomorTahun = Peraturan::where('nomor', $fileNomor)
+                    ->where('tahun', $fileTahun)
+                    ->whereHas('statusPeraturan', function($q) {
+                        $q->whereRaw('LOWER(nama_status) NOT LIKE ?', ['%draft%']);
+                    })
+                    ->first();
+
+                if ($duplicateByNomorTahun && !str_contains(strtolower($duplicateByNomorTahun->judul), 'menunggu import')) {
+                    return response()->json([
+                        'success' => false,
+                        'conflict' => true,
+                        'message' => "Peraturan Nomor {$fileNomor} Tahun {$fileTahun} sudah ada di database sistem (Duplikasi terdeteksi).",
+                        'existing_id' => $duplicateByNomorTahun->unique_id,
+                        'existing_title' => $duplicateByNomorTahun->judul
+                    ], 409);
+                }
+            }
+
+            if ($fileTitle) {
+                $duplicatePeraturan = Peraturan::whereRaw('LOWER(judul) = ?', [strtolower($fileTitle)])
+                    ->whereHas('statusPeraturan', function($q) {
+                        $q->whereRaw('LOWER(nama_status) NOT LIKE ?', ['%draft%']);
+                    })
+                    ->first();
+                if ($duplicatePeraturan && !str_contains(strtolower($duplicatePeraturan->judul), 'menunggu import')) {
+                    return response()->json([
+                        'success' => false,
+                        'conflict' => true,
+                        'message' => "Peraturan dengan judul \"{$fileTitle}\" sudah ada di database sistem (Duplikasi terdeteksi).",
+                        'existing_id' => $duplicatePeraturan->unique_id,
+                        'existing_title' => $duplicatePeraturan->judul
+                    ], 409);
+                }
+            }
+
+            // MinIO Write-Back Sync (AC 3): Simpan data/teks terbaru ke MinIO dengan sufiks _edited.json
+            $fileName = $f['name'] ?? ($f['title'] ?? 'draft_dokumen');
+            $contentToSave = $f['correctionData'] ?? ($f['parsedData'] ?? $f);
+            $this->writeBackToMinio($fileName, $contentToSave);
+        }
 
         if ($request->filled('id')) {
             $draft = DraftDokumen::find($request->id);
@@ -236,7 +348,7 @@ class DokumenHukumController extends Controller
             return response()->json(['exists' => false]);
         }
 
-        // Cari draft yang mungkin mengandung file ini (menggunakan LIKE agar kompatibel dengan berbagai format JSON storage)
+        // Cari draft yang mungkin mengandung file ini
         $draft = DraftDokumen::where('files_data', 'like', '%' . $filename . '%')->first();
 
         if ($draft) {
@@ -246,10 +358,84 @@ class DokumenHukumController extends Controller
                     if (($f['name'] ?? '') === $filename) {
                         return response()->json([
                             'exists' => true,
-                            'draft_name' => $draft->nama_draft
-                        ]);
+                            'conflict' => true,
+                            'draft_name' => $draft->nama_draft,
+                            'message' => "File sudah terdaftar di draft '{$draft->nama_draft}'."
+                        ], 409);
                     }
                 }
+            }
+        }
+
+        return response()->json(['exists' => false]);
+    }
+
+    public function checkDuplicate(Request $request)
+    {
+        $filename = $request->query('filename');
+        $judul = $request->query('judul');
+        $standardId = $request->query('standard_id') ?? $request->query('id_dokumen');
+        $nomor = $request->query('nomor');
+        $tahun = $request->query('tahun');
+        $kategori = $request->query('kategori');
+
+        if (!$filename && !$judul && !$standardId && !($nomor && $tahun)) {
+            return response()->json(['exists' => false]);
+        }
+
+        // 1. Cek di tabel peraturan (Database Dokumen Hukum - AC 2)
+        $query = Peraturan::query();
+        if ($standardId) {
+            $query->where('unique_id', $standardId);
+        } elseif ($nomor && $tahun) {
+            $query->where('nomor', $nomor)->where('tahun', $tahun);
+            if ($kategori) {
+                $query->whereHas('jenisPeraturan', function($q) use ($kategori) {
+                    $q->whereRaw('LOWER(nama) LIKE ?', ['%' . strtolower($kategori) . '%'])
+                      ->orWhereRaw('LOWER(kode) LIKE ?', ['%' . strtolower($kategori) . '%']);
+                });
+            }
+        } elseif ($judul) {
+            $query->whereRaw('LOWER(judul) LIKE ?', ['%' . strtolower($judul) . '%']);
+        } elseif ($filename) {
+            $cleanName = pathinfo($filename, PATHINFO_FILENAME);
+            $cleanNameWithSpaces = str_replace('_', ' ', $cleanName);
+            $query->where(function($q) use ($cleanName, $cleanNameWithSpaces) {
+                $q->where('unique_id', $cleanName)
+                  ->orWhereRaw('LOWER(judul) LIKE ?', ['%' . strtolower($cleanNameWithSpaces) . '%']);
+            });
+        }
+
+        $existing = $query->first();
+        if ($existing && !str_contains(strtolower($existing->judul), 'menunggu import')) {
+            return response()->json([
+                'exists' => true,
+                'conflict' => true,
+                'source' => 'database',
+                'title' => $existing->judul,
+                'existing_id' => $existing->unique_id,
+                'message' => "Dokumen '{$existing->judul}' sudah terdaftar di database."
+            ], 409);
+        }
+
+        // 2. Cek di tabel draft
+        if ($filename || ($nomor && $tahun)) {
+            $draftQuery = DraftDokumen::query();
+            if ($filename) {
+                $draftQuery->where('files_data', 'like', '%' . $filename . '%');
+            } elseif ($nomor && $tahun) {
+                $draftQuery->where('files_data', 'like', '%' . $nomor . '%')
+                           ->where('files_data', 'like', '%' . $tahun . '%');
+            }
+            $draft = $draftQuery->first();
+            if ($draft) {
+                return response()->json([
+                    'exists' => true,
+                    'conflict' => true,
+                    'source' => 'draft',
+                    'draft_name' => $draft->nama_draft,
+                    'message' => "Dokumen sudah terdaftar di draft '{$draft->nama_draft}'."
+                ], 409);
             }
         }
 
@@ -341,6 +527,9 @@ class DokumenHukumController extends Controller
         $successCount = 0;
         $errors = [];
 
+        $duplicateFound = false;
+        $duplicateMessage = '';
+
         foreach ($request->input('files') as $index => $fileData) {
             try {
                 if (isset($fileData['parsedData'])) {
@@ -350,6 +539,14 @@ class DokumenHukumController extends Controller
                     if (isset($fileData['correctionData'])) {
                         $correctionData = is_string($fileData['correctionData']) ? json_decode($fileData['correctionData'], true) : $fileData['correctionData'];
                         $this->performUpdate($peraturan, $correctionData, true);
+
+                        // AC 3: MinIO Write-Back Sync
+                        $fileName = $fileData['name'] ?? ($peraturan->unique_id . '.json');
+                        $this->writeBackToMinio($fileName, $correctionData);
+                    } elseif ($parsed) {
+                        // AC 3: MinIO Write-Back Sync
+                        $fileName = $fileData['name'] ?? ($peraturan->unique_id . '.json');
+                        $this->writeBackToMinio($fileName, $parsed);
                     }
 
                     // Cek jika ada file PDF yang disertakan
@@ -370,18 +567,30 @@ class DokumenHukumController extends Controller
                 }
             } catch (\Exception $e) {
                 \Log::error("Import OCR Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-                $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
+                if (str_contains(strtolower($e->getMessage()), 'sudah ada')) {
+                    $duplicateFound = true;
+                    $duplicateMessage = $e->getMessage();
+                    $errors[] = $e->getMessage();
+                } else {
+                    $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
+                }
             }
         }
 
         if (count($errors) > 0) {
+            $status = $duplicateFound ? 409 : 400;
             return response()->json([
-                'message' => "Berhasil mengimpor {$successCount} dokumen. Gagal: " . count($errors),
+                'success' => false,
+                'conflict' => $duplicateFound,
+                'message' => $duplicateFound 
+                    ? ($duplicateMessage ?: 'Dokumen sudah ada di database (Duplikasi terdeteksi).')
+                    : ("Berhasil mengimpor {$successCount} dokumen. Gagal: " . count($errors)),
                 'errors' => $errors
-            ], 400);
+            ], $status);
         }
 
         return response()->json([
+            'success' => true,
             'message' => "Berhasil mengimpor {$successCount} dokumen."
         ]);
     }
@@ -408,7 +617,7 @@ class DokumenHukumController extends Controller
             
         $diktumMemutuskan = StrukturDokumen::where('peraturan_id', $peraturan->id)
             ->where('tipe_struktur', 'DIKTUM')
-            ->where('label', 'ilike', 'memutuskan')
+            ->whereRaw('LOWER(label) LIKE ?', ['%memutuskan%'])
             ->first();
 
         $menimbang = $konsiderans ? $konsiderans->judul_struktur : '';
@@ -429,74 +638,135 @@ class DokumenHukumController extends Controller
             }
         }
 
-        // Ambil Bab dan Pasal
-        $babs = StrukturDokumen::where('peraturan_id', $peraturan->id)
-            ->where('tipe_struktur', 'BAB')
-            ->orderBy('id')
+        // Ambil Seluruh Struktur (BAB, BAGIAN, PARAGRAF) dan Pasal dengan Hierarki Penuh
+        $rawStrukturList = StrukturDokumen::where('peraturan_id', $peraturan->id)
+            ->whereNotIn('tipe_struktur', ['PEMBUKAAN', 'KONSIDERANS', 'DASAR_HUKUM', 'DIKTUM'])
+            ->orderBy('id', 'asc')
             ->get();
 
-        $babList = [];
-        if ($babs->count() > 0) {
-            foreach ($babs as $bab) {
-                $pasals = Pasal::where('peraturan_id', $peraturan->id)
-                    ->where(function($q) use ($bab) {
-                        $q->where('struktur_id', $bab->id)
-                          ->orWhereIn('struktur_id', function($sub) use ($bab) {
-                              $sub->select('id')->from('struktur_dokumen')->where('parent_id', $bab->id);
-                          });
-                    })
-                    ->orderBy('urutan')
-                    ->get();
-                
-                $pasalList = [];
-                foreach ($pasals as $pasal) {
-                    $penjelasan = \App\Models\PenjelasanPasal::where('pasal_id', $pasal->id)->first();
-                    $pasalList[] = [
-                        'id' => (string)$pasal->id,
-                        'nomor' => $pasal->nomor_pasal,
-                        'isi' => $pasal->isi_pasal ?? '',
-                        'penjelasan' => $penjelasan ? $penjelasan->isi_penjelasan : ''
-                    ];
-                }
+        $rawPasalList = Pasal::where('peraturan_id', $peraturan->id)
+            ->with('penjelasan')
+            ->orderBy('urutan', 'asc')
+            ->get();
 
-                $judulStruktur = trim($bab->judul_struktur);
-                $label = trim($bab->label);
+        // Pass 1: Build ArticleItem map
+        $pasalMap = [];
+        foreach ($rawPasalList as $p) {
+            $rawNomor = trim((string)($p->nomor_pasal ?? ''));
+            if ($rawNomor === '0' || $rawNomor === '') {
+                $nomorFormatted = 'Pasal';
+            } else if (preg_match('/^(pasal|angka)/i', $rawNomor)) {
+                $nomorFormatted = $rawNomor;
+            } else {
+                $nomorFormatted = 'Pasal ' . $rawNomor;
+            }
+
+            $targetInfo = $this->detectTargetIndukPhp($p->isi_pasal ?? '');
+            $isAmendingContainer = !empty($targetInfo) || (bool)preg_match('/diubah\s+sebagai\s+berikut/i', $p->isi_pasal ?? '');
+
+            $pasalMap[(string)$p->id] = [
+                'id' => (string)$p->id,
+                'nomor' => $nomorFormatted,
+                'isi' => $p->isi_pasal ?? '',
+                'penjelasan' => $p->penjelasan ? $p->penjelasan->isi_penjelasan : '',
+                'tipe' => $p->parent_pasal_id ? 'PASAL_PERUBAHAN' : ($isAmendingContainer ? 'PASAL_PERUBAHAN_CONTAINER' : 'PASAL'),
+                'targetInduk' => $targetInfo,
+                'isExpanded' => false,
+                'pasalList' => [],
+                'parent_pasal_id' => $p->parent_pasal_id ? (string)$p->parent_pasal_id : null,
+                'struktur_id' => $p->struktur_id ? (string)$p->struktur_id : null,
+            ];
+        }
+
+        // Pass 2: Nest child pasals into parent pasals
+        $rootPasalList = [];
+        foreach ($pasalMap as $id => &$art) {
+            if (!empty($art['parent_pasal_id']) && isset($pasalMap[$art['parent_pasal_id']])) {
+                $pasalMap[$art['parent_pasal_id']]['pasalList'][] = &$art;
+            } else {
+                $rootPasalList[] = &$art;
+            }
+        }
+        unset($art);
+
+        // Pass 3: Instantiate ChapterItems for rawStrukturList
+        $chapterMap = [];
+        $assignedPasalIds = [];
+
+        foreach ($rawStrukturList as $str) {
+            $pasalsInStruktur = [];
+            foreach ($rootPasalList as &$rp) {
+                if (!empty($rp['struktur_id']) && (string)$rp['struktur_id'] === (string)$str->id) {
+                    $pasalsInStruktur[] = &$rp;
+                    $assignedPasalIds[(string)$rp['id']] = true;
+                }
+            }
+            unset($rp);
+
+            $judulStruktur = trim($str->judul_struktur ?? '');
+            $label = trim($str->label ?? '');
+            if ($judulStruktur && $label) {
                 if (stripos($judulStruktur, $label) === 0) {
                     $judulFormatted = $judulStruktur;
                 } else {
                     $judulFormatted = $label . ' ' . $judulStruktur;
                 }
+            } else {
+                $judulFormatted = $judulStruktur ?: ($label ?: 'STRUKTUR');
+            }
 
-                $babList[] = [
-                    'id' => (string)$bab->id,
-                    'judul' => trim($judulFormatted),
-                    'deskripsi' => '',
-                    'pasalList' => $pasalList,
-                    'isExpanded' => false,
-                ];
+            $chapterMap[(string)$str->id] = [
+                'id' => (string)$str->id,
+                'judul' => $judulFormatted,
+                'deskripsi' => '',
+                'tipe' => $str->tipe_struktur ?? 'BAB',
+                'isExpanded' => false,
+                'children' => [],
+                'pasalList' => $pasalsInStruktur,
+                'parent_id' => $str->parent_id ? (string)$str->parent_id : null,
+            ];
+        }
+
+        // Pass 4: Attach structural children (BAGIAN, PARAGRAF) to parent (BAB, BAGIAN)
+        $rootChapterList = [];
+        foreach ($chapterMap as $id => &$ch) {
+            if (!empty($ch['parent_id']) && isset($chapterMap[$ch['parent_id']])) {
+                $chapterMap[$ch['parent_id']]['children'][] = &$ch;
+            } else {
+                $rootChapterList[] = &$ch;
             }
-        } else {
-            // Jika tidak ada bab, ambil semua pasal langsung
-            $pasals = Pasal::where('peraturan_id', $peraturan->id)->orderBy('urutan')->get();
-            $pasalList = [];
-            foreach ($pasals as $pasal) {
-                $penjelasan = \App\Models\PenjelasanPasal::where('pasal_id', $pasal->id)->first();
-                $pasalList[] = [
-                    'id' => (string)$pasal->id,
-                    'nomor' => $pasal->nomor_pasal,
-                    'isi' => $pasal->isi_pasal ?? '',
-                    'penjelasan' => $penjelasan ? $penjelasan->isi_penjelasan : ''
-                ];
+        }
+        unset($ch);
+
+        // Pass 5: Recovery of unassigned/orphan pasals
+        $unassignedPasals = [];
+        foreach ($rootPasalList as &$rp) {
+            if (!isset($assignedPasalIds[(string)$rp['id']])) {
+                $unassignedPasals[] = &$rp;
             }
-            if (count($pasalList) > 0) {
-                $babList[] = [
+        }
+        unset($rp);
+
+        if (!empty($unassignedPasals)) {
+            if (!empty($rootChapterList)) {
+                foreach ($unassignedPasals as &$up) {
+                    $rootChapterList[0]['pasalList'][] = &$up;
+                }
+                unset($up);
+            } else {
+                $rootChapterList[] = [
                     'id' => 'bab_default',
                     'judul' => 'Batang Tubuh',
-                    'pasalList' => $pasalList,
+                    'deskripsi' => '',
+                    'tipe' => 'BAB',
                     'isExpanded' => true,
+                    'children' => [],
+                    'pasalList' => $unassignedPasals,
                 ];
             }
         }
+
+        $babList = $rootChapterList;
 
         // Ambil Riwayat Perubahan (Law Relations)
         $riwayatPerubahan = [];
@@ -570,9 +840,31 @@ class DokumenHukumController extends Controller
             DB::beginTransaction();
 
             $peraturan = Peraturan::where('unique_id', $unique_id)->firstOrFail();
+
+            // Pengecekan duplikasi judul terhadap peraturan lain (AC 3)
+            $newJudul = $request->input('judul');
+            if ($newJudul) {
+                $duplicate = Peraturan::where('judul', $newJudul)
+                    ->where('id', '!=', $peraturan->id)
+                    ->first();
+                if ($duplicate && !str_contains(strtolower($duplicate->judul), 'menunggu import')) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'conflict' => true,
+                        'message' => "Dokumen dengan judul \"{$newJudul}\" sudah ada di sistem (Duplikasi terdeteksi).",
+                        'existing_id' => $duplicate->unique_id,
+                    ], 409);
+                }
+            }
+
             $this->performUpdate($peraturan, $request->all());
 
             DB::commit();
+
+            // Sync Pembaruan Kembali Langsung ke MinIO (Menimpa file ocr.json asli tanpa membuat folder baru)
+            $this->syncPeraturanToMinio($peraturan, $request->all());
+
             return response()->json([
                 'success' => true,
                 'message' => 'Data hukum berhasil diperbarui'
@@ -590,6 +882,15 @@ class DokumenHukumController extends Controller
     private function performUpdate(Peraturan $peraturan, array $data, bool $isImport = false)
     {
         // 1. Update Peraturan Utama
+        $userId = \Illuminate\Support\Facades\Auth::id();
+        $isAdminUser = $userId && \App\Models\Admin::where('id', $userId)->exists();
+        if (!$peraturan->created_by && $isAdminUser) {
+            $peraturan->created_by = $userId;
+        }
+        if ($isAdminUser) {
+            $peraturan->updated_by = $userId;
+        }
+
         if (isset($data['judul'])) {
             $peraturan->judul = $data['judul'];
         }
@@ -605,16 +906,40 @@ class DokumenHukumController extends Controller
         }
         if (isset($data['metadata']['pemrakarsa'])) {
             $peraturan->instansi = $data['metadata']['pemrakarsa'];
+            // Fill lokasi_daerah default using pemrakarsa if not set and not Pemerintah Pusat
+            if (empty($peraturan->lokasi_daerah) && strtolower(trim($data['metadata']['pemrakarsa'])) !== 'pemerintah pusat') {
+                $peraturan->lokasi_daerah = trim($data['metadata']['pemrakarsa']);
+            }
         }
-        
+        if (isset($data['metadata']['lokasiDaerah'])) {
+            $peraturan->lokasi_daerah = $data['metadata']['lokasiDaerah'];
+        }
+        if (isset($data['metadata']['lokasi_daerah'])) {
+            $peraturan->lokasi_daerah = $data['metadata']['lokasi_daerah'];
+        }
+        if (isset($data['lokasiDaerah'])) {
+            $peraturan->lokasi_daerah = $data['lokasiDaerah'];
+        }
+        if (isset($data['lokasi_daerah'])) {
+            $peraturan->lokasi_daerah = $data['lokasi_daerah'];
+        }
+        if (isset($data['metadata']['subjek'])) {
+            $peraturan->subjek = $data['metadata']['subjek'];
+            if ($peraturan->subjek && class_exists(\App\Models\SubjekPeraturan::class)) {
+                \App\Models\SubjekPeraturan::firstOrCreate(
+                    ['nama' => trim($peraturan->subjek)],
+                    ['is_active' => true]
+                );
+            }
+        }
         if (isset($data['status'])) {
             $statusInput = strtolower($data['status']);
             if ($statusInput === 'draft') {
                 $statusObj = \App\Models\Status::firstOrCreate(['nama_status' => 'Draft']);
             } else if ($statusInput === 'tidak_berlaku') {
-                $statusObj = \App\Models\Status::where('nama_status', 'ilike', 'tidak berlaku')->first();
+                $statusObj = \App\Models\Status::whereRaw('LOWER(nama_status) LIKE ?', ['%tidak berlaku%'])->first();
             } else {
-                $statusObj = \App\Models\Status::where('nama_status', 'ilike', 'berlaku')->first();
+                $statusObj = \App\Models\Status::whereRaw('LOWER(nama_status) LIKE ?', ['%berlaku%'])->first();
             }
             if ($statusObj) {
                 $peraturan->status_id = $statusObj->id;
@@ -666,55 +991,7 @@ class DokumenHukumController extends Controller
             }
 
             $babList = $data['babList'] ?? [];
-            foreach ($babList as $babData) {
-                $babId = null;
-                if ($babData['id'] !== 'bab_default') {
-                    $judulStruktur = $babData['judul'] ?? '';
-                    $label = '';
-                    if (preg_match('/^(BAB\s+[IVXLCDM]+)\s+(.*)$/i', $judulStruktur, $m)) {
-                        $label = $m[1];
-                        $judulStruktur = $m[2];
-                    } else {
-                        $label = $judulStruktur;
-                        $judulStruktur = '';
-                    }
-
-                    $bab = StrukturDokumen::create([
-                        'peraturan_id' => $peraturan->id,
-                        'tipe_struktur' => 'BAB',
-                        'label' => $label,
-                        'judul_struktur' => $judulStruktur,
-                        'urutan' => $urutanStruktur++
-                    ]);
-                    $babId = $bab->id;
-                }
-
-                foreach ($babData['pasalList'] as $pasalData) {
-                    $nomor_pasal = str_replace('Pasal ', '', $pasalData['nomor'] ?? '');
-                    if (is_numeric($nomor_pasal)) {
-                        $nomor_pasal = (int) $nomor_pasal;
-                    } else {
-                        $nomor_pasal = 0; 
-                    }
-
-                    $pasal = Pasal::create([
-                        'peraturan_id' => $peraturan->id,
-                        'struktur_id' => $babId,
-                        'nomor_pasal' => $nomor_pasal,
-                        'isi_pasal' => $pasalData['isi'] ?? '',
-                        'urutan' => $urutanPasal++
-                    ]);
-
-                    $penjelasanText = trim($pasalData['penjelasan'] ?? '');
-                    if ($penjelasanText) {
-                        PenjelasanPasal::create([
-                            'peraturan_id' => $peraturan->id,
-                            'pasal_id' => $pasal->id,
-                            'isi_penjelasan' => $penjelasanText
-                        ]);
-                    }
-                }
-            }
+            $this->saveStrukturAndPasal($peraturan->id, $babList, null, $urutanStruktur, $urutanPasal);
         } else {
             // Normal update for existing documents
             // Update Menimbang
@@ -734,7 +1011,10 @@ class DokumenHukumController extends Controller
             }
             
             // Update Memutuskan
-            $diktum = StrukturDokumen::where('peraturan_id', $peraturan->id)->where('tipe_struktur', 'DIKTUM')->where('label', 'ilike', 'memutuskan')->first();
+            $diktum = StrukturDokumen::where('peraturan_id', $peraturan->id)
+                ->where('tipe_struktur', 'DIKTUM')
+                ->whereRaw('LOWER(label) LIKE ?', ['%memutuskan%'])
+                ->first();
             if ($diktum) {
                 if ($memutuskan) { $diktum->judul_struktur = $memutuskan; $diktum->save(); } else { $diktum->delete(); }
             } else if ($memutuskan) {
@@ -764,16 +1044,24 @@ class DokumenHukumController extends Controller
                     $bab = StrukturDokumen::find($babData['id']);
                     if ($bab) {
                         if (isset($babData['judul'])) {
-                            $judulStruktur = $babData['judul'] ?? '';
+                            $rawJudul = trim($babData['judul'] ?? '');
                             $label = '';
-                            if (preg_match('/^(BAB\s+[IVXLCDM]+)\s+(.*)$/i', $judulStruktur, $m)) {
-                                $label = $m[1];
-                                $judulStruktur = $m[2];
+                            $judulStruktur = '';
+
+                            if (preg_match('/^(BAB\s+[IVXLCDM\d\s]+|BAGIAN\s+[A-Za-z\d\s]+|PARAGRAF\s+[\d\s]+|Angka\s+[A-Za-z0-9\.\s]+|Pasal\s+[A-Za-z0-9\s]+)[\.:\-\s]+(.*)$/isu', $rawJudul, $m) && mb_strlen($m[1]) <= 50) {
+                                $label = trim($m[1]);
+                                $judulStruktur = trim($m[2]);
                             } else {
-                                $label = $judulStruktur;
-                                $judulStruktur = '';
+                                if (mb_strlen($rawJudul) <= 50) {
+                                    $label = $rawJudul;
+                                    $judulStruktur = '';
+                                } else {
+                                    $label = (!empty($bab->label) && mb_strlen($bab->label) <= 50) ? $bab->label : ($bab->tipe_struktur ?: 'STRUKTUR');
+                                    $judulStruktur = $rawJudul;
+                                }
                             }
-                            $bab->label = $label;
+
+                            $bab->label = mb_substr($label, 0, 250);
                             $bab->judul_struktur = $judulStruktur;
                         }
                         $bab->save();
@@ -827,57 +1115,124 @@ class DokumenHukumController extends Controller
     }
     public function scanMinio()
     {
-        // Tingkatkan batas waktu eksekusi agar tidak timeout jika jumlah file MinIO sangat banyak
-        set_time_limit(300); // 5 menit
+        set_time_limit(60);
 
         try {
-            // Karena MinIO/S3 adalah Object Storage (bukan folder nyata), allDirectories() seringkali kosong.
-            // Solusi terbaik: Ambil semua file, lalu saring file yang bernama 'ocr.json'
-            $allFiles = \Illuminate\Support\Facades\Storage::disk('minio')->allFiles('documents');
+            $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+            $allFiles = $disk->allFiles('documents');
             
             $pendingImports = [];
+            $categoriesMap = [];
+            $subfoldersMap = [];
+            $minioFileItems = [];
             
-            // Collect existing PDF paths to check against (kalau sudah masuk ke DB)
             $existingPaths = Peraturan::whereNotNull('file_pdf_path')->pluck('file_pdf_path')->toArray();
             
             foreach ($allFiles as $file) {
-                // Hapus slash di awal jika ada
                 $file = ltrim($file, '/');
                 
-                // Jika file ini adalah ocr.json, berarti foldernya siap di-import
-                if (str_ends_with(strtolower($file), '/ocr.json')) {
-                    $dir = dirname($file); // misal: documents/uu/undang-undang-1-2024
+                if (str_ends_with(strtolower($file), '/ocr.json') || str_ends_with(strtolower($file), '.json')) {
+                    $dir = dirname($file);
                     $expectedPdfPath = $dir . '/document.pdf';
                     
-                    // Jika PDF path ini belum ada di database
-                    if (!in_array($expectedPdfPath, $existingPaths)) {
-                        // Deteksi kategori dari path (misal: documents/uu/undang-undang-1-2024)
-                        $parts = explode('/', $dir);
-                        $kategoriRaw = $parts[1] ?? 'unknown'; // Ambil 'uu'
-                        
-                        $kategori = 'Lainnya';
-                        if ($kategoriRaw === 'uu' || str_contains(strtolower($dir), 'undang-undang')) {
-                            $kategori = 'Undang-Undang';
+                    $parts = explode('/', $dir);
+                    $kategoriRaw = strtolower($parts[1] ?? 'lainnya');
+                    
+                    $kategoriMap = [
+                        'uu' => 'Undang Undang',
+                        'uud' => 'Undang Undang Dasar',
+                        'uudrt' => 'Undang Undang Darurat',
+                        'perpres' => 'Peraturan Presiden',
+                        'pp' => 'Peraturan Pemerintah',
+                        'perda' => 'PERDA',
+                        'permen' => 'Peraturan Menteri',
+                        'perpu' => 'PERPU',
+                        'perppu' => 'PERPU',
+                        'kepres' => 'Keputusan Presiden',
+                        'keppres' => 'Keputusan Presiden',
+                        'inpres' => 'Instruksi Presiden',
+                        'tapmpr' => 'TAP MPR',
+                    ];
+
+                    $kategori = $kategoriMap[$kategoriRaw] ?? ucwords(str_replace(['_', '-'], ' ', $kategoriRaw));
+
+                    $subfolderRaw = count($parts) >= 4 ? $parts[2] : null;
+                    $subfolderLabel = $subfolderRaw ? str_replace(['_', '-'], ' ', $subfolderRaw) : null;
+
+                    if (!isset($categoriesMap[$kategori])) {
+                        $categoriesMap[$kategori] = 0;
+                    }
+                    $categoriesMap[$kategori]++;
+
+                    if ($subfolderRaw) {
+                        if (!isset($subfoldersMap[$kategori])) {
+                            $subfoldersMap[$kategori] = [];
                         }
-                        
+                        if (!isset($subfoldersMap[$kategori][$subfolderRaw])) {
+                            $subfoldersMap[$kategori][$subfolderRaw] = [
+                                'id' => md5($kategori . '_' . $subfolderRaw),
+                                'name' => $subfolderRaw,
+                                'label' => $subfolderLabel,
+                                'count' => 0,
+                            ];
+                        }
+                        $subfoldersMap[$kategori][$subfolderRaw]['count']++;
+                    }
+
+                    $fileName = basename($file);
+                    $folderName = basename($dir);
+                    $titleFormatted = str_replace(['_', '-'], ' ', $folderName);
+                    $titleFormatted = ucwords($titleFormatted);
+
+                    $minioFileItems[] = [
+                        'id' => md5($file),
+                        'name' => $fileName,
+                        'title' => $titleFormatted,
+                        'sizeKb' => 1500,
+                        'category' => $kategori,
+                        'subfolder' => $subfolderRaw,
+                        'subfolder_label' => $subfolderLabel,
+                        'folder_path' => $dir,
+                        'file_path' => $file,
+                    ];
+
+                    if (!in_array($expectedPdfPath, $existingPaths)) {
                         $pendingImports[] = [
                             'folder_path' => $dir,
-                            'nama_file' => basename($dir),
+                            'nama_file' => $folderName,
                             'kategori' => $kategori
                         ];
                     }
                 }
             }
             
+            $formattedCategories = [];
+            $cIdx = 1;
+            foreach ($categoriesMap as $catName => $count) {
+                $formattedCategories[] = [
+                    'id' => (string) $cIdx++,
+                    'name' => $catName,
+                    'count' => $count
+                ];
+            }
+
+            $formattedSubfolders = [];
+            foreach ($subfoldersMap as $catName => $subs) {
+                $formattedSubfolders[$catName] = array_values($subs);
+            }
+
             return response()->json([
                 'success' => true,
+                'categories' => $formattedCategories,
+                'subfolders' => $formattedSubfolders,
+                'files' => $minioFileItems,
                 'data' => array_values($pendingImports)
             ]);
         } catch (\Exception $e) {
             \Log::error("MinIO Scan Error: " . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal memindai penyimpanan dokumen hukum. Silakan periksa konfigurasi penyimpanan atau hubungi administrator.'
+                'message' => 'Gagal memindai penyimpanan dokumen hukum.'
             ], 500);
         }
     }
@@ -885,61 +1240,136 @@ class DokumenHukumController extends Controller
     {
         $filename = $request->query('filename');
         $judul = $request->query('judul');
+        $standarId = $request->query('standarId');
+        $folderPath = $request->query('folder_path');
+        $categoryParam = $request->query('category');
 
-        if (!$filename && !$judul) {
-            return response('Nama file atau judul tidak valid.', 400);
+        if (!$filename && !$judul && !$folderPath) {
+            return response('Nama file, judul, atau folder path tidak valid.', 400);
         }
 
-        $baseName = str_replace('.json', '', $filename ?? '');
-        $textToSearch = $judul ?? $filename ?? '';
-        
-        // Extract numbers (like nomor 6, tahun 2011)
-        preg_match_all('/\d+/', $textToSearch, $matches);
-        $numbers = $matches[0] ?? [];
-
         try {
-            $allFiles = \Illuminate\Support\Facades\Storage::disk('minio')->allFiles('documents');
-            
-            $pdfPath = collect($allFiles)->first(function($file) use ($baseName, $numbers, $textToSearch) {
-                if (!str_ends_with(strtolower($file), '.pdf')) return false;
-                
-                // 1. Exact or partial match with filename
-                if ($baseName && str_contains(strtolower($file), strtolower($baseName))) {
-                    return true;
-                }
-                
-                // 2. Fuzzy match based on extracted numbers from judul/filename
-                if (count($numbers) >= 2) {
-                    $hasAllNumbers = true;
-                    foreach ($numbers as $num) {
-                        if (!preg_match("/\b{$num}\b/", $file)) {
-                            $hasAllNumbers = false;
-                            break;
-                        }
+            $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+
+            // 1. Cek langsung jika folder_path diberikan (sangat cepat, 10ms)
+            if ($folderPath) {
+                $cleanFolder = ltrim($folderPath, '/');
+                $directCandidates = [
+                    "{$cleanFolder}/document.pdf",
+                    str_replace('/ocr.json', '/document.pdf', $cleanFolder),
+                    "documents/{$cleanFolder}/document.pdf",
+                ];
+                foreach ($directCandidates as $cand) {
+                    if ($disk->exists($cand)) {
+                        return response($disk->get($cand), 200, [
+                            'Content-Type' => 'application/pdf',
+                            'Content-Disposition' => 'inline; filename="document.pdf"'
+                        ]);
                     }
-                    if ($hasAllNumbers) {
-                        // Check if it shares some prefix context to avoid false positives (e.g. "uu", "undang")
-                        $typeStr = strtolower(substr($textToSearch, 0, 4)); 
-                        if ($typeStr && str_contains(strtolower($file), $typeStr)) {
+                }
+            }
+
+            $combinedText = trim(($standarId ?? '') . ' ' . ($filename ?? '') . ' ' . ($judul ?? '') . ' ' . ($categoryParam ?? ''));
+
+            // 2. Deteksi Kategori Direktori MinIO
+            $catFolder = null;
+            if (preg_match('/\b(inpres|instruksi\s+presiden)\b/i', $combinedText)) {
+                $catFolder = 'inpres';
+            } elseif (preg_match('/\b(perpres|peraturan\s+presiden)\b/i', $combinedText)) {
+                $catFolder = 'perpres';
+            } elseif (preg_match('/\b(uudrt|uu\s+darurat|undang\s+undang\s+darurat)\b/i', $combinedText)) {
+                $catFolder = 'uudrt';
+            } elseif (preg_match('/\b(uud|undang[- ]undang\s+dasar)\b/i', $combinedText)) {
+                $catFolder = 'uud';
+            } elseif (preg_match('/\b(perpu|perppu)\b/i', $combinedText)) {
+                $catFolder = 'perpu';
+            } elseif (preg_match('/\b(perda|peraturan\s+daerah)\b/i', $combinedText)) {
+                $catFolder = 'perda';
+            } elseif (preg_match('/\b(uu|undang[- ]undang)\b/i', $combinedText)) {
+                $catFolder = 'uu';
+            } elseif (preg_match('/\b(pp|peraturan\s+pemerintah)\b/i', $combinedText)) {
+                $catFolder = 'pp';
+            }
+
+            // 3. Ekstrak Nomor dan Tahun Pokok Peraturan
+            $nomor = null;
+            if (preg_match('/(?:nomor|no\.?|perpres_no_|inpres_no_|uu_no_|pp_no_)\s*([0-9]+)/i', $combinedText, $m)) {
+                $nomor = $m[1];
+            }
+
+            $tahun = null;
+            if (preg_match('/\b(19[0-9]{2}|20[0-9]{2})\b/', $combinedText, $m)) {
+                $tahun = $m[1];
+            }
+
+            // Amandemen / Perubahan untuk UUD (misal Aman2 -> perubahan 2)
+            $perubahan = null;
+            if ($catFolder === 'uud' && preg_match('/(?:perubahan|aman(?:demen)?)[-_ ]*([1-4])/i', $combinedText, $m)) {
+                $perubahan = $m[1];
+            }
+
+            // 4. Daftar folder pencarian spesifik (menghindari pemindaian 11rb file sekaligus)
+            $searchFolders = $catFolder ? ["documents/{$catFolder}"] : [
+                'documents/inpres', 'documents/perpres', 'documents/uu', 'documents/uud', 'documents/uudrt', 'documents/perpu', 'documents/perda'
+            ];
+
+            $pdfPath = null;
+            foreach ($searchFolders as $sf) {
+                // Cache daftar file per kategori selama 5 menit agar preview berkas berikutnya instan
+                $files = \Illuminate\Support\Facades\Cache::remember("minio_list_{$sf}", 300, function () use ($disk, $sf) {
+                    return $disk->allFiles($sf);
+                });
+
+                $pdfPath = collect($files)->first(function ($file) use ($nomor, $tahun, $catFolder, $perubahan, $filename) {
+                    if (!str_ends_with(strtolower($file), '.pdf')) return false;
+                    $lower = strtolower($file);
+
+                    // Kasus Spesial UUD 1945
+                    if ($catFolder === 'uud') {
+                        if ($perubahan) {
+                            return str_contains($lower, "perubahan-{$perubahan}");
+                        }
+                        return str_contains($lower, 'uud-1945') && !str_contains($lower, 'perubahan');
+                    }
+
+                    // Pencocokan Berdasarkan Nomor & Tahun Pokok
+                    if ($nomor && $tahun) {
+                        $hasNomor = preg_match("/[\-_]nomor[\-_]{$nomor}[\-_]|[\-_]{$nomor}[\-_]|[\-_]no[\-_]{$nomor}[\-_]/", $lower);
+                        $hasTahun = str_contains($lower, (string)$tahun);
+                        if ($hasNomor && $hasTahun) {
                             return true;
                         }
                     }
+
+                    // Fallback: Cocokkan karakter alphanumeric nama file
+                    $baseName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', str_replace('.json', '', $filename ?? '')));
+                    if ($baseName && strlen($baseName) >= 4) {
+                        $cleanFile = preg_replace('/[^a-zA-Z0-9]/', '', $lower);
+                        if (str_contains($cleanFile, $baseName)) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                });
+
+                if ($pdfPath) {
+                    break;
                 }
-                
-                return false;
-            });
+            }
 
             if (!$pdfPath) {
                 return response('Dokumen PDF sementara tidak ditemukan di server penyimpanan MinIO.', 404);
             }
 
-            $fileContent = \Illuminate\Support\Facades\Storage::disk('minio')->get($pdfPath);
+            $fileContent = $disk->get($pdfPath);
 
             return response($fileContent, 200, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="document.pdf"'
             ]);
         } catch (\Exception $e) {
+            \Log::error("Preview PDF MinIO Error: " . $e->getMessage());
             return response('Gagal mengambil dokumen dari MinIO: ' . $e->getMessage(), 500);
         }
     }
@@ -981,6 +1411,11 @@ class DokumenHukumController extends Controller
                 $peraturan->update([
                     'file_pdf_path' => $folderPath . '/document.pdf'
                 ]);
+                if (!empty($peraturan->lokasi_daerah)) {
+                    $parsedData['metadata']['lokasi_daerah'] = $peraturan->lokasi_daerah;
+                }
+                // AC 3: MinIO Write-Back Sync
+                $this->writeBackToMinio($folderPath . '/ocr.json', $parsedData);
             }
 
             return response()->json([
@@ -996,5 +1431,580 @@ class DokumenHukumController extends Controller
                 'message' => 'Terjadi kesalahan sistem saat mengimpor dokumen hukum dari penyimpanan.'
             ], 500);
         }
+    }
+
+    /**
+     * Endpoint GET /api/admin/minio/files/{filename} (AC 1)
+     * Membaca isi teks/JSON dokumen dari bucket MinIO
+     */
+    public function getMinioFileContent(Request $request, $filename = null)
+    {
+        $targetFile = $filename ?: $request->query('path') ?: $request->query('filename');
+
+        if (!$targetFile) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Filename or path is required.'
+            ], 400);
+        }
+
+        try {
+            $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+            $cleanPath = ltrim($targetFile, '/');
+
+            if ($disk->exists($cleanPath)) {
+                $content = $disk->get($cleanPath);
+                return response($content, 200, [
+                    'Content-Type' => str_ends_with(strtolower($cleanPath), '.json') ? 'application/json' : 'text/plain; charset=utf-8',
+                ]);
+            }
+
+            $candidatePaths = [
+                "documents/{$cleanPath}",
+                "documents/{$cleanPath}/ocr.json",
+                "documents/{$cleanPath}.json",
+                "{$cleanPath}.json",
+            ];
+
+            foreach ($candidatePaths as $candidate) {
+                if ($disk->exists($candidate)) {
+                    $content = $disk->get($candidate);
+                    return response($content, 200, [
+                        'Content-Type' => str_ends_with(strtolower($candidate), '.json') ? 'application/json' : 'text/plain; charset=utf-8',
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => "File '{$targetFile}' tidak ditemukan di penyimpanan MinIO."
+            ], 404);
+        } catch (\Exception $e) {
+            \Log::error("MinIO Get File Content Error: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membaca file dari penyimpanan MinIO.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Endpoint POST /api/admin/import/manual (AC 1)
+     * Unggahan lokal manual
+     */
+    public function importManual(Request $request, DocumentImportService $importService)
+    {
+        return $this->importOcr($request, $importService);
+    }
+
+    /**
+     * Cari lokasi file JSON (ocr.json) yang sesuai di MinIO tanpa membuat folder baru
+     */
+    private function resolveMinioJsonPath(Peraturan $peraturan): ?string
+    {
+        $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+
+        // 1. Cek dari file_pdf_path yang tersimpan di database
+        $pdfPath = $peraturan->file_pdf_path;
+        if (!$pdfPath) {
+            $pdfPath = \App\Services\DocumentStorageService::resolveValidMinioPath($peraturan);
+        }
+
+        if ($pdfPath) {
+            $dir = dirname($pdfPath);
+
+            // Cek apakah ocr.json sudah ada di folder tersebut
+            if ($disk->exists($dir . '/ocr.json')) {
+                return $dir . '/ocr.json';
+            }
+
+            // Cek apakah ada file .json lain di folder tersebut
+            try {
+                $files = $disk->files($dir);
+                foreach ($files as $file) {
+                    if (str_ends_with(strtolower($file), '.json')) {
+                        return $file;
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            // Jika belum ada file json di folder itu, gunakan ocr.json di folder yang sama
+            return $dir . '/ocr.json';
+        }
+
+        // 2. Jika tidak ada file_pdf_path, cari folder dokumen di MinIO berdasarkan unique_id
+        $uniqueId = $peraturan->unique_id;
+        $kodeJenis = strtolower($peraturan->jenisPeraturan?->kode ?? 'uu');
+
+        if ($uniqueId) {
+            if ($disk->exists("documents/{$uniqueId}/ocr.json")) {
+                return "documents/{$uniqueId}/ocr.json";
+            }
+            if ($disk->exists("documents/{$kodeJenis}/{$uniqueId}/ocr.json")) {
+                return "documents/{$kodeJenis}/{$uniqueId}/ocr.json";
+            }
+            if ($disk->exists("documents/{$uniqueId}.json")) {
+                return "documents/{$uniqueId}.json";
+            }
+        }
+
+        // 3. Fallback path standar
+        $slug = $peraturan->unique_id ?: ('peraturan_' . $peraturan->id);
+        return "documents/{$kodeJenis}/{$slug}/ocr.json";
+    }
+
+    /**
+     * Membangun daftar chunks lengkap dari data form/editor
+     */
+    private function buildChunksFromData(array $data, Peraturan $peraturan): array
+    {
+        $chunks = [];
+        $judul = $data['judul'] ?? $peraturan->judul;
+        $pembukaan = $data['pembukaan'] ?? [];
+        $menimbang = $pembukaan['menimbang'] ?? '';
+        $mengingat = $pembukaan['mengingat'] ?? '';
+        $memutuskan = $pembukaan['memutuskan'] ?? '';
+
+        $chunks[] = [
+            'tipe' => 'PEMBUKAAN',
+            'label' => 'Pembukaan',
+            'bagian_dokumen' => 'PEMBUKAAN',
+            'hierarki' => 'PEMBUKAAN > PEMBUKAAN',
+            'teks' => $judul,
+        ];
+
+        if ($menimbang) {
+            $chunks[] = [
+                'tipe' => 'KONSIDERANS',
+                'label' => 'Menimbang',
+                'bagian_dokumen' => 'PEMBUKAAN',
+                'hierarki' => 'PEMBUKAAN > KONSIDERANS',
+                'teks' => $menimbang,
+            ];
+        }
+
+        if ($mengingat) {
+            $chunks[] = [
+                'tipe' => 'DASAR_HUKUM',
+                'label' => 'Mengingat',
+                'bagian_dokumen' => 'PEMBUKAAN',
+                'hierarki' => 'PEMBUKAAN > DASAR_HUKUM',
+                'teks' => $mengingat,
+            ];
+        }
+
+        if ($memutuskan) {
+            $chunks[] = [
+                'tipe' => 'DIKTUM',
+                'label' => 'Diktum',
+                'bagian_dokumen' => 'PEMBUKAAN',
+                'hierarki' => 'PEMBUKAAN > DIKTUM',
+                'teks' => $memutuskan,
+            ];
+        }
+
+        $babList = $data['babList'] ?? [];
+        $penjelasans = [];
+
+        foreach ($babList as $ch) {
+            $chJudul = $ch['judul'] ?? 'BAB';
+            $chTipe = strtoupper($ch['tipe'] ?? 'BAB');
+            $chunks[] = [
+                'tipe' => $chTipe,
+                'label' => $chJudul,
+                'bagian_dokumen' => 'BATANG_TUBUH',
+                'hierarki' => $chTipe,
+                'teks' => $chJudul,
+            ];
+
+            foreach ($ch['pasalList'] ?? [] as $p) {
+                $pNomor = $p['nomor'] ?? 'Pasal';
+                $pIsi = $p['isi'] ?? '';
+                $chunks[] = [
+                    'tipe' => 'PASAL',
+                    'label' => $pNomor,
+                    'bagian_dokumen' => 'BATANG_TUBUH',
+                    'hierarki' => 'PASAL',
+                    'parent_bab' => $chJudul,
+                    'teks' => $pIsi,
+                ];
+
+                if (!empty($p['penjelasan'])) {
+                    $penjelasans[] = [
+                        'label' => $pNomor,
+                        'teks' => $p['penjelasan'],
+                    ];
+                }
+            }
+        }
+
+        foreach ($penjelasans as $penj) {
+            $chunks[] = [
+                'tipe' => 'PENJELASAN_PASAL',
+                'label' => $penj['label'],
+                'bagian_dokumen' => 'PENJELASAN',
+                'hierarki' => 'PENJELASAN',
+                'teks' => $penj['teks'],
+            ];
+        }
+
+        return $chunks;
+    }
+
+    /**
+     * Sinkronisasi data editan peraturan langsung ke file ocr.json di MinIO
+     * tanpa membuat folder baru, memperbarui teks, spasi, metadata, dan pasal.
+     */
+    private function syncPeraturanToMinio(Peraturan $peraturan, array $data): bool
+    {
+        try {
+            $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+            $jsonPath = $this->resolveMinioJsonPath($peraturan);
+
+            if (!$jsonPath) {
+                \Log::warning("Tidak dapat menentukan path MinIO JSON untuk peraturan: {$peraturan->unique_id}");
+                return false;
+            }
+
+            $existingData = [];
+            if ($disk->exists($jsonPath)) {
+                $content = $disk->get($jsonPath);
+                $decoded = json_decode($content, true);
+                if (is_array($decoded)) {
+                    $existingData = $decoded;
+                }
+            }
+
+            // 1. Update Metadata
+            $metadata = $existingData['metadata'] ?? [];
+            if (isset($data['judul'])) {
+                $metadata['judul'] = $data['judul'];
+            }
+            if (isset($data['nomorPeraturan'])) {
+                $metadata['nomor'] = $data['nomorPeraturan'];
+            }
+            if (isset($data['tahun'])) {
+                $metadata['tahun'] = $data['tahun'];
+            }
+            if (isset($data['tempatPenetapan']) || isset($data['metadata']['tempatPenetapan'])) {
+                $metadata['tempat_penetapan'] = $data['tempatPenetapan'] ?? ($data['metadata']['tempatPenetapan'] ?? null);
+            }
+            if (isset($data['tanggalPenetapan']) || isset($data['metadata']['tanggalDitetapkan'])) {
+                $metadata['tanggal_penetapan'] = $data['tanggalPenetapan'] ?? ($data['metadata']['tanggalDitetapkan'] ?? null);
+            }
+            if (isset($data['metadata']['pemrakarsa'])) {
+                $metadata['pemrakarsa'] = $data['metadata']['pemrakarsa'];
+                $metadata['instansi'] = $data['metadata']['pemrakarsa'];
+                if (empty($metadata['lokasi_daerah']) && strtolower(trim($data['metadata']['pemrakarsa'])) !== 'pemerintah pusat') {
+                    $metadata['lokasi_daerah'] = trim($data['metadata']['pemrakarsa']);
+                }
+            }
+            if (isset($data['metadata']['lokasiDaerah'])) {
+                $metadata['lokasi_daerah'] = $data['metadata']['lokasiDaerah'];
+            }
+            if (isset($data['metadata']['lokasi_daerah'])) {
+                $metadata['lokasi_daerah'] = $data['metadata']['lokasi_daerah'];
+            }
+            if (isset($data['lokasiDaerah'])) {
+                $metadata['lokasi_daerah'] = $data['lokasiDaerah'];
+            }
+            if (isset($data['lokasi_daerah'])) {
+                $metadata['lokasi_daerah'] = $data['lokasi_daerah'];
+            }
+            if (isset($data['metadata']['subjek'])) {
+                $metadata['subjek'] = $data['metadata']['subjek'];
+            }
+            if (isset($data['status'])) {
+                $metadata['status'] = $data['status'];
+            }
+            if (!isset($metadata['id_dokumen'])) {
+                $metadata['id_dokumen'] = $peraturan->unique_id;
+            }
+            $existingData['metadata'] = $metadata;
+
+            // 2. Update Chunks
+            $pembukaan = $data['pembukaan'] ?? [];
+            $menimbang = $pembukaan['menimbang'] ?? null;
+            $mengingat = $pembukaan['mengingat'] ?? null;
+            $memutuskan = $pembukaan['memutuskan'] ?? null;
+            $babList = $data['babList'] ?? [];
+
+            // Buat lookup pasal dari babList (termasuk rekursif jika ada anak)
+            $pasalLookup = [];
+            $flattenPasals = function ($chapters) use (&$flattenPasals, &$pasalLookup) {
+                foreach ($chapters as $ch) {
+                    $pasals = $ch['pasalList'] ?? [];
+                    foreach ($pasals as $p) {
+                        $nomor = trim((string)($p['nomor'] ?? ''));
+                        $cleanNum = preg_replace('/^pasal\s*/i', '', $nomor);
+                        $key1 = strtolower(trim($nomor));
+                        $key2 = 'pasal ' . strtolower(trim($cleanNum));
+                        $key3 = strtolower(trim($cleanNum));
+
+                        $val = [
+                            'nomor' => $nomor ?: ('Pasal ' . $cleanNum),
+                            'isi' => $p['isi'] ?? '',
+                            'penjelasan' => $p['penjelasan'] ?? '',
+                            'parent_bab' => $ch['judul'] ?? null,
+                            '_matched' => false
+                        ];
+                        $pasalLookup[$key1] = &$val;
+                        $pasalLookup[$key2] = &$val;
+                        $pasalLookup[$key3] = &$val;
+
+                        if (!empty($p['pasalList'])) {
+                            foreach ($p['pasalList'] as $cp) {
+                                $cNomor = trim((string)($cp['nomor'] ?? ''));
+                                $cCleanNum = preg_replace('/^pasal\s*/i', '', $cNomor);
+                                $cKey1 = strtolower(trim($cNomor));
+                                $cKey2 = 'pasal ' . strtolower(trim($cCleanNum));
+                                $cKey3 = strtolower(trim($cCleanNum));
+                                $cVal = [
+                                    'nomor' => $cNomor ?: ('Pasal ' . $cCleanNum),
+                                    'isi' => $cp['isi'] ?? '',
+                                    'penjelasan' => $cp['penjelasan'] ?? '',
+                                    'parent_bab' => $ch['judul'] ?? null,
+                                    '_matched' => false
+                                ];
+                                $pasalLookup[$cKey1] = &$cVal;
+                                $pasalLookup[$cKey2] = &$cVal;
+                                $pasalLookup[$cKey3] = &$cVal;
+                            }
+                        }
+                    }
+                    if (!empty($ch['children'])) {
+                        $flattenPasals($ch['children']);
+                    }
+                }
+            };
+            $flattenPasals($babList);
+
+            if (!empty($existingData['chunks']) && is_array($existingData['chunks'])) {
+                foreach ($existingData['chunks'] as &$chunk) {
+                    $tipe = strtoupper($chunk['tipe'] ?? '');
+                    $label = trim($chunk['label'] ?? '');
+                    $cleanLabelNum = preg_replace('/^pasal\s*/i', '', $label);
+
+                    if ($tipe === 'KONSIDERANS' || strtolower($label) === 'menimbang') {
+                        if ($menimbang !== null) {
+                            $chunk['teks'] = $menimbang;
+                        }
+                    } elseif ($tipe === 'DASAR_HUKUM' || strtolower($label) === 'mengingat') {
+                        if ($mengingat !== null) {
+                            $chunk['teks'] = $mengingat;
+                        }
+                    } elseif ($tipe === 'DIKTUM' || strtolower($label) === 'memutuskan' || strtolower($label) === 'diktum') {
+                        if ($memutuskan !== null) {
+                            $chunk['teks'] = $memutuskan;
+                        }
+                    } elseif ($tipe === 'PASAL') {
+                        $normKey1 = strtolower($label);
+                        $normKey2 = 'pasal ' . strtolower($cleanLabelNum);
+                        $normKey3 = strtolower($cleanLabelNum);
+
+                        $targetPasal = $pasalLookup[$normKey1] ?? ($pasalLookup[$normKey2] ?? ($pasalLookup[$normKey3] ?? null));
+                        if ($targetPasal) {
+                            $chunk['teks'] = $targetPasal['isi'];
+                            $targetPasal['_matched'] = true;
+                        }
+                    } elseif ($tipe === 'PENJELASAN_PASAL' || ($tipe === 'PENJELASAN' && !empty($cleanLabelNum))) {
+                        $normKey1 = strtolower($label);
+                        $normKey2 = 'pasal ' . strtolower($cleanLabelNum);
+                        $normKey3 = strtolower($cleanLabelNum);
+
+                        $targetPasal = $pasalLookup[$normKey1] ?? ($pasalLookup[$normKey2] ?? ($pasalLookup[$normKey3] ?? null));
+                        if ($targetPasal && !empty($targetPasal['penjelasan'])) {
+                            $chunk['teks'] = $targetPasal['penjelasan'];
+                        }
+                    }
+                }
+                unset($chunk);
+            } else {
+                $existingData['chunks'] = $this->buildChunksFromData($data, $peraturan);
+            }
+
+            if (!isset($existingData['relasi'])) {
+                $existingData['relasi'] = [
+                    'mengingat' => [],
+                    'mengubah' => [],
+                    'diubah_oleh' => [],
+                    'mencabut' => [],
+                    'dicabut_oleh' => [],
+                ];
+            }
+
+            $formattedContent = json_encode($existingData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $disk->put($jsonPath, $formattedContent);
+
+            \Log::info("Sinkronisasi MinIO berhasil langsung ke: {$jsonPath}");
+            return true;
+        } catch (\Exception $e) {
+            \Log::error("Gagal sinkronisasi ke MinIO untuk {$peraturan->unique_id}: " . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return false;
+        }
+    }
+
+    /**
+     * MinIO Write-Back Sync (AC 3)
+     * Menyimpan data/teks terbaru dari Editor langsung menimpa file di MinIO
+     */
+    private function writeBackToMinio(?string $originalNameOrPath, $content): bool
+    {
+        if (empty($originalNameOrPath)) {
+            return false;
+        }
+
+        try {
+            $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+            $cleanPath = ltrim($originalNameOrPath, '/');
+
+            // Jika belum ada ekstensi, beri ekstensi .json secara default
+            if (!str_contains(basename($cleanPath), '.')) {
+                $writeBackPath = $cleanPath . '.json';
+            } else {
+                $writeBackPath = $cleanPath;
+            }
+
+            $formattedContent = is_string($content) ? $content : json_encode($content, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
+            $disk->put($writeBackPath, $formattedContent);
+            \Log::info("MinIO Write-Back Sync berhasil disimpan ke: {$writeBackPath}");
+            return true;
+        } catch (\Exception $e) {
+            \Log::error("MinIO Write-Back Sync gagal untuk {$originalNameOrPath}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Simpan struktur dokumen (BAB, BAGIAN, PARAGRAF) dan pasal-pasal secara rekursif
+     */
+    private function saveStrukturAndPasal(
+        int $peraturanId,
+        array $nodes,
+        ?int $parentId = null,
+        &$urutanStruktur = 1,
+        &$urutanPasal = 1
+    ) {
+        foreach ($nodes as $node) {
+            $tipe = strtoupper($node['tipe'] ?? 'BAB');
+            $judul = $node['judul'] ?? '';
+            $label = $node['label'] ?? '';
+            $judulStruktur = $node['deskripsi'] ?? '';
+
+            if (!$label && $judul) {
+                if (preg_match('/^(BAB\s+[IVXLCDM\d\s]+|Bagian\s+[A-Za-z\d\s]+|Paragraf\s+[\d\s]+|Angka\s+[A-Za-z0-9\.\s]+)\s*(?:-\s*)?(.*)$/isu', $judul, $m) && mb_strlen($m[1]) <= 50) {
+                    $label = trim($m[1]);
+                    $judulStruktur = trim($m[2]) ?: $judulStruktur;
+                } else {
+                    if (mb_strlen($judul) <= 50) {
+                        $label = $judul;
+                    } else {
+                        $label = $tipe ?: 'Struktur';
+                        $judulStruktur = $judul;
+                    }
+                }
+            }
+
+            $struktur = null;
+            if ($node['id'] !== 'bab_default') {
+                $struktur = StrukturDokumen::create([
+                    'peraturan_id' => $peraturanId,
+                    'tipe_struktur' => $tipe,
+                    'label' => mb_substr($label ?: 'Struktur', 0, 250),
+                    'judul_struktur' => $judulStruktur,
+                    'parent_id' => $parentId,
+                    'urutan' => $urutanStruktur++
+                ]);
+            }
+
+            $strukturId = $struktur ? $struktur->id : $parentId;
+
+            // 1. Simpan Pasal-pasal langsung di bawah struktur ini
+            if (!empty($node['pasalList']) && is_array($node['pasalList'])) {
+                foreach ($node['pasalList'] as $pasalData) {
+                    $this->savePasalNode($peraturanId, $strukturId, $pasalData, null, $urutanPasal);
+                }
+            }
+
+            // 2. Simpan Sub-struktur (Children: Bagian / Paragraf) secara rekursif
+            if (!empty($node['children']) && is_array($node['children'])) {
+                $this->saveStrukturAndPasal($peraturanId, $node['children'], $strukturId, $urutanStruktur, $urutanPasal);
+            }
+        }
+    }
+
+    /**
+     * Simpan node Pasal dan Sub-pasal (Pasal Ubahan) secara rekursif
+     */
+    private function savePasalNode(
+        int $peraturanId,
+        ?int $strukturId,
+        array $pasalData,
+        ?int $parentPasalId = null,
+        &$urutanPasal = 1
+    ) {
+        $nomorPasal = trim($pasalData['nomor'] ?? $pasalData['label'] ?? 'Pasal');
+
+        $pasal = Pasal::create([
+            'peraturan_id' => $peraturanId,
+            'struktur_id' => $strukturId,
+            'parent_pasal_id' => $parentPasalId,
+            'nomor_pasal' => $nomorPasal,
+            'isi_pasal' => $pasalData['isi'] ?? '',
+            'urutan' => $urutanPasal++
+        ]);
+
+        $penjelasanText = trim($pasalData['penjelasan'] ?? '');
+        if ($penjelasanText) {
+            PenjelasanPasal::create([
+                'peraturan_id' => $peraturanId,
+                'pasal_id' => $pasal->id,
+                'isi_penjelasan' => $penjelasanText
+            ]);
+        }
+
+        // Simpan Sub-Pasal yang diubah di dalam pasal container ini
+        if (!empty($pasalData['pasalList']) && is_array($pasalData['pasalList'])) {
+            foreach ($pasalData['pasalList'] as $subPasalData) {
+                $this->savePasalNode($peraturanId, $strukturId, $subPasalData, $pasal->id, $urutanPasal);
+            }
+        }
+    }
+
+    private function detectTargetIndukPhp(?string $teks): ?array
+    {
+        if (!$teks) return null;
+
+        if (preg_match('/(?:ketentuan\s+dalam\s+|perubahan\s+atas\s+|mengubah\s+)?(Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah\s+Pengganti\s+Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah|Peraturan[-_\s]?Presiden|Peraturan[-_\s]?Menteri)\s+Nomor\s+(\d+)\s+Tahun\s+(\d{4})(?:\s+tentang\s+([^,.\n()]+))?/i', $teks, $m)) {
+            $rawJenis = $m[1];
+            $nomor = $m[2];
+            $tahun = $m[3];
+            $tentang = isset($m[4]) ? trim($m[4]) : '';
+
+            $jenisClean = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '_', $rawJenis)));
+            $prefix = 'UU';
+            if (str_contains($jenisClean, 'pengganti')) {
+                $prefix = 'PERPPU';
+            } else if (str_contains($jenisClean, 'pemerintah')) {
+                $prefix = 'PP';
+            } else if (str_contains($jenisClean, 'presiden')) {
+                $prefix = 'PERPRES';
+            } else if (str_contains($jenisClean, 'menteri')) {
+                $prefix = 'PERMEN';
+            }
+
+            $stdId = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '_', trim($rawJenis))) . "_no_{$nomor}_{$tahun}";
+            $labelSingkat = "{$prefix} {$nomor}/{$tahun}";
+            $namaLengkap = "{$rawJenis} Nomor {$nomor} Tahun {$tahun}" . ($tentang ? " tentang {$tentang}" : '');
+
+            return [
+                'standardId' => $stdId,
+                'labelSingkat' => $labelSingkat,
+                'namaLengkap' => $namaLengkap,
+            ];
+        }
+
+        return null;
     }
 }

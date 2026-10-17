@@ -10,18 +10,24 @@ export interface ProcessedFileItem {
   progressPercent: number;
   rawFile?: File;
   parsedData?: any;
+  folder_path?: string;
+  file_path?: string;
 }
 
 interface StepProcessExtractionProps {
   files: ProcessedFileItem[];
   onFinishOrNext?: () => void;
   onCancel?: () => void;
+  title?: string;
+  successMessage?: string;
 }
 
 export function StepProcessExtraction({
   files,
   onFinishOrNext,
   onCancel,
+  title,
+  successMessage,
 }: StepProcessExtractionProps) {
   // Hitung statistik progres
   const totalFiles = files.length;
@@ -49,7 +55,7 @@ export function StepProcessExtraction({
       {/* Kolom 1 & 2: Detail Proses Berjalan (Card Tengah) */}
       <div className="lg:col-span-2 bg-white rounded-[16px] border border-neu-100 p-6 shadow-2xs">
         <h3 className="font-sans text-[15px] font-semibold text-neu-900 mb-6">
-          Detail Proses Berjalan
+          {title || 'Detail Proses Berjalan'}
         </h3>
 
         <div className="space-y-5">
@@ -184,7 +190,7 @@ export function StepProcessExtraction({
         ) : (
           <div className="w-full mt-6 pt-4 border-t border-neu-50 flex items-center justify-center gap-2 text-[#2E7D32] text-[12px] font-medium animate-pulse">
             <CheckCircle2 className="w-4 h-4" />
-            <span>Ekstraksi selesai, mengalihkan...</span>
+            <span>{successMessage || 'Ekstraksi selesai, mengalihkan...'}</span>
           </div>
         )}
       </div>

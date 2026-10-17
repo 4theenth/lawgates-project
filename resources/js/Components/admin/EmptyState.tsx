@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { Scale } from 'lucide-react';
+import { Files } from 'lucide-react';
 
 interface EmptyStateProps {
   icon?: ReactNode;
@@ -10,27 +10,29 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  icon = <Scale className="w-7 h-7 text-gray-400 stroke-[1.5]" />,
-  title = 'Hasil tidak ditemukan untuk kata kunci tersebut',
-  description = 'Ups, kata kunci yang kamu cari tidak ada. Coba cek ejaan atau gunakan kata lain.',
+  icon = <Files className="w-6 h-6 text-neu-400 stroke-[1.5]" />,
+  title = 'Belum ada data hukum',
+  description = 'Silakan tambahkan data hukum melalui tombol “Tambah Hukum”',
   action,
   className = '',
 }: EmptyStateProps) {
   return (
     <div
-      className={`w-full min-h-[360px] flex flex-col items-center justify-center rounded-[20px] border border-dashed border-[#CBD5E1] bg-white p-10 sm:p-12 text-center transition-all ${className}`}
+      // Sesuai Figma node #2258:42594: min-h 271px, border-dashed border-neu-200, rounded-[15px]
+      className={`w-full min-h-[271px] flex flex-col items-center justify-center rounded-[15px] border border-dashed border-neu-200 bg-white p-8 text-center transition-all ${className}`}
     >
-      <div className="w-16 h-16 rounded-[18px] border border-gray-200 bg-white flex items-center justify-center mb-4 shadow-2xs">
+      {/* Icon container box: 50x50px, rounded-[15px], border border-neu-50 */}
+      <div className="w-[50px] h-[50px] rounded-[15px] border border-neu-50 bg-white flex items-center justify-center mb-3 shadow-2xs">
         {icon}
       </div>
 
-      {/* Container teks sesuai spesifikasi desain */}
+      {/* Container teks: Body Medium/Medium (14px, #212121) & Body Small / Regular (12px, #909090) */}
       <div className="flex max-w-[420px] flex-col items-center text-center">
-        <h3 className="text-[16px] font-bold text-gray-900 leading-tight">
+        <h3 className="text-[14px] font-medium text-neu-900 leading-tight">
           {title}
         </h3>
         {description && (
-          <p className="text-[13px] text-gray-500 mt-1.5 leading-relaxed">
+          <p className="text-[12px] font-normal text-neu-400 mt-1 leading-normal">
             {description}
           </p>
         )}

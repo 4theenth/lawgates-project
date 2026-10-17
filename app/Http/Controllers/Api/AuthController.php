@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use App\Models\User;
 
 class AuthController extends Controller
@@ -17,29 +19,60 @@ class AuthController extends Controller
             'password' => 'required'
         ]);
 
-        // 2. Cari user berdasarkan email
+        // 2. Throttle key berdasarkan email dan IP
+        $throttleKey = Str::transliterate(Str::lower($request->input('email')) . '|' . $request->ip());
+
+        // 3. Cek apakah akun sedang terkunci karena terlalu banyak percobaan gagal (max 5 kali)
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            $minutes = (int) ceil($seconds / 60);
+
+            return response()->json([
+                'message' => "Akun terkunci sementara karena 5 kali kesalahan percobaan login. Silakan coba lagi dalam {$minutes} menit.",
+                'retry_after_seconds' => $seconds,
+                'retry_after_minutes' => $minutes
+            ], 429);
+        }
+
+        // 4. Cari user berdasarkan email
         $user = User::where('email', $request->email)->first();
 
-        // 3. Cek apakah user ada dan password cocok
+        // 5. Cek apakah user ada dan password cocok
         if (!$user || !Hash::check($request->password, $user->password)) {
+            // Catat percobahaan gagal dengan waktu kunci 15 menit (900 detik)
+            RateLimiter::hit($throttleKey, 900);
+
+            $attemptsLeft = RateLimiter::remaining($throttleKey, 5);
+
+            $message = 'Email atau password salah';
+            if ($attemptsLeft > 0) {
+                $message .= ". Sisa percobaan login: {$attemptsLeft}.";
+            } else {
+                $message = 'Akun Anda telah terkunci selama 15 menit karena 5 kali kesalahan percobaan login.';
+            }
+
             return response()->json([
-                'message' => 'Email atau password salah'
+                'message' => $message,
+                'remaining_attempts' => $attemptsLeft
             ], 401);
         }
 
-        // 4. Buat token Sanctum
+        // 6. Apabila login berhasil, bersihkan counter rate limiter
+        RateLimiter::clear($throttleKey);
+
+        // 7. Buat token Sanctum
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        // 5. Kembalikan respons beserta role-nya
+        // 8. Kembalikan respons beserta data user & role
         return response()->json([
             'message' => 'Login berhasil',
             'access_token' => $token,
             'token_type' => 'Bearer',
             'user' => [
                 'id' => $user->id,
-                'name' => $user->name,
+                'username' => $user->username,
                 'email' => $user->email,
-                'role' => $user->role // Role dikirim ke frontend
+                'role' => $user->role
             ]
         ]);
     }

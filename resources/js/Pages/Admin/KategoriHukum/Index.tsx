@@ -12,18 +12,29 @@ import {
 } from '@/Components/admin/CategoryTable';
 import { CategoryModal } from '@/Components/admin/CategoryModal';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
-import { Plus, Search, X, Gavel } from 'lucide-react';
+import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
+import { StatusTabs } from '@/Components/admin/StatusTabs';
+import { Search, X, Gavel } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
-interface KategoriHukumIndexProps {
-  kategori: {
+interface ClassificationIndexProps {
+  items?: {
     data: CategoryItem[];
     current_page: number;
     last_page: number;
     total: number;
     per_page: number;
   };
+  kategori?: {
+    data: CategoryItem[];
+    current_page: number;
+    last_page: number;
+    total: number;
+    per_page: number;
+  };
+  activeTab?: 'kategori' | 'subjek';
   filters: {
+    tab?: 'kategori' | 'subjek';
     search?: string;
     sortColumn?: CategorySortColumn;
     sortDirection?: SortDirection;
@@ -31,8 +42,18 @@ interface KategoriHukumIndexProps {
   };
 }
 
-export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumIndexProps) {
+export default function KlasifikasiHukumIndex({
+  items,
+  kategori,
+  activeTab = 'kategori',
+  filters,
+}: ClassificationIndexProps) {
   const { toast } = useToast();
+
+  // Tab State: 'kategori' | 'subjek'
+  const currentTab: 'kategori' | 'subjek' = filters?.tab || activeTab || 'kategori';
+  const isSubjek = currentTab === 'subjek';
+  const entityLabel = isSubjek ? 'Subjek' : 'Kategori';
 
   // Search state
   const [searchQuery, setSearchQuery] = useState(filters?.search || '');
@@ -45,16 +66,22 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
     filters?.sortDirection || 'asc'
   );
 
+  // Active dataset
+  const activePaginator = items || kategori;
+  const paginatedData = activePaginator?.data || [];
+  const totalPages = Math.max(activePaginator?.last_page || 1, 1);
+  const hasData = paginatedData.length > 0;
+
   // Pagination states
-  const [currentPage, setCurrentPage] = useState(kategori?.current_page || 1);
+  const [currentPage, setCurrentPage] = useState(activePaginator?.current_page || 1);
   const [pageSize, setPageSize] = useState(
     filters?.pageSize ? Number(filters.pageSize) : 10
   );
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingCat, setEditingCat] = useState<CategoryItem | null>(null);
-  const [deletingCat, setDeletingCat] = useState<CategoryItem | null>(null);
+  const [editingItem, setEditingItem] = useState<CategoryItem | null>(null);
+  const [deletingItem, setDeletingItem] = useState<CategoryItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -64,9 +91,27 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
     { label: 'Kategori Hukum' },
   ];
 
-  // Helper untuk melakukan query ke backend
+  // Tab switcher
+  const handleTabChange = (newTabId: string) => {
+    setSearchQuery('');
+    setCurrentPage(1);
+    setSortColumn(null);
+    setSortDirection('asc');
+    router.get(
+      '/admin/kategori-hukum',
+      { tab: newTabId },
+      {
+        preserveState: false,
+        preserveScroll: true,
+      }
+    );
+  };
+
+  // Helper query ke backend
   const fetchData = (overrides: Record<string, any> = {}) => {
-    const query: Record<string, any> = {};
+    const query: Record<string, any> = {
+      tab: currentTab,
+    };
 
     const finalSearch =
       overrides.search !== undefined ? overrides.search : searchQuery;
@@ -87,7 +132,7 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
     if (finalPageSize !== 10) query.pageSize = finalPageSize;
 
     const finalPage = overrides.page !== undefined ? overrides.page : currentPage;
-    if (finalPage > 1) query.page = finalPage;
+    if (finalPage) query.page = finalPage;
 
     router.get('/admin/kategori-hukum', query, {
       preserveState: true,
@@ -96,13 +141,26 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
     });
   };
 
+  useEffect(() => {
+    if (kategori?.current_page !== undefined) {
+      setCurrentPage(kategori.current_page);
+    }
+  }, [kategori?.current_page]);
+
   // Debounced search
   const isInitialRender = useRef(true);
+  const prevSearchRef = useRef(searchQuery);
   useEffect(() => {
     if (isInitialRender.current) {
       isInitialRender.current = false;
       return;
     }
+
+    if (prevSearchRef.current === searchQuery) {
+      return;
+    }
+
+    prevSearchRef.current = searchQuery;
 
     const debounce = setTimeout(() => {
       fetchData({ search: searchQuery, page: 1 });
@@ -149,8 +207,8 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
     fetchData({ pageSize: size, page: 1 });
   };
 
-  // Simpan tambah atau edit kategori
-  const handleSaveCategory = (data: {
+  // Simpan tambah atau edit item (Kategori / Subjek)
+  const handleSave = (data: {
     id?: string;
     nama: string;
     deskripsi: string;
@@ -159,132 +217,116 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
     setIsSubmitting(true);
     setServerError(null);
 
+    const baseUrl = isSubjek ? '/admin/subjek-peraturan' : '/admin/kategori-hukum';
+    const payload = isSubjek
+      ? { nama: data.nama, deskripsi: data.deskripsi }
+      : { nama: data.nama, deskripsi: data.deskripsi, kode: data.kode };
+
     if (data.id) {
-      router.put(
-        `/admin/kategori-hukum/${data.id}`,
-        {
-          nama: data.nama,
-          deskripsi: data.deskripsi,
-          kode: data.kode,
+      router.put(`${baseUrl}/${data.id}`, payload, {
+        preserveScroll: true,
+        onSuccess: () => {
+          setIsSubmitting(false);
+          setEditingItem(null);
+          setServerError(null);
         },
-        {
-          preserveScroll: true,
-          onSuccess: () => {
-            setIsSubmitting(false);
-            setEditingCat(null);
-            setServerError(null);
-          },
-          onError: (errors: Record<string, string>) => {
-            setIsSubmitting(false);
-            const errorMsg =
-              errors.nama ||
-              errors.deskripsi ||
-              errors.kode ||
-              'Gagal memperbarui kategori hukum.';
-            setServerError(errorMsg);
-            toast.error(errorMsg);
-          },
-        }
-      );
+        onError: (errors: Record<string, string>) => {
+          setIsSubmitting(false);
+          const errorMsg =
+            errors.nama ||
+            errors.deskripsi ||
+            (errors as any).kode ||
+            `Gagal memperbarui ${entityLabel.toLowerCase()} hukum.`;
+          setServerError(errorMsg);
+          toast.error(errorMsg);
+        },
+      });
     } else {
-      router.post(
-        '/admin/kategori-hukum',
-        {
-          nama: data.nama,
-          deskripsi: data.deskripsi,
-          kode: data.kode,
+      router.post(baseUrl, payload, {
+        preserveScroll: true,
+        onSuccess: () => {
+          setIsSubmitting(false);
+          setIsAddModalOpen(false);
+          setServerError(null);
         },
-        {
-          preserveScroll: true,
-          onSuccess: () => {
-            setIsSubmitting(false);
-            setIsAddModalOpen(false);
-            setServerError(null);
-          },
-          onError: (errors: Record<string, string>) => {
-            setIsSubmitting(false);
-            const errorMsg =
-              errors.nama ||
-              errors.deskripsi ||
-              errors.kode ||
-              'Gagal menambahkan kategori hukum.';
-            setServerError(errorMsg);
-            toast.error(errorMsg);
-          },
-        }
-      );
+        onError: (errors: Record<string, string>) => {
+          setIsSubmitting(false);
+          const errorMsg =
+            errors.nama ||
+            errors.deskripsi ||
+            (errors as any).kode ||
+            `Gagal menambahkan ${entityLabel.toLowerCase()} hukum.`;
+          setServerError(errorMsg);
+          toast.error(errorMsg);
+        },
+      });
     }
   };
 
-  // Konfirmasi hapus kategori
+  // Konfirmasi hapus item (Kategori / Subjek)
   const handleConfirmDelete = () => {
-    if (!deletingCat) return;
+    if (!deletingItem) return;
 
     setIsDeleting(true);
-    router.delete(`/admin/kategori-hukum/${deletingCat.id}`, {
+    const baseUrl = isSubjek ? '/admin/subjek-peraturan' : '/admin/kategori-hukum';
+    router.delete(`${baseUrl}/${deletingItem.id}`, {
       preserveScroll: true,
       onSuccess: () => {
         setIsDeleting(false);
-        setDeletingCat(null);
+        setDeletingItem(null);
       },
       onError: (errors: Record<string, string>) => {
         setIsDeleting(false);
         const errorMsg =
           (errors && Object.values(errors)[0]) ||
-          'Gagal menghapus kategori hukum.';
+          `Gagal menghapus ${entityLabel.toLowerCase()} hukum.`;
         toast.error(errorMsg);
       },
     });
   };
 
-  const paginatedCategories = kategori?.data || [];
-  const totalPages = Math.max(kategori?.last_page || 1, 1);
-  const hasData = paginatedCategories.length > 0;
-
   return (
     <AdminLayout>
-      <Head title="Kategori Hukum - Admin" />
+      <Head title="Klasifikasi Hukum - Admin" />
 
       {/* 1. Breadcrumb Navigasi */}
       <div className="mb-4">
         <Breadcrumb items={breadcrumbs} />
       </div>
 
-      {/* 2. Page Header & Action Button Sesuai Spesifikasi */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-sans text-[20px] font-semibold leading-[26px] text-neu-900 tracking-tight">
-            Kategori Hukum
-          </h1>
-          <p className="font-sans text-[14px] font-normal leading-[20px] text-neu-600 mt-1">
-            Kelola kategori hukum yang akan digunakan untuk menambahkan data hukum nantinya
-          </p>
-        </div>
+      {/* 2. Page Header & Action Button Sesuai Mockup */}
+      <AdminPageHeader
+        title="Klasifikasi Hukum"
+        description="Kelola kategori dan subjek hukum yang akan digunakan untuk menambahkan data hukum nantinya"
+        action={{
+          label: `Tambah ${entityLabel}`,
+          onClick: () => {
+            setServerError(null);
+            setIsAddModalOpen(true);
+          },
+        }}
+      />
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setServerError(null);
-              setIsAddModalOpen(true);
-            }}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Kategori</span>
-          </button>
-        </div>
-      </div>
+      {/* 3. Toolbar: Segmented Tab Switcher (Kiri) & Search Bar (Kanan) Sesuai Mockup */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        {/* Tab Switcher: Kategori | Subjek (Sama dengan Dokumen Hukum) */}
+        <StatusTabs
+          tabs={[
+            { id: 'kategori', label: 'Kategori' },
+            { id: 'subjek', label: 'Subjek' },
+          ]}
+          activeTab={currentTab}
+          onChange={handleTabChange}
+        />
 
-      {/* 3. Toolbar: Search Bar (Aligned Right) */}
-      <div className="flex items-center justify-end mb-6">
+        {/* Search Bar Input */}
         <div className="relative w-full sm:w-64 md:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neu-400 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={handleSearchChange}
-            placeholder="Cari nama kategori..."
+            placeholder={`Cari nama ${entityLabel.toLowerCase()}...`}
             className="w-full pl-8.5 pr-8 py-1.5 text-[12px] rounded-[10px] border border-neu-50 bg-white placeholder-neu-400 text-neu-900 focus:outline-none focus:border-pr-900 focus:ring-1 focus:ring-pr-900 transition-all shadow-2xs"
           />
           {searchQuery && (
@@ -304,25 +346,26 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
         </div>
       </div>
 
-      {/* 4. Area Data: Tabel Kategori jika ada data, atau Empty State jika kosong */}
+      {/* 4. Area Data: Tabel Reusable jika ada data, atau Empty State jika kosong */}
       <div className="mb-6">
         {hasData ? (
           <CategoryTable
-            categories={paginatedCategories}
+            items={paginatedData}
+            type={currentTab}
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={handleSort}
-            onEdit={(cat) => {
+            onEdit={(item) => {
               setServerError(null);
-              setEditingCat(cat);
+              setEditingItem(item);
             }}
-            onDelete={(cat) => setDeletingCat(cat)}
+            onDelete={(item) => setDeletingItem(item)}
           />
         ) : (
           <EmptyState
             icon={<Gavel className="w-7 h-7 text-gray-400 stroke-[1.5]" />}
-            title="Belum ada Kategori hukum"
-            description='Silakan tambahkan data kategori melalui tombol "Tambah Kategori"'
+            title={`Belum ada ${entityLabel} hukum`}
+            description={`Silakan tambahkan data ${entityLabel.toLowerCase()} melalui tombol "Tambah ${entityLabel}"`}
           />
         )}
       </div>
@@ -337,29 +380,34 @@ export default function KategoriHukumIndex({ kategori, filters }: KategoriHukumI
         onPageSizeChange={handlePageSizeChange}
       />
 
-      {/* ── MODALS ── */}
-      {/* Modal Tambah / Edit Kategori */}
+      {/* ── MODALS REUSABLE ── */}
+      {/* Modal Tambah / Edit (Kategori / Subjek) */}
       <CategoryModal
-        show={isAddModalOpen || Boolean(editingCat)}
-        categoryData={editingCat}
+        show={isAddModalOpen || Boolean(editingItem)}
+        type={currentTab}
+        categoryData={editingItem}
         isLoading={isSubmitting}
         serverError={serverError}
         onClose={() => {
           setIsAddModalOpen(false);
-          setEditingCat(null);
+          setEditingItem(null);
           setServerError(null);
         }}
-        onSave={handleSaveCategory}
+        onSave={handleSave}
       />
 
-      {/* Modal Konfirmasi Hapus Kategori */}
+      {/* Modal Konfirmasi Hapus (Kategori / Subjek) */}
       <DeleteConfirmModal
-        show={Boolean(deletingCat)}
-        title="Hapus Kategori Hukum?"
-        itemName={deletingCat?.kategori}
+        show={Boolean(deletingItem)}
+        title={`Hapus ${entityLabel} Hukum?`}
+        itemName={
+          deletingItem?.nama ||
+          deletingItem?.subjek ||
+          deletingItem?.kategori
+        }
         isLoading={isDeleting}
         onClose={() => {
-          if (!isDeleting) setDeletingCat(null);
+          if (!isDeleting) setDeletingItem(null);
         }}
         onConfirm={handleConfirmDelete}
       />

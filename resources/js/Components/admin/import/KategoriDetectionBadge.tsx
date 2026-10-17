@@ -4,9 +4,10 @@ import { Info, CheckCircle2 } from 'lucide-react';
 interface Props {
   detected: string | null;
   isNew: boolean;
+  isMixed?: boolean;
 }
 
-export const KategoriDetectionBadge: React.FC<Props> = ({ detected, isNew }) => {
+export const KategoriDetectionBadge: React.FC<Props> = ({ detected, isNew, isMixed }) => {
   if (!detected) return null;
   
   return (
@@ -26,7 +27,7 @@ export const KategoriDetectionBadge: React.FC<Props> = ({ detected, isNew }) => 
         <p className={`font-sans text-[13px] font-medium ${
           isNew ? 'text-sky-900' : 'text-emerald-900'
         }`}>
-          {isNew ? 'Kategori Baru Terdeteksi' : 'Kategori Ditemukan'}
+          {isNew ? 'Kategori Baru Terdeteksi' : isMixed ? 'Beberapa Kategori Terdeteksi' : 'Kategori Ditemukan'}
         </p>
         <p className={`font-sans text-[12.5px] mt-1 ${
           isNew ? 'text-sky-700' : 'text-emerald-700'
@@ -35,6 +36,10 @@ export const KategoriDetectionBadge: React.FC<Props> = ({ detected, isNew }) => 
             <>
               Sistem menemukan kategori <strong>"{detected}"</strong> dari file JSON. 
               Kategori ini belum ada di database dan akan otomatis dibuat saat Anda memulai import.
+            </>
+          ) : isMixed ? (
+            <>
+              Sistem mendeteksi kategori <strong>{detected}</strong> dari kumpulan file JSON yang diunggah. Setiap file akan dikategorikan sesuai dengan informasinya masing-masing.
             </>
           ) : (
             <>

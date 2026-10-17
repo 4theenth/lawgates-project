@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
-import { Breadcrumb } from '@/Components/admin/Breadcrumb';
+import { Breadcrumb } from '@/Components/common/Breadcrumb';
 import { ComparisonSelectorCard } from '@/Components/comparison/ComparisonSelectorCard';
 import { ComparisonDocumentCard } from '@/Components/comparison/ComparisonDocumentCard';
 import { ComparisonTable } from '@/Components/comparison/ComparisonTable';
@@ -105,10 +105,10 @@ export default function Bandingkan() {
     <PublicLayout>
       <Head title="Membandingkan Sistem Hukum - LawGates" />
       <div className="w-full bg-[#F8FAFC] min-h-screen">
-        <div className={`pt-20 sm:pt-24 pb-12 sm:pb-16 ${PAGE_CONTAINER} text-neu-900 min-w-0 space-y-6 sm:space-y-7`}>
+        <div className="pt-24 pb-12 sm:pb-16 w-full max-w-[1240px] mx-auto px-4 sm:px-6 text-neu-900 min-w-0 space-y-6 sm:space-y-7">
           {/* Header Judul Sesuai Desain (16px) */}
           <div>
-            <Breadcrumb items={breadcrumbItems} className="mb-3 text-xs text-neu-500" />
+            <Breadcrumb items={breadcrumbItems} className="mb-4 sm:mb-6 text-xs text-neu-500" />
             <h1 className="text-lg font-semibold text-neu-900 tracking-tight">
               Membandingkan Sistem Hukum
             </h1>

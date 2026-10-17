@@ -1,12 +1,28 @@
 import { useState } from 'react';
-import { LogIn, Menu, X, User, LogOut, ChevronDown, LayoutDashboard } from 'lucide-react';
+import { LogIn, Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
 import { Link, usePage } from '@inertiajs/react';
 import { NAVBAR_MENUS, NAVBAR_THEME } from '../../config/navigation';
 import type { MenuItem } from '../../types/navigation';
-import { PAGE_CONTAINER } from '../../Layouts/PublicLayout';
 import Dropdown from '@/Components/common/Dropdown';
 import ApplicationLogo from '@/Components/common/ApplicationLogo';
 import profileAvatar from '@/assets/profile-avatar.webp';
+
+interface NavPillButtonProps {
+  href: string;
+  label: string;
+}
+
+function NavPillButton({ href, label }: NavPillButtonProps) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2 bg-pr-900 hover:bg-pr-800 border border-pr-800 text-white px-4 py-2 rounded-[12px] text-xs font-normal tracking-wider transition-all shadow-sm"
+    >
+      <span>{label}</span>
+      <LogIn className="w-3.5 h-3.5 text-white" />
+    </Link>
+  );
+}
 
 interface NavbarProps {
   isScrolled: boolean;
@@ -26,18 +42,21 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
   const displayRole = user?.role || 'user';
   const isAdmin = user && ['admin', 'superadmin'].includes(user.role);
 
+  // Bersihkan parameter query dan hash agar pengecekan path URL akurat
+  const currentPath = url ? url.split('?')[0].split('#')[0] : '/';
+
   // Helper untuk menentukan apakah menu sedang aktif berdasarkan URL saat ini
   const isMenuActive = (path: string, isIndex?: boolean) => {
     if (isIndex || path === '/') {
-      return url === '/' || url === '';
+      return currentPath === '/' || currentPath === '';
     }
     if (path === '#' || !path) {
       return false;
     }
-    return url === path || (path !== '/' && url.startsWith(`${path}/`));
+    return currentPath === path || (path !== '/' && currentPath.startsWith(`${path}/`));
   };
 
-  const isHome = url === '/' || url.startsWith('/?');
+  const isHome = currentPath === '/' || currentPath === '';
   const isPill = isScrolled;
   const isLightPage = !isHome;
   const theme = isLightPage || isPill ? NAVBAR_THEME.scrolled : NAVBAR_THEME.default;
@@ -68,9 +87,13 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
             />
           </Link>
 
-          {/* Desktop Auth Section (Login Button OR User Profile Dropdown) */}
-          <div className="hidden md:flex items-center gap-4 z-10 transition-transform duration-200 ease-out">
-            {user ? (
+          {/* Desktop Auth Section (DASHBOARD button for Admin, Profile Dropdown for User, LOGIN for Guest) */}
+          <div className="hidden md:flex items-center gap-3 z-10 transition-transform duration-200 ease-out">
+            {isAdmin ? (
+              // Khusus Admin & Superadmin: Hanya tombol DASHBOARD (avatar dihilangkan)
+              <NavPillButton href={route('admin.dashboard')} label="DASHBOARD" />
+            ) : user ? (
+              // User biasa: Avatar dropdown profile
               <Dropdown>
                 <Dropdown.Trigger>
                   <button
@@ -102,24 +125,13 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
 
                   {/* Menu Items */}
                   <div className="py-1">
-                    {isAdmin && (
-                      <Dropdown.Link
-                        href={route('admin.dashboard')}
-                        className="flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors"
-                      >
-                        <LayoutDashboard className="w-3.5 h-3.5 text-neu-500" />
-                        <span>Dashboard Admin</span>
-                      </Dropdown.Link>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={(e) => e.preventDefault()}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors text-left cursor-default select-none"
+                    <Dropdown.Link
+                      href={route('profile.edit')}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors text-left cursor-pointer"
                     >
                       <User className="w-3.5 h-3.5 text-neu-500" />
                       <span>Pengaturan Profil</span>
-                    </button>
+                    </Dropdown.Link>
 
                     <Dropdown.Link
                       href={route('logout')}
@@ -134,13 +146,8 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                 </Dropdown.Content>
               </Dropdown>
             ) : (
-              <Link
-                href="/login"
-                className="flex items-center gap-2 bg-pr-900 hover:bg-pr-800 border border-pr-800 text-white px-5 py-2 rounded-full text-xs font-semibold tracking-wider transition-all shadow-sm"
-              >
-                <span>LOGIN</span>
-                <LogIn className="w-3.5 h-3.5 text-white" />
-              </Link>
+              // Belum login: Tombol LOGIN
+              <NavPillButton href="/login" label="LOGIN" />
             )}
           </div>
 
@@ -310,25 +317,25 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                 </div>
 
                 <div className="flex flex-col gap-1 pt-2">
-                  {isAdmin && (
+                  {isAdmin ? (
                     <Link
                       href={route('admin.dashboard')}
                       onClick={() => setMobileMenuOpen(false)}
                       className="flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-neu-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
                     >
-                      <LayoutDashboard className="w-4 h-4 text-sec-900" />
+                      <LogIn className="w-4 h-4 text-sec-900" />
                       <span>Dashboard Admin</span>
                     </Link>
+                  ) : (
+                    <Link
+                      href={route('profile.edit')}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-neu-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
+                    >
+                      <User className="w-4 h-4 text-neu-300" />
+                      <span>Pengaturan Profil</span>
+                    </Link>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-neu-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-default select-none"
-                  >
-                    <User className="w-4 h-4 text-neu-300" />
-                    <span>Pengaturan Profil</span>
-                  </button>
 
                   <Link
                     href={route('logout')}

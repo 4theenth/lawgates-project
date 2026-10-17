@@ -53,8 +53,8 @@ export const MAP_THEME = {
     selected: {
       fillColor: '#0A1C3E', // --color-pr-900
       color: '#0A1C3E',     // --color-pr-900
-      weight: 2,
-      fillOpacity: 1,
+      weight: 2.5,
+      fillOpacity: 0.45,    // Semi-transparan agar kontur & peta pulau di bawahnya tetap terlihat jelas
       opacity: 1,
       className: 'cursor-pointer',
     },

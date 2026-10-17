@@ -57,7 +57,7 @@ class LoginRequest extends FormRequest
         $this->ensureIsNotRateLimited();
 
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
+            RateLimiter::hit($this->throttleKey(), 900);
 
             throw ValidationException::withMessages([
                 'auth' => 'invalid_credentials',
@@ -82,10 +82,11 @@ class LoginRequest extends FormRequest
         event(new Lockout($this));
 
         $seconds = RateLimiter::availableIn($this->throttleKey());
+        $minutes = (int) ceil($seconds / 60);
 
         throw ValidationException::withMessages([
             'auth' => 'rate_limited',
-            'email' => 'rate_limited',
+            'email' => "Akun Anda terkunci sementara karena 5 kali percobaan login yang salah. Silakan coba lagi dalam {$minutes} menit.",
         ]);
     }
 
