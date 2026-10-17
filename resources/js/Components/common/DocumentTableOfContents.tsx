@@ -59,6 +59,8 @@ export interface DocumentTableOfContentsProps {
   defaultExpandFirstCount?: number;
   /** Callback saat header/ikon Daftar Isi diklik (berguna untuk toggle minimize) */
   onHeaderClick?: () => void;
+  /** Varian tampilan: 'card' (kartu melayang) atau 'integrated' (panel menyatu tanpa border luar) */
+  variant?: 'card' | 'integrated';
 }
 
 export function DocumentTableOfContents({
@@ -76,6 +78,7 @@ export function DocumentTableOfContents({
   headerTitle = 'DAFTAR ISI',
   defaultExpandFirstCount = 2,
   onHeaderClick,
+  variant = 'card',
 }: DocumentTableOfContentsProps) {
   const [expandedBabs, setExpandedBabs] = useState<Record<string, boolean>>({});
   const [isPembukaanExpanded, setIsPembukaanExpanded] = useState<boolean>(false);
@@ -190,7 +193,11 @@ export function DocumentTableOfContents({
   return (
     <aside
       aria-label="Daftar Isi Dokumen"
-      className={`w-full lg:w-[258px] shrink-0 bg-white rounded-[20px] border border-neu-50 p-[14px_18px] shadow-2xs flex flex-col gap-4 font-sans ${className}`}
+      className={
+        variant === 'integrated'
+          ? `w-full shrink-0 flex flex-col gap-3 font-sans overflow-y-auto custom-scrollbar ${className}`
+          : `w-full lg:w-[258px] shrink-0 bg-white rounded-[20px] border border-neu-50 p-[14px_18px] shadow-2xs flex flex-col gap-4 font-sans ${className}`
+      }
     >
       {/* ── HEADER DAFTAR ISI (Figma node #2258:48480) ───────────────── */}
       {!hideHeader && (

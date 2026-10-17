@@ -9,6 +9,8 @@ export interface CorrectionTableOfContentsProps {
   onPasalClick?: (babId: string, pasalId: string) => void;
   onPembukaanClick?: () => void;
   className?: string;
+  variant?: 'card' | 'integrated';
+  hideHeader?: boolean;
 }
 
 /**
@@ -22,6 +24,8 @@ export function CorrectionTableOfContents({
   onPasalClick,
   onPembukaanClick,
   className = '',
+  variant = 'card',
+  hideHeader = false,
 }: CorrectionTableOfContentsProps) {
   return (
     <DocumentTableOfContents
@@ -31,7 +35,9 @@ export function CorrectionTableOfContents({
       onPasalClick={onPasalClick}
       onPembukaanClick={onPembukaanClick}
       scrollContainerId="editor-scroll-container"
-      className={`h-[calc(100vh-140px)] min-h-[500px] ${className}`}
+      variant={variant}
+      hideHeader={hideHeader}
+      className={variant === 'card' ? `h-[calc(100vh-140px)] min-h-[500px] ${className}` : className}
     />
   );
 }

@@ -2,7 +2,7 @@ import React from 'react';
 import { FileText, Tag } from 'lucide-react';
 import { AutoResizeTextarea } from './AutoResizeTextarea';
 
-interface CorrectionHeaderSectionProps {
+export interface CorrectionHeaderSectionProps {
   standarId: string;
   judul: string;
   isOpenStandarId?: boolean;
@@ -11,6 +11,7 @@ interface CorrectionHeaderSectionProps {
   onToggleJudul?: () => void;
   onChangeStandarId: (value: string) => void;
   onChangeJudul: (value: string) => void;
+  isSplitMode?: boolean;
 }
 
 export function CorrectionHeaderSection({
@@ -18,6 +19,7 @@ export function CorrectionHeaderSection({
   judul,
   onChangeStandarId,
   onChangeJudul,
+  isSplitMode = false,
 }: CorrectionHeaderSectionProps) {
   return (
     <div className="bg-white rounded-[20px] border border-neu-100 p-5 shadow-2xs space-y-4">
@@ -37,9 +39,9 @@ export function CorrectionHeaderSection({
         </span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={isSplitMode ? "flex flex-col gap-4" : "grid grid-cols-1 md:grid-cols-3 gap-4"}>
         {/* Standar ID Editor */}
-        <div className="md:col-span-1 space-y-1.5">
+        <div className={isSplitMode ? "w-full space-y-1.5" : "md:col-span-1 space-y-1.5"}>
           <label className="text-[11px] font-bold text-pr-900 tracking-wide uppercase flex items-center gap-1.5">
             <Tag className="w-3.5 h-3.5 text-pr-700" />
             <span>STANDAR ID</span>
@@ -48,13 +50,13 @@ export function CorrectionHeaderSection({
             type="text"
             value={standarId}
             onChange={(e) => onChangeStandarId(e.target.value)}
-            className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-200 text-[12px] font-semibold text-neu-900 focus:outline-none focus:bg-white focus:border-pr-900 transition-all"
+            className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-200 text-[12px] font-semibold text-neu-900 focus:outline-none focus:bg-white focus:border-pr-900 transition-all font-mono"
             placeholder="e.g. UU_No_6_2023"
           />
         </div>
 
         {/* Judul Peraturan Editor */}
-        <div className="md:col-span-2 space-y-1.5">
+        <div className={isSplitMode ? "w-full space-y-1.5" : "md:col-span-2 space-y-1.5"}>
           <label className="text-[11px] font-bold text-pr-900 tracking-wide uppercase flex items-center gap-1.5">
             <FileText className="w-3.5 h-3.5 text-pr-700" />
             <span>JUDUL PERATURAN</span>

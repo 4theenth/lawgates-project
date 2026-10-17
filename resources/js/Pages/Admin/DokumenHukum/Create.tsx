@@ -435,6 +435,8 @@ export default function DokumenHukumCreate() {
           isDuplicate,
           duplicateMessage: isDuplicate ? duplicateMsg : undefined,
           parsedData: liveParsedData || fallbackParsedData,
+          folder_path: (mf as any).folder_path,
+          file_path: (mf as any).file_path,
         };
       })
     );
@@ -506,6 +508,8 @@ export default function DokumenHukumCreate() {
       progressPercent: 10,
       rawFile: file.rawFile,
       parsedData: file.parsedData,
+      folder_path: file.folder_path,
+      file_path: file.file_path,
     }));
 
     setProcessList(initialProcess);
@@ -558,6 +562,8 @@ export default function DokumenHukumCreate() {
             title,
             rawFile: f.rawFile,
             parsedData: f.parsedData,
+            folder_path: f.folder_path,
+            file_path: f.file_path,
           };
         });
       setValidatedFiles(validated);
