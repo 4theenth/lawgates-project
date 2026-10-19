@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/Components/ui/button';
 import { Icon } from '@/Components/ui/icon';
 import { useAuthModal } from '@/hooks/useAuthModal';
-import { extractProvinceName, getRegenciesForProvince } from './map/regencyData';
+import { useFilterReferences } from '@/hooks/useFilterReferences';
+import { FlatLocationPicker } from '@/Components/search/filters/FlatLocationPicker';
 
 interface SearchFilterBarProps {
   isScrolled: boolean;
@@ -13,17 +14,6 @@ interface FilterOption {
   value: string;
   label: string;
 }
-
-const DEFAULT_SUBJEK_OPTIONS: FilterOption[] = [
-  { value: 'perpajakan', label: 'Perpajakan' },
-  { value: 'ketenagakerjaan', label: 'Ketenagakerjaan' },
-  { value: 'keuangan', label: 'Keuangan & Perbankan' },
-  { value: 'kesehatan', label: 'Kesehatan' },
-  { value: 'pendidikan', label: 'Pendidikan' },
-  { value: 'lingkungan', label: 'Lingkungan Hidup' },
-  { value: 'perdagangan', label: 'Perdagangan & Industri' },
-  { value: 'hukum-peradilan', label: 'Hukum & Peradilan' },
-];
 
 // ─────────────────────────────────────────────
 // Multi-Select Dropdown (Kategori & Status)
@@ -440,6 +430,15 @@ function YearRangeDropdown({
 // ─────────────────────────────────────────────
 export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) {
   const { requireAuth } = useAuthModal();
+  const {
+    listKategori,
+    listSubjek,
+    kategoriOptions,
+    statusOptions,
+    allFlatLokasi,
+    availableYears,
+  } = useFilterReferences();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -449,34 +448,14 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
   const [selectedSubjek, setSelectedSubjek] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedLokasi, setSelectedLokasi] = useState<string[]>([]);
-  const [lokasiSearchQuery, setLokasiSearchQuery] = useState('');
 
   // Year range state
   const [tahunDari, setTahunDari] = useState('');
   const [tahunSampai, setTahunSampai] = useState('');
 
   const [activeDropdown, setActiveDropdown] = useState<'kategori' | 'tahun' | 'status' | 'lokasi' | 'subjek' | null>(null);
-
-  const [listKategori, setListKategori] = useState<any[]>([]);
-  const [listStatus, setListStatus] = useState<any[]>([]);
-  const [listTahun, setListTahun] = useState<string[]>([]);
-  const [listLokasi, setListLokasi] = useState<string[]>([]);
-  const [listSubjek, setListSubjek] = useState<string[]>([]);
   
   const filterContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetch('/api/referensi-filter')
-      .then((res) => res.json())
-      .then((data) => {
-        setListKategori(data.kategori || []);
-        setListStatus(data.status || []);
-        setListTahun(data.tahun || []);
-        setListLokasi(data.lokasi_daerah || []);
-        setListSubjek(data.subjek || []);
-      })
-      .catch((err) => console.error('Gagal memuat referensi:', err));
-  }, []);
 
   // Tutup dropdown saat user mengklik di luar area filter
   useEffect(() => {
@@ -551,21 +530,6 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
     });
   };
 
-  const kategoriOptions: FilterOption[] = listKategori.map((k) => ({
-    value: String(k.id),
-    label: k.nama,
-  }));
-
-  const statusOptions: FilterOption[] = listStatus.map((s) => ({
-    value: String(s.id),
-    label: s.nama,
-  }));
-
-  const lokasiOptions: FilterOption[] = listLokasi.map((l) => ({
-    value: l,
-    label: l,
-  }));
-
   const subjekOptions: FilterOption[] = listSubjek
     .map((s) => ({
       value: s,
@@ -591,44 +555,6 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
       setSelectedLokasi([]);
     }
   }, [isPerdaSelected]);
-
-  const baseLokasiList = listLokasi.length > 0
-    ? listLokasi
-    : ['Pemerintah Provinsi Bali', 'Pemerintah Provinsi Nusa Tenggara Timur'];
-
-  // Flat list sejajar untuk semua entitas (Provinsi, Kabupaten, dan Kota)
-  const allFlatLokasi = useMemo(() => {
-    const items = new Set<string>();
-    baseLokasiList.forEach((prov: string) => {
-      items.add(prov);
-      const { key, name } = extractProvinceName(prov);
-      const regData = getRegenciesForProvince(key, name);
-      regData.regencies.forEach((r) => {
-        items.add(`${r.type} ${r.name}`);
-      });
-    });
-    return Array.from(items).sort((a, b) => a.localeCompare(b, 'id'));
-  }, [baseLokasiList]);
-
-  const filteredFlatLokasi = allFlatLokasi.filter((item: string) => {
-    const q = lokasiSearchQuery.toLowerCase().trim();
-    if (!q) return true;
-    return item.toLowerCase().includes(q);
-  });
-
-  const currentYear = new Date().getFullYear();
-  const availableYears = Array.from(
-    new Set([
-      ...listTahun.map(String),
-      String(currentYear),
-      String(currentYear - 1),
-      String(currentYear - 2),
-      String(currentYear - 3),
-      String(currentYear - 4),
-      String(currentYear - 5),
-      String(currentYear - 6),
-    ])
-  ).sort((a, b) => Number(b) - Number(a));
 
   return (
     <div className="relative w-full max-w-[699px] h-[54px] sm:h-[60px]">
@@ -784,78 +710,19 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
                   if (!isPerda) return null;
 
                   return (
-                    <div className="mt-1 mb-2 ml-7 pr-1 pl-2 border-l border-white/20">
-                      <div className="relative mb-2">
-                        <Icon name="search" className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-neu-400" />
-                        <input
-                          type="text"
-                          value={lokasiSearchQuery}
-                          onChange={(e) => setLokasiSearchQuery(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          placeholder="Cari provinsi / kabupaten..."
-                          className="w-full pl-6 pr-2 py-1.5 bg-white/5 border border-white/10 rounded-md text-[11px] text-white outline-none focus:outline-none focus:ring-0 focus:border-white/20 placeholder:text-neu-400 transition-colors"
-                        />
-                      </div>
-
-                      {/* Tag pill daerah yang dipilih (seperti entitas di referensi gambar) */}
-                      {selectedLokasi.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mb-2 p-1.5 bg-white/5 rounded-lg border border-white/10 max-h-24 overflow-y-auto no-scrollbar">
-                          {selectedLokasi.map((lokasi) => (
-                            <span
-                              key={lokasi}
-                              className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-white/10 hover:bg-white/15 text-white text-[11px] rounded-md transition-colors"
-                            >
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedLokasi((prev) => prev.filter((v) => v !== lokasi));
-                                }}
-                                className="text-neu-400 hover:text-white cursor-pointer"
-                              >
-                                <Icon name="x" className="w-3 h-3" />
-                              </button>
-                              <span>{lokasi}</span>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="max-h-56 overflow-y-auto no-scrollbar space-y-0.5">
-                        {filteredFlatLokasi.length === 0 ? (
-                          <div className="text-[10px] text-neu-400 text-center py-2">Daerah tidak ditemukan</div>
-                        ) : (
-                          filteredFlatLokasi.map((item: string) => {
-                            const isChecked = selectedLokasi.includes(item);
-                            return (
-                              <div
-                                key={item}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setSelectedLokasi((prev) =>
-                                    prev.includes(item)
-                                      ? prev.filter((v) => v !== item)
-                                      : [...prev, item]
-                                  );
-                                }}
-                                className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors hover:bg-white/10 ${
-                                  isChecked
-                                    ? 'text-white font-medium bg-white/5'
-                                    : 'text-neu-200 hover:text-white'
-                                }`}
-                              >
-                                <span className="text-[11.5px] leading-[1.3] truncate select-none flex-1">
-                                  {item}
-                                </span>
-                                {isChecked && (
-                                  <Icon name="check" className="w-3.5 h-3.5 text-white stroke-[2.5] shrink-0" />
-                                )}
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
+                    <FlatLocationPicker
+                      selectedLokasi={selectedLokasi}
+                      onToggleLokasi={(item) =>
+                        setSelectedLokasi((prev) =>
+                          prev.includes(item) ? prev.filter((v) => v !== item) : [...prev, item]
+                        )
+                      }
+                      onRemoveLokasi={(lokasi) =>
+                        setSelectedLokasi((prev) => prev.filter((v) => v !== lokasi))
+                      }
+                      allFlatLokasi={allFlatLokasi}
+                      variant="dark"
+                    />
                   );
                 }}
               />
