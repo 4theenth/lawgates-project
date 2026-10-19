@@ -217,7 +217,7 @@ export function FilterPopover({
                   />
                 </div>
                 
-                <div className="max-h-36 overflow-y-auto space-y-1 pr-1 custom-thin-scrollbar">
+                <div className="max-h-36 overflow-y-auto space-y-1 no-scrollbar">
                   {filteredLokasi.length === 0 ? (
                     <div className="text-center py-2 text-[11px] text-neu-500">
                       Daerah tidak ditemukan

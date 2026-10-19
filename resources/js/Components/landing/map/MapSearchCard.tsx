@@ -95,7 +95,7 @@ export function MapSearchCard({
 
       {/* Dropdown Pencarian Otomatis (Mendukung Provinsi & Kabupaten/Kota) */}
       {isSearchFocused && searchQuery.trim().length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-neu-200 rounded-xl shadow-lg max-h-64 overflow-y-auto custom-thin-scrollbar z-50 py-1">
+        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-neu-200 rounded-xl shadow-lg max-h-64 overflow-y-auto no-scrollbar z-50 py-1">
           {items.length > 0 ? (
             items.map((item) => (
               <button

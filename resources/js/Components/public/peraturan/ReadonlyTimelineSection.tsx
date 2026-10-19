@@ -68,7 +68,7 @@ export function ReadonlyTimelineSection({
       {/* Vertical Timeline - Scrollable container responsif */}
       <div
         ref={scrollContainerRef}
-        className="relative pl-1 flex-1 min-h-0 overflow-y-auto pr-1.5 custom-scrollbar"
+        className="relative pl-1 flex-1 min-h-0 overflow-y-auto no-scrollbar"
       >
         {riwayatPerubahan.map((item, index) => {
           const isLast = index === riwayatPerubahan.length - 1;
