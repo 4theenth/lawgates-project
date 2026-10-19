@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Filter, RotateCcw, ChevronDown, Check, Search } from 'lucide-react';
 import { FilterOption } from '@/types/peraturan';
 import { getRegenciesForProvince, extractProvinceName } from '@/Components/landing/map/regencyData';
+import { FlatLocationPicker } from '@/Components/search/filters/FlatLocationPicker';
 
 export interface CategoryFilterPopoverProps {
   selectedStatus: string[];
@@ -40,6 +41,7 @@ export interface CategoryFilterPopoverProps {
     | React.Dispatch<React.SetStateAction<string[]>>
     | ((lokasi: string[]) => void);
   lokasiOptions?: FilterOption[];
+  allFlatLokasi?: string[];
 
   variant?: 'popover' | 'sidebar' | 'horizontal';
   isMultiSelect?: boolean;
@@ -69,6 +71,7 @@ export function CategoryFilterPopover({
   selectedLokasi = [],
   setSelectedLokasi,
   lokasiOptions = [],
+  allFlatLokasi = [],
   variant = 'popover',
   isMultiSelect = true,
   onClose,
@@ -83,8 +86,6 @@ export function CategoryFilterPopover({
     sampai: true,
   });
   const [subjekSearch, setSubjekSearch] = useState('');
-  const [lokasiSearchQuery, setLokasiSearchQuery] = useState('');
-  const [expandedProvinces, setExpandedProvinces] = useState<Record<string, boolean>>({});
 
   const filterContainerRef = useRef<HTMLDivElement>(null);
 
@@ -169,7 +170,6 @@ export function CategoryFilterPopover({
     setActiveDropdown(null);
     setOpenYearSub({ dari: true, sampai: true });
     setSubjekSearch('');
-    setLokasiSearchQuery('');
     if (setSelectedLokasi) setSelectedLokasi([]);
     onReset();
   };
@@ -257,16 +257,21 @@ export function CategoryFilterPopover({
           { value: 'Pemerintah Provinsi Nusa Tenggara Timur', label: 'Pemerintah Provinsi Nusa Tenggara Timur' },
         ];
 
-  const filteredLokasiOptions = baseLokasiList.filter((opt) => {
-    const q = lokasiSearchQuery.toLowerCase().trim();
-    if (!q) return true;
-    if (opt.label.toLowerCase().includes(q)) return true;
-    const { key, name } = extractProvinceName(opt.label);
-    const regData = getRegenciesForProvince(key, name);
-    return regData.regencies.some(
-      (r) => r.name.toLowerCase().includes(q) || `${r.type} ${r.name}`.toLowerCase().includes(q)
-    );
-  });
+  const computedFlatLokasi = useMemo(() => {
+    if (allFlatLokasi && allFlatLokasi.length > 0) {
+      return allFlatLokasi;
+    }
+    const items = new Set<string>();
+    baseLokasiList.forEach((opt) => {
+      items.add(opt.label);
+      const { key, name } = extractProvinceName(opt.label);
+      const regData = getRegenciesForProvince(key, name);
+      regData.regencies.forEach((r) => {
+        items.add(`${r.type} ${r.name}`);
+      });
+    });
+    return Array.from(items).sort((a, b) => a.localeCompare(b, 'id'));
+  }, [allFlatLokasi, baseLokasiList]);
 
   const filterBodyContent = (
     <div className="space-y-4">
@@ -292,7 +297,7 @@ export function CategoryFilterPopover({
           </button>
 
           {activeDropdown === 'kategori' && (
-            <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-neu-100 rounded-xl p-3 space-y-2 shadow-xl z-50 max-h-56 overflow-y-auto no-scrollbar animate-in fade-in duration-100">
+            <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-white border border-neu-100 rounded-xl p-3 space-y-2 shadow-xl z-50 max-h-80 overflow-y-auto no-scrollbar animate-in fade-in duration-100">
               {kategoriOptions.map((item) => {
                 const isChecked = selectedKategori.includes(item.value);
                 const isPerdaItem =
@@ -318,145 +323,15 @@ export function CategoryFilterPopover({
                       <span className="text-xs text-neu-700 truncate">{item.label}</span>
                     </button>
 
-                    {/* Sub-pilihan Daerah jika Perda dipilih */}
+                    {/* Sub-pilihan Daerah jika Perda dipilih (Menggunakan FlatLocationPicker) */}
                     {isPerdaItem && isChecked && (
-                      <div className="pl-4 pr-1 pt-1 pb-2 flex flex-col gap-1.5 border-l-2 border-neu-200 ml-3 my-1">
-                        <div className="relative">
-                          <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-neu-400 pointer-events-none" />
-                          <input
-                            type="text"
-                            value={lokasiSearchQuery}
-                            onChange={(e) => setLokasiSearchQuery(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            placeholder="Cari provinsi / kabupaten..."
-                            className="w-full pl-6 pr-2 py-1 bg-neu-50 border border-neu-200 rounded-md text-[11px] text-neu-800 outline-none focus:ring-1 focus:ring-pr-900"
-                          />
-                        </div>
-                        <div className="max-h-40 overflow-y-auto space-y-1 no-scrollbar">
-                          {filteredLokasiOptions.length === 0 ? (
-                            <div className="text-[10px] text-neu-400 text-center py-1">
-                              Daerah tidak ditemukan
-                            </div>
-                          ) : (
-                            filteredLokasiOptions.map((lokasi) => {
-                              const isLokasiChecked = selectedLokasi.includes(lokasi.value);
-                              const { key: provKey, name: provName } = extractProvinceName(lokasi.label);
-                              const regData = getRegenciesForProvince(provKey, provName);
-
-                              const q = lokasiSearchQuery.toLowerCase().trim();
-                              const hasMatchingRegency = q.length > 0 && regData.regencies.some(
-                                (r) => r.name.toLowerCase().includes(q) || `${r.type} ${r.name}`.toLowerCase().includes(q)
-                              );
-                              const isExpanded = expandedProvinces[lokasi.value] || hasMatchingRegency;
-                              const matchingRegencies = q.length > 0
-                                ? regData.regencies.filter(
-                                    (r) => r.name.toLowerCase().includes(q) || `${r.type} ${r.name}`.toLowerCase().includes(q) || lokasi.label.toLowerCase().includes(q)
-                                  )
-                                : regData.regencies;
-
-                              const checkedRegCount = regData.regencies.filter((r) =>
-                                selectedLokasi.includes(`${r.type} ${r.name}`)
-                              ).length;
-
-                              return (
-                                <div key={lokasi.value} className="flex flex-col">
-                                  <div className="flex items-center justify-between gap-1 p-1 rounded hover:bg-neu-50 transition-colors group">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        handleToggleLokasi(lokasi.value);
-                                        if (onApply) onApply();
-                                      }}
-                                      className="text-left flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
-                                    >
-                                      <div
-                                        className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 transition-colors ${
-                                          isLokasiChecked
-                                            ? 'bg-pr-900 border-pr-900 text-white'
-                                            : 'border-neu-300 bg-white group-hover:border-neu-400'
-                                        }`}
-                                      >
-                                        {isLokasiChecked && (
-                                          <Check className="w-2.5 h-2.5 text-white stroke-[3]" />
-                                        )}
-                                      </div>
-                                      <span className="text-[11px] text-neu-700 group-hover:text-neu-900 truncate">
-                                        {lokasi.label}
-                                      </span>
-                                    </button>
-
-                                    {/* Dropdown toggle untuk Kabupaten */}
-                                    {regData.regencies.length > 0 && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          setExpandedProvinces((prev) => ({
-                                            ...prev,
-                                            [lokasi.value]: !prev[lokasi.value],
-                                          }));
-                                        }}
-                                        className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-neu-500 hover:text-pr-900 hover:bg-neu-100 transition-colors shrink-0"
-                                        title="Buka daftar Kabupaten/Kota"
-                                      >
-                                        {checkedRegCount > 0 ? (
-                                          <span className="text-[9px] font-semibold text-pr-900 bg-pr-100 px-1 py-0.2 rounded">
-                                            {checkedRegCount} dipilih
-                                          </span>
-                                        ) : (
-                                          <span className="text-[9px] text-neu-400 hidden sm:inline">
-                                            {regData.regencies.length} Kab/Kota
-                                          </span>
-                                        )}
-                                        <ChevronDown
-                                          className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180 text-pr-900' : ''}`}
-                                        />
-                                      </button>
-                                    )}
-                                  </div>
-
-                                  {/* Sub-list Kabupaten/Kota */}
-                                  {isExpanded && matchingRegencies.length > 0 && (
-                                    <div className="ml-5 pl-2 my-0.5 space-y-0.5 border-l border-neu-200 animate-in fade-in duration-150">
-                                      {matchingRegencies.map((reg) => {
-                                        const regValue = `${reg.type} ${reg.name}`;
-                                        const isRegChecked = selectedLokasi.includes(regValue);
-                                        return (
-                                          <button
-                                            key={reg.id || reg.name}
-                                            type="button"
-                                            onClick={() => {
-                                              handleToggleLokasi(regValue);
-                                              if (onApply) onApply();
-                                            }}
-                                            className="w-full text-left flex items-center gap-2 px-1 py-0.5 rounded hover:bg-neu-50 transition-colors cursor-pointer group"
-                                          >
-                                            <div
-                                              className={`w-3 h-3 rounded-[2.5px] border flex items-center justify-center shrink-0 transition-colors ${
-                                                isRegChecked
-                                                  ? 'bg-pr-900 border-pr-900 text-white'
-                                                  : 'border-neu-300 bg-white group-hover:border-neu-400'
-                                              }`}
-                                            >
-                                              {isRegChecked && (
-                                                <Check className="w-2 h-2 text-white stroke-[3]" />
-                                              )}
-                                            </div>
-                                            <span className="text-[10.5px] text-neu-600 group-hover:text-neu-900 truncate">
-                                              {reg.type} {reg.name}
-                                            </span>
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
+                      <FlatLocationPicker
+                        selectedLokasi={selectedLokasi}
+                        onToggleLokasi={handleToggleLokasi}
+                        onRemoveLokasi={handleToggleLokasi}
+                        allFlatLokasi={computedFlatLokasi}
+                        variant="light"
+                      />
                     )}
                   </div>
                 );
@@ -770,7 +645,7 @@ export function CategoryFilterPopover({
             </button>
 
             {activeDropdown === 'kategori' && (
-              <div className="absolute top-[calc(100%+6px)] left-0 w-64 bg-white border border-neu-200 rounded-xl shadow-xl p-2.5 z-50 max-h-72 overflow-y-auto no-scrollbar animate-in fade-in duration-100">
+              <div className="absolute top-[calc(100%+6px)] left-0 w-72 sm:w-80 bg-white border border-neu-200 rounded-xl shadow-xl p-3 z-50 max-h-80 overflow-y-auto no-scrollbar animate-in fade-in duration-100">
                 <div className="space-y-1">
                   {kategoriOptions.map((item) => {
                     const isChecked = selectedKategori.includes(item.value);
@@ -802,144 +677,22 @@ export function CategoryFilterPopover({
                           </span>
                         </button>
 
-                        {/* Sub-pilihan Daerah jika Perda dipilih */}
+                        {/* Sub-pilihan Daerah jika Perda dipilih (Menggunakan FlatLocationPicker) */}
                         {isPerdaItem && isChecked && (
-                          <div className="pl-5 pr-1 pt-1 pb-2 flex flex-col gap-1.5 border-l-2 border-neu-200 ml-3.5 my-1">
-                            <div className="relative">
-                              <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-neu-400 pointer-events-none" />
-                              <input
-                                type="text"
-                                value={lokasiSearchQuery}
-                                onChange={(e) => setLokasiSearchQuery(e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                                placeholder="Cari provinsi / kabupaten..."
-                                className="w-full pl-6 pr-2 py-1 bg-neu-50 border border-neu-200 rounded-md text-[11px] text-neu-800 outline-none focus:ring-1 focus:ring-pr-900"
-                              />
-                            </div>
-                            <div className="max-h-48 overflow-y-auto space-y-1 no-scrollbar">
-                              {filteredLokasiOptions.length === 0 ? (
-                                <div className="text-[10px] text-neu-400 text-center py-1">
-                                  Daerah tidak ditemukan
-                                </div>
-                              ) : (
-                                filteredLokasiOptions.map((lokasi) => {
-                                  const isLokasiChecked = selectedLokasi.includes(lokasi.value);
-                                  const { key: provKey, name: provName } = extractProvinceName(lokasi.label);
-                                  const regData = getRegenciesForProvince(provKey, provName);
-
-                                  const q = lokasiSearchQuery.toLowerCase().trim();
-                                  const hasMatchingRegency = q.length > 0 && regData.regencies.some(
-                                    (r) => r.name.toLowerCase().includes(q) || `${r.type} ${r.name}`.toLowerCase().includes(q)
-                                  );
-                                  const isExpanded = expandedProvinces[lokasi.value] || hasMatchingRegency;
-                                  const matchingRegencies = q.length > 0
-                                    ? regData.regencies.filter(
-                                        (r) => r.name.toLowerCase().includes(q) || `${r.type} ${r.name}`.toLowerCase().includes(q) || lokasi.label.toLowerCase().includes(q)
-                                      )
-                                    : regData.regencies;
-
-                                  const checkedRegCount = regData.regencies.filter((r) =>
-                                    selectedLokasi.includes(`${r.type} ${r.name}`)
-                                  ).length;
-
-                                  return (
-                                    <div key={lokasi.value} className="flex flex-col">
-                                      <div className="flex items-center justify-between gap-1 p-1 rounded hover:bg-neu-100/60 transition-colors group">
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            handleToggleLokasi(lokasi.value);
-                                            if (onApply) onApply();
-                                          }}
-                                          className="text-left flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
-                                        >
-                                          <div
-                                            className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center shrink-0 transition-colors ${
-                                              isLokasiChecked
-                                                ? 'bg-pr-900 border-pr-900 text-white'
-                                                : 'border-neu-300 bg-white group-hover:border-neu-400'
-                                            }`}
-                                          >
-                                            {isLokasiChecked && (
-                                              <Check className="w-2.5 h-2.5 text-white stroke-[3]" />
-                                            )}
-                                          </div>
-                                          <span className="text-[11px] text-neu-700 group-hover:text-neu-900 truncate">
-                                            {lokasi.label}
-                                          </span>
-                                        </button>
-
-                                        {/* Dropdown toggle untuk Kabupaten */}
-                                        {regData.regencies.length > 0 && (
-                                          <button
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.preventDefault();
-                                              e.stopPropagation();
-                                              setExpandedProvinces((prev) => ({
-                                                ...prev,
-                                                [lokasi.value]: !prev[lokasi.value],
-                                              }));
-                                            }}
-                                            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-neu-500 hover:text-pr-900 hover:bg-neu-200/50 transition-colors shrink-0"
-                                            title="Buka daftar Kabupaten/Kota"
-                                          >
-                                            {checkedRegCount > 0 ? (
-                                              <span className="text-[9px] font-semibold text-pr-900 bg-pr-100 px-1 py-0.2 rounded">
-                                                {checkedRegCount} dipilih
-                                              </span>
-                                            ) : (
-                                              <span className="text-[9px] text-neu-400 hidden sm:inline">
-                                                {regData.regencies.length} Kab/Kota
-                                              </span>
-                                            )}
-                                            <ChevronDown
-                                              className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180 text-pr-900' : ''}`}
-                                            />
-                                          </button>
-                                        )}
-                                      </div>
-
-                                      {/* Sub-list Kabupaten/Kota */}
-                                      {isExpanded && matchingRegencies.length > 0 && (
-                                        <div className="ml-5 pl-2 my-0.5 space-y-0.5 border-l border-neu-200 animate-in fade-in duration-150">
-                                          {matchingRegencies.map((reg) => {
-                                            const regValue = `${reg.type} ${reg.name}`;
-                                            const isRegChecked = selectedLokasi.includes(regValue);
-                                            return (
-                                              <button
-                                                key={reg.id || reg.name}
-                                                type="button"
-                                                onClick={() => {
-                                                  handleToggleLokasi(regValue);
-                                                  if (onApply) onApply();
-                                                }}
-                                                className="w-full text-left flex items-center gap-2 px-1 py-0.5 rounded hover:bg-neu-100/60 transition-colors cursor-pointer group"
-                                              >
-                                                <div
-                                                  className={`w-3 h-3 rounded-[2.5px] border flex items-center justify-center shrink-0 transition-colors ${
-                                                    isRegChecked
-                                                      ? 'bg-pr-900 border-pr-900 text-white'
-                                                      : 'border-neu-300 bg-white group-hover:border-neu-400'
-                                                  }`}
-                                                >
-                                                  {isRegChecked && (
-                                                    <Check className="w-2 h-2 text-white stroke-[3]" />
-                                                  )}
-                                                </div>
-                                                <span className="text-[10.5px] text-neu-600 group-hover:text-neu-900 truncate">
-                                                  {reg.type} {reg.name}
-                                                </span>
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })
-                              )}
-                            </div>
+                          <div className="pt-2 border-t border-neu-100 mt-2">
+                            <FlatLocationPicker
+                              selectedLokasi={selectedLokasi}
+                              onToggleLokasi={(val) => {
+                                handleToggleLokasi(val);
+                                if (onApply) onApply();
+                              }}
+                              onRemoveLokasi={(val) => {
+                                handleToggleLokasi(val);
+                                if (onApply) onApply();
+                              }}
+                              allFlatLokasi={computedFlatLokasi}
+                              variant="light"
+                            />
                           </div>
                         )}
                       </div>
