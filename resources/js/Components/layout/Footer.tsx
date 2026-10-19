@@ -58,14 +58,14 @@ export function Footer() {
 
       {/* Main Container */}
       <div className="relative z-10 w-full max-w-[1202px] mx-auto px-4 sm:px-6 xl:px-0 pt-[41px] pb-8 flex flex-col justify-between min-h-[386px]">
-        <div className="flex flex-col md:flex-row justify-between gap-10 md:gap-4 min-h-[240px]">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-10 md:gap-0 min-h-[240px]">
           
-          {/* Kolom Kiri: Brand & Deskripsi */}
-          <div className="w-full md:flex-1 space-y-4 pr-4">
+          {/* Kolom Kiri: Brand & Deskripsi (Figma width: 354px) */}
+          <div className="w-full md:w-[354px] shrink-0 space-y-4">
             <Link href="/" className="inline-flex items-center" aria-label="Beranda LawGates">
               <ApplicationLogo className="h-[26px] sm:h-[28px] w-auto text-white" />
             </Link>
-            <p className="text-[14px] font-normal leading-[24px] text-white/80 max-w-sm text-justify">
+            <p className="text-[14px] font-normal leading-[24px] text-white/80 text-justify">
               LawGates adalah platform pangkalan data hukum terpadu yang merangkum seluruh peraturan perundang-undangan di Indonesia ke dalam satu titik akses pencarian tanpa harus menelusuri puluhan portal instansi pemerintah yang terpisah.
             </p>
 
@@ -92,10 +92,9 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Kolom Tengah: Jelajahi */}
-          <div className="w-full md:flex-1 flex md:justify-center">
-            <div className="space-y-4 w-full md:w-auto">
-              <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
+          {/* Kolom Tengah: Jelajahi (Figma width: 98px) */}
+          <div className="w-full md:w-[98px] shrink-0 space-y-4">
+            <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
               JELAJAHI
             </h4>
             <ul className="space-y-3">
@@ -135,17 +134,15 @@ export function Footer() {
                   </li>
                 );
               })}
-              </ul>
-            </div>
+            </ul>
           </div>
 
-          {/* Kolom Kanan: Kontak */}
-          <div className="w-full md:flex-1 flex md:justify-end">
-            <div className="space-y-4 w-full md:w-auto">
-              <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
-                KONTAK
-              </h4>
-              <ul className="space-y-3.5">
+          {/* Kolom Kanan: Kontak (Figma width: 168px) */}
+          <div className="w-full md:w-[168px] shrink-0 space-y-4">
+            <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
+              KONTAK
+            </h4>
+            <ul className="space-y-3.5">
               <li className="inline-flex items-center gap-3 text-[14px] text-white/80 cursor-default select-none">
                 <Mail className="w-4 h-4 text-white/60 shrink-0 stroke-[1.75]" />
                 <span>lawgates@gmail.com</span>
@@ -159,7 +156,6 @@ export function Footer() {
                 <span>081365638</span>
               </li>
             </ul>
-            </div>
           </div>
 
         </div>
