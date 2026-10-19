@@ -214,7 +214,7 @@ export function DocumentTableOfContents({
       )}
 
       {/* ── LIST STRUKTUR DOKUMEN (Figma node #2258:48483) ────────────── */}
-      <nav className="flex flex-col gap-1.5 overflow-y-auto custom-scrollbar flex-1 pr-0.5">
+      <nav className="flex flex-col gap-1.5 overflow-y-auto no-scrollbar flex-1 pr-0.5">
         {/* Item Pembukaan (Figma node #2258:48484) */}
         <div className="flex flex-col gap-1">
           <button

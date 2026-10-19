@@ -62,8 +62,8 @@ export function MapKabupatenFullListCard({
         </div>
       </div>
 
-      {/* 3. Scrollable List Seluruh Kabupaten/Kota dengan Custom Neu Scrollbar Tipis */}
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-2 mt-3 pr-1.5 custom-neu-scrollbar">
+      {/* 3. Scrollable List Seluruh Kabupaten/Kota dengan Seamless No-Scrollbar */}
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-2 mt-3 no-scrollbar">
         {filteredRegencies.length > 0 ? (
           filteredRegencies.map((item) => (
             <div

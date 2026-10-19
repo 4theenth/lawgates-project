@@ -59,7 +59,7 @@ export function DetailRiwayatPerubahan({
       </div>
 
       {/* Vertical Timeline */}
-      <div className="relative pl-1 max-h-[calc(100vh-280px)] overflow-y-auto pr-1 custom-scrollbar">
+      <div className="relative pl-1 max-h-[calc(100vh-280px)] overflow-y-auto no-scrollbar">
         {riwayat.map((item, index) => {
           const isLast = index === riwayat.length - 1;
 
