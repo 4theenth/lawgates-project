@@ -14,7 +14,7 @@ import { CorrectionBatangTubuhSection } from './CorrectionBatangTubuhSection';
 import { CorrectionTimelineSection } from './CorrectionTimelineSection';
 import { CorrectionMetadataSection } from './CorrectionMetadataSection';
 import { CorrectionPdfPanel } from './CorrectionPdfPanel';
-import { Wand2, FileText, EyeOff, GripVertical, List, RotateCcw, ChevronLeft, AlignLeft } from 'lucide-react';
+import { Wand2, FileText, EyeOff, GripVertical, List, RotateCcw, ChevronLeft, AlignLeft, Loader2 } from 'lucide-react';
 import { cleanOcrText } from '../../../utils/ocrTextCleaner';
 
 // Re-export types and utilities for backward compatibility
@@ -29,7 +29,7 @@ export { generateInitialCorrectionData, formatStandardId };
 export interface CorrectionDetailViewProps {
   file: ValidatedFileItem;
   mode?: 'koreksi' | 'edit';
-  onSave: (updatedData: LegalDocumentCorrectionData) => void;
+  onSave: (updatedData: LegalDocumentCorrectionData) => void | Promise<void>;
   onCancel?: () => void;
   onBack?: () => void;
 }
@@ -47,6 +47,9 @@ export function CorrectionDetailView({
   );
 
   const [activeSection, setActiveSection] = useState<string>('');
+
+  // Indikator loading saat simpan di fase edit data, agar user tahu proses berjalan
+  const [isSaving, setIsSaving] = useState(false);
 
   // State panel komparasi PDF & Resizable Split Screen (Default: false agar tampilan awal standar)
   const [isPdfOpen, setIsPdfOpen] = useState(false);
@@ -261,6 +264,17 @@ export function CorrectionDetailView({
       ...prev,
       babList: expandPath(prev.babList, pasalId).updatedNodes,
     }));
+  };
+
+  // Menunggu onSave selesai agar tombol bisa menampilkan status simpan
+  const handleSaveClick = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      await onSave(data);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleMagicWandAll = () => {
@@ -500,10 +514,12 @@ export function CorrectionDetailView({
           )}
           <button
             type="button"
-            onClick={() => onSave(data)}
-            className="px-6 py-2.5 rounded-[10px] bg-pr-900 text-white hover:bg-pr-800 text-[14px] font-medium transition-colors shadow-2xs cursor-pointer"
+            onClick={handleSaveClick}
+            disabled={isSaving}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-[10px] bg-pr-900 text-white hover:bg-pr-800 text-[14px] font-medium transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Simpan
+            {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            <span>{isSaving ? 'Menyimpan...' : 'Simpan'}</span>
           </button>
         </div>
       </div>
