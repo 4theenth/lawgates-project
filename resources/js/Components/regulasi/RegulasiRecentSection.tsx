@@ -6,6 +6,8 @@ import { CountUp } from '@/Components/common/CountUp';
 import { CategoryFilterPopover } from '@/Components/kategori/CategoryFilterPopover';
 import { FilterOption } from '@/types/peraturan';
 
+import { useFilterReferences } from '@/hooks/useFilterReferences';
+
 // Default dummy regulations mirroring the exact Figma mockups (node #2337:54385)
 const FIGMA_DUMMY_REGULATIONS = [
   {
@@ -93,30 +95,33 @@ export function RegulasiRecentSection({
   const [lastPage, setLastPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
 
-  // Dynamic references loaded from DB / API
-  const [kategoriList, setKategoriList] = useState(filterReferences?.kategori || []);
-  const [statusList, setStatusList] = useState(filterReferences?.status || []);
-  const [tahunList, setTahunList] = useState(filterReferences?.tahun || []);
-  const [subjekList, setSubjekList] = useState<string[]>(filterReferences?.subjek || []);
-  const [lokasiList, setLokasiList] = useState<string[]>(filterReferences?.lokasi_daerah || []);
+  // Dynamic references loaded via centralized hook & optional props
+  const filterRefs = useFilterReferences();
 
   const kategoriOptions: FilterOption[] = useMemo(() => {
-    return kategoriList.map((k) => ({
-      value: String(k.id),
-      label: k.nama,
-    }));
-  }, [kategoriList]);
+    if (filterReferences?.kategori && filterReferences.kategori.length > 0) {
+      return filterReferences.kategori.map((k) => ({
+        value: String(k.id),
+        label: k.nama,
+      }));
+    }
+    return filterRefs.kategoriOptions;
+  }, [filterReferences?.kategori, filterRefs.kategoriOptions]);
 
   const statusOptions: FilterOption[] = useMemo(() => {
-    return statusList.map((s) => ({
-      value: String(s.id),
-      label: s.nama,
-    }));
-  }, [statusList]);
+    if (filterReferences?.status && filterReferences.status.length > 0) {
+      return filterReferences.status.map((s) => ({
+        value: String(s.id),
+        label: s.nama,
+      }));
+    }
+    return filterRefs.statusOptions;
+  }, [filterReferences?.status, filterRefs.statusOptions]);
 
   const subjekOptions: FilterOption[] = useMemo(() => {
-    if (subjekList && subjekList.length > 0) {
-      return subjekList.map((s) => ({
+    const list = filterReferences?.subjek || filterRefs.listSubjek;
+    if (list && list.length > 0) {
+      return list.map((s) => ({
         value: s,
         label: s,
       }));
@@ -131,37 +136,16 @@ export function RegulasiRecentSection({
       { value: 'perdagangan', label: 'Perdagangan & Industri' },
       { value: 'hukum-peradilan', label: 'Hukum & Peradilan' },
     ];
-  }, [subjekList]);
+  }, [filterReferences?.subjek, filterRefs.listSubjek]);
 
-  const lokasiOptions: FilterOption[] = useMemo(() => {
-    return (lokasiList || []).map((l) => ({
-      value: l,
-      label: l,
-    }));
-  }, [lokasiList]);
+  const allFlatLokasi = filterRefs.allFlatLokasi;
 
   const availableYears = useMemo(() => {
-    if (tahunList && tahunList.length > 0) {
-      return [...tahunList].map(String).sort((a, b) => Number(b) - Number(a));
+    if (filterReferences?.tahun && filterReferences.tahun.length > 0) {
+      return [...filterReferences.tahun].map(String).sort((a, b) => Number(b) - Number(a));
     }
-    const currentYear = new Date().getFullYear();
-    return Array.from({ length: 15 }, (_, i) => String(currentYear - i));
-  }, [tahunList]);
-
-  useEffect(() => {
-    if (!filterReferences?.kategori?.length) {
-      fetch('/api/referensi-filter')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.kategori) setKategoriList(data.kategori);
-          if (data.status) setStatusList(data.status);
-          if (data.tahun) setTahunList(data.tahun);
-          if (data.subjek) setSubjekList(data.subjek);
-          if (data.lokasi_daerah) setLokasiList(data.lokasi_daerah);
-        })
-        .catch(() => {});
-    }
-  }, [filterReferences]);
+    return filterRefs.availableYears;
+  }, [filterReferences?.tahun, filterRefs.availableYears]);
 
   const fetchRegulations = useCallback(async () => {
     setIsLoading(true);
@@ -259,7 +243,7 @@ export function RegulasiRecentSection({
               setSelectedLokasi(l);
               setCurrentPage(1);
             }}
-            lokasiOptions={lokasiOptions}
+            allFlatLokasi={allFlatLokasi}
             showSubjek={true}
             subjekOptions={subjekOptions}
             selectedSubjek={selectedSubjek}

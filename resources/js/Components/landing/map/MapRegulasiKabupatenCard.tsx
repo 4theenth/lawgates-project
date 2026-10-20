@@ -88,7 +88,7 @@ export function MapRegulasiKabupatenCard({
       </div>
 
       {/* ── 4. List Kabupaten/Kota Scrollable Sesuai Figma node #2642:59175 ── */}
-      <div className="flex flex-col gap-2 max-h-[380px] overflow-y-auto custom-thin-scrollbar pr-1.5">
+      <div className="flex flex-col gap-2 max-h-[380px] overflow-y-auto no-scrollbar">
         {filteredRegencies.length > 0 ? (
           filteredRegencies.map((regency) => (
             <div

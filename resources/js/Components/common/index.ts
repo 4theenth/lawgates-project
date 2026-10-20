@@ -6,9 +6,7 @@ export { default as Dropdown } from './Dropdown';
 export { default as InputError } from './InputError';
 export { default as InputLabel } from './InputLabel';
 export { default as Modal } from './Modal';
-export { default as NavLink } from './NavLink';
 export { default as PrimaryButton } from './PrimaryButton';
-export { default as ResponsiveNavLink } from './ResponsiveNavLink';
 export { default as SecondaryButton } from './SecondaryButton';
 export { default as TextInput } from './TextInput';
 export { StatusBadge } from './StatusBadge';
@@ -20,4 +18,4 @@ export { FormCheckbox, default as FormCheckboxComponent } from './FormCheckbox';
 export { SocialAuthButton, GoogleLogo } from './SocialAuthButton';
 export { AuthCard, default as AuthCardComponent } from './AuthCard';
 export { DocumentTableOfContents, default as DocumentTableOfContentsComponent } from './DocumentTableOfContents';
-
+export { Pagination, default as PaginationComponent } from './Pagination';
