@@ -1359,7 +1359,7 @@ class DokumenHukumController extends Controller
             }
 
             if (!$pdfPath) {
-                return response('Dokumen PDF sementara tidak ditemukan di server penyimpanan MinIO.', 404);
+                return response('Dokumen PDF saat ini belum tersedia', 404);
             }
 
             $fileContent = $disk->get($pdfPath);
@@ -1370,7 +1370,7 @@ class DokumenHukumController extends Controller
             ]);
         } catch (\Exception $e) {
             \Log::error("Preview PDF MinIO Error: " . $e->getMessage());
-            return response('Gagal mengambil dokumen dari MinIO: ' . $e->getMessage(), 500);
+            return response('Dokumen PDF saat ini belum tersedia', 500);
         }
     }
 

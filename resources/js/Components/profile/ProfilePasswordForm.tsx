@@ -1,15 +1,20 @@
 import React, { useState, FormEventHandler } from 'react';
 import { useForm } from '@inertiajs/react';
-import { KeyRound, Eye, EyeOff, Loader2, Check, X } from 'lucide-react';
+import { KeyRound, Eye, EyeOff, Loader2, Check, X, Info } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
+import { User } from '@/types';
 
 interface ProfilePasswordFormProps {
+  user: User;
   className?: string;
   onSuccess?: () => void;
 }
 
-export function ProfilePasswordForm({ className = '', onSuccess }: ProfilePasswordFormProps) {
+export function ProfilePasswordForm({ user, className = '', onSuccess }: ProfilePasswordFormProps) {
   const { toast } = useToast();
+
+  // Akun dengan auth_provider 'google' tidak punya kata sandi lokal
+  const isGoogleAccount = user.auth_provider === 'google' || Boolean(user.google_id);
 
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -79,6 +84,23 @@ export function ProfilePasswordForm({ className = '', onSuccess }: ProfilePasswo
 
   return (
     <form onSubmit={handleSubmit} className={`space-y-4 ${className}`}>
+      {/* Akun Google tidak punya kata sandi lokal, jadi form ini tidak relevan.
+          Ditampilkan sebagai pesan agar pengguna tahu ke mana harus mengelola. */}
+      {isGoogleAccount ? (
+        <div className="flex items-start gap-3 rounded-[10px] border border-dan-200 bg-dan-50 p-4">
+          <Info className="w-[18px] h-[18px] text-dan-900 shrink-0 mt-0.5 stroke-[1.75]" />
+          <div className="flex flex-col gap-1">
+            <p className="font-sans text-[13px] font-medium leading-[20px] text-dan-900">
+              Kata sandi dikelola oleh Google
+            </p>
+            <p className="font-sans text-[12px] font-normal leading-[18px] text-dan-900/80">
+              Akun ini masuk menggunakan Google ({user.email}), sehingga tidak memiliki kata sandi
+              LawGates untuk diubah. Silakan kelola kata sandi melalui pengaturan akun Google Anda.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Row 1: Password Saat Ini & Password Baru */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-[13px] w-full">
         {/* Field 1: Password Saat Ini */}
@@ -271,6 +293,8 @@ export function ProfilePasswordForm({ className = '', onSuccess }: ProfilePasswo
           </button>
         </div>
       </div>
+        </>
+      )}
     </form>
   );
 }

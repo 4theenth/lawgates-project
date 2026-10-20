@@ -303,6 +303,39 @@ export default function RegulationGraph({
     }, [isGraphReady, graphData.nodes, clickedNode]);
 
     // ─────────────────────────────────────────────
+    // Auto-fit Framing
+    // ─────────────────────────────────────────────
+
+    // Bungkus perhitungan auto-fit agar bisa dipakai ulang saat kanvas berubah ukuran
+    const fitGraphToViewport = useCallback((size: { width: number; height: number }) => {
+        if (!graphRef.current || graphData.nodes.length === 0) return;
+
+        let maxDist = 0;
+        graphData.nodes.forEach((node: any) => {
+            const dist = Math.sqrt((node.x || 0) ** 2 + (node.y || 0) ** 2);
+            if (dist > maxDist) maxDist = dist;
+        });
+
+        maxDist += 80;
+
+        const halfW = size.width / 2;
+        const halfH = size.height / 2;
+        const fitSize = Math.min(halfW, halfH);
+        const padding = isMini ? 30 : 50;
+
+        // Fullscreen memberi ruang lebih luas; node didekatkan agar peta terisi,
+        // bukan menyisakan tepi kosong yang lebar.
+        const isFullscreen = document.fullscreenElement !== null;
+        const fullscreenZoomBoost = isFullscreen ? 2.2 : 1;
+
+        const idealZoom = ((fitSize - padding) / maxDist) * fullscreenZoomBoost;
+        const clampedZoom = Math.max(0.35, Math.min(idealZoom, 4));
+
+        graphRef.current.centerAt(0, 0, 0);
+        graphRef.current.zoom(clampedZoom, 0);
+    }, [graphData.nodes, isMini]);
+
+    // ─────────────────────────────────────────────
     // Resize Observer
     // ─────────────────────────────────────────────
 
@@ -311,21 +344,29 @@ export default function RegulationGraph({
 
         const observer = new ResizeObserver(() => {
             if (containerRef.current) {
-                setDimensions({
+                const nextSize = {
                     width: containerRef.current.clientWidth,
                     height: containerRef.current.clientHeight,
-                });
+                };
+                setDimensions(nextSize);
+
+                // Fullscreen mengubah ukuran kanvas, jadi framing perlu dihitung ulang
+                // agar peta tidak tampak kecil di tengah layar yang lebih luas.
+                if (initialCenterDone.current) {
+                    fitGraphToViewport(nextSize);
+                }
             }
         });
 
-        setDimensions({
+        const initialSize = {
             width: containerRef.current.clientWidth,
             height: containerRef.current.clientHeight,
-        });
+        };
+        setDimensions(initialSize);
         observer.observe(containerRef.current);
 
         return () => observer.disconnect();
-    }, [loading, graphData.nodes.length]);
+    }, [loading, graphData.nodes.length, fitGraphToViewport]);
 
     // ─────────────────────────────────────────────
     // D3 Force Configuration (Clean Wide Starburst Scattering)
@@ -649,23 +690,7 @@ export default function RegulationGraph({
                         if (initialCenterDone.current) return;
                         initialCenterDone.current = true;
 
-                        let maxDist = 0;
-                        graphData.nodes.forEach((node: any) => {
-                            const dist = Math.sqrt((node.x || 0) ** 2 + (node.y || 0) ** 2);
-                            if (dist > maxDist) maxDist = dist;
-                        });
-
-                        maxDist += 80;
-
-                        const halfW = dimensions.width / 2;
-                        const halfH = dimensions.height / 2;
-                        const fitSize = Math.min(halfW, halfH);
-                        const padding = isMini ? 30 : 50;
-                        const idealZoom = (fitSize - padding) / maxDist;
-                        const clampedZoom = Math.max(0.35, Math.min(idealZoom, 1.4));
-
-                        graphRef.current.centerAt(0, 0, 0);
-                        graphRef.current.zoom(clampedZoom, 0);
+                        fitGraphToViewport(dimensions);
 
                         requestAnimationFrame(() => {
                             setIsGraphReady(true);
