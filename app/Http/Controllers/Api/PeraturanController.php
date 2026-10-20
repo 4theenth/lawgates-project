@@ -298,10 +298,10 @@ class PeraturanController extends Controller
         // Jika diminta inline oleh iframe dan file tidak ada, JANGAN redirect()->back()
         // karena redirect di dalam iframe akan me-load parent page di dalam iframe (nested / double loop)!
         if (request()->has('inline') && request('inline') == '1') {
-            return response('PDF saat ini sedang tidak tersedia', 404);
+            return response('Dokumen PDF saat ini belum tersedia', 404);
         }
 
-        return redirect()->back()->with('error', 'PDF saat ini sedang tidak tersedia');
+        return redirect()->back()->with('error', 'Dokumen PDF saat ini belum tersedia');
     }
 
     public function viewer($unique_id)

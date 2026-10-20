@@ -27,7 +27,7 @@ export default function DokumenViewer({ peraturan, pdfUrl, hasPdf }: DokumenView
 
   const handleDownload = () => {
     if (!hasPdf || !pdfUrl) {
-      toast.error('PDF saat ini sedang tidak tersedia');
+      toast.error('Dokumen PDF saat ini belum tersedia');
       return;
     }
     window.location.href = `/peraturan/${peraturan.unique_id}/download`;
@@ -72,7 +72,7 @@ export default function DokumenViewer({ peraturan, pdfUrl, hasPdf }: DokumenView
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200">
                   <FileQuestion className="w-8 h-8 text-slate-500" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-2">PDF saat ini sedang tidak tersedia</h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">Dokumen PDF saat ini belum tersedia</h3>
                 <p className="text-sm text-slate-600 leading-relaxed">
                   Berkas PDF untuk dokumen ini belum dapat ditampilkan. Silakan periksa bagian teks isi peraturan pada halaman detail.
                 </p>
