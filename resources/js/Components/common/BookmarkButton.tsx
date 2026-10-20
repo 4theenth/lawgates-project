@@ -1,4 +1,5 @@
 import React from 'react';
+import { usePage } from '@inertiajs/react';
 import { Bookmark } from 'lucide-react';
 import { useBookmark } from '@/hooks/useBookmark';
 
@@ -29,10 +30,20 @@ export function BookmarkButton({
   onToggle,
   title,
 }: BookmarkButtonProps) {
+  const { props } = usePage<any>();
+
+  // Admin tidak memakai fitur bookmark, jadi tombolnya tidak ditampilkan.
+  // Ini hanya UX; penolakan sebenarnya ada di middleware role pada route bookmark.
+  const isAdmin = ['admin', 'superadmin'].includes(props.auth?.user?.role ?? '');
+
   const { isBookmarked: hookBookmarked, isLoading, toggle } = useBookmark(peraturanId);
 
   const isControlled = controlledBookmarked !== undefined;
   const isBookmarked = isControlled ? controlledBookmarked : hookBookmarked;
+
+  if (isAdmin) {
+    return null;
+  }
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();

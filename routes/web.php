@@ -44,9 +44,13 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
-    Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('user.bookmarks');
-    Route::post('/api/bookmarks/{peraturanId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
-    Route::delete('/bookmarks/{peraturanId}', [BookmarkController::class, 'destroy'])->name('bookmarks.destroy');
+
+    // Bookmark khusus akun user; admin dikembalikan ke beranda oleh middleware role.
+    Route::middleware('role:user')->group(function () {
+        Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('user.bookmarks');
+        Route::post('/api/bookmarks/{peraturanId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
+        Route::delete('/bookmarks/{peraturanId}', [BookmarkController::class, 'destroy'])->name('bookmarks.destroy');
+    });
 
     Route::get('/pencarian', function () {
         return Inertia::render('Pencarian');
