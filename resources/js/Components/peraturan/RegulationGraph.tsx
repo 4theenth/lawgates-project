@@ -326,10 +326,10 @@ export default function RegulationGraph({
         // Fullscreen memberi ruang lebih luas; node didekatkan agar peta terisi,
         // bukan menyisakan tepi kosong yang lebar.
         const isFullscreen = document.fullscreenElement !== null;
-        const fullscreenZoomBoost = isFullscreen ? 1.6 : 1;
+        const fullscreenZoomBoost = isFullscreen ? 2.2 : 1;
 
         const idealZoom = ((fitSize - padding) / maxDist) * fullscreenZoomBoost;
-        const clampedZoom = Math.max(0.35, Math.min(idealZoom, 3.2));
+        const clampedZoom = Math.max(0.35, Math.min(idealZoom, 4));
 
         graphRef.current.centerAt(0, 0, 0);
         graphRef.current.zoom(clampedZoom, 0);
