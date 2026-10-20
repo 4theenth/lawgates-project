@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from '@inertiajs/react';
-import { Calendar, MapPin, ArrowRightLeft, Download, Check, Copy, CheckCircle2, XCircle } from 'lucide-react';
+import { Calendar, MapPin, ArrowRightLeft, Download, Check, Copy, CheckCircle2, XCircle, Eye } from 'lucide-react';
 import { Breadcrumb } from '@/Components/common/Breadcrumb';
 import { BookmarkButton } from '@/Components/common/BookmarkButton';
 
@@ -37,7 +37,7 @@ export function DetailPeraturanHeader({
   onCompare,
   onDownload,
   downloadHref,
-  viewerHref: _viewerHref,
+  viewerHref,
   showCompare: _showCompare = true,
   peraturanId,
   isBookmarked,
@@ -100,16 +100,19 @@ export function DetailPeraturanHeader({
             </button>
           )}
 
-          {/* Tombol Download Dokumen */}
-          {downloadHref ? (
+          {/* Tombol Lihat Dokumen (Jika viewerHref tersedia) */}
+          {viewerHref && (
             <Link
-              href={downloadHref}
-              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-pr-900 hover:bg-pr-800 text-white text-sm font-semibold transition-all cursor-pointer"
+              href={viewerHref}
+              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-full bg-neu-100 hover:bg-neu-200 text-neu-800 text-xs sm:text-sm font-semibold transition-all cursor-pointer"
             >
-              <Download className="w-4 h-4 text-white stroke-[2]" />
-              <span>Download Dokumen</span>
+              <Eye className="w-3.5 h-3.5 text-neu-700 stroke-[2]" />
+              <span>Lihat Dokumen</span>
             </Link>
-          ) : onDownload ? (
+          )}
+
+          {/* Tombol Download Dokumen */}
+          {onDownload ? (
             <button
               type="button"
               onClick={onDownload}
@@ -118,6 +121,15 @@ export function DetailPeraturanHeader({
               <Download className="w-3.5 h-3.5 text-white stroke-[2]" />
               <span>Download Dokumen</span>
             </button>
+          ) : downloadHref ? (
+            <a
+              href={downloadHref}
+              download
+              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-pr-900 hover:bg-pr-800 text-white text-sm font-semibold transition-all cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-white stroke-[2]" />
+              <span>Download Dokumen</span>
+            </a>
           ) : null}
         </div>
       </div>

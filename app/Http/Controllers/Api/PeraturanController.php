@@ -226,6 +226,9 @@ class PeraturanController extends Controller
             'lawRelations.relationType'
         ])
         ->where('unique_id', $unique_id)
+        ->when(is_numeric($unique_id), function ($q) use ($unique_id) {
+            $q->orWhere('id', (int) $unique_id);
+        })
         ->first();
 
         if (!$peraturan) {
@@ -256,7 +259,17 @@ class PeraturanController extends Controller
 
     public function download($unique_id)
     {
-        $peraturan = Peraturan::with('jenisPeraturan')->where('unique_id', $unique_id)->firstOrFail();
+        // Jika request datang dari Inertia (misal via Inertia Link), paksa redirect hard browser download
+        if (request()->header('X-Inertia')) {
+            return \Inertia\Inertia::location(request()->fullUrl());
+        }
+
+        $peraturan = Peraturan::with('jenisPeraturan')
+            ->where('unique_id', $unique_id)
+            ->when(is_numeric($unique_id), function ($q) use ($unique_id) {
+                $q->orWhere('id', (int) $unique_id);
+            })
+            ->firstOrFail();
 
         $cleanTitle = Str::limit(Str::slug($peraturan->judul), 80, '');
         $filename = ($cleanTitle ?: 'dokumen-peraturan') . '.pdf';
@@ -279,9 +292,7 @@ class PeraturanController extends Controller
             }
 
             // Default: unduh langsung (attachment)
-            return response()->download($localPath, $filename, array_merge($headers, [
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            ]));
+            return response()->download($localPath, $filename, $headers);
         }
 
         // Jika diminta inline oleh iframe dan file tidak ada, JANGAN redirect()->back()
@@ -309,6 +320,9 @@ class PeraturanController extends Controller
             'lawRelations.relationType'
         ])
         ->where('unique_id', $unique_id)
+        ->when(is_numeric($unique_id), function ($q) use ($unique_id) {
+            $q->orWhere('id', (int) $unique_id);
+        })
         ->firstOrFail();
 
         // Cek ketersediaan dokumen: apakah sudah di cache atau ada di MinIO

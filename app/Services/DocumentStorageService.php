@@ -87,17 +87,26 @@ class DocumentStorageService
     public static function getCachedOrDownload(Peraturan $peraturan): ?string
     {
         $uniqueId = $peraturan->unique_id;
+        $cachePath = self::getLocalCachePath($uniqueId);
 
-        // 1. Resolve path valid di MinIO secara cepat via HEAD check
+        // 1. Cek langsung jika cache lokal untuk uniqueId ini sudah valid & path di DB sudah tersimpan
+        if (self::isValidPdfFile($cachePath) && !empty($peraturan->file_pdf_path)) {
+            return $cachePath;
+        }
+
+        // 2. Resolve path valid di MinIO secara cepat via HEAD check
         $validMinioPath = self::resolveValidMinioPath($peraturan);
         if (!$validMinioPath) {
+            // Jika pencarian MinIO gagal tetapi file cache lokal ada, kembalikan cache lokal
+            if (self::isValidPdfFile($cachePath)) {
+                return $cachePath;
+            }
             return null;
         }
 
-        $cachePath = self::getLocalCachePath($uniqueId);
         $md5CachePath = self::getCacheDir() . DIRECTORY_SEPARATOR . md5($validMinioPath) . '.pdf';
 
-        // 2. Cek apakah cache lokal spesifik untuk MinIO path ini sudah ada
+        // 3. Cek apakah cache lokal spesifik untuk MinIO path ini sudah ada
         if (self::isValidPdfFile($md5CachePath)) {
             if (!file_exists($cachePath) || filesize($cachePath) !== filesize($md5CachePath)) {
                 @copy($md5CachePath, $cachePath);
@@ -278,6 +287,15 @@ class DocumentStorageService
             $candidatePaths[] = "documents/{$uniqueId}/document.pdf";
             $candidatePaths[] = "documents/{$uniqueId}.pdf";
             $candidatePaths[] = "pdf_dokumen/{$uniqueId}.pdf";
+        }
+
+        // 3. Fallback berdasarkan url_pdf jika tersimpan
+        if (!empty($peraturan->url_pdf)) {
+            $candidatePaths[] = "documents/{$peraturan->url_pdf}";
+            $candidatePaths[] = $peraturan->url_pdf;
+            foreach ($folders as $folder) {
+                $candidatePaths[] = "documents/{$folder}/{$peraturan->url_pdf}";
+            }
         }
 
         // Filter dan deduplikasi
