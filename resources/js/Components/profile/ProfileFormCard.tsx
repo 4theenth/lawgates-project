@@ -18,7 +18,7 @@ export function ProfileFormCard({
 
   return (
     <div
-      className={`w-full md:flex-1 md:max-w-[681px] min-w-0 min-h-[307px] bg-white border border-neu-50 rounded-[12px] p-5 lg:p-6 shadow-2xs flex flex-col justify-between ${className}`}
+      className={`w-full md:flex-1 md:max-w-[681px] min-w-0 min-h-[307px] bg-white border border-neu-50 rounded-[12px] p-5 lg:p-6 shadow-2xs flex flex-col ${activeTab === 'info' ? 'justify-between' : ''} ${className}`}
     >
       {/* Tab Navigation Header */}
       <div className="border-b border-neu-50 mb-4">
@@ -61,7 +61,7 @@ export function ProfileFormCard({
       {activeTab === 'info' ? (
         <ProfileInfoForm user={user} />
       ) : (
-        <ProfilePasswordForm />
+        <ProfilePasswordForm user={user} />
       )}
     </div>
   );
