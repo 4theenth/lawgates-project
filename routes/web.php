@@ -46,9 +46,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
 
     // Bookmark khusus akun user; admin dikembalikan ke beranda oleh middleware role.
-    // Operasi datanya ada di routes/api.php — yang tersisa di sini hanya halaman.
+    // Halaman dan aksi hapusnya di sini karena keduanya berjalan lewat sesi web;
+    // endpoint API (routes/api.php) dipakai pemanggil berbasis token.
     Route::middleware('role:user')->group(function () {
         Route::get('/bookmarks', [BookmarkPageController::class, 'index'])->name('user.bookmarks');
+        Route::delete('/bookmarks/{bookmark}', [BookmarkPageController::class, 'destroy'])->name('user.bookmarks.destroy');
     });
 
     Route::get('/pencarian', function () {

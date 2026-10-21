@@ -32,7 +32,7 @@ class BookmarkApiTest extends TestCase
         return User::factory()->create(['role' => 'user']);
     }
 
-    private function peraturan(): Peraturan
+    private function peraturan(?string $judul = null): Peraturan
     {
         // Proyek ini belum punya PeraturanFactory, jadi dibuat langsung seperti
         // di CategorizedRegulationApiTest.
@@ -43,7 +43,7 @@ class BookmarkApiTest extends TestCase
         $status = Status::firstOrCreate(['nama_status' => 'Berlaku']);
 
         return Peraturan::create([
-            'judul' => 'Peraturan Uji '.uniqid(),
+            'judul' => $judul ?? 'Peraturan Uji '.uniqid(),
             'nomor' => (string) random_int(100000, 999999),
             'tahun' => 2026,
             'jenis_peraturan_id' => $jenis->id,
@@ -295,5 +295,89 @@ class BookmarkApiTest extends TestCase
         // Baru forceDelete() yang benar-benar menghapus barisnya.
         $peraturan->forceDelete();
         $this->assertDatabaseCount('user_bookmarks', 0);
+    }
+
+    // ─────────────────────────────────────────────
+    // Halaman daftar bookmark
+    // ─────────────────────────────────────────────
+
+    /**
+     * Halaman /bookmarks harus mengirim data peraturan, bukan hanya baris
+     * bookmark. Komponen React-nya membaca judul/nomor/unique_id dari sini.
+     */
+    public function test_halaman_bookmark_mengirim_data_peraturan(): void
+    {
+        $user = $this->user();
+        $peraturan = $this->peraturan();
+
+        $this->actingAs($user)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id]);
+
+        $this->actingAs($user)
+            ->get('/bookmarks')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('User/Bookmark')
+                ->has('bookmarks.data', 1)
+                ->where('bookmarks.data.0.judul', $peraturan->judul)
+                ->where('bookmarks.data.0.unique_id', $peraturan->unique_id)
+                ->has('bookmarks.data.0.id')
+            );
+    }
+
+    /**
+     * Kotak pencarian di halaman itu menyaring lewat kolom peraturan. Tanpa
+     * whereHas ke relasi polimorfiknya, kata kunci tidak menyaring apa pun.
+     */
+    public function test_pencarian_halaman_mengikuti_kata_kunci(): void
+    {
+        $user = $this->user();
+        $cocok = $this->peraturan('Peraturan Pajak Daerah Khusus');
+        $lain = $this->peraturan('Peraturan Retribusi Jasa Umum');
+
+        $this->actingAs($user)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $cocok->id]);
+        $this->actingAs($user)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $lain->id]);
+
+        $this->actingAs($user)
+            ->get('/bookmarks?q=Pajak')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('bookmarks.data', 1)
+                ->where('bookmarks.data.0.judul', $cocok->judul)
+                ->where('filters.q', 'Pajak')
+            );
+    }
+
+    /**
+     * Tombol hapus di halaman berjalan lewat sesi web dan hanya melepas
+     * barisnya; entitas yang disimpan tidak boleh ikut terhapus.
+     */
+    public function test_hapus_dari_halaman_hanya_melepas_bookmark(): void
+    {
+        $user = $this->user();
+        $peraturan = $this->peraturan();
+
+        $this->actingAs($user)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id]);
+        $bookmark = Bookmark::where('user_id', $user->id)->firstOrFail();
+
+        $this->actingAs($user)
+            ->delete("/bookmarks/{$bookmark->id}")
+            ->assertRedirect();
+
+        $this->assertDatabaseCount('user_bookmarks', 0);
+        $this->assertDatabaseCount('peraturan', 1);
+    }
+
+    public function test_tidak_bisa_menghapus_bookmark_milik_orang_lain(): void
+    {
+        $pemilik = $this->user();
+        $lain = $this->user();
+        $peraturan = $this->peraturan();
+
+        $this->actingAs($pemilik)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id]);
+        $bookmark = Bookmark::where('user_id', $pemilik->id)->firstOrFail();
+
+        $this->actingAs($lain)->delete("/bookmarks/{$bookmark->id}")->assertNotFound();
+
+        $this->assertDatabaseCount('user_bookmarks', 1);
     }
 }
