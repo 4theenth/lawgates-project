@@ -1,0 +1,299 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Bookmark;
+use App\Models\BookmarkCollection;
+use App\Models\JenisPeraturan;
+use App\Models\Peraturan;
+use App\Models\Status;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+/**
+ * Test API bookmark & folder koleksi (USER-02).
+ *
+ * Dua hal yang dijaga di sini:
+ *  - perilaku AC (toggle, folder, hapus folder tidak menghapus bookmark);
+ *  - hanya ada SATU sumber kebenaran bookmark. Test di bagian "satu sumber
+ *    kebenaran" akan gagal kalau nanti ada yang membuat tabel bookmark kedua.
+ */
+class BookmarkApiTest extends TestCase
+{
+    use RefreshDatabase;
+
+    // ─────────────────────────────────────────────
+    // Pembantu
+    // ─────────────────────────────────────────────
+
+    private function user(): User
+    {
+        return User::factory()->create(['role' => 'user']);
+    }
+
+    private function peraturan(): Peraturan
+    {
+        // Proyek ini belum punya PeraturanFactory, jadi dibuat langsung seperti
+        // di CategorizedRegulationApiTest.
+        $jenis = JenisPeraturan::firstOrCreate(
+            ['kode' => 'UU'],
+            ['nama' => 'Undang-Undang']
+        );
+        $status = Status::firstOrCreate(['nama_status' => 'Berlaku']);
+
+        return Peraturan::create([
+            'judul' => 'Peraturan Uji '.uniqid(),
+            'nomor' => (string) random_int(100000, 999999),
+            'tahun' => 2026,
+            'jenis_peraturan_id' => $jenis->id,
+            'status_id' => $status->id,
+            'unique_id' => 'uu-uji-'.uniqid(),
+        ]);
+    }
+
+    private function folder(User $user, string $name = 'Folder Uji'): BookmarkCollection
+    {
+        return BookmarkCollection::create([
+            'user_id' => $user->id,
+            'name' => $name,
+        ]);
+    }
+
+    // ─────────────────────────────────────────────
+    // Toggle bookmark
+    // ─────────────────────────────────────────────
+
+    public function test_toggle_menyimpan_bookmark(): void
+    {
+        $user = $this->user();
+        $peraturan = $this->peraturan();
+
+        $response = $this->actingAs($user)->postJson('/api/bookmarks/toggle', [
+            'type' => 'peraturan',
+            'id' => $peraturan->id,
+        ]);
+
+        $response->assertCreated();
+        $response->assertJson(['success' => true, 'bookmarked' => true]);
+
+        $this->assertDatabaseHas('user_bookmarks', [
+            'user_id' => $user->id,
+            'bookmarkable_type' => 'peraturan',
+            'bookmarkable_id' => $peraturan->id,
+        ]);
+    }
+
+    public function test_toggle_dua_kali_melepas_bookmark(): void
+    {
+        $user = $this->user();
+        $peraturan = $this->peraturan();
+
+        $this->actingAs($user)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id]);
+        $response = $this->actingAs($user)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id]);
+
+        $response->assertOk();
+        $response->assertJson(['bookmarked' => false]);
+        $this->assertDatabaseCount('user_bookmarks', 0);
+    }
+
+    public function test_toggle_menolak_tipe_yang_tidak_dikenal(): void
+    {
+        $user = $this->user();
+        $peraturan = $this->peraturan();
+
+        $this->actingAs($user)
+            ->postJson('/api/bookmarks/toggle', ['type' => 'sembarangan', 'id' => $peraturan->id])
+            ->assertStatus(422);
+    }
+
+    public function test_toggle_menolak_entitas_yang_tidak_ada(): void
+    {
+        $user = $this->user();
+
+        $this->actingAs($user)
+            ->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => 999999])
+            ->assertNotFound();
+    }
+
+    public function test_tamu_tidak_bisa_menyimpan_bookmark(): void
+    {
+        $peraturan = $this->peraturan();
+
+        $this->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id])
+            ->assertUnauthorized();
+    }
+
+    // ─────────────────────────────────────────────
+    // Folder (koleksi)
+    // ─────────────────────────────────────────────
+
+    public function test_user_bisa_membuat_folder(): void
+    {
+        $user = $this->user();
+
+        $response = $this->actingAs($user)->postJson('/api/bookmark-collections', [
+            'name' => 'Hukum Pajak',
+            'description' => 'Kumpulan peraturan pajak',
+        ]);
+
+        $response->assertCreated();
+        $this->assertDatabaseHas('bookmark_collections', [
+            'user_id' => $user->id,
+            'name' => 'Hukum Pajak',
+        ]);
+    }
+
+    public function test_nama_folder_tidak_boleh_kembar(): void
+    {
+        $user = $this->user();
+        $this->folder($user, 'Hukum Pajak');
+
+        $this->actingAs($user)
+            ->postJson('/api/bookmark-collections', ['name' => 'Hukum Pajak'])
+            ->assertStatus(422);
+    }
+
+    public function test_user_tidak_bisa_menyentuh_folder_orang_lain(): void
+    {
+        $user = $this->user();
+        $lain = $this->user();
+        $folderLain = $this->folder($lain, 'Punya Orang Lain');
+
+        $this->actingAs($user)
+            ->putJson("/api/bookmark-collections/{$folderLain->id}", ['name' => 'Dibajak'])
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->deleteJson("/api/bookmark-collections/{$folderLain->id}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('bookmark_collections', ['id' => $folderLain->id, 'name' => 'Punya Orang Lain']);
+    }
+
+    // ─────────────────────────────────────────────
+    // AC #4 — hapus folder tidak menghapus dokumen
+    // ─────────────────────────────────────────────
+
+    public function test_hapus_folder_tidak_menghapus_bookmark(): void
+    {
+        $user = $this->user();
+        $peraturan = $this->peraturan();
+        $folder = $this->folder($user, 'Akan Dihapus');
+
+        $this->actingAs($user)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id]);
+        $bookmark = Bookmark::firstOrFail();
+
+        $this->actingAs($user)->putJson('/api/bookmarks/assign-collections', [
+            'bookmark_id' => $bookmark->id,
+            'collection_ids' => [$folder->id],
+        ])->assertOk();
+
+        $this->assertDatabaseCount('bookmark_collection_items', 1);
+
+        $this->actingAs($user)->deleteJson("/api/bookmark-collections/{$folder->id}")->assertOk();
+
+        // Folder dan keanggotaannya hilang, bookmark-nya tetap ada.
+        $this->assertDatabaseCount('bookmark_collections', 0);
+        $this->assertDatabaseCount('bookmark_collection_items', 0);
+        $this->assertDatabaseCount('user_bookmarks', 1);
+    }
+
+    // ─────────────────────────────────────────────
+    // Satu bookmark di banyak folder
+    // ─────────────────────────────────────────────
+
+    public function test_satu_bookmark_bisa_masuk_beberapa_folder(): void
+    {
+        $user = $this->user();
+        $peraturan = $this->peraturan();
+        $a = $this->folder($user, 'Folder A');
+        $b = $this->folder($user, 'Folder B');
+
+        $this->actingAs($user)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id]);
+        $bookmark = Bookmark::firstOrFail();
+
+        $this->actingAs($user)->putJson('/api/bookmarks/assign-collections', [
+            'bookmark_id' => $bookmark->id,
+            'collection_ids' => [$a->id, $b->id],
+        ])->assertOk();
+
+        $this->assertDatabaseCount('bookmark_collection_items', 2);
+        $this->assertCount(2, $bookmark->fresh()->collections);
+    }
+
+    // ─────────────────────────────────────────────
+    // Daftar & filter
+    // ─────────────────────────────────────────────
+
+    public function test_daftar_bookmark_hanya_milik_user_sendiri(): void
+    {
+        $user = $this->user();
+        $lain = $this->user();
+
+        $this->actingAs($lain)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $this->peraturan()->id]);
+        $this->actingAs($user)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $this->peraturan()->id]);
+
+        $response = $this->actingAs($user)->getJson('/api/bookmarks');
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data.data'));
+    }
+
+    public function test_bookmark_tanpa_folder_muncul_di_filter_unassigned(): void
+    {
+        $user = $this->user();
+        $peraturan = $this->peraturan();
+
+        $this->actingAs($user)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id]);
+
+        $response = $this->actingAs($user)->getJson('/api/bookmarks?collection_id=unassigned');
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data.data'));
+    }
+
+    // ─────────────────────────────────────────────
+    // Satu sumber kebenaran
+    // ─────────────────────────────────────────────
+
+    /**
+     * Penjaga utama USER-02: penghitung bookmark di dashboard, relasi Inertia,
+     * dan API harus membaca skema yang sama. Kalau nanti ada yang membuat tabel
+     * bookmark kedua, test ini gagal.
+     */
+    public function test_semua_pembaca_bookmark_memakai_skema_yang_sama(): void
+    {
+        $user = $this->user();
+        $peraturan = $this->peraturan();
+
+        $this->actingAs($user)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id]);
+
+        // Dipakai UserDashboardController untuk kartu "Total Bookmark".
+        $this->assertSame(1, $user->bookmarks()->count());
+
+        // Dipakai HandleInertiaRequests untuk prop auth.bookmarkIds.
+        $this->assertSame(1, $user->bookmarkedPeraturans()->count());
+
+        // Dipakai PeraturanController::show untuk tombol simpan di halaman detail.
+        $this->assertTrue(
+            $user->bookmarks()->forMorph('peraturan', $peraturan->id)->exists()
+        );
+    }
+
+    public function test_menghapus_peraturan_secara_permanen_ikut_menghapus_bookmark(): void
+    {
+        $user = $this->user();
+        $peraturan = $this->peraturan();
+
+        $this->actingAs($user)->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id]);
+
+        // Peraturan memakai SoftDeletes: delete() hanya menandai, bukan menghapus.
+        $peraturan->delete();
+        $this->assertDatabaseCount('user_bookmarks', 1);
+
+        // Baru forceDelete() yang benar-benar menghapus barisnya.
+        $peraturan->forceDelete();
+        $this->assertDatabaseCount('user_bookmarks', 0);
+    }
+}

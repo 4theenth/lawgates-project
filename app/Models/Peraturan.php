@@ -120,7 +120,7 @@ class Peraturan extends Model
 
     public function bookmarks()
     {
-        return $this->hasMany(\App\Models\Bookmark::class, 'peraturan_id');
+        return $this->morphMany(\App\Models\Bookmark::class, 'bookmarkable');
     }
 
     public function getHasPembukaanAttribute(): bool
