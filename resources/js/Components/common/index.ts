@@ -19,3 +19,5 @@ export { SocialAuthButton, GoogleLogo } from './SocialAuthButton';
 export { AuthCard, default as AuthCardComponent } from './AuthCard';
 export { DocumentTableOfContents, default as DocumentTableOfContentsComponent } from './DocumentTableOfContents';
 export { Pagination, default as PaginationComponent } from './Pagination';
+export { StatusTabs, default as StatusTabsComponent } from './StatusTabs';
+export type { TabOption, StatusTabsProps } from './StatusTabs';

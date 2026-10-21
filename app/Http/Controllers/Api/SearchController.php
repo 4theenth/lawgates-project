@@ -216,14 +216,13 @@ class SearchController extends Controller
         });
 
         // 6. Sorting
-        $sort = $request->get('sort', 'relevansi');
+        $sort = $request->get('sort', '');
         if ($sort === 'terbaru') {
-            $query->orderBy('tahun', 'desc');
+            $query->orderBy('tahun', 'desc')->orderBy('id', 'desc');
         } elseif ($sort === 'terlama') {
-            $query->orderBy('tahun', 'asc');
+            $query->orderBy('tahun', 'asc')->orderBy('id', 'asc');
         } else {
-            // Urutan Relevansi:
-            // Jika ada pencarian kata kunci, prioritaskan yang instansi / lokasi / judulnya langsung cocok
+            // Default: Terakhir Diperbaharui
             if ($keyword !== '') {
                 $escapedKeyword = str_replace("'", "''", $keyword);
                 $query->orderByRaw("
@@ -234,7 +233,7 @@ class SearchController extends Controller
                     END ASC
                 ");
             }
-            $query->orderBy('created_at', 'desc');
+            $query->orderBy('updated_at', 'desc')->orderBy('created_at', 'desc');
         }
 
         // Kembalikan hasil dengan pagination dinamis

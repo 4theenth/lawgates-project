@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
-import { StatusTabs } from '@/Components/admin/StatusTabs';
+import { StatusTabs } from '@/Components/common/StatusTabs';
 import { EmptyState } from '@/Components/admin/EmptyState';
 import { Pagination } from '@/Components/admin/Pagination';
 import { DocumentTable, DokumenHukumItem, SortColumn, SortDirection } from '@/Components/admin/DocumentTable';
