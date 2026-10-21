@@ -172,7 +172,6 @@ export function DetailPeraturanHeader({
           <BookmarkButton
             variant="pill"
             peraturanId={peraturanId || ''}
-            isBookmarked={isBookmarked}
             onToggle={onBookmarkToggle}
           />
         </div>
