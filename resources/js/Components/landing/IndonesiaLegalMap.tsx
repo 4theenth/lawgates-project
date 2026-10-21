@@ -202,9 +202,36 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
     ? provincesData[selectedProvinceId] || null
     : null;
 
-  // Data kabupaten/kota untuk provinsi terpilih yang disinkronkan dengan hitungan riil database
+  // Data kabupaten/kota untuk provinsi terpilih yang disinkronkan dengan master database
   const activeProvinceRegencies = useMemo(() => {
     if (!activeProvince) return null;
+
+    // 1. Jika data dari API backend (/api/regions/statistics) sudah memuat daftar regencies resmi:
+    if (activeProvince.regencies && Array.isArray(activeProvince.regencies) && activeProvince.regencies.length > 0) {
+      const counts = (activeProvince as any).regencyCounts || {};
+      const regencies = activeProvince.regencies.map((reg) => ({
+        ...reg,
+        totalPeraturan: counts[reg.name] ?? reg.totalPeraturan ?? 0,
+      }));
+
+      regencies.sort((a, b) => {
+        if ((b.totalPeraturan ?? 0) !== (a.totalPeraturan ?? 0)) {
+          return (b.totalPeraturan ?? 0) - (a.totalPeraturan ?? 0);
+        }
+        return a.name.localeCompare(b.name);
+      });
+
+      return {
+        provinceId: activeProvince.id,
+        provinceName: activeProvince.name,
+        kabupatenCount: activeProvince.kabupatenCount ?? regencies.filter((r) => r.type === 'Kabupaten').length,
+        kotaCount: activeProvince.kotaCount ?? regencies.filter((r) => r.type === 'Kota').length,
+        totalCount: activeProvince.totalCount ?? regencies.length,
+        regencies,
+      };
+    }
+
+    // 2. Fallback static dari master database JSON
     const base = getRegenciesForProvince(activeProvince.id, activeProvince.name);
     const counts = (activeProvince as any).regencyCounts || {};
 
@@ -213,8 +240,12 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
       totalPeraturan: counts[reg.name] ?? 0,
     }));
 
-    // Prioritaskan kabupaten yang memiliki peraturan di database agar muncul di daftar teratas popup
-    regencies.sort((a, b) => (b.totalPeraturan ?? 0) - (a.totalPeraturan ?? 0));
+    regencies.sort((a, b) => {
+      if ((b.totalPeraturan ?? 0) !== (a.totalPeraturan ?? 0)) {
+        return (b.totalPeraturan ?? 0) - (a.totalPeraturan ?? 0);
+      }
+      return a.name.localeCompare(b.name);
+    });
 
     return {
       ...base,
@@ -251,6 +282,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
     observer.observe(rightPanelRef.current);
     return () => observer.disconnect();
   }, [activeProvince, isViewingAllKabupaten]);
+
   // Hasil pencarian gabungan (Provinsi & Kabupaten/Kota) untuk autocomplete dropdown
   const searchResults = useMemo<WilayahSearchResult[]>(() => {
     if (!searchQuery.trim()) return [];
@@ -277,7 +309,9 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
       }
 
       // 2. Ambil data kabupaten/kota untuk provinsi ini
-      const regData = getRegenciesForProvince(prov.id, prov.name);
+      const regData = (prov.regencies && Array.isArray(prov.regencies) && prov.regencies.length > 0)
+        ? { regencies: prov.regencies }
+        : getRegenciesForProvince(prov.id, prov.name);
       const counts = (prov as any).regencyCounts || {};
 
       for (const reg of regData.regencies) {
@@ -285,7 +319,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
         const fullRegLower = `${reg.type.toLowerCase()} ${regNameLower}`;
 
         if (regNameLower.includes(q) || fullRegLower.includes(q)) {
-          const regTotal = counts[reg.name] ?? 0;
+          const regTotal = counts[reg.name] ?? reg.totalPeraturan ?? 0;
           results.push({
             key: `reg-${prov.id}-${reg.name}`,
             category: reg.type.toLowerCase().includes('kota') ? 'kota' : 'kabupaten',

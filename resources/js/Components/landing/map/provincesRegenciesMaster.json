@@ -1,0 +1,3428 @@
+{
+    "aceh": {
+        "provinceId": "aceh",
+        "provinceName": "Aceh",
+        "kabupatenCount": 18,
+        "kotaCount": 5,
+        "totalCount": 23,
+        "regencies": [
+            {
+                "id": "kab-aceh-barat",
+                "name": "Aceh Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-aceh-barat-daya",
+                "name": "Aceh Barat Daya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-aceh-besar",
+                "name": "Aceh Besar",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-aceh-jaya",
+                "name": "Aceh Jaya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-aceh-selatan",
+                "name": "Aceh Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-aceh-singkil",
+                "name": "Aceh Singkil",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-aceh-tamiang",
+                "name": "Aceh Tamiang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-aceh-tengah",
+                "name": "Aceh Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-aceh-tenggara",
+                "name": "Aceh Tenggara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-aceh-timur",
+                "name": "Aceh Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-aceh-utara",
+                "name": "Aceh Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bener-meriah",
+                "name": "Bener Meriah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bireuen",
+                "name": "Bireuen",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-gayo-lues",
+                "name": "Gayo Lues",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-nagan-raya",
+                "name": "Nagan Raya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pidie",
+                "name": "Pidie",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pidie-jaya",
+                "name": "Pidie Jaya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-simeulue",
+                "name": "Simeulue",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-banda-aceh",
+                "name": "Banda Aceh",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-langsa",
+                "name": "Langsa",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-lhokseumawe",
+                "name": "Lhokseumawe",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-sabang",
+                "name": "Sabang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-subulussalam",
+                "name": "Subulussalam",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "sumatera-utara": {
+        "provinceId": "sumatera-utara",
+        "provinceName": "Sumatera Utara",
+        "kabupatenCount": 25,
+        "kotaCount": 8,
+        "totalCount": 33,
+        "regencies": [
+            {
+                "id": "kab-asahan",
+                "name": "Asahan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-batu-bara",
+                "name": "Batu Bara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-dairi",
+                "name": "Dairi",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-deli-serdang",
+                "name": "Deli Serdang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-humbang-hasundutan",
+                "name": "Humbang Hasundutan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-karo",
+                "name": "Karo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-labuhanbatu",
+                "name": "Labuhanbatu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-labuhanbatu-selatan",
+                "name": "Labuhanbatu Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-labuhanbatu-utara",
+                "name": "Labuhanbatu Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-langkat",
+                "name": "Langkat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mandailing-natal",
+                "name": "Mandailing Natal",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-nias",
+                "name": "Nias",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-nias-barat",
+                "name": "Nias Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-nias-selatan",
+                "name": "Nias Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-nias-utara",
+                "name": "Nias Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-padang-lawas",
+                "name": "Padang Lawas",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-padang-lawas-utara",
+                "name": "Padang Lawas Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pakpak-bharat",
+                "name": "Pakpak Bharat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-samosir",
+                "name": "Samosir",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-serdang-bedagai",
+                "name": "Serdang Bedagai",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-simalungun",
+                "name": "Simalungun",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tapanuli-selatan",
+                "name": "Tapanuli Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tapanuli-tengah",
+                "name": "Tapanuli Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tapanuli-utara",
+                "name": "Tapanuli Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-toba",
+                "name": "Toba",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-binjai",
+                "name": "Binjai",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-gunungsitoli",
+                "name": "Gunungsitoli",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-medan",
+                "name": "Medan",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-padangsidimpuan",
+                "name": "Padangsidimpuan",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-pematangsiantar",
+                "name": "Pematangsiantar",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-sibolga",
+                "name": "Sibolga",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-tanjungbalai",
+                "name": "Tanjungbalai",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-tebing-tinggi",
+                "name": "Tebing Tinggi",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "sumatera-barat": {
+        "provinceId": "sumatera-barat",
+        "provinceName": "Sumatera Barat",
+        "kabupatenCount": 12,
+        "kotaCount": 7,
+        "totalCount": 19,
+        "regencies": [
+            {
+                "id": "kab-agam",
+                "name": "Agam",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-dharmasraya",
+                "name": "Dharmasraya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kepulauan-mentawai",
+                "name": "Kepulauan Mentawai",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lima-puluh-kota",
+                "name": "Lima Puluh Kota",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-padang-pariaman",
+                "name": "Padang Pariaman",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pasaman",
+                "name": "Pasaman",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pasaman-barat",
+                "name": "Pasaman Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pesisir-selatan",
+                "name": "Pesisir Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sijunjung",
+                "name": "Sijunjung",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-solok",
+                "name": "Solok",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-solok-selatan",
+                "name": "Solok Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tanah-datar",
+                "name": "Tanah Datar",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-bukittinggi",
+                "name": "Bukittinggi",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-padang",
+                "name": "Padang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-padang-panjang",
+                "name": "Padang Panjang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-pariaman",
+                "name": "Pariaman",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-payakumbuh",
+                "name": "Payakumbuh",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-sawahlunto",
+                "name": "Sawahlunto",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-solok",
+                "name": "Solok",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "riau": {
+        "provinceId": "riau",
+        "provinceName": "Riau",
+        "kabupatenCount": 10,
+        "kotaCount": 2,
+        "totalCount": 12,
+        "regencies": [
+            {
+                "id": "kab-bengkalis",
+                "name": "Bengkalis",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-indragiri-hilir",
+                "name": "Indragiri Hilir",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-indragiri-hulu",
+                "name": "Indragiri Hulu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kampar",
+                "name": "Kampar",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kepulauan-meranti",
+                "name": "Kepulauan Meranti",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kuantan-singingi",
+                "name": "Kuantan Singingi",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pelalawan",
+                "name": "Pelalawan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-rokan-hilir",
+                "name": "Rokan Hilir",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-rokan-hulu",
+                "name": "Rokan Hulu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-siak",
+                "name": "Siak",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-dumai",
+                "name": "Dumai",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-pekanbaru",
+                "name": "Pekanbaru",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "jambi": {
+        "provinceId": "jambi",
+        "provinceName": "Jambi",
+        "kabupatenCount": 9,
+        "kotaCount": 2,
+        "totalCount": 11,
+        "regencies": [
+            {
+                "id": "kab-batanghari",
+                "name": "Batanghari",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bungo",
+                "name": "Bungo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kerinci",
+                "name": "Kerinci",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-merangin",
+                "name": "Merangin",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-muaro-jambi",
+                "name": "Muaro Jambi",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sarolangun",
+                "name": "Sarolangun",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tanjung-jabung-barat",
+                "name": "Tanjung Jabung Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tanjung-jabung-timur",
+                "name": "Tanjung Jabung Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tebo",
+                "name": "Tebo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-jambi",
+                "name": "Jambi",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-sungai-penuh",
+                "name": "Sungai Penuh",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "sumatera-selatan": {
+        "provinceId": "sumatera-selatan",
+        "provinceName": "Sumatera Selatan",
+        "kabupatenCount": 13,
+        "kotaCount": 4,
+        "totalCount": 17,
+        "regencies": [
+            {
+                "id": "kab-banyuasin",
+                "name": "Banyuasin",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-empat-lawang",
+                "name": "Empat Lawang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lahat",
+                "name": "Lahat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-muara-enim",
+                "name": "Muara Enim",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-musi-banyuasin",
+                "name": "Musi Banyuasin",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-musi-rawas",
+                "name": "Musi Rawas",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-musi-rawas-utara",
+                "name": "Musi Rawas Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-ogan-ilir",
+                "name": "Ogan Ilir",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-ogan-komering-ilir",
+                "name": "Ogan Komering Ilir",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-ogan-komering-ulu",
+                "name": "Ogan Komering Ulu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-ogan-komering-ulu-selatan",
+                "name": "Ogan Komering Ulu Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-ogan-komering-ulu-timur",
+                "name": "Ogan Komering Ulu Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-penukal-abab-lematang-ilir",
+                "name": "Penukal Abab Lematang Ilir",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-lubuklinggau",
+                "name": "Lubuklinggau",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-pagar-alam",
+                "name": "Pagar Alam",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-palembang",
+                "name": "Palembang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-prabumulih",
+                "name": "Prabumulih",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "bengkulu": {
+        "provinceId": "bengkulu",
+        "provinceName": "Bengkulu",
+        "kabupatenCount": 9,
+        "kotaCount": 1,
+        "totalCount": 10,
+        "regencies": [
+            {
+                "id": "kab-bengkulu-selatan",
+                "name": "Bengkulu Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bengkulu-tengah",
+                "name": "Bengkulu Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bengkulu-utara",
+                "name": "Bengkulu Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kaur",
+                "name": "Kaur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kepahiang",
+                "name": "Kepahiang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lebong",
+                "name": "Lebong",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mukomuko",
+                "name": "Mukomuko",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-rejang-lebong",
+                "name": "Rejang Lebong",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-seluma",
+                "name": "Seluma",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-bengkulu",
+                "name": "Bengkulu",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "lampung": {
+        "provinceId": "lampung",
+        "provinceName": "Lampung",
+        "kabupatenCount": 13,
+        "kotaCount": 2,
+        "totalCount": 15,
+        "regencies": [
+            {
+                "id": "kab-lampung-barat",
+                "name": "Lampung Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lampung-selatan",
+                "name": "Lampung Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lampung-tengah",
+                "name": "Lampung Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lampung-timur",
+                "name": "Lampung Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lampung-utara",
+                "name": "Lampung Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mesuji",
+                "name": "Mesuji",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pesawaran",
+                "name": "Pesawaran",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pesisir-barat",
+                "name": "Pesisir Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pringsewu",
+                "name": "Pringsewu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tanggamus",
+                "name": "Tanggamus",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tulang-bawang",
+                "name": "Tulang Bawang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tulang-bawang-barat",
+                "name": "Tulang Bawang Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-way-kanan",
+                "name": "Way Kanan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-bandar-lampung",
+                "name": "Bandar Lampung",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-metro",
+                "name": "Metro",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "kepulauan-bangka-belitung": {
+        "provinceId": "kepulauan-bangka-belitung",
+        "provinceName": "Kepulauan Bangka Belitung",
+        "kabupatenCount": 6,
+        "kotaCount": 1,
+        "totalCount": 7,
+        "regencies": [
+            {
+                "id": "kab-bangka",
+                "name": "Bangka",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bangka-barat",
+                "name": "Bangka Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bangka-selatan",
+                "name": "Bangka Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bangka-tengah",
+                "name": "Bangka Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-belitung",
+                "name": "Belitung",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-belitung-timur",
+                "name": "Belitung Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-pangkalpinang",
+                "name": "Pangkalpinang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "kepulauan-riau": {
+        "provinceId": "kepulauan-riau",
+        "provinceName": "Kepulauan Riau",
+        "kabupatenCount": 5,
+        "kotaCount": 2,
+        "totalCount": 7,
+        "regencies": [
+            {
+                "id": "kab-bintan",
+                "name": "Bintan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-karimun",
+                "name": "Karimun",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kepulauan-anambas",
+                "name": "Kepulauan Anambas",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lingga",
+                "name": "Lingga",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-natuna",
+                "name": "Natuna",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-batam",
+                "name": "Batam",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-tanjungpinang",
+                "name": "Tanjungpinang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "dki-jakarta": {
+        "provinceId": "dki-jakarta",
+        "provinceName": "DKI Jakarta",
+        "kabupatenCount": 1,
+        "kotaCount": 5,
+        "totalCount": 6,
+        "regencies": [
+            {
+                "id": "kab-kepulauan-seribu",
+                "name": "Kepulauan Seribu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-jakarta-barat",
+                "name": "Jakarta Barat",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-jakarta-pusat",
+                "name": "Jakarta Pusat",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-jakarta-selatan",
+                "name": "Jakarta Selatan",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-jakarta-timur",
+                "name": "Jakarta Timur",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-jakarta-utara",
+                "name": "Jakarta Utara",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "jawa-barat": {
+        "provinceId": "jawa-barat",
+        "provinceName": "Jawa Barat",
+        "kabupatenCount": 18,
+        "kotaCount": 9,
+        "totalCount": 27,
+        "regencies": [
+            {
+                "id": "kab-bandung",
+                "name": "Bandung",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bandung-barat",
+                "name": "Bandung Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bekasi",
+                "name": "Bekasi",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bogor",
+                "name": "Bogor",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-ciamis",
+                "name": "Ciamis",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-cianjur",
+                "name": "Cianjur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-cirebon",
+                "name": "Cirebon",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-garut",
+                "name": "Garut",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-indramayu",
+                "name": "Indramayu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-karawang",
+                "name": "Karawang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kuningan",
+                "name": "Kuningan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-majalengka",
+                "name": "Majalengka",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pangandaran",
+                "name": "Pangandaran",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-purwakarta",
+                "name": "Purwakarta",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-subang",
+                "name": "Subang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sukabumi",
+                "name": "Sukabumi",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sumedang",
+                "name": "Sumedang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tasikmalaya",
+                "name": "Tasikmalaya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-bandung",
+                "name": "Bandung",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-banjar",
+                "name": "Banjar",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-bekasi",
+                "name": "Bekasi",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-bogor",
+                "name": "Bogor",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-cimahi",
+                "name": "Cimahi",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-cirebon",
+                "name": "Cirebon",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-depok",
+                "name": "Depok",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-sukabumi",
+                "name": "Sukabumi",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-tasikmalaya",
+                "name": "Tasikmalaya",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "jawa-tengah": {
+        "provinceId": "jawa-tengah",
+        "provinceName": "Jawa Tengah",
+        "kabupatenCount": 29,
+        "kotaCount": 6,
+        "totalCount": 35,
+        "regencies": [
+            {
+                "id": "kab-banjarnegara",
+                "name": "Banjarnegara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-banyumas",
+                "name": "Banyumas",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-batang",
+                "name": "Batang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-blora",
+                "name": "Blora",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-boyolali",
+                "name": "Boyolali",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-brebes",
+                "name": "Brebes",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-cilacap",
+                "name": "Cilacap",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-demak",
+                "name": "Demak",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-grobogan",
+                "name": "Grobogan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-jepara",
+                "name": "Jepara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-karanganyar",
+                "name": "Karanganyar",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kebumen",
+                "name": "Kebumen",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kendal",
+                "name": "Kendal",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-klaten",
+                "name": "Klaten",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kudus",
+                "name": "Kudus",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-magelang",
+                "name": "Magelang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pati",
+                "name": "Pati",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pekalongan",
+                "name": "Pekalongan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pemalang",
+                "name": "Pemalang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-purbalingga",
+                "name": "Purbalingga",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-purworejo",
+                "name": "Purworejo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-rembang",
+                "name": "Rembang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-semarang",
+                "name": "Semarang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sragen",
+                "name": "Sragen",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sukoharjo",
+                "name": "Sukoharjo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tegal",
+                "name": "Tegal",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-temanggung",
+                "name": "Temanggung",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-wonogiri",
+                "name": "Wonogiri",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-wonosobo",
+                "name": "Wonosobo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-magelang",
+                "name": "Magelang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-pekalongan",
+                "name": "Pekalongan",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-salatiga",
+                "name": "Salatiga",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-semarang",
+                "name": "Semarang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-surakarta",
+                "name": "Surakarta",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-tegal",
+                "name": "Tegal",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "di-yogyakarta": {
+        "provinceId": "di-yogyakarta",
+        "provinceName": "DI Yogyakarta",
+        "kabupatenCount": 4,
+        "kotaCount": 1,
+        "totalCount": 5,
+        "regencies": [
+            {
+                "id": "kab-bantul",
+                "name": "Bantul",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-gunungkidul",
+                "name": "Gunungkidul",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kulon-progo",
+                "name": "Kulon Progo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sleman",
+                "name": "Sleman",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-yogyakarta",
+                "name": "Yogyakarta",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "jawa-timur": {
+        "provinceId": "jawa-timur",
+        "provinceName": "Jawa Timur",
+        "kabupatenCount": 29,
+        "kotaCount": 9,
+        "totalCount": 38,
+        "regencies": [
+            {
+                "id": "kab-bangkalan",
+                "name": "Bangkalan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-banyuwangi",
+                "name": "Banyuwangi",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-blitar",
+                "name": "Blitar",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bojonegoro",
+                "name": "Bojonegoro",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bondowoso",
+                "name": "Bondowoso",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-gresik",
+                "name": "Gresik",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-jember",
+                "name": "Jember",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-jombang",
+                "name": "Jombang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kediri",
+                "name": "Kediri",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lamongan",
+                "name": "Lamongan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lumajang",
+                "name": "Lumajang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-madiun",
+                "name": "Madiun",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-magetan",
+                "name": "Magetan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-malang",
+                "name": "Malang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mojokerto",
+                "name": "Mojokerto",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-nganjuk",
+                "name": "Nganjuk",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-ngawi",
+                "name": "Ngawi",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pacitan",
+                "name": "Pacitan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pamekasan",
+                "name": "Pamekasan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pasuruan",
+                "name": "Pasuruan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-ponorogo",
+                "name": "Ponorogo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-probolinggo",
+                "name": "Probolinggo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sampang",
+                "name": "Sampang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sidoarjo",
+                "name": "Sidoarjo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-situbondo",
+                "name": "Situbondo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sumenep",
+                "name": "Sumenep",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-trenggalek",
+                "name": "Trenggalek",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tuban",
+                "name": "Tuban",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tulungagung",
+                "name": "Tulungagung",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-batu",
+                "name": "Batu",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-blitar",
+                "name": "Blitar",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-kediri",
+                "name": "Kediri",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-madiun",
+                "name": "Madiun",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-malang",
+                "name": "Malang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-mojokerto",
+                "name": "Mojokerto",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-pasuruan",
+                "name": "Pasuruan",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-probolinggo",
+                "name": "Probolinggo",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-surabaya",
+                "name": "Surabaya",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "banten": {
+        "provinceId": "banten",
+        "provinceName": "Banten",
+        "kabupatenCount": 4,
+        "kotaCount": 4,
+        "totalCount": 8,
+        "regencies": [
+            {
+                "id": "kab-lebak",
+                "name": "Lebak",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pandeglang",
+                "name": "Pandeglang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-serang",
+                "name": "Serang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tangerang",
+                "name": "Tangerang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-cilegon",
+                "name": "Cilegon",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-serang",
+                "name": "Serang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-tangerang",
+                "name": "Tangerang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-tangerang-selatan",
+                "name": "Tangerang Selatan",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "bali": {
+        "provinceId": "bali",
+        "provinceName": "Bali",
+        "kabupatenCount": 8,
+        "kotaCount": 1,
+        "totalCount": 9,
+        "regencies": [
+            {
+                "id": "kab-badung",
+                "name": "Badung",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bangli",
+                "name": "Bangli",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-buleleng",
+                "name": "Buleleng",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-gianyar",
+                "name": "Gianyar",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-jembrana",
+                "name": "Jembrana",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-karangasem",
+                "name": "Karangasem",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-klungkung",
+                "name": "Klungkung",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tabanan",
+                "name": "Tabanan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-denpasar",
+                "name": "Denpasar",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "nusa-tenggara-barat": {
+        "provinceId": "nusa-tenggara-barat",
+        "provinceName": "Nusa Tenggara Barat",
+        "kabupatenCount": 8,
+        "kotaCount": 2,
+        "totalCount": 10,
+        "regencies": [
+            {
+                "id": "kab-bima",
+                "name": "Bima",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-dompu",
+                "name": "Dompu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lombok-barat",
+                "name": "Lombok Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lombok-tengah",
+                "name": "Lombok Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lombok-timur",
+                "name": "Lombok Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lombok-utara",
+                "name": "Lombok Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sumbawa",
+                "name": "Sumbawa",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sumbawa-barat",
+                "name": "Sumbawa Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-bima",
+                "name": "Bima",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-mataram",
+                "name": "Mataram",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "nusa-tenggara-timur": {
+        "provinceId": "nusa-tenggara-timur",
+        "provinceName": "Nusa Tenggara Timur",
+        "kabupatenCount": 21,
+        "kotaCount": 1,
+        "totalCount": 22,
+        "regencies": [
+            {
+                "id": "kab-alor",
+                "name": "Alor",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-belu",
+                "name": "Belu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-ende",
+                "name": "Ende",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-flores-timur",
+                "name": "Flores Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kupang",
+                "name": "Kupang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lembata",
+                "name": "Lembata",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-malaka",
+                "name": "Malaka",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-manggarai",
+                "name": "Manggarai",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-manggarai-barat",
+                "name": "Manggarai Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-manggarai-timur",
+                "name": "Manggarai Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-nagekeo",
+                "name": "Nagekeo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-ngada",
+                "name": "Ngada",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-rote-ndao",
+                "name": "Rote Ndao",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sabu-raijua",
+                "name": "Sabu Raijua",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sikka",
+                "name": "Sikka",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sumba-barat",
+                "name": "Sumba Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sumba-barat-daya",
+                "name": "Sumba Barat Daya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sumba-tengah",
+                "name": "Sumba Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sumba-timur",
+                "name": "Sumba Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-timor-tengah-selatan",
+                "name": "Timor Tengah Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-timor-tengah-utara",
+                "name": "Timor Tengah Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-kupang",
+                "name": "Kupang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "kalimantan-barat": {
+        "provinceId": "kalimantan-barat",
+        "provinceName": "Kalimantan Barat",
+        "kabupatenCount": 12,
+        "kotaCount": 2,
+        "totalCount": 14,
+        "regencies": [
+            {
+                "id": "kab-bengkayang",
+                "name": "Bengkayang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kapuas-hulu",
+                "name": "Kapuas Hulu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kayong-utara",
+                "name": "Kayong Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-ketapang",
+                "name": "Ketapang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kubu-raya",
+                "name": "Kubu Raya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-landak",
+                "name": "Landak",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-melawi",
+                "name": "Melawi",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mempawah",
+                "name": "Mempawah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sambas",
+                "name": "Sambas",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sanggau",
+                "name": "Sanggau",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sekadau",
+                "name": "Sekadau",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sintang",
+                "name": "Sintang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-pontianak",
+                "name": "Pontianak",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-singkawang",
+                "name": "Singkawang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "kalimantan-tengah": {
+        "provinceId": "kalimantan-tengah",
+        "provinceName": "Kalimantan Tengah",
+        "kabupatenCount": 13,
+        "kotaCount": 1,
+        "totalCount": 14,
+        "regencies": [
+            {
+                "id": "kab-barito-selatan",
+                "name": "Barito Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-barito-timur",
+                "name": "Barito Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-barito-utara",
+                "name": "Barito Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-gunung-mas",
+                "name": "Gunung Mas",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kapuas",
+                "name": "Kapuas",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-katingan",
+                "name": "Katingan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kotawaringin-barat",
+                "name": "Kotawaringin Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kotawaringin-timur",
+                "name": "Kotawaringin Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lamandau",
+                "name": "Lamandau",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-murung-raya",
+                "name": "Murung Raya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pulang-pisau",
+                "name": "Pulang Pisau",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-seruyan",
+                "name": "Seruyan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sukamara",
+                "name": "Sukamara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-palangka-raya",
+                "name": "Palangka Raya",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "kalimantan-selatan": {
+        "provinceId": "kalimantan-selatan",
+        "provinceName": "Kalimantan Selatan",
+        "kabupatenCount": 11,
+        "kotaCount": 2,
+        "totalCount": 13,
+        "regencies": [
+            {
+                "id": "kab-balangan",
+                "name": "Balangan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-banjar",
+                "name": "Banjar",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-barito-kuala",
+                "name": "Barito Kuala",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-hulu-sungai-selatan",
+                "name": "Hulu Sungai Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-hulu-sungai-tengah",
+                "name": "Hulu Sungai Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-hulu-sungai-utara",
+                "name": "Hulu Sungai Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kotabaru",
+                "name": "Kotabaru",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tabalong",
+                "name": "Tabalong",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tanah-bumbu",
+                "name": "Tanah Bumbu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tanah-laut",
+                "name": "Tanah Laut",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tapin",
+                "name": "Tapin",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-banjarbaru",
+                "name": "Banjarbaru",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-banjarmasin",
+                "name": "Banjarmasin",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "kalimantan-timur": {
+        "provinceId": "kalimantan-timur",
+        "provinceName": "Kalimantan Timur",
+        "kabupatenCount": 7,
+        "kotaCount": 3,
+        "totalCount": 10,
+        "regencies": [
+            {
+                "id": "kab-berau",
+                "name": "Berau",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kutai-barat",
+                "name": "Kutai Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kutai-kartanegara",
+                "name": "Kutai Kartanegara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kutai-timur",
+                "name": "Kutai Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mahakam-ulu",
+                "name": "Mahakam Ulu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-paser",
+                "name": "Paser",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-penajam-paser-utara",
+                "name": "Penajam Paser Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-balikpapan",
+                "name": "Balikpapan",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-bontang",
+                "name": "Bontang",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-samarinda",
+                "name": "Samarinda",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "kalimantan-utara": {
+        "provinceId": "kalimantan-utara",
+        "provinceName": "Kalimantan Utara",
+        "kabupatenCount": 4,
+        "kotaCount": 1,
+        "totalCount": 5,
+        "regencies": [
+            {
+                "id": "kab-bulungan",
+                "name": "Bulungan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-malinau",
+                "name": "Malinau",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-nunukan",
+                "name": "Nunukan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tana-tidung",
+                "name": "Tana Tidung",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-tarakan",
+                "name": "Tarakan",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "sulawesi-utara": {
+        "provinceId": "sulawesi-utara",
+        "provinceName": "Sulawesi Utara",
+        "kabupatenCount": 11,
+        "kotaCount": 4,
+        "totalCount": 15,
+        "regencies": [
+            {
+                "id": "kab-bolaang-mongondow",
+                "name": "Bolaang Mongondow",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bolaang-mongondow-selatan",
+                "name": "Bolaang Mongondow Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bolaang-mongondow-timur",
+                "name": "Bolaang Mongondow Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bolaang-mongondow-utara",
+                "name": "Bolaang Mongondow Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kepulauan-sangihe",
+                "name": "Kepulauan Sangihe",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kepulauan-siau-tagulandang-biaro",
+                "name": "Kepulauan Siau Tagulandang Biaro",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kepulauan-talaud",
+                "name": "Kepulauan Talaud",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-minahasa",
+                "name": "Minahasa",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-minahasa-selatan",
+                "name": "Minahasa Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-minahasa-tenggara",
+                "name": "Minahasa Tenggara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-minahasa-utara",
+                "name": "Minahasa Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-bitung",
+                "name": "Bitung",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-kotamobagu",
+                "name": "Kotamobagu",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-manado",
+                "name": "Manado",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-tomohon",
+                "name": "Tomohon",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "sulawesi-tengah": {
+        "provinceId": "sulawesi-tengah",
+        "provinceName": "Sulawesi Tengah",
+        "kabupatenCount": 12,
+        "kotaCount": 1,
+        "totalCount": 13,
+        "regencies": [
+            {
+                "id": "kab-banggai",
+                "name": "Banggai",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-banggai-kepulauan",
+                "name": "Banggai Kepulauan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-banggai-laut",
+                "name": "Banggai Laut",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-buol",
+                "name": "Buol",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-donggala",
+                "name": "Donggala",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-morowali",
+                "name": "Morowali",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-morowali-utara",
+                "name": "Morowali Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-parigi-moutong",
+                "name": "Parigi Moutong",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-poso",
+                "name": "Poso",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sigi",
+                "name": "Sigi",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tojo-una-una",
+                "name": "Tojo Una-Una",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tolitoli",
+                "name": "Tolitoli",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-palu",
+                "name": "Palu",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "sulawesi-selatan": {
+        "provinceId": "sulawesi-selatan",
+        "provinceName": "Sulawesi Selatan",
+        "kabupatenCount": 21,
+        "kotaCount": 3,
+        "totalCount": 24,
+        "regencies": [
+            {
+                "id": "kab-bantaeng",
+                "name": "Bantaeng",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-barru",
+                "name": "Barru",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bone",
+                "name": "Bone",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bulukumba",
+                "name": "Bulukumba",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-enrekang",
+                "name": "Enrekang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-gowa",
+                "name": "Gowa",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-jeneponto",
+                "name": "Jeneponto",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kepulauan-selayar",
+                "name": "Kepulauan Selayar",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-luwu",
+                "name": "Luwu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-luwu-timur",
+                "name": "Luwu Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-luwu-utara",
+                "name": "Luwu Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-maros",
+                "name": "Maros",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pangkajene-dan-kepulauan",
+                "name": "Pangkajene dan Kepulauan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pinrang",
+                "name": "Pinrang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sidenreng-rappang",
+                "name": "Sidenreng Rappang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sinjai",
+                "name": "Sinjai",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-soppeng",
+                "name": "Soppeng",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-takalar",
+                "name": "Takalar",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tana-toraja",
+                "name": "Tana Toraja",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-toraja-utara",
+                "name": "Toraja Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-wajo",
+                "name": "Wajo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-makassar",
+                "name": "Makassar",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-palopo",
+                "name": "Palopo",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-parepare",
+                "name": "Parepare",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "sulawesi-tenggara": {
+        "provinceId": "sulawesi-tenggara",
+        "provinceName": "Sulawesi Tenggara",
+        "kabupatenCount": 15,
+        "kotaCount": 2,
+        "totalCount": 17,
+        "regencies": [
+            {
+                "id": "kab-bombana",
+                "name": "Bombana",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-buton",
+                "name": "Buton",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-buton-selatan",
+                "name": "Buton Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-buton-tengah",
+                "name": "Buton Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-buton-utara",
+                "name": "Buton Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kolaka",
+                "name": "Kolaka",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kolaka-timur",
+                "name": "Kolaka Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kolaka-utara",
+                "name": "Kolaka Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-konawe",
+                "name": "Konawe",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-konawe-kepulauan",
+                "name": "Konawe Kepulauan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-konawe-selatan",
+                "name": "Konawe Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-konawe-utara",
+                "name": "Konawe Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-muna",
+                "name": "Muna",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-muna-barat",
+                "name": "Muna Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-wakatobi",
+                "name": "Wakatobi",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-bau-bau",
+                "name": "Bau-Bau",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-kendari",
+                "name": "Kendari",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "gorontalo": {
+        "provinceId": "gorontalo",
+        "provinceName": "Gorontalo",
+        "kabupatenCount": 5,
+        "kotaCount": 1,
+        "totalCount": 6,
+        "regencies": [
+            {
+                "id": "kab-boalemo",
+                "name": "Boalemo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-bone-bolango",
+                "name": "Bone Bolango",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-gorontalo",
+                "name": "Gorontalo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-gorontalo-utara",
+                "name": "Gorontalo Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pohuwato",
+                "name": "Pohuwato",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-gorontalo",
+                "name": "Gorontalo",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "sulawesi-barat": {
+        "provinceId": "sulawesi-barat",
+        "provinceName": "Sulawesi Barat",
+        "kabupatenCount": 6,
+        "kotaCount": 0,
+        "totalCount": 6,
+        "regencies": [
+            {
+                "id": "kab-majene",
+                "name": "Majene",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mamasa",
+                "name": "Mamasa",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mamuju",
+                "name": "Mamuju",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mamuju-tengah",
+                "name": "Mamuju Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pasangkayu",
+                "name": "Pasangkayu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-polewali-mandar",
+                "name": "Polewali Mandar",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "maluku": {
+        "provinceId": "maluku",
+        "provinceName": "Maluku",
+        "kabupatenCount": 9,
+        "kotaCount": 2,
+        "totalCount": 11,
+        "regencies": [
+            {
+                "id": "kab-buru",
+                "name": "Buru",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-buru-selatan",
+                "name": "Buru Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kepulauan-aru",
+                "name": "Kepulauan Aru",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kepulauan-tanimbar",
+                "name": "Kepulauan Tanimbar",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-maluku-barat-daya",
+                "name": "Maluku Barat Daya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-maluku-tengah",
+                "name": "Maluku Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-maluku-tenggara",
+                "name": "Maluku Tenggara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-seram-bagian-barat",
+                "name": "Seram Bagian Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-seram-bagian-timur",
+                "name": "Seram Bagian Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-ambon",
+                "name": "Ambon",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-tual",
+                "name": "Tual",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "maluku-utara": {
+        "provinceId": "maluku-utara",
+        "provinceName": "Maluku Utara",
+        "kabupatenCount": 8,
+        "kotaCount": 2,
+        "totalCount": 10,
+        "regencies": [
+            {
+                "id": "kab-halmahera-barat",
+                "name": "Halmahera Barat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-halmahera-selatan",
+                "name": "Halmahera Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-halmahera-tengah",
+                "name": "Halmahera Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-halmahera-timur",
+                "name": "Halmahera Timur",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-halmahera-utara",
+                "name": "Halmahera Utara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kepulauan-sula",
+                "name": "Kepulauan Sula",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pulau-morotai",
+                "name": "Pulau Morotai",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pulau-taliabu",
+                "name": "Pulau Taliabu",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-ternate",
+                "name": "Ternate",
+                "type": "Kota",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-tidore-kepulauan",
+                "name": "Tidore Kepulauan",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "papua": {
+        "provinceId": "papua",
+        "provinceName": "Papua",
+        "kabupatenCount": 8,
+        "kotaCount": 1,
+        "totalCount": 9,
+        "regencies": [
+            {
+                "id": "kab-biak-numfor",
+                "name": "Biak Numfor",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-jayapura",
+                "name": "Jayapura",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-keerom",
+                "name": "Keerom",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kepulauan-yapen",
+                "name": "Kepulauan Yapen",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mamberamo-raya",
+                "name": "Mamberamo Raya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sarmi",
+                "name": "Sarmi",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-supiori",
+                "name": "Supiori",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-waropen",
+                "name": "Waropen",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-jayapura",
+                "name": "Jayapura",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "papua-barat": {
+        "provinceId": "papua-barat",
+        "provinceName": "Papua Barat",
+        "kabupatenCount": 7,
+        "kotaCount": 0,
+        "totalCount": 7,
+        "regencies": [
+            {
+                "id": "kab-fakfak",
+                "name": "Fakfak",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-kaimana",
+                "name": "Kaimana",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-manokwari",
+                "name": "Manokwari",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-manokwari-selatan",
+                "name": "Manokwari Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pegunungan-arfak",
+                "name": "Pegunungan Arfak",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-teluk-bintuni",
+                "name": "Teluk Bintuni",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-teluk-wondama",
+                "name": "Teluk Wondama",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "papua-selatan": {
+        "provinceId": "papua-selatan",
+        "provinceName": "Papua Selatan",
+        "kabupatenCount": 4,
+        "kotaCount": 0,
+        "totalCount": 4,
+        "regencies": [
+            {
+                "id": "kab-asmat",
+                "name": "Asmat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-boven-digoel",
+                "name": "Boven Digoel",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mappi",
+                "name": "Mappi",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-merauke",
+                "name": "Merauke",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "papua-tengah": {
+        "provinceId": "papua-tengah",
+        "provinceName": "Papua Tengah",
+        "kabupatenCount": 8,
+        "kotaCount": 0,
+        "totalCount": 8,
+        "regencies": [
+            {
+                "id": "kab-deiyai",
+                "name": "Deiyai",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-dogiyai",
+                "name": "Dogiyai",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-intan-jaya",
+                "name": "Intan Jaya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mimika",
+                "name": "Mimika",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-nabire",
+                "name": "Nabire",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-paniai",
+                "name": "Paniai",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-puncak",
+                "name": "Puncak",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-puncak-jaya",
+                "name": "Puncak Jaya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "papua-pegunungan": {
+        "provinceId": "papua-pegunungan",
+        "provinceName": "Papua Pegunungan",
+        "kabupatenCount": 8,
+        "kotaCount": 0,
+        "totalCount": 8,
+        "regencies": [
+            {
+                "id": "kab-jayawijaya",
+                "name": "Jayawijaya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-lanny-jaya",
+                "name": "Lanny Jaya",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-mamberamo-tengah",
+                "name": "Mamberamo Tengah",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-nduga",
+                "name": "Nduga",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-pegunungan-bintang",
+                "name": "Pegunungan Bintang",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tolikara",
+                "name": "Tolikara",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-yahukimo",
+                "name": "Yahukimo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-yalimo",
+                "name": "Yalimo",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            }
+        ]
+    },
+    "papua-barat-daya": {
+        "provinceId": "papua-barat-daya",
+        "provinceName": "Papua Barat Daya",
+        "kabupatenCount": 5,
+        "kotaCount": 1,
+        "totalCount": 6,
+        "regencies": [
+            {
+                "id": "kab-maybrat",
+                "name": "Maybrat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-raja-ampat",
+                "name": "Raja Ampat",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sorong",
+                "name": "Sorong",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-sorong-selatan",
+                "name": "Sorong Selatan",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kab-tambrauw",
+                "name": "Tambrauw",
+                "type": "Kabupaten",
+                "totalPeraturan": 0
+            },
+            {
+                "id": "kota-sorong",
+                "name": "Sorong",
+                "type": "Kota",
+                "totalPeraturan": 0
+            }
+        ]
+    }
+}

@@ -41,10 +41,11 @@ class DatabaseSeeder extends Seeder
             'status_id' => $statusId,
         ]);
 
-        // Panggil seeder untuk akun admin dan user
+        // Panggil seeder untuk akun admin dan user, serta master wilayah
         $this->call([
             AdminSeeder::class,
             UserSeeder::class,
+            WilayahIndonesiaSeeder::class,
             OcrCiptaKerjaSeeder::class,
         ]);
     }

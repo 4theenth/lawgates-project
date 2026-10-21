@@ -529,6 +529,7 @@ class DokumenHukumController extends Controller
 
         $duplicateFound = false;
         $duplicateMessage = '';
+        $duplicateTitle = null;
 
         foreach ($request->input('files') as $index => $fileData) {
             try {
@@ -570,6 +571,10 @@ class DokumenHukumController extends Controller
                 if (str_contains(strtolower($e->getMessage()), 'sudah ada')) {
                     $duplicateFound = true;
                     $duplicateMessage = $e->getMessage();
+                    $parsed = isset($fileData['parsedData']) 
+                        ? (is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData']) 
+                        : null;
+                    $duplicateTitle = $fileData['title'] ?? ($parsed['metadata']['judul'] ?? ($parsed['judul'] ?? null));
                     $errors[] = $e->getMessage();
                 } else {
                     $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
@@ -585,6 +590,7 @@ class DokumenHukumController extends Controller
                 'message' => $duplicateFound 
                     ? ($duplicateMessage ?: 'Dokumen sudah ada di database (Duplikasi terdeteksi).')
                     : ("Berhasil mengimpor {$successCount} dokumen. Gagal: " . count($errors)),
+                'existing_title' => $duplicateTitle,
                 'errors' => $errors
             ], $status);
         }
