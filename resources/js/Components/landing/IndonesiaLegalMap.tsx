@@ -139,6 +139,9 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
   const mapRef = useRef<L.Map | null>(null);
   const geoJsonRef = useRef<L.GeoJSON | null>(null);
 
+  // SVG Renderer dengan padding diperluas (1.5x) agar tidak ada garis terpotong saat peta digeser
+  const svgRenderer = useMemo(() => L.svg({ padding: 1.5 }), []);
+
   // Selalu sinkronkan state selectedProvinceId ke Ref agar event listener tidak stale
   const selectedProvinceRef = useRef<string | null>(selectedProvinceId);
 
@@ -542,11 +545,12 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
           scrollWheelZoom={true}
           zoomControl={false}
           attributionControl={false}
+          renderer={svgRenderer}
           maxBounds={[
-            [16, 86],
-            [-18, 150],
+            [24, 85],
+            [-20, 152],
           ]}
-          maxBoundsViscosity={0.6}
+          maxBoundsViscosity={1.0}
           className="w-full h-full bg-[#71D4E9] z-0 focus:outline-none custom-leaflet-map"
         >
           <MapController
@@ -625,7 +629,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
                       {activeProvince.name}
                     </span>
                     <span className="text-[10px] font-medium text-pr-900 leading-[16px]">
-                      {(activeProvince.total > 0 ? activeProvince.total : (activeProvince.id === 'bali' ? 3090 : 0)).toLocaleString('id-ID')}
+                      {(activeProvince.total ?? 0).toLocaleString('id-ID')}
                     </span>
                   </div>
 
@@ -638,7 +642,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
                       >
                         <span className="truncate pr-2">{reg.name}</span>
                         <span className="tabular-nums font-normal shrink-0">
-                          {(reg.totalPeraturan ?? 100).toLocaleString('id-ID')}
+                          {(reg.totalPeraturan ?? 0).toLocaleString('id-ID')}
                         </span>
                       </div>
                     ))}

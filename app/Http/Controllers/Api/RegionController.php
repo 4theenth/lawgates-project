@@ -82,6 +82,9 @@ class RegionController extends Controller
     {
         $result = [];
 
+        // Preload seluruh provinsi dan kabupaten/kota dari database
+        $allProvinces = \App\Models\Province::with('regencies')->get()->keyBy('slug');
+
         // Preload seluruh peraturan sah (bukan placeholder 'menunggu import') beserta relasi statusPeraturan
         $allPeraturan = Peraturan::available()
             ->with('statusPeraturan')
@@ -184,10 +187,62 @@ class RegionController extends Controller
     }
 
     /**
+     * Mengembalikan daftar seluruh provinsi beserta jumlah kab/kota dari database.
+     */
+    public function index(): JsonResponse
+    {
+        $provinces = \App\Models\Province::withCount([
+            'regencies as kabupaten_count' => function ($q) {
+                $q->where('tipe', 'Kabupaten');
+            },
+            'regencies as kota_count' => function ($q) {
+                $q->where('tipe', 'Kota');
+            },
+            'regencies as total_count',
+        ])->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $provinces,
+        ]);
+    }
+
+    /**
+     * Mengembalikan daftar kabupaten/kota untuk provinsi tertentu dari database.
+     */
+    public function regenciesByProvince(string $provinceSlug): JsonResponse
+    {
+        $province = \App\Models\Province::where('slug', strtolower(trim($provinceSlug)))
+            ->with(['regencies' => function ($q) {
+                $q->orderBy('tipe')->orderBy('nama');
+            }])
+            ->first();
+
+        if (!$province) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Provinsi tidak ditemukan',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'province' => [
+                'id' => $province->id,
+                'nama' => $province->nama,
+                'slug' => $province->slug,
+                'kode' => $province->kode,
+            ],
+            'data' => $province->regencies,
+        ]);
+    }
+
+    /**
      * Clear cache agregasi wilayah.
      */
     public static function clearCache(): void
     {
         Cache::forget(self::CACHE_KEY);
+        \App\Services\RegulationLevelDetector::clearCache();
     }
 }

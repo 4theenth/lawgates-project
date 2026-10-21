@@ -109,6 +109,8 @@ class DocumentImportService
                 ?? $metadata['unique_id']
                 ?? ($data['id'] ?? null);
 
+            $standardId = $metadata['standard_id'] ?? null;
+
             if (!$idDokumen) {
                 $idDokumen = preg_replace('/[^a-zA-Z0-9_]/', '_', strtolower($judul));
                 $idDokumen = substr($idDokumen, 0, 50) . '_' . time();
@@ -117,17 +119,66 @@ class DocumentImportService
             $tahun = $metadata['tahun'] ?? $this->ekstrakTahun($idDokumen);
             $nomor = $this->ekstrakNomor($judul, $idDokumen);
             
-            // Cari peraturan yang ada berdasarkan unique_id ATAU kombinasi jenis, nomor, tahun (termasuk yang soft-delete)
-            $peraturan = Peraturan::withTrashed()
-                ->where('unique_id', $idDokumen)
-                ->orWhere(function($query) use ($jenis, $nomor, $tahun) {
+            // Cari peraturan yang ada berdasarkan unique_id ATAU standard_id (termasuk yang soft-delete)
+            $queryPeraturan = Peraturan::withTrashed()->where(function($q) use ($idDokumen, $standardId) {
+                $q->where('unique_id', $idDokumen);
+                if ($standardId && $standardId !== $idDokumen) {
+                    $q->orWhere('unique_id', $standardId);
+                }
+            });
+
+            // Hanya cocokkan kombinasi nomor dan tahun JIKA nomor tidak kosong
+            if (!empty($nomor) && !empty($tahun)) {
+                $queryPeraturan->orWhere(function($query) use ($jenis, $nomor, $tahun) {
                     $query->where('jenis_peraturan_id', $jenis->id)
                           ->where('nomor', $nomor)
                           ->where('tahun', $tahun);
-                })
-                ->first();
+                });
+            }
 
-            $tipeFolder = strtolower($tipePeraturan);
+            $peraturan = $queryPeraturan->first();
+
+            // Fallback: Jika tidak ditemukan by unique_id/nomor, cek apakah ada placeholder dengan judul yang cocok
+            if (!$peraturan) {
+                $queryPlaceholder = Peraturan::withTrashed()
+                    ->where('jenis_peraturan_id', $jenis->id)
+                    ->where(function($q) use ($judul, $idDokumen, $standardId) {
+                        $q->whereRaw('LOWER(judul) = ?', [strtolower(trim($judul))])
+                          ->orWhereRaw('LOWER(judul) = ?', ['menunggu import dokumen: ' . strtolower(trim($judul))])
+                          ->orWhereRaw('LOWER(judul) = ?', ['menunggu import dokumen: ' . strtolower(trim($idDokumen))]);
+                        if ($standardId) {
+                            $q->orWhereRaw('LOWER(judul) = ?', ['menunggu import dokumen: ' . strtolower(trim($standardId))]);
+                        }
+                    });
+
+                $peraturan = $queryPlaceholder->first();
+            }
+
+            $standardFolderMap = [
+                'undang-undang' => 'uu',
+                'uu' => 'uu',
+                'undang-undang dasar' => 'uud',
+                'uud' => 'uud',
+                'undang-undang darurat' => 'uudrt',
+                'uudrt' => 'uudrt',
+                'peraturan pemerintah' => 'pp',
+                'pp' => 'pp',
+                'peraturan presiden' => 'perpres',
+                'perpres' => 'perpres',
+                'instruksi presiden' => 'inpres',
+                'inpres' => 'inpres',
+                'peraturan daerah' => 'perda',
+                'perda' => 'perda',
+                'peraturan menteri' => 'permen',
+                'permen' => 'permen',
+                'peraturan pemerintah pengganti undang-undang' => 'perpu',
+                'perpu' => 'perpu',
+                'perppu' => 'perpu',
+                'keputusan presiden' => 'keppres',
+                'keppres' => 'keppres',
+            ];
+            $keyLower = strtolower(trim($jenis->nama ?? $tipePeraturan));
+            $tipeFolder = $standardFolderMap[$keyLower] ?? (strtolower($jenis->kode ?? $tipePeraturan));
             $docFolder = $metadata['standard_id'] ?? $idDokumen;
             $pdfPath = "documents/{$tipeFolder}/{$docFolder}/document.pdf";
 
@@ -177,8 +228,6 @@ class DocumentImportService
             if ($peraturan) {
                 if ($peraturan->trashed()) {
                     $peraturan->restore();
-                } else if (!str_contains(strtolower($peraturan->judul), 'menunggu import')) {
-                    throw new \Exception("Dokumen " . $judul . " sudah ada di database.");
                 }
                 $peraturan->update($attributes);
             } else {
@@ -240,7 +289,7 @@ class DocumentImportService
 
                 // Heuristic: Deteksi otomatis jika kita masuk ke bagian penjelasan 
                 // dengan melihat apakah nomor pasal me-restart dari 1 setelah mencapai angka besar
-                if ($tipe === 'PASAL') {
+                if ($tipe === 'PASAL' || $tipe === 'PASAL_PERUBAHAN') {
                     $pasalLabel = $chunk['label'] ?? ''; 
                     if (preg_match('/Pasal\s+(\d+)/i', $pasalLabel, $matches)) {
                         $currentPasalNum = (int)$matches[1];
@@ -257,7 +306,7 @@ class DocumentImportService
 
                 // Penjelasan Pasal (berdasarkan flag dari OCR atau dari Heuristic)
                 if ($inPenjelasan || $bagianDokumen === 'PENJELASAN' || $tipe === 'PENJELASAN_PASAL') {
-                    if ($tipe === 'PASAL' || $tipe === 'PENJELASAN_PASAL') {
+                    if ($tipe === 'PASAL' || $tipe === 'PASAL_PERUBAHAN' || $tipe === 'PENJELASAN_PASAL') {
                         $pasalTerkait = Pasal::where('peraturan_id', $peraturan->id)
                                              ->where('nomor_pasal', $chunk['label'])
                                              ->first();
@@ -273,7 +322,7 @@ class DocumentImportService
                 }
 
                 // Isi Pasal
-                if ($tipe === 'PASAL') {
+                if ($tipe === 'PASAL' || $tipe === 'PASAL_PERUBAHAN') {
                     $strukturId = $currentStrukturIds['PARAGRAF'] 
                                 ?? $currentStrukturIds['BAGIAN'] 
                                 ?? $currentStrukturIds['BAB'] 
@@ -337,14 +386,7 @@ class DocumentImportService
                             $targetTahun = $this->ekstrakTahun($targetUniqueId);
                             $targetJenisId = $this->getJenisId($targetUniqueId);
 
-                            $targetPeraturan = Peraturan::where('unique_id', $targetUniqueId)->first();
-
-                            if (!$targetPeraturan) {
-                                $targetPeraturan = Peraturan::where('jenis_peraturan_id', $targetJenisId)
-                                                            ->where('nomor', $targetNomor)
-                                                            ->where('tahun', $targetTahun)
-                                                            ->first();
-                            }
+                            $targetPeraturan = $this->findTargetPeraturan($targetUniqueId, $targetNomor, $targetTahun, $targetJenisId);
 
                             if (!$targetPeraturan) {
                                 $targetPeraturan = Peraturan::create([
@@ -375,19 +417,14 @@ class DocumentImportService
                         $targetTahun = $this->ekstrakTahun($targetUniqueId);
                         $targetJenisId = $this->getJenisId($targetUniqueId);
 
-                        $targetPeraturan = Peraturan::where('unique_id', $targetUniqueId)->first();
-
-                        if (!$targetPeraturan) {
-                            $targetPeraturan = Peraturan::where('jenis_peraturan_id', $targetJenisId)
-                                                        ->where('nomor', $targetNomor)
-                                                        ->where('tahun', $targetTahun)
-                                                        ->first();
-                        }
+                        $targetPeraturan = $this->findTargetPeraturan($targetUniqueId, $targetNomor, $targetTahun, $targetJenisId);
 
                         if (!$targetPeraturan) {
                             $targetPeraturan = Peraturan::create([
                                 'unique_id' => $targetUniqueId,
-                                'judul' => $ingat['judul_referensi'] ?? 'Menunggu import dokumen: ' . $targetUniqueId,
+                                'judul' => isset($ingat['judul_referensi']) 
+                                    ? ('Menunggu import dokumen: ' . $ingat['judul_referensi']) 
+                                    : ('Menunggu import dokumen: ' . $targetUniqueId),
                                 'tahun' => $targetTahun,
                                 'nomor' => $targetNomor,
                                 'jenis_peraturan_id' => $targetJenisId,
@@ -414,14 +451,7 @@ class DocumentImportService
                         $targetTahun = $this->ekstrakTahun($targetUniqueId);
                         $targetJenisId = $this->getJenisId($targetUniqueId);
 
-                        $targetPeraturan = Peraturan::where('unique_id', $targetUniqueId)->first();
-
-                        if (!$targetPeraturan) {
-                            $targetPeraturan = Peraturan::where('jenis_peraturan_id', $targetJenisId)
-                                                        ->where('nomor', $targetNomor)
-                                                        ->where('tahun', $targetTahun)
-                                                        ->first();
-                        }
+                        $targetPeraturan = $this->findTargetPeraturan($targetUniqueId, $targetNomor, $targetTahun, $targetJenisId);
 
                         if (!$targetPeraturan) {
                             $targetPeraturan = Peraturan::create([
@@ -463,7 +493,11 @@ class DocumentImportService
 
         } catch (\Exception $e) {
             DB::rollBack();
-            throw new \Exception("Gagal mengimpor: " . $e->getMessage() . " pada baris " . $e->getLine());
+            $msg = $e->getMessage();
+            if (!str_starts_with($msg, 'Gagal mengimpor:')) {
+                $msg = "Gagal mengimpor: " . $msg;
+            }
+            throw new \Exception($msg);
         }
     }
 
@@ -545,5 +579,35 @@ class DocumentImportService
             $jenis = \App\Models\JenisPeraturan::create(['kode' => $kode, 'nama' => $kode]);
         }
         return $jenis->id;
+    }
+
+    private function findTargetPeraturan(string $targetUniqueId, ?string $targetNomor, ?string $targetTahun, $targetJenisId)
+    {
+        $targetPeraturan = Peraturan::where('unique_id', $targetUniqueId)->first();
+
+        if (!$targetPeraturan && !empty($targetNomor) && !empty($targetTahun)) {
+            $targetPeraturan = Peraturan::where('jenis_peraturan_id', $targetJenisId)
+                                        ->where('nomor', $targetNomor)
+                                        ->where('tahun', $targetTahun)
+                                        ->first();
+        }
+
+        if (!$targetPeraturan) {
+            if (preg_match('/uud-1945-perubahan-(\d+)/i', $targetUniqueId, $m)) {
+                $mapNum = [1 => 'pertama', 2 => 'kedua', 3 => 'ketiga', 4 => 'keempat'];
+                $word = $mapNum[(int)$m[1]] ?? '';
+                if ($word) {
+                    $targetPeraturan = Peraturan::whereRaw('LOWER(judul) LIKE ?', ['%perubahan ' . $word . '%1945%'])
+                        ->orWhere('unique_id', 'like', "%perubahan_{$word}_undang-undang_dasar%")
+                        ->first();
+                }
+            } elseif (strtolower($targetUniqueId) === 'uud-1945') {
+                $targetPeraturan = Peraturan::where('unique_id', 'undang-undang_dasar_negara_republik_indonesia_tahun_1945')
+                    ->orWhereRaw('LOWER(judul) LIKE ?', ['%undang-undang dasar negara republik indonesia tahun 1945%'])
+                    ->first();
+            }
+        }
+
+        return $targetPeraturan;
     }
 }

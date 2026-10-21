@@ -29,6 +29,19 @@ class GraphController extends Controller
         try {
             $graphData = $this->graphService->getRegulationGraph($peraturan->id, $depth);
 
+            // Self-healing: jika di Neo4j belum ada node atau relasinya masih kosong padahal di PostgreSQL ada relasi
+            $hasNoEdges = empty($graphData['edges']) && empty($graphData['links']);
+            if (empty($graphData['nodes']) || $hasNoEdges) {
+                $hasPostgresRelations = LawRelation::where('from_peraturan_id', $peraturan->id)
+                    ->orWhere('to_peraturan_id', $peraturan->id)
+                    ->exists();
+
+                if ($hasPostgresRelations || empty($graphData['nodes'])) {
+                    $this->autoSyncPeraturanGraph($peraturan);
+                    $graphData = $this->graphService->getRegulationGraph($peraturan->id, $depth);
+                }
+            }
+
             // Jika node utama belum ada di Neo4j, kita injeksikan data dari database
             if (empty($graphData['nodes'])) {
                 $graphData['nodes'][] = [
@@ -182,5 +195,32 @@ class GraphController extends Controller
             'links' => $edges,
             'depth' => $depth,
         ];
+    }
+
+    /**
+     * Auto-sync single regulation and its direct relations to Neo4j on-demand
+     */
+    protected function autoSyncPeraturanGraph(Peraturan $peraturan): void
+    {
+        try {
+            $this->graphService->upsertPeraturanNode($peraturan);
+
+            $relations = LawRelation::with(['fromPeraturan.jenisPeraturan', 'toPeraturan.jenisPeraturan', 'relationType'])
+                ->where('from_peraturan_id', $peraturan->id)
+                ->orWhere('to_peraturan_id', $peraturan->id)
+                ->get();
+
+            foreach ($relations as $rel) {
+                if ($rel->fromPeraturan) {
+                    $this->graphService->upsertPeraturanNode($rel->fromPeraturan);
+                }
+                if ($rel->toPeraturan) {
+                    $this->graphService->upsertPeraturanNode($rel->toPeraturan);
+                }
+                $this->graphService->createRelation($rel);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Auto-sync to Neo4j failed for Peraturan {$peraturan->id}: " . $e->getMessage());
+        }
     }
 }

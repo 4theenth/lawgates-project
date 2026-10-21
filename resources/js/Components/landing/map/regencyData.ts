@@ -163,8 +163,7 @@ export function extractProvinceName(rawName: string): { key: string; name: strin
 }
 
 /**
- * Mengambil data kabupaten/kota untuk provinsi tertentu.
- * Jika provinsi belum didefinisikan secara khusus, sediakan data seragam yang rapi & konsisten.
+ * Mengambil data kabupaten/kota resmi untuk provinsi tertentu.
  */
 export function getRegenciesForProvince(
   provinceId: string,
@@ -175,7 +174,6 @@ export function getRegenciesForProvince(
     return PROVINCE_REGENCY_MAP[normalizedId];
   }
 
-  // Fallback seragam untuk provinsi lainnya agar UI selalu terisi dan tidak kosong
   const formattedName = provinceName.trim() || 'Wilayah';
   const defaultList: RegencyItem[] = [
     { id: `${normalizedId}-pusat`, name: `${formattedName} Pusat`, type: 'Kabupaten', totalPeraturan: 0 },
@@ -189,9 +187,9 @@ export function getRegenciesForProvince(
   return {
     provinceId: normalizedId,
     provinceName: formattedName,
-    kabupatenCount: 5,
-    kotaCount: 1,
-    totalCount: 6,
-    regencies: defaultList,
+    kabupatenCount: 0,
+    kotaCount: 0,
+    totalCount: 0,
+    regencies: [],
   };
 }

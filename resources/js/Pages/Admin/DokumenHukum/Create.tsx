@@ -654,7 +654,7 @@ export default function DokumenHukumCreate() {
 
   // Handler publikasi seluruh berkas ke database dengan visual progress bar
   const handlePublishToDatabase = async () => {
-    if (validatedFiles.length === 0) return;
+    if (isPublishing || validatedFiles.length === 0) return;
 
     // 1. Inisialisasi daftar progress file untuk visual loading bar
     const initialPublish: ProcessedFileItem[] = validatedFiles.map((file) => ({
@@ -730,7 +730,7 @@ export default function DokumenHukumCreate() {
           show: true,
           title: 'Duplikasi Dokumen Terdeteksi (409 Conflict)',
           message: msg,
-          documentTitle: validatedFiles[0]?.title,
+          documentTitle: errorData.existing_title || errorData.title || validatedFiles[0]?.title,
           existingId: errorData.existing_id,
         });
         toast.warning(msg);
@@ -934,9 +934,12 @@ export default function DokumenHukumCreate() {
                 <button
                   type="button"
                   onClick={handlePublishToDatabase}
-                  className="inline-flex items-center justify-center px-6 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer"
+                  disabled={isPublishing}
+                  className={`inline-flex items-center justify-center px-6 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs ${
+                    isPublishing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                  }`}
                 >
-                  <span>Publish</span>
+                  <span>{isPublishing ? 'Memproses...' : 'Publish'}</span>
                 </button>
               </div>
 

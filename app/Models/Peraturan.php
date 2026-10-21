@@ -43,6 +43,9 @@ class Peraturan extends Model
         'is_available',
         'has_pembukaan',
         'has_pasal',
+        'tingkat',
+        'nama_daerah',
+        'provinsi_induk',
     ];
 
     protected $fillable = [

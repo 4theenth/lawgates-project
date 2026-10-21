@@ -98,7 +98,44 @@ class MinioOcrIntegrationTest extends TestCase
             ->postJson('/admin/dokumen-hukum/draft', $payload);
 
         $response->assertStatus(200);
-        Storage::disk('minio')->assertExists('UU_No_11_2026.json');
+        // Pastikan draft tersimpan di database dan TIDAK tercecer ke root MinIO
+        $this->assertDatabaseHas('draft_dokumen', ['nama_draft' => 'Draft Edit Test']);
+        Storage::disk('minio')->assertMissing('UU_No_11_2026.json');
+    }
+
+    /**
+     * Pastikan dokumen unggahan lokal tanpa sumber di MinIO tidak membuat folder/file fiktif di MinIO saat di-edit
+     */
+    public function test_updating_local_regulation_does_not_create_phantom_minio_file()
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $jenis = JenisPeraturan::create(['kode' => 'UU', 'nama' => 'Undang-Undang']);
+        $statusBerlaku = Status::create(['nama_status' => 'Berlaku']);
+
+        $peraturan = Peraturan::create([
+            'unique_id' => 'peraturan_lokal_123',
+            'judul' => 'Peraturan Hasil Upload Lokal',
+            'nomor' => '99',
+            'tahun' => '2026',
+            'jenis_peraturan_id' => $jenis->id,
+            'status_id' => $statusBerlaku->id,
+            'file_pdf_path' => 'documents/uu/peraturan_lokal_123/document.pdf'
+        ]);
+
+        $payload = [
+            'judul' => 'Peraturan Hasil Upload Lokal (Edited)',
+            'nomorPeraturan' => '99',
+            'tahun' => '2026',
+        ];
+
+        $response = $this->actingAs($admin)
+            ->putJson("/admin/dokumen-hukum/{$peraturan->unique_id}", $payload);
+
+        $response->assertStatus(200);
+
+        // MinIO tidak boleh ketumpahan file ocr.json fiktif
+        Storage::disk('minio')->assertMissing('documents/uu/peraturan_lokal_123/ocr.json');
+        Storage::disk('minio')->assertMissing('documents/undang-undang/peraturan_lokal_123/ocr.json');
     }
 
     /**

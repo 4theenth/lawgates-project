@@ -2,12 +2,18 @@ import rawGeoJson from '@/assets/indonesia-38-provinces.json';
 import rawLandBorders from '@/assets/indonesia-land-borders.json';
 import rawNeighbors from '@/assets/neighboring-countries.json';
 
+import { RegencyItem } from './map/types';
+
 export interface ProvinceDetail {
   id: string;
   name: string;
   total: number;
   berlaku: number;
   tidakBerlaku: number;
+  kabupatenCount?: number;
+  kotaCount?: number;
+  totalCount?: number;
+  regencies?: RegencyItem[];
   samplePerda?: {
     unique_id?: string | null;
     nomor: string;
