@@ -380,4 +380,30 @@ class BookmarkApiTest extends TestCase
 
         $this->assertDatabaseCount('user_bookmarks', 1);
     }
+
+    /**
+     * `putusan` lolos validasi tapi tidak terdaftar di morphMap, sehingga
+     * menghasilkan baris yang meledak saat dibaca ("Class \"putusan\" not found").
+     * Tipe yang tidak punya model harus ditolak di pintu masuk.
+     */
+    public function test_menolak_tipe_yang_belum_punya_model(): void
+    {
+        $this->actingAs($this->user())
+            ->postJson('/api/bookmarks/toggle', ['type' => 'putusan', 'id' => 1])
+            ->assertStatus(422);
+
+        $this->assertDatabaseCount('user_bookmarks', 0);
+    }
+
+    /**
+     * Id non-angka (mis. unique_id/slug) pernah mencapai query kolom bigint dan
+     * menghasilkan 500 + stack trace, bukan pesan validasi.
+     */
+    public function test_menolak_id_yang_bukan_angka(): void
+    {
+        $this->actingAs($this->user())
+            ->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => 'undang-undang-6-2023'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('id');
+    }
 }

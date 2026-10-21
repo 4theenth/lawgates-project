@@ -35,6 +35,15 @@ Route::get('/api/regions/statistics', [\App\Http\Controllers\Api\RegionControlle
 // ── PROTECTED ROUTES (MANDATORY LOGIN) ──────────────────────────────────
 Route::middleware('auth')->group(function () {
     // Route Testing Backend (Merender file Blade)
+    // Halaman diagnostik bookmark: memanggil endpoint API asli dan menampilkan
+    // status HTTP apa adanya. Tanpa ini, menguji toggle/folder harus lewat curl
+    // manual. Sama seperti /test-peraturan, hanya untuk pengujian internal.
+    Route::get('/test-bookmark', function () {
+        return view('test-bookmark', [
+            'contohId' => \App\Models\Peraturan::query()->value('id') ?? 1,
+        ]);
+    });
+
     Route::get('/test-peraturan/{id}', function ($id) {
         $peraturan = Peraturan::with(['pasal' => function ($query) {
             $query->orderBy('urutan', 'asc');

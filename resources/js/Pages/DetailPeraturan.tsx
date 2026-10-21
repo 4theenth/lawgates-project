@@ -27,6 +27,7 @@ const formatTanggal = (dateString: string) => {
 
 export default function DetailPeraturan({
   peraturan,
+  isBookmarked,
 }: {
   peraturan: any;
   isBookmarked?: boolean;
@@ -141,6 +142,7 @@ export default function DetailPeraturan({
               viewerHref={`/peraturan/${peraturan?.unique_id}/lihat`}
               downloadHref={`/peraturan/${peraturan?.unique_id}/download`}
               peraturanId={peraturan?.id}
+              isBookmarked={isBookmarked}
             />
           </div>
         </section>

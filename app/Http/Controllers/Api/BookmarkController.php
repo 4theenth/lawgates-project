@@ -24,10 +24,14 @@ class BookmarkController extends Controller
      * Tipe entitas yang boleh di-bookmark, dipetakan dari alias API ke morph
      * alias. Hanya yang terdaftar di sini diterima, sehingga user tidak bisa
      * menyisipkan tipe sembarangan ke kolom bookmarkable_type.
+     *
+     * Isinya harus sejalan dengan morphMap di AppServiceProvider: tipe yang
+     * lolos validasi tapi belum terdaftar di sana akan tersimpan sebagai baris
+     * yatim, lalu melempar "Class \"<alias>\" not found" saat dibaca.
+     * Tambahkan di kedua tempat sekaligus, atau tidak sama sekali.
      */
     private const ALLOWED_TYPES = [
         'peraturan' => 'peraturan',
-        'putusan' => 'putusan',
     ];
 
     // ─────────────────────────────────────────────
@@ -89,7 +93,10 @@ class BookmarkController extends Controller
     {
         $validated = $request->validate([
             'type' => ['required', 'string', Rule::in(array_keys(self::ALLOWED_TYPES))],
-            'id' => ['required'],
+            // Harus angka: kolom bookmarkable_id bertipe bigint, dan id non-angka
+            // (mis. unique_id/slug) akan mencapai query sebagai string lalu
+            // memicu SQLSTATE 22P02 -> 500 lengkap dengan stack trace.
+            'id' => ['required', 'integer', 'min:1'],
         ]);
 
         $type = self::ALLOWED_TYPES[$validated['type']];
