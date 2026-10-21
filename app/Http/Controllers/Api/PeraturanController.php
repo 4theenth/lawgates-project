@@ -240,16 +240,8 @@ class PeraturanController extends Controller
 
         // Jika request datang dari Inertia (Frontend React), render halaman DetailPeraturan
         if (request()->wantsJson() == false || request()->inertia()) {
-            $isBookmarked = false;
-            if (auth()->check()) {
-                $isBookmarked = auth()->user()->bookmarks()
-                    ->forMorph('peraturan', $peraturan->id)
-                    ->exists();
-            }
-
             return inertia('DetailPeraturan', [
                 'peraturan' => $peraturan,
-                'isBookmarked' => $isBookmarked,
             ]);
         }
 

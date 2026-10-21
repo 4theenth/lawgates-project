@@ -43,7 +43,7 @@
         <button onclick="api('GET', '/api/bookmarks?per_page=1')">per_page=1</button>
         <button onclick="api('GET', '/api/bookmarks?per_page=0')">per_page=0 (uji bug)</button>
     </div>
-    <p class="note"><code>per_page=0</code> pernah membuat <code>paginate(0)</code> error. Sekarang jatuh ke nilai default 12.</p>
+    <p class="note"><code>per_page=0</code> ditolak validator dengan <code>422</code> (bukan fallback ke default), sehingga <code>paginate(0)</code> tidak pernah tercapai.</p>
     <pre id="out-list">&mdash;</pre>
 
     <h2>3. Folder &mdash; /api/bookmark-collections</h2>

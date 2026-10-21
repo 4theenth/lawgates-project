@@ -18,7 +18,6 @@ export interface DetailPeraturanHeaderProps {
   viewerHref?: string;
   showCompare?: boolean;
   peraturanId?: string | number;
-  isBookmarked?: boolean;
   onBookmarkToggle?: (isBookmarked: boolean) => void;
 }
 
@@ -40,7 +39,6 @@ export function DetailPeraturanHeader({
   viewerHref,
   showCompare: _showCompare = true,
   peraturanId,
-  isBookmarked,
   onBookmarkToggle,
 }: DetailPeraturanHeaderProps) {
   const [isLinkCopied, setIsLinkCopied] = useState(false);
