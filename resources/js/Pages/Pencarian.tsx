@@ -36,10 +36,15 @@ export default function Pencarian() {
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
   const [selectedLokasi, setSelectedLokasi] = useState<string[]>([]);
   const [selectedSubjek, setSelectedSubjek] = useState<string[]>([]);
-  const [sort, setSort] = useState('relevansi');
+  const [sort, setSort] = useState('');
 
-  // State tampilan
-  const [isFilterOpen, setIsFilterOpen] = useState(true);
+  // State tampilan: di mobile (< 1024px) default tertutup agar tidak menutupi hasil peraturan, di desktop (>= 1024px) default terbuka
+  const [isFilterOpen, setIsFilterOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return false;
+  });
   const [activeDropdown, setActiveDropdown] = useState<'kategori' | 'tahun' | 'status' | 'lokasi' | 'subjek' | null>(null);
   const [isResetSpinning, setIsResetSpinning] = useState(false);
   const [subjekSearchQuery, setSubjekSearchQuery] = useState('');
@@ -138,7 +143,7 @@ export default function Pencarian() {
       setTahunSampai('');
     }
 
-    setSort(params.get('sort') || 'relevansi');
+    setSort(params.get('sort') || '');
 
     const urlPage = parseInt(params.get('page') || '1');
     setCurrentPage(urlPage);
@@ -273,7 +278,11 @@ export default function Pencarian() {
     if (currentStatus) params.set('status_id', currentStatus);
     if (currentLokasi) params.set('lokasi_daerah', currentLokasi);
     if (currentSubjek) params.set('subjek', currentSubjek);
-    if (currentSort) params.set('sort', currentSort);
+    if (currentSort) {
+      params.set('sort', currentSort);
+    } else {
+      params.delete('sort');
+    }
     if (currentPerPage) params.set('per_page', currentPerPage.toString());
     if (page > 1) params.set('page', page.toString());
 
@@ -288,6 +297,10 @@ export default function Pencarian() {
 
   const handleApplyFilter = () => {
     applyFilters({ page: 1 });
+    // Di layar mobile (< 1024px), otomatis tutup filter setelah klik 'Terapkan' agar pengguna langsung melihat hasil
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setIsFilterOpen(false);
+    }
   };
 
   const isFormDirty =
@@ -298,7 +311,7 @@ export default function Pencarian() {
     selectedSubjek.length > 0 ||
     tahunDari !== '' ||
     tahunSampai !== '' ||
-    sort !== 'relevansi' ||
+    sort !== '' ||
     perPage !== 10;
 
   const isDataFiltered =
@@ -330,7 +343,7 @@ export default function Pencarian() {
     setSelectedStatus([]);
     setSelectedLokasi([]);
     setSelectedSubjek([]);
-    setSort('relevansi');
+    setSort('');
     setPerPage(10);
     setCurrentPage(1);
 
