@@ -242,7 +242,9 @@ class PeraturanController extends Controller
         if (request()->wantsJson() == false || request()->inertia()) {
             $isBookmarked = false;
             if (auth()->check()) {
-                $isBookmarked = auth()->user()->bookmarks()->where('peraturan_id', $peraturan->id)->exists();
+                $isBookmarked = auth()->user()->bookmarks()
+                    ->forMorph('peraturan', $peraturan->id)
+                    ->exists();
             }
 
             return inertia('DetailPeraturan', [

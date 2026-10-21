@@ -26,7 +26,7 @@ class UserDashboardController extends Controller
 
         $recentBookmarks = $user->bookmarkedPeraturans()
             ->with(['jenisPeraturan', 'statusPeraturan'])
-            ->latest('bookmarks.created_at')
+            ->latest('user_bookmarks.created_at')
             ->take(5)
             ->get()
             ->map(function ($item) {

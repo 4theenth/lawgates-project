@@ -69,21 +69,15 @@ export function useBookmark(peraturanId?: string | number) {
 
         setIsLoading(true);
         try {
-          const response = await axios.post(`/api/bookmarks/${idStr}/toggle`);
+          const response = await axios.post('/api/bookmarks/toggle', { type: 'peraturan', id: idStr });
           if (response.data && response.data.success) {
             const finalState = Boolean(response.data.bookmarked);
-            const returnedId = response.data.peraturan_id ? String(response.data.peraturan_id) : idStr;
-            const returnedUniqueId = response.data.unique_id ? String(response.data.unique_id) : idStr;
 
             if (finalState) {
               globalBookmarkSet.add(idStr);
-              globalBookmarkSet.add(returnedId);
-              globalBookmarkSet.add(returnedUniqueId);
               toast.success('Peraturan berhasil disimpan ke bookmark');
             } else {
               globalBookmarkSet.delete(idStr);
-              globalBookmarkSet.delete(returnedId);
-              globalBookmarkSet.delete(returnedUniqueId);
               toast.success('Peraturan dihapus dari bookmark');
             }
             notifyListeners();

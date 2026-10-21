@@ -9,7 +9,7 @@ use App\Http\Controllers\Api\PeraturanController;
 use App\Http\Controllers\KategoriController;
 use App\Http\Controllers\RegulasiController;
 use App\Http\Controllers\User\UserDashboardController;
-use App\Http\Controllers\User\BookmarkController;
+use App\Http\Controllers\User\BookmarkPageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,10 +46,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
 
     // Bookmark khusus akun user; admin dikembalikan ke beranda oleh middleware role.
+    // Operasi datanya ada di routes/api.php — yang tersisa di sini hanya halaman.
     Route::middleware('role:user')->group(function () {
-        Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('user.bookmarks');
-        Route::post('/api/bookmarks/{peraturanId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
-        Route::delete('/bookmarks/{peraturanId}', [BookmarkController::class, 'destroy'])->name('bookmarks.destroy');
+        Route::get('/bookmarks', [BookmarkPageController::class, 'index'])->name('user.bookmarks');
     });
 
     Route::get('/pencarian', function () {
