@@ -1246,62 +1246,137 @@ class DokumenHukumController extends Controller
     {
         $filename = $request->query('filename');
         $judul = $request->query('judul');
+        $standarId = $request->query('standarId');
+        $folderPath = $request->query('folder_path');
+        $categoryParam = $request->query('category');
 
-        if (!$filename && !$judul) {
-            return response('Nama file atau judul tidak valid.', 400);
+        if (!$filename && !$judul && !$folderPath) {
+            return response('Nama file, judul, atau folder path tidak valid.', 400);
         }
 
-        $baseName = str_replace('.json', '', $filename ?? '');
-        $textToSearch = $judul ?? $filename ?? '';
-        
-        // Extract numbers (like nomor 6, tahun 2011)
-        preg_match_all('/\d+/', $textToSearch, $matches);
-        $numbers = $matches[0] ?? [];
-
         try {
-            $allFiles = \Illuminate\Support\Facades\Storage::disk('minio')->allFiles('documents');
-            
-            $pdfPath = collect($allFiles)->first(function($file) use ($baseName, $numbers, $textToSearch) {
-                if (!str_ends_with(strtolower($file), '.pdf')) return false;
-                
-                // 1. Exact or partial match with filename
-                if ($baseName && str_contains(strtolower($file), strtolower($baseName))) {
-                    return true;
-                }
-                
-                // 2. Fuzzy match based on extracted numbers from judul/filename
-                if (count($numbers) >= 2) {
-                    $hasAllNumbers = true;
-                    foreach ($numbers as $num) {
-                        if (!preg_match("/\b{$num}\b/", $file)) {
-                            $hasAllNumbers = false;
-                            break;
-                        }
+            $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+
+            // 1. Cek langsung jika folder_path diberikan (sangat cepat, 10ms)
+            if ($folderPath) {
+                $cleanFolder = ltrim($folderPath, '/');
+                $directCandidates = [
+                    "{$cleanFolder}/document.pdf",
+                    str_replace('/ocr.json', '/document.pdf', $cleanFolder),
+                    "documents/{$cleanFolder}/document.pdf",
+                ];
+                foreach ($directCandidates as $cand) {
+                    if ($disk->exists($cand)) {
+                        return response($disk->get($cand), 200, [
+                            'Content-Type' => 'application/pdf',
+                            'Content-Disposition' => 'inline; filename="document.pdf"'
+                        ]);
                     }
-                    if ($hasAllNumbers) {
-                        // Check if it shares some prefix context to avoid false positives (e.g. "uu", "undang")
-                        $typeStr = strtolower(substr($textToSearch, 0, 4)); 
-                        if ($typeStr && str_contains(strtolower($file), $typeStr)) {
+                }
+            }
+
+            $combinedText = trim(($standarId ?? '') . ' ' . ($filename ?? '') . ' ' . ($judul ?? '') . ' ' . ($categoryParam ?? ''));
+
+            // 2. Deteksi Kategori Direktori MinIO
+            $catFolder = null;
+            if (preg_match('/\b(inpres|instruksi\s+presiden)\b/i', $combinedText)) {
+                $catFolder = 'inpres';
+            } elseif (preg_match('/\b(perpres|peraturan\s+presiden)\b/i', $combinedText)) {
+                $catFolder = 'perpres';
+            } elseif (preg_match('/\b(uudrt|uu\s+darurat|undang\s+undang\s+darurat)\b/i', $combinedText)) {
+                $catFolder = 'uudrt';
+            } elseif (preg_match('/\b(uud|undang[- ]undang\s+dasar)\b/i', $combinedText)) {
+                $catFolder = 'uud';
+            } elseif (preg_match('/\b(perpu|perppu)\b/i', $combinedText)) {
+                $catFolder = 'perpu';
+            } elseif (preg_match('/\b(perda|peraturan\s+daerah)\b/i', $combinedText)) {
+                $catFolder = 'perda';
+            } elseif (preg_match('/\b(uu|undang[- ]undang)\b/i', $combinedText)) {
+                $catFolder = 'uu';
+            } elseif (preg_match('/\b(pp|peraturan\s+pemerintah)\b/i', $combinedText)) {
+                $catFolder = 'pp';
+            }
+
+            // 3. Ekstrak Nomor dan Tahun Pokok Peraturan
+            $nomor = null;
+            if (preg_match('/(?:nomor|no\.?|perpres_no_|inpres_no_|uu_no_|pp_no_)\s*([0-9]+)/i', $combinedText, $m)) {
+                $nomor = $m[1];
+            }
+
+            $tahun = null;
+            if (preg_match('/\b(19[0-9]{2}|20[0-9]{2})\b/', $combinedText, $m)) {
+                $tahun = $m[1];
+            }
+
+            // Amandemen / Perubahan untuk UUD (misal Aman2 -> perubahan 2)
+            $perubahan = null;
+            if ($catFolder === 'uud' && preg_match('/(?:perubahan|aman(?:demen)?)[-_ ]*([1-4])/i', $combinedText, $m)) {
+                $perubahan = $m[1];
+            }
+
+            // 4. Daftar folder pencarian spesifik (menghindari pemindaian 11rb file sekaligus)
+            $searchFolders = $catFolder ? ["documents/{$catFolder}"] : [
+                'documents/inpres', 'documents/perpres', 'documents/uu', 'documents/uud', 'documents/uudrt', 'documents/perpu', 'documents/perda'
+            ];
+
+            $pdfPath = null;
+            foreach ($searchFolders as $sf) {
+                // Cache daftar file per kategori selama 5 menit agar preview berkas berikutnya instan
+                $files = \Illuminate\Support\Facades\Cache::remember("minio_list_{$sf}", 300, function () use ($disk, $sf) {
+                    return $disk->allFiles($sf);
+                });
+
+                $pdfPath = collect($files)->first(function ($file) use ($nomor, $tahun, $catFolder, $perubahan, $filename) {
+                    if (!str_ends_with(strtolower($file), '.pdf')) return false;
+                    $lower = strtolower($file);
+
+                    // Kasus Spesial UUD 1945
+                    if ($catFolder === 'uud') {
+                        if ($perubahan) {
+                            return str_contains($lower, "perubahan-{$perubahan}");
+                        }
+                        return str_contains($lower, 'uud-1945') && !str_contains($lower, 'perubahan');
+                    }
+
+                    // Pencocokan Berdasarkan Nomor & Tahun Pokok
+                    if ($nomor && $tahun) {
+                        $hasNomor = preg_match("/[\-_]nomor[\-_]{$nomor}[\-_]|[\-_]{$nomor}[\-_]|[\-_]no[\-_]{$nomor}[\-_]/", $lower);
+                        $hasTahun = str_contains($lower, (string)$tahun);
+                        if ($hasNomor && $hasTahun) {
                             return true;
                         }
                     }
-                }
-                
-                return false;
-            });
 
-            if (!$pdfPath) {
-                return response('Dokumen PDF sementara tidak ditemukan di server penyimpanan MinIO.', 404);
+                    // Fallback: Cocokkan karakter alphanumeric nama file
+                    $baseName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', str_replace('.json', '', $filename ?? '')));
+                    if ($baseName && strlen($baseName) >= 4) {
+                        $cleanFile = preg_replace('/[^a-zA-Z0-9]/', '', $lower);
+                        if (str_contains($cleanFile, $baseName)) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                });
+
+                if ($pdfPath) {
+                    break;
+                }
             }
 
-            $fileContent = \Illuminate\Support\Facades\Storage::disk('minio')->get($pdfPath);
+            if (!$pdfPath) {
+                return response('Dokumen PDF saat ini belum tersedia', 404);
+            }
+
+            $fileContent = $disk->get($pdfPath);
 
             return response($fileContent, 200, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="document.pdf"'
             ]);
         } catch (\Exception $e) {
-            return response('Gagal mengambil dokumen dari MinIO: ' . $e->getMessage(), 500);
+            \Log::error("Preview PDF MinIO Error: " . $e->getMessage());
+            return response('Dokumen PDF saat ini belum tersedia', 500);
         }
     }
 

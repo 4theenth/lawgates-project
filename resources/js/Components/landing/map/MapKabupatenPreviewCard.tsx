@@ -23,7 +23,7 @@ export function MapKabupatenPreviewCard({
         <h3 className="font-medium text-neu-900 text-xs sm:text-[14px]">
           Daftar Kabupaten/Kota
         </h3>
-        <p className="text-neu-600 text-[11px] sm:text-xs mt-0.5">
+        <p className="text-neu-600 text-[11px] sm:text-sm mt-0.5">
           {provinceData
             ? `${provinceData.kabupatenCount} kabupaten dan ${provinceData.kotaCount} kota di Provinsi ${provinceData.provinceName}.`
             : 'Pilih provinsi untuk melihat daftar kabupaten dan kota.'}
@@ -33,31 +33,31 @@ export function MapKabupatenPreviewCard({
       {/* 2. Ringkasan 3 Angka: Kabupaten, Kota, Total (Figma node #2622:43818) */}
       <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
         {/* Kabupaten */}
-        <div className="bg-[#F8F9FA] border border-neu-50 rounded-[14px] p-2.5 flex flex-col justify-center">
-          <span className="text-neu-600 text-[10px] sm:text-[11px] font-normal truncate">
+        <div className="bg-bg-900 border border-neu-50 rounded-[14px] p-2.5 flex flex-col justify-center gap-[4px]">
+          <span className="text-neu-600 text-[10px] sm:text-[12px] font-normal truncate ">
             Kabupaten
           </span>
-          <span className="text-neu-900 text-xs sm:text-sm font-medium mt-0.5">
+          <span className="text-neu-900 text-xs sm:text-md font-medium mt-0.5">
             {provinceData ? provinceData.kabupatenCount : 0}
           </span>
         </div>
 
         {/* Kota */}
-        <div className="bg-[#F8F9FA] border border-neu-50 rounded-[14px] p-2.5 flex flex-col justify-center">
-          <span className="text-neu-600 text-[10px] sm:text-[11px] font-normal truncate">
+        <div className="bg-bg-900 border border-neu-50 rounded-[14px] p-2.5 flex flex-col justify-center gap-[4px]">
+          <span className="text-neu-600 text-[10px] sm:text-[12px] font-normal truncate ">
             Kota
           </span>
-          <span className="text-neu-900 text-xs sm:text-sm font-medium mt-0.5">
+          <span className="text-neu-900 text-xs sm:text-md font-medium mt-0.5">
             {provinceData ? provinceData.kotaCount : 0}
           </span>
         </div>
 
         {/* Total */}
-        <div className="bg-[#F8F9FA] border border-neu-50 rounded-[14px] p-2.5 flex flex-col justify-center">
-          <span className="text-neu-600 text-[10px] sm:text-[11px] font-normal truncate">
+        <div className="bg-bg-900 border border-neu-50 rounded-[14px] p-2.5 flex flex-col justify-center gap-[4px]">
+          <span className="text-neu-600 text-[10px] sm:text-[12px] font-normal truncate ">
             Total
           </span>
-          <span className="text-neu-900 text-xs sm:text-sm font-medium mt-0.5">
+          <span className="text-neu-900 text-xs sm:text-md font-medium mt-0.5">
             {provinceData ? provinceData.totalCount : 0}
           </span>
         </div>
@@ -70,12 +70,12 @@ export function MapKabupatenPreviewCard({
           onClick={onViewAll}
           className="w-full flex items-center justify-between text-xs text-neu-600 hover:text-pr-900 font-normal transition-colors py-0.5 cursor-pointer"
         >
-          <span>Lihat kabupaten lainya</span>
+          <span className="text-sm">Lihat kabupaten lainya</span>
           <ChevronRight className="w-4 h-4 text-neu-500" />
         </button>
       ) : (
-        <div className="w-full flex items-center justify-between text-xs text-neu-400 font-normal py-0.5">
-          <span>Lihat kabupaten lainya</span>
+        <div className="w-full flex items-center justify-between text-sm text-neu-400 font-normal py-0.5">
+          <span className="text-sm">Lihat kabupaten lainya</span>
           <ChevronRight className="w-4 h-4 text-neu-300" />
         </div>
       )}
@@ -86,12 +86,12 @@ export function MapKabupatenPreviewCard({
           previewItems.map((item) => (
             <div
               key={item.id}
-              className="w-full bg-[#F8F9FA] border border-neu-50 rounded-[14px] p-2.5 sm:p-3 flex items-center justify-between gap-3 hover:border-neu-200 transition-all"
+              className="w-full bg-bg-900 border border-neu-50 rounded-[14px] p-2.5 sm:p-3 flex items-center justify-between gap-3  transition-all"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 {/* White Icon Box */}
                 <div className="w-8 h-8 rounded-[10px] bg-white border border-neu-50 flex items-center justify-center text-neu-700 shrink-0">
-                  <Building2 className="w-4 h-4 text-neu-700" />
+                  <Building2 className="w-4 h-4 text-pr-900" />
                 </div>
                 <div className="min-w-0">
                   <h4 className="font-medium text-xs sm:text-sm text-neu-900 truncate">
@@ -107,7 +107,7 @@ export function MapKabupatenPreviewCard({
               <button
                 type="button"
                 onClick={() => onSelectRegency(item)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pr-50 hover:bg-pr-100 text-pr-900 text-[10px] sm:text-xs font-medium transition-colors shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pr-50  text-pr-900 text-[10px] sm:text-xs font-medium transition-colors shrink-0 cursor-pointer"
               >
                 <Eye className="w-3.5 h-3.5 text-pr-900" />
                 <span>Lihat</span>
@@ -118,7 +118,7 @@ export function MapKabupatenPreviewCard({
           [1].map((idx) => (
             <div
               key={idx}
-              className="w-full bg-[#F8F9FA] border border-neu-50 rounded-[14px] p-2.5 sm:p-3 flex items-center justify-between gap-3"
+              className="w-full bg-bg-900 border border-neu-50 rounded-[14px] p-2.5 sm:p-3 flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-8 h-8 rounded-[10px] bg-white/70 border border-neu-50 flex items-center justify-center text-neu-300 shrink-0">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { Mail, Phone, ChevronRight } from 'lucide-react';
 import endlessClouds from '@/assets/endless-clouds.svg';
 import ApplicationLogo from '@/Components/common/ApplicationLogo';
@@ -30,11 +30,25 @@ const EXPLORE_MENUS = [
 ];
 
 export function Footer() {
+  const { url } = usePage();
+
+  // Bersihkan parameter query dan hash agar pengecekan path URL akurat
+  const currentPath = url ? url.split('?')[0].split('#')[0] : '/';
+
+  // Helper untuk menentukan apakah menu jelajahi sedang aktif berdasarkan rute saat ini
+  const isMenuActive = (href: string) => {
+    if (!href || href === '#') return false;
+    if (href === '/') {
+      return currentPath === '/' || currentPath === '';
+    }
+    return currentPath === href || currentPath.startsWith(`${href}/`);
+  };
+
   return (
     <footer className="relative w-full min-h-[386px] bg-pr-900 text-white overflow-hidden z-10 select-none">
       {/* Endless Clouds SVG Pattern Overlay */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-15"
+        className="absolute inset-0 pointer-events-none opacity-12"
         style={{
           backgroundImage: `url("${endlessClouds}")`,
           backgroundRepeat: 'repeat',
@@ -44,14 +58,14 @@ export function Footer() {
 
       {/* Main Container */}
       <div className="relative z-10 w-full max-w-[1202px] mx-auto px-4 sm:px-6 xl:px-0 pt-[41px] pb-8 flex flex-col justify-between min-h-[386px]">
-        <div className="flex flex-col md:flex-row justify-between gap-10 md:gap-4 min-h-[240px]">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-10 md:gap-0 min-h-[240px]">
           
-          {/* Kolom Kiri: Brand & Deskripsi */}
-          <div className="w-full md:flex-1 space-y-4 pr-4">
+          {/* Kolom Kiri: Brand & Deskripsi (Figma width: 354px) */}
+          <div className="w-full md:w-[354px] shrink-0 space-y-4">
             <Link href="/" className="inline-flex items-center" aria-label="Beranda LawGates">
               <ApplicationLogo className="h-[26px] sm:h-[28px] w-auto text-white" />
             </Link>
-            <p className="text-[14px] font-normal leading-[24px] text-white/80 max-w-sm text-justify">
+            <p className="text-[14px] font-normal leading-[24px] text-white/80 text-justify">
               LawGates adalah platform pangkalan data hukum terpadu yang merangkum seluruh peraturan perundang-undangan di Indonesia ke dalam satu titik akses pencarian tanpa harus menelusuri puluhan portal instansi pemerintah yang terpisah.
             </p>
 
@@ -78,42 +92,57 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Kolom Tengah: Jelajahi */}
-          <div className="w-full md:flex-1 flex md:justify-center">
-            <div className="space-y-4 w-full md:w-auto">
-              <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
+          {/* Kolom Tengah: Jelajahi (Figma width: 98px) */}
+          <div className="w-full md:w-[98px] shrink-0 space-y-4">
+            <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
               JELAJAHI
             </h4>
             <ul className="space-y-3">
-              {EXPLORE_MENUS.map((item) => (
-                <li key={item.title}>
-                  {item.disabled ? (
-                    <span className="inline-flex items-center gap-2 text-[14px] text-white/40 cursor-default select-none">
-                      <ChevronRight className="w-3.5 h-3.5 text-white/30" />
-                      <span>{item.title}</span>
-                    </span>
-                  ) : (
+              {EXPLORE_MENUS.map((item) => {
+                if (item.disabled) {
+                  return (
+                    <li key={item.title}>
+                      <span className="inline-flex items-center gap-2 text-[14px] text-white/40 cursor-default select-none">
+                        <ChevronRight className="w-3.5 h-3.5 text-white/30" />
+                        <span>{item.title}</span>
+                      </span>
+                    </li>
+                  );
+                }
+
+                const isActive = isMenuActive(item.href);
+
+                return (
+                  <li key={item.title}>
                     <Link
                       href={item.href}
-                      className="group inline-flex items-center gap-2 text-[14px] text-white font-medium hover:text-white transition-colors"
+                      className={`group inline-flex items-center gap-2 text-[14px] transition-colors ${
+                        isActive
+                          ? 'text-white font-medium'
+                          : 'text-white/60 hover:text-white font-normal'
+                      }`}
                     >
-                      <ChevronRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-all" />
+                      <ChevronRight
+                        className={`w-3.5 h-3.5 transition-all ${
+                          isActive
+                            ? 'text-white'
+                            : 'text-white/40 group-hover:text-white group-hover:translate-x-0.5'
+                        }`}
+                      />
                       <span>{item.title}</span>
                     </Link>
-                  )}
-                </li>
-              ))}
-              </ul>
-            </div>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
 
-          {/* Kolom Kanan: Kontak */}
-          <div className="w-full md:flex-1 flex md:justify-end">
-            <div className="space-y-4 w-full md:w-auto">
-              <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
-                KONTAK
-              </h4>
-              <ul className="space-y-3.5">
+          {/* Kolom Kanan: Kontak (Figma width: 168px) */}
+          <div className="w-full md:w-[168px] shrink-0 space-y-4">
+            <h4 className="text-[14px] font-bold text-white tracking-wider uppercase">
+              KONTAK
+            </h4>
+            <ul className="space-y-3.5">
               <li className="inline-flex items-center gap-3 text-[14px] text-white/80 cursor-default select-none">
                 <Mail className="w-4 h-4 text-white/60 shrink-0 stroke-[1.75]" />
                 <span>lawgates@gmail.com</span>
@@ -127,7 +156,6 @@ export function Footer() {
                 <span>081365638</span>
               </li>
             </ul>
-            </div>
           </div>
 
         </div>

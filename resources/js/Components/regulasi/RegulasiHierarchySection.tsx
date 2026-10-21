@@ -147,7 +147,7 @@ export function RegulasiHierarchySection({ counts, latestDates }: RegulasiHierar
           <h2 className="text-2xl sm:text-[26px] font-bold text-neu-900 tracking-tight">
             Statistik Peraturan
           </h2>
-          <p className="text-xs sm:text-sm text-neu-600 mt-1 leading-relaxed">
+          <p className="text-xs sm:text-md text-neu-600 mt-1 leading-relaxed">
             Akses ribuan hingga jutaan peraturan dan relasi dari UUD 1945, Undang Undang, Perppu, PP, Permen, Hingga Perda
           </p>
         </div>

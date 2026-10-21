@@ -202,36 +202,9 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
     ? provincesData[selectedProvinceId] || null
     : null;
 
-  // Data kabupaten/kota untuk provinsi terpilih yang disinkronkan dengan master database
+  // Data kabupaten/kota untuk provinsi terpilih yang disinkronkan dengan hitungan riil database
   const activeProvinceRegencies = useMemo(() => {
     if (!activeProvince) return null;
-
-    // 1. Jika data dari API backend (/api/regions/statistics) sudah memuat daftar regencies resmi:
-    if (activeProvince.regencies && Array.isArray(activeProvince.regencies) && activeProvince.regencies.length > 0) {
-      const counts = (activeProvince as any).regencyCounts || {};
-      const regencies = activeProvince.regencies.map((reg) => ({
-        ...reg,
-        totalPeraturan: counts[reg.name] ?? reg.totalPeraturan ?? 0,
-      }));
-
-      regencies.sort((a, b) => {
-        if ((b.totalPeraturan ?? 0) !== (a.totalPeraturan ?? 0)) {
-          return (b.totalPeraturan ?? 0) - (a.totalPeraturan ?? 0);
-        }
-        return a.name.localeCompare(b.name);
-      });
-
-      return {
-        provinceId: activeProvince.id,
-        provinceName: activeProvince.name,
-        kabupatenCount: activeProvince.kabupatenCount ?? regencies.filter((r) => r.type === 'Kabupaten').length,
-        kotaCount: activeProvince.kotaCount ?? regencies.filter((r) => r.type === 'Kota').length,
-        totalCount: activeProvince.totalCount ?? regencies.length,
-        regencies,
-      };
-    }
-
-    // 2. Fallback static dari master database JSON
     const base = getRegenciesForProvince(activeProvince.id, activeProvince.name);
     const counts = (activeProvince as any).regencyCounts || {};
 
@@ -240,12 +213,8 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
       totalPeraturan: counts[reg.name] ?? 0,
     }));
 
-    regencies.sort((a, b) => {
-      if ((b.totalPeraturan ?? 0) !== (a.totalPeraturan ?? 0)) {
-        return (b.totalPeraturan ?? 0) - (a.totalPeraturan ?? 0);
-      }
-      return a.name.localeCompare(b.name);
-    });
+    // Prioritaskan kabupaten yang memiliki peraturan di database agar muncul di daftar teratas popup
+    regencies.sort((a, b) => (b.totalPeraturan ?? 0) - (a.totalPeraturan ?? 0));
 
     return {
       ...base,
@@ -283,6 +252,13 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
     return () => observer.disconnect();
   }, [activeProvince, isViewingAllKabupaten]);
 
+  // Sinkronkan canvas Leaflet map saat tinggi kontainer berubah
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.invalidateSize();
+    }
+  }, [activeHeight]);
+
   // Hasil pencarian gabungan (Provinsi & Kabupaten/Kota) untuk autocomplete dropdown
   const searchResults = useMemo<WilayahSearchResult[]>(() => {
     if (!searchQuery.trim()) return [];
@@ -309,9 +285,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
       }
 
       // 2. Ambil data kabupaten/kota untuk provinsi ini
-      const regData = (prov.regencies && Array.isArray(prov.regencies) && prov.regencies.length > 0)
-        ? { regencies: prov.regencies }
-        : getRegenciesForProvince(prov.id, prov.name);
+      const regData = getRegenciesForProvince(prov.id, prov.name);
       const counts = (prov as any).regencyCounts || {};
 
       for (const reg of regData.regencies) {
@@ -319,7 +293,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
         const fullRegLower = `${reg.type.toLowerCase()} ${regNameLower}`;
 
         if (regNameLower.includes(q) || fullRegLower.includes(q)) {
-          const regTotal = counts[reg.name] ?? reg.totalPeraturan ?? 0;
+          const regTotal = counts[reg.name] ?? 0;
           results.push({
             key: `reg-${prov.id}-${reg.name}`,
             category: reg.type.toLowerCase().includes('kota') ? 'kota' : 'kabupaten',
@@ -744,8 +718,8 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
             </p>
           </div>
 
-          {/* 2. Full-Width Search Input Bar */}
-          <div className="w-full mb-6">
+          {/* 2. Full-Width Search Input Bar dengan Frame Background Putih */}
+          <div className="w-full bg-white rounded-[20px] border border-neu-50 p-2.5 sm:p-3 mb-6 ">
             <MapSearchCard
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
@@ -758,7 +732,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
           </div>
 
           {/* 3. Card Peta Indonesia Landscape Full-Width */}
-          <div className="w-full bg-white rounded-[20px] border border-neu-100 p-4 sm:p-6 shadow-xs flex flex-col gap-4 mb-6">
+          <div className="w-full bg-white rounded-[20px] border border-neu-50 p-4 sm:p-6  flex flex-col gap-4 mb-6">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-[17px] sm:text-[18px] font-semibold text-neu-900 tracking-tight">
@@ -833,12 +807,12 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
               />
             </div>
 
-            {/* 2. CARD CONTAINER MAP */}
+            {/* 2. KANVAS MAP LANGSUNG (TANPA CONTAINER PUTIH) */}
             <div
               style={isDesktop ? { height: `${activeHeight}px` } : undefined}
-              className="lg:col-span-8 w-full max-w-[361px] lg:max-w-none mx-auto bg-white rounded-[16px] sm:rounded-[20px] border border-neu-50 p-3 sm:p-[19px] shadow-sm flex flex-col h-[260px] sm:h-[300px] lg:h-full"
+              className="lg:col-span-8 w-full max-w-[361px] lg:max-w-none mx-auto flex flex-col h-[260px] sm:h-[300px] lg:h-full"
             >
-              {renderMapCanvas()}
+              {renderMapCanvas('w-full h-full bg-[#71D4E9] rounded-[16px] sm:rounded-[20px] border border-neu-100 overflow-hidden relative shadow-xs')}
             </div>
 
             {/* 3. RIGHT COLUMN: KABUPATEN & PROVINSI PANELS */}

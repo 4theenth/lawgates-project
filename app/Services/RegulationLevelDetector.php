@@ -7,57 +7,7 @@ use Illuminate\Support\Str;
 class RegulationLevelDetector
 {
     /**
-     * Cache memori runtime untuk mapping kabupaten ke provinsi
-     */
-    protected static ?array $cachedMap = null;
-
-    /**
-     * Dapatkan mapping seluruh kabupaten/kota ke nama provinsi resminya
-     * Menggabungkan data master database (514 kab/kota) dan cache dengan fallback statis.
-     */
-    public static function getRegencyToProvinceMap(): array
-    {
-        if (self::$cachedMap !== null) {
-            return self::$cachedMap;
-        }
-
-        try {
-            $dbMap = \Illuminate\Support\Facades\Cache::remember('regency_to_province_map', now()->addDays(7), function () {
-                if (\Illuminate\Support\Facades\Schema::hasTable('regencies')) {
-                    return \App\Models\Regency::with('province')
-                        ->get()
-                        ->mapWithKeys(function ($r) {
-                            return [strtolower(trim($r->nama)) => $r->province->nama ?? ''];
-                        })
-                        ->filter(fn ($prov) => !empty($prov))
-                        ->toArray();
-                }
-                return [];
-            });
-
-            if (!empty($dbMap)) {
-                self::$cachedMap = array_merge(self::$regencyToProvinceMap, $dbMap);
-                return self::$cachedMap;
-            }
-        } catch (\Throwable $e) {
-            // Graceful fallback jika belum migrasi atau terjadi kendala DB
-        }
-
-        self::$cachedMap = self::$regencyToProvinceMap;
-        return self::$cachedMap;
-    }
-
-    /**
-     * Bersihkan cache mapping wilayah.
-     */
-    public static function clearCache(): void
-    {
-        self::$cachedMap = null;
-        \Illuminate\Support\Facades\Cache::forget('regency_to_province_map');
-    }
-
-    /**
-     * Pemetaan fallback nama kabupaten/kota ke nama provinsi resminya
+     * Pemetaan nama kabupaten/kota ke nama provinsi resminya
      */
     protected static array $regencyToProvinceMap = [
         // Bali
@@ -257,8 +207,15 @@ class RegulationLevelDetector
      * Deteksi tingkatan peraturan (Provinsi, Kabupaten, Kota, atau Pusat)
      * berdasarkan string pemrakarsa (instansi), lokasi_daerah, atau judul.
      */
-    public static function detect(?string $pemrakarsa, ?string $lokasiDaerah = null, ?string $judul = null): array
+    public static function detect($pemrakarsa, ?string $lokasiDaerah = null, ?string $judul = null): array
     {
+        if ($pemrakarsa instanceof \App\Models\Peraturan) {
+            $model = $pemrakarsa;
+            $pemrakarsa = $model->instansi;
+            $lokasiDaerah = $model->lokasi_daerah;
+            $judul = $model->judul;
+        }
+
         $raw = trim((string) ($pemrakarsa ?: $lokasiDaerah ?: ''));
         
         // Normalisasi format snake_case (seperti folder MinIO: pemerintah_kabupaten_badung)
@@ -275,8 +232,7 @@ class RegulationLevelDetector
             $namaDaerah = ucwords(trim($namaDaerah));
             $cleanKey = strtolower($namaDaerah);
 
-            $regencyMap = self::getRegencyToProvinceMap();
-            $provinsi = $regencyMap[$cleanKey] ?? self::findProvinceFromText($judul . ' ' . $raw);
+            $provinsi = self::$regencyToProvinceMap[$cleanKey] ?? self::findProvinceFromText($judul . ' ' . $raw);
 
             return [
                 'tingkat' => 'Kabupaten',
@@ -297,8 +253,7 @@ class RegulationLevelDetector
             $namaDaerah = ucwords(trim($namaDaerah));
             $cleanKey = strtolower($namaDaerah);
 
-            $regencyMap = self::getRegencyToProvinceMap();
-            $provinsi = $regencyMap[$cleanKey] ?? self::findProvinceFromText($judul . ' ' . $raw);
+            $provinsi = self::$regencyToProvinceMap[$cleanKey] ?? self::findProvinceFromText($judul . ' ' . $raw);
 
             return [
                 'tingkat' => 'Kota',
@@ -346,9 +301,8 @@ class RegulationLevelDetector
         }
 
         // 5. Cek apakah menyebutkan nama kabupaten/kota terdaftar secara langsung
-        $regencyMap = self::getRegencyToProvinceMap();
-        if (isset($regencyMap[$normalized])) {
-            $prov = $regencyMap[$normalized];
+        if (isset(self::$regencyToProvinceMap[$normalized])) {
+            $prov = self::$regencyToProvinceMap[$normalized];
             return [
                 'tingkat' => 'Kabupaten',
                 'tipe_wilayah' => 'Kabupaten',
@@ -438,7 +392,7 @@ class RegulationLevelDetector
         $result = [];
         $pNameLower = strtolower(trim($provinceName));
 
-        foreach (self::getRegencyToProvinceMap() as $regency => $prov) {
+        foreach (self::$regencyToProvinceMap as $regency => $prov) {
             if (strtolower($prov) === $pNameLower) {
                 $result[] = ucwords($regency);
             }

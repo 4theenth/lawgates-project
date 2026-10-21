@@ -86,16 +86,15 @@ export function MapSearchCard({
         onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
         onKeyDown={handleKeyDown}
         placeholder="Cari provinsi/kabupaten/kota"
-        className={`w-full pl-10 sm:pl-11 pr-4 py-2 sm:py-2.5 bg-white border border-neu-100 ${
-          inputOnly
-            ? 'rounded-full shadow-2xs hover:border-neu-300 focus:ring-2 focus:ring-neu-100 focus:border-neu-400'
-            : 'rounded-lg sm:rounded-xl focus:ring-1 focus:ring-pr-900 focus:border-pr-900'
-        } text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none transition-all`}
+        className={`w-full pl-10 sm:pl-11 pr-4 py-2 sm:py-2.5 bg-white ${inputOnly
+            ? 'rounded-full border border-neu-100 shadow-2xs hover:border-neu-300 focus:ring-2 focus:ring-neu-100 focus:border-neu-400'
+            : 'rounded-lg sm:rounded-xl border border-neu-50 focus:ring-1 focus:ring-pr-900 focus:border-pr-900'
+          } text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none transition-all`}
       />
 
       {/* Dropdown Pencarian Otomatis (Mendukung Provinsi & Kabupaten/Kota) */}
       {isSearchFocused && searchQuery.trim().length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-neu-200 rounded-xl shadow-lg max-h-64 overflow-y-auto custom-scrollbar z-50 py-1">
+        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-neu-200 rounded-xl shadow-lg max-h-64 overflow-y-auto no-scrollbar z-50 py-1">
           {items.length > 0 ? (
             items.map((item) => (
               <button

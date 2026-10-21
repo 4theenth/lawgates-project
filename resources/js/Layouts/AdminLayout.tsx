@@ -39,9 +39,9 @@ export default function AdminLayout({ children }: PropsWithChildren<AdminLayoutP
           onMobileClose={handleMobileClose}
         />
 
-        {/* Konten Halaman (Main Body) - Scroll vertikal, 100% full width di mobile */}
+        {/* Konten Halaman (Main Body) - Scroll vertikal, 100% full width di mobile & desktop tanpa gap mx-auto */}
         <main className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden transition-all duration-300 bg-[#FCFEFF]">
-          <div className="w-full max-w-[1440px] mx-auto p-4 sm:p-6 lg:p-7 min-w-0">
+          <div className="w-full p-4 sm:p-6 lg:p-7 min-w-0">
             {children}
           </div>
         </main>

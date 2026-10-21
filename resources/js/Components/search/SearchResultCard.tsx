@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from '@inertiajs/react';
-import { CheckCircle2, XCircle, RefreshCw, Gavel, Eye, Bookmark } from 'lucide-react';
+import { CheckCircle2, XCircle, RefreshCw, Gavel, Eye } from 'lucide-react';
+import { BookmarkButton } from '@/Components/common/BookmarkButton';
 
 export interface ScraperRegulationMetadata {
   standard_id?: string;
@@ -53,8 +54,6 @@ interface SearchResultCardProps {
 }
 
 export function SearchResultCard({ item }: SearchResultCardProps) {
-  const [isBookmarked, setIsBookmarked] = useState(false);
-
   // Normalize data across both formats (dummy scraper vs database models)
   const isScraper = 'metadata' in item && Boolean((item as any).metadata);
   const metadata = isScraper ? (item as ScraperRegulationItem).metadata : null;
@@ -105,7 +104,7 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
   };
 
   return (
-    <div className="bg-white border border-neu-100 rounded-[20px] p-5 sm:p-6 shadow-2xs hover:shadow-md hover:border-pr-900/30 transition-all duration-200 flex flex-col justify-between group">
+    <div className="bg-white border border-neu-50 rounded-[20px] p-5 sm:p-6 shadow-2xs hover:shadow-md hover:border-pr-900/30 transition-all duration-200 flex flex-col justify-between group">
       <div>
         {/* Top Badges: Status Keberlakuan & Kategori */}
         <div className="flex flex-wrap items-center gap-2 mb-3.5">
@@ -135,21 +134,14 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
             {pemrakarsa}
           </span>
 
-          {/* Bookmark Button: Active is PRIMARY color (text-pr-900 fill-pr-900), not secondary */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              setIsBookmarked(!isBookmarked);
-            }}
-            className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-              isBookmarked ? 'text-pr-900 fill-pr-900 bg-pr-50' : 'text-neu-400 hover:text-neu-700 hover:bg-neu-50'
-            }`}
-            title={isBookmarked ? 'Hapus penanda' : 'Simpan peraturan'}
-            aria-label="Bookmark"
-          >
-            <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-pr-900 text-pr-900' : ''}`} />
-          </button>
+          {/* Reusable Bookmark Button */}
+          {detailId && (
+            <BookmarkButton
+              peraturanId={detailId}
+              variant="icon"
+              size="sm"
+            />
+          )}
         </div>
 
         <Link

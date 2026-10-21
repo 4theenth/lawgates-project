@@ -25,7 +25,12 @@ const formatTanggal = (dateString: string) => {
   }).format(date);
 };
 
-export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
+export default function DetailPeraturan({
+  peraturan,
+}: {
+  peraturan: any;
+  isBookmarked?: boolean;
+}) {
   // Scroll to top state
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isDaftarIsiOpen, setIsDaftarIsiOpen] = useState(true);
@@ -133,7 +138,9 @@ export default function DetailPeraturan({ peraturan }: { peraturan: any }) {
               tanggalPenetapan={tanggalPenetapan}
               tempatPenetapan={peraturan?.tempat_penetapan || 'Jakarta'}
               onCompare={canCompare ? () => router.visit(`/bandingkan?id=${peraturan?.unique_id}`) : undefined}
-              downloadHref={`/peraturan/${peraturan?.unique_id}/lihat`}
+              viewerHref={`/peraturan/${peraturan?.unique_id}/lihat`}
+              downloadHref={`/peraturan/${peraturan?.unique_id}/download`}
+              peraturanId={peraturan?.unique_id || peraturan?.id}
             />
           </div>
         </section>

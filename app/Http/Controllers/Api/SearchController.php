@@ -19,35 +19,13 @@ class SearchController extends Controller
         // Tarik relasi agar nama jenis & status bisa ditampilkan di hasil React (hanya peraturan sah)
         $query = Peraturan::available()->with(['jenisPeraturan', 'statusPeraturan']);
 
-        $semanticMatches = collect();
-        $lexicalPasalMatches = collect();
-        $isRelevanceSort = $request->get('sort', 'relevansi') === 'relevansi';
         $likeOp = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
 
         $rawKeyword = $request->input('keyword') ?? $request->input('q') ?? $request->input('search');
         $keyword = trim((string) $rawKeyword);
 
-        // 1. Filter Keyword & Semantic Search
+        // 1. Filter Keyword (Judul, Nomor, Instansi, atau Lokasi Daerah)
         if ($keyword !== '') {
-
-            // Jika sort adalah relevansi (default), jalankan Semantic Search via Gemini
-            if ($isRelevanceSort) {
-                $semanticMatches = $this->semanticService->searchRelevantPasal($keyword);
-            }
-
-            $semanticIds = $semanticMatches->keys()->toArray();
-
-            // Ekstrak token kata penting (membuang stopword umum bahasa Indonesia & regulasi)
-            $stopwords = [
-                'dan', 'atau', 'yang', 'di', 'ke', 'dari', 'tentang', 'pada', 'untuk', 'oleh',
-                'atas', 'dengan', 'aturan', 'pedoman', 'terkait', 'mengenai', 'soal', 'hal',
-                'adalah', 'yaitu', 'sebagai', 'dalam', 'ini', 'itu', 'apakah', 'bagaimana',
-            ];
-            $rawTokens = preg_split('/[\s\-_,\.]+/', strtolower($keyword));
-            $tokens = array_values(array_filter($rawTokens, function ($t) use ($stopwords) {
-                return mb_strlen($t) >= 3 && ! in_array($t, $stopwords);
-            }));
-
             // Normalisasi singkatan umum
             $replacements = [
                 '/\buud\b/i' => 'undang%undang%dasar',
@@ -60,7 +38,17 @@ class SearchController extends Controller
                 '/\bpermendagri\b/i' => 'peraturan%menteri%dalam%negeri',
                 '/[\s\-]+/' => '%',
             ];
+
             $smartKeyword = preg_replace(array_keys($replacements), array_values($replacements), $keyword);
+
+            // Ekstrak token kata kunci untuk fallback leksikal
+            $cleanTokens = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', strtolower($keyword));
+            $tokens = array_values(array_filter(explode(' ', (string) $cleanTokens), fn ($t) => strlen($t) > 2));
+
+            // Coba pencarian semantik AI menggunakan Gemini embedding
+            $semanticMatches = $this->semanticService->searchRelevantPasal($keyword);
+            $semanticIds = $semanticMatches->keys()->toArray();
+            $lexicalPasalMatches = collect();
 
             // Jika semantic search offline atau kuota habis, cari pasal-pasal yang relevan secara leksikal
             if (empty($semanticIds) && ! empty($tokens)) {
@@ -185,7 +173,7 @@ class SearchController extends Controller
             $q->whereIn('status_id', $ids);
         });
 
-        // 5. Filter Lokasi Daerah (Mendukung Provinsi & Kabupaten)
+        // 5. Filter Lokasi Daerah (Mendukung Provinsi & Kabupaten/Kota)
         $query->when($request->filled('lokasi_daerah'), function ($q) use ($request, $likeOp) {
             $lokasiList = is_array($request->lokasi_daerah)
                 ? $request->lokasi_daerah
@@ -222,7 +210,7 @@ class SearchController extends Controller
             $subjekList = is_array($request->subjek) ? $request->subjek : explode(',', $request->subjek);
             $q->where(function ($subQ) use ($subjekList, $likeOp) {
                 foreach ($subjekList as $subjekItem) {
-                    $subQ->orWhere('subjek', $likeOp, '%'.trim($subjekItem).'%');
+                    $subQ->orWhere('subjek', $likeOp, '%' . trim($subjekItem) . '%');
                 }
             });
         });
@@ -235,7 +223,7 @@ class SearchController extends Controller
             $query->orderBy('tahun', 'asc');
         } else {
             // Urutan Relevansi:
-            // 1. Jika ada pencarian kata kunci, prioritaskan yang instansi / lokasi / judulnya langsung cocok
+            // Jika ada pencarian kata kunci, prioritaskan yang instansi / lokasi / judulnya langsung cocok
             if ($keyword !== '') {
                 $escapedKeyword = str_replace("'", "''", $keyword);
                 $query->orderByRaw("
@@ -246,39 +234,11 @@ class SearchController extends Controller
                     END ASC
                 ");
             }
-
-            // 2. Prioritaskan peraturan yang memiliki skor semantik atau leksikal tertinggi
-            $activeMatches = $semanticMatches->isNotEmpty() ? $semanticMatches : $lexicalPasalMatches;
-
-            if ($activeMatches->isNotEmpty()) {
-                $idOrder = implode(',', $activeMatches->keys()->toArray());
-                if (DB::getDriverName() === 'pgsql') {
-                    $query->orderByRaw("CASE WHEN id IN ({$idOrder}) THEN 0 ELSE 1 END")
-                        ->orderByRaw("array_position(ARRAY[{$idOrder}]::bigint[], id)");
-                } else {
-                    $query->orderByRaw("CASE WHEN id IN ({$idOrder}) THEN 0 ELSE 1 END");
-                }
-            }
-
             $query->orderBy('created_at', 'desc');
         }
 
         // Kembalikan hasil dengan pagination dinamis
-        $perPage = (int) $request->get('per_page', 10);
-        $paginator = $query->paginate($perPage);
-
-        // Tempelkan data pasal paling relevan (baik dari AI semantic maupun fallback pencocokan pasal)
-        $activeMatches = $semanticMatches->isNotEmpty() ? $semanticMatches : $lexicalPasalMatches;
-        if ($activeMatches->isNotEmpty()) {
-            $paginator->getCollection()->transform(function ($item) use ($activeMatches) {
-                if ($activeMatches->has($item->id)) {
-                    $item->relevant_pasal = $activeMatches->get($item->id);
-                }
-
-                return $item;
-            });
-        }
-
-        return response()->json($paginator);
+        $perPage = $request->get('per_page', 10);
+        return response()->json($query->paginate($perPage));
     }
 }

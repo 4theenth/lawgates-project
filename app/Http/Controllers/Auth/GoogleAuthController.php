@@ -71,22 +71,18 @@ class GoogleAuthController extends Controller
             ]);
 
             $redirect = $request->input('redirect') ?: $request->query('redirect');
-            if (!empty($redirect)) {
+            if (!empty($redirect) && $redirect !== '/') {
                 session()->put('url.intended', $redirect);
             }
 
             Auth::login($user, $remember);
 
-            if (in_array($user->role, ['admin', 'superadmin'])) {
-                return redirect()->intended(route('admin.dashboard'))->with('success', 'Berhasil masuk ke dashboard Admin');
-            }
-
-            return redirect()->intended('/')->with('success', 'Berhasil masuk dengan akun Google');
+            return $this->redirectUserByRole($user);
         }
 
         // 2. Alur login dengan Google
         $redirect = $request->input('redirect') ?: $request->query('redirect');
-        if (!empty($redirect)) {
+        if (!empty($redirect) && $redirect !== '/') {
             session()->put('url.intended', $redirect);
         }
 
@@ -122,8 +118,25 @@ class GoogleAuthController extends Controller
 
         Auth::login($user, $remember);
 
+        return $this->redirectUserByRole($user);
+    }
+
+    /**
+     * Redirect authenticated user based on role and intended URL.
+     */
+    private function redirectUserByRole($user)
+    {
         if (in_array($user->role, ['admin', 'superadmin'])) {
-            return redirect()->intended(route('admin.dashboard'))->with('success', 'Berhasil masuk ke dashboard Admin');
+            $intended = session()->get('url.intended');
+
+            // Jika intended URL adalah rute admin internal, arahkan ke halaman tersebut
+            if ($intended && (str_starts_with($intended, '/admin') || str_contains($intended, url('/admin')))) {
+                return redirect()->intended(route('admin.dashboard'))->with('success', 'Berhasil masuk ke dashboard Admin');
+            }
+
+            // Hapus url.intended publik agar admin tidak terarah ke landing page
+            session()->forget('url.intended');
+            return redirect()->route('admin.dashboard')->with('success', 'Berhasil masuk ke dashboard Admin');
         }
 
         return redirect()->intended('/')->with('success', 'Berhasil masuk dengan akun Google');

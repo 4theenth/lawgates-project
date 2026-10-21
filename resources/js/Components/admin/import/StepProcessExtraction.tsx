@@ -10,6 +10,8 @@ export interface ProcessedFileItem {
   progressPercent: number;
   rawFile?: File;
   parsedData?: any;
+  folder_path?: string;
+  file_path?: string;
 }
 
 interface StepProcessExtractionProps {

@@ -264,7 +264,7 @@ export function AdminSidebar({
         </div>
 
         {/* Menu Items Mobile */}
-        <div className="flex-1 overflow-y-auto pt-[14px] px-[12px] pb-6 flex flex-col gap-[9px]">
+        <div className="flex-1 overflow-y-auto no-scrollbar pt-[14px] px-[12px] pb-6 flex flex-col gap-[9px]">
           <div className="h-[18px] flex items-center px-1">
             <p className={SIDEBAR_THEME.categoryLabel}>Menu</p>
           </div>
@@ -280,7 +280,7 @@ export function AdminSidebar({
         className={`hidden md:flex shrink-0 h-full bg-white border-r border-neu-50 transition-all duration-300 ease-in-out flex-col pt-[13px] px-[10px] pb-6 gap-[9px] ${
           isCollapsed
             ? 'w-[64px] overflow-visible'
-            : 'w-[195px] overflow-y-auto overflow-x-hidden'
+            : 'w-[195px] overflow-y-auto overflow-x-hidden no-scrollbar'
         }`}
       >
         {/* Label Kategori 'Menu' (Pertahankan area kosong saat collapse agar icon tidak berpindah posisi vertikal) */}

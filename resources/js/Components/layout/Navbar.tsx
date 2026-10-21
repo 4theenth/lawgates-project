@@ -3,7 +3,6 @@ import { LogIn, Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
 import { Link, usePage } from '@inertiajs/react';
 import { NAVBAR_MENUS, NAVBAR_THEME } from '../../config/navigation';
 import type { MenuItem } from '../../types/navigation';
-import { PAGE_CONTAINER } from '../../Layouts/PublicLayout';
 import Dropdown from '@/Components/common/Dropdown';
 import ApplicationLogo from '@/Components/common/ApplicationLogo';
 import profileAvatar from '@/assets/profile-avatar.webp';
@@ -43,18 +42,21 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
   const displayRole = user?.role || 'user';
   const isAdmin = user && ['admin', 'superadmin'].includes(user.role);
 
+  // Bersihkan parameter query dan hash agar pengecekan path URL akurat
+  const currentPath = url ? url.split('?')[0].split('#')[0] : '/';
+
   // Helper untuk menentukan apakah menu sedang aktif berdasarkan URL saat ini
   const isMenuActive = (path: string, isIndex?: boolean) => {
     if (isIndex || path === '/') {
-      return url === '/' || url === '';
+      return currentPath === '/' || currentPath === '';
     }
     if (path === '#' || !path) {
       return false;
     }
-    return url === path || (path !== '/' && url.startsWith(`${path}/`));
+    return currentPath === path || (path !== '/' && currentPath.startsWith(`${path}/`));
   };
 
-  const isHome = url === '/' || url.startsWith('/?');
+  const isHome = currentPath === '/' || currentPath === '';
   const isPill = isScrolled;
   const isLightPage = !isHome;
   const theme = isLightPage || isPill ? NAVBAR_THEME.scrolled : NAVBAR_THEME.default;
@@ -123,14 +125,13 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
 
                   {/* Menu Items */}
                   <div className="py-1">
-                    <button
-                      type="button"
-                      onClick={(e) => e.preventDefault()}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors text-left cursor-default select-none"
+                    <Dropdown.Link
+                      href={route('profile.edit')}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors text-left cursor-pointer"
                     >
                       <User className="w-3.5 h-3.5 text-neu-500" />
                       <span>Pengaturan Profil</span>
-                    </button>
+                    </Dropdown.Link>
 
                     <Dropdown.Link
                       href={route('logout')}
@@ -326,14 +327,14 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                       <span>Dashboard Admin</span>
                     </Link>
                   ) : (
-                    <button
-                      type="button"
+                    <Link
+                      href={route('profile.edit')}
                       onClick={() => setMobileMenuOpen(false)}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-neu-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-default select-none"
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-neu-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
                     >
                       <User className="w-4 h-4 text-neu-300" />
                       <span>Pengaturan Profil</span>
-                    </button>
+                    </Link>
                   )}
 
                   <Link

@@ -143,38 +143,6 @@ class RegionController extends Controller
                 }
             }
 
-            // Dapatkan daftar kabupaten/kota resmi dari master database
-            $provModel = $allProvinces->get($slug);
-            $regenciesList = [];
-            $kabCount = 0;
-            $kotaCount = 0;
-
-            if ($provModel) {
-                foreach ($provModel->regencies as $reg) {
-                    if ($reg->tipe === 'Kabupaten') {
-                        $kabCount++;
-                    } else {
-                        $kotaCount++;
-                    }
-
-                    $regCount = $regencyCounts[$reg->nama] ?? 0;
-                    $regenciesList[] = [
-                        'id' => $reg->slug,
-                        'name' => $reg->nama,
-                        'type' => $reg->tipe,
-                        'totalPeraturan' => $regCount,
-                    ];
-                }
-
-                // Urutkan kabupaten/kota: yang memiliki peraturan lebih dahulu, lalu nama alfabetis
-                usort($regenciesList, function ($a, $b) {
-                    if ($a['totalPeraturan'] !== $b['totalPeraturan']) {
-                        return $b['totalPeraturan'] <=> $a['totalPeraturan'];
-                    }
-                    return strcasecmp($a['name'], $b['name']);
-                });
-            }
-
             // Ambil cuplikan Perda terbaru (hingga 5 items untuk scrollable list tanpa scrollbar)
             $latestPerdas = $matched->take(5);
             $samplePerdaList = [];
@@ -210,10 +178,6 @@ class RegionController extends Controller
                 'berlaku' => $berlakuCount,
                 'tidakBerlaku' => $tidakBerlakuCount,
                 'regencyCounts' => $regencyCounts,
-                'kabupatenCount' => $kabCount,
-                'kotaCount' => $kotaCount,
-                'totalCount' => count($regenciesList),
-                'regencies' => $regenciesList,
                 'samplePerda' => $samplePerda,
                 'samplePerdaList' => $samplePerdaList,
             ];

@@ -53,7 +53,7 @@ export default function MandatoryLoginModal({
 
   const handleGoToLogin = () => {
     const loginPath = typeof route !== 'undefined' ? route('login') : '/login';
-    const targetUrl = redirectUrl
+    const targetUrl = redirectUrl && redirectUrl !== '/'
       ? `${loginPath}?redirect=${encodeURIComponent(redirectUrl)}`
       : loginPath;
 
@@ -67,7 +67,7 @@ export default function MandatoryLoginModal({
         {
           access_token: tokenResponse.access_token,
           remember: true,
-          redirect: redirectUrl || undefined,
+          redirect: redirectUrl && redirectUrl !== '/' ? redirectUrl : undefined,
         },
         {
           onSuccess: () => {
@@ -192,7 +192,7 @@ export default function MandatoryLoginModal({
                       Belum punya akun?{' '}
                       <Link
                         href={
-                          redirectUrl
+                          redirectUrl && redirectUrl !== '/'
                             ? `${typeof route !== 'undefined' ? route('register') : '/register'}?redirect=${encodeURIComponent(redirectUrl)}`
                             : typeof route !== 'undefined'
                             ? route('register')
