@@ -13,7 +13,7 @@ class TeamController extends Controller
      */
     public function index(Request $request)
     {
-        $statusTab = $request->input('tab', 'aktif');
+        $statusTab = $request->input('tab', 'all');
         $search = $request->input('search', '');
         $pagePending = (int) $request->input('page_pending', 1);
         $pageActive = (int) $request->input('page_active', 1);

@@ -43,21 +43,26 @@ export function TeamFilterPopover({
 
   return (
     <div className={`relative inline-block shrink-0 ${className}`} ref={popoverRef}>
-      {/* Tombol Filter Utama */}
+      {/* Tombol Filter Utama dengan Lebar Tetap & Badge Ruang Terproteksi (Zero Layout Shift) */}
       <button
         type="button"
         onClick={onToggle}
-        className={`inline-flex items-center justify-center gap-1.5 h-[33px] px-3.5 rounded-[10px] border transition-colors shadow-2xs cursor-pointer text-[12px] font-medium shrink-0 select-none ${
+        className={`relative inline-flex items-center justify-center gap-1.5 w-[94px] h-[33px] rounded-[10px] border transition-colors shadow-2xs cursor-pointer text-[12px] font-medium shrink-0 select-none focus:outline-none focus-visible:outline-none focus:ring-0 ${
           isOpen || hasSelection
             ? 'border-pr-900 bg-pr-50 text-pr-900 font-semibold'
-            : 'border-neu-100 bg-white text-neu-700 hover:bg-gray-50 hover:text-neu-900'
+            : 'border-neu-100 bg-white text-neu-700 hover:bg-gray-50 hover:text-black'
         }`}
       >
-        <Filter className="w-3.5 h-3.5 text-neu-500" />
+        <Filter className={`w-3.5 h-3.5 shrink-0 ${isOpen || hasSelection ? 'text-pr-900' : 'text-neu-500'}`} />
         <span>{TEAM_TOOLBAR.filterButtonText}</span>
-        {hasSelection && (
-          <span className="w-1.5 h-1.5 rounded-full bg-pr-900 ml-0.5" />
-        )}
+        {/* Ruang badge selalu dipertahankan (invisible saat tidak ada filter) agar search bar tidak pernah goyang atau bergeser */}
+        <span
+          className={`w-4 h-4 rounded-full bg-pr-900 text-white text-[10px] font-bold flex items-center justify-center shrink-0 transition-opacity ${
+            hasSelection ? 'visible opacity-100' : 'invisible opacity-0'
+          }`}
+        >
+          {selectedRoles.length}
+        </span>
       </button>
 
       {/* Popover Filter Role sesuai Gambar 2 */}
