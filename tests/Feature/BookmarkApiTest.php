@@ -406,4 +406,47 @@ class BookmarkApiTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors('id');
     }
+
+    /**
+     * Melepas bookmark harus selalu boleh, termasuk saat peraturannya sudah
+     * di-soft-delete. Sebelum perbaikan, resolveTarget() jalan lebih dulu dan
+     * mengembalikan 404 sehingga baris bookmark yatim tidak bisa dilepas.
+     */
+    public function test_melepas_bookmark_yang_peraturannya_sudah_dihapus(): void
+    {
+        $user = $this->user();
+        $peraturan = $this->peraturan();
+
+        $user->bookmarks()->create([
+            'bookmarkable_type' => 'peraturan',
+            'bookmarkable_id' => $peraturan->id,
+        ]);
+
+        $peraturan->delete(); // soft delete
+
+        $this->actingAs($user)
+            ->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id])
+            ->assertOk()
+            ->assertJson(['success' => true, 'bookmarked' => false]);
+
+        $this->assertDatabaseCount('user_bookmarks', 0);
+    }
+
+    /**
+     * Menyimpan entitas yang peraturannya sudah di-soft-delete tetap ditolak,
+     * supaya perubahan urutan cek tidak membuka celah bookmark baris baru
+     * untuk entitas yang tak terlihat.
+     */
+    public function test_tetap_menolak_menyimpan_peraturan_yang_sudah_dihapus(): void
+    {
+        $user = $this->user();
+        $peraturan = $this->peraturan();
+        $peraturan->delete(); // soft delete
+
+        $this->actingAs($user)
+            ->postJson('/api/bookmarks/toggle', ['type' => 'peraturan', 'id' => $peraturan->id])
+            ->assertStatus(404);
+
+        $this->assertDatabaseCount('user_bookmarks', 0);
+    }
 }

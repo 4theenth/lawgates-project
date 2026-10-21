@@ -23,15 +23,18 @@ export function useBookmark(peraturanId?: string | number) {
 
   const idStr = peraturanId !== undefined && peraturanId !== null ? String(peraturanId).trim() : '';
 
-  // Synchronize server-provided bookmark IDs from Inertia page props
+  // Synchronize server-provided bookmark IDs from Inertia page props.
+  // Depend on a stable string key (bukan array literal) supaya effect tidak
+  // jalan tiap render, dan set lama dibersihkan lebih dulu supaya login akun
+  // lain di tab yang sama tidak mewarisi status akun sebelumnya.
   const serverBookmarkIds: (string | number)[] = props.auth?.bookmarkIds || [];
+  const serverBookmarkKey = serverBookmarkIds.map(String).sort().join(',');
 
   useEffect(() => {
-    if (serverBookmarkIds.length > 0) {
-      serverBookmarkIds.forEach((id) => globalBookmarkSet.add(String(id)));
-      notifyListeners();
-    }
-  }, [serverBookmarkIds]);
+    globalBookmarkSet.clear();
+    serverBookmarkKey.split(',').filter(Boolean).forEach((id) => globalBookmarkSet.add(id));
+    notifyListeners();
+  }, [serverBookmarkKey]);
 
   // Subscribe to changes in globalBookmarkSet
   const [, setTick] = useState(0);

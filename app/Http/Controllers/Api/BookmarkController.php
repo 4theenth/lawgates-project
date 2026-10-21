@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Bookmark;
 use App\Models\BookmarkCollection;
 use App\Models\Peraturan;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -86,8 +87,10 @@ class BookmarkController extends Controller
     /**
      * Tandai / lepas tanda simpan untuk satu entitas.
      *
-     * Dibuat idempoten: memanggil dua kali mengembalikan kondisi terakhir tanpa
-     * error, karena tombol di UI bisa tertekan cepat dua kali.
+     * Idempoten terhadap tombol yang tertekan cepat dua kali: melepas selalu
+     * boleh (walau peraturannya sudah di-soft-delete), dan bila dua request
+     * menyimpan hampir bersamaan, benturan unique index diperlakukan sebagai
+     * "sudah tersimpan" alih-alih 500.
      */
     public function toggle(Request $request): JsonResponse
     {
@@ -103,11 +106,11 @@ class BookmarkController extends Controller
         $targetId = $validated['id'];
         $user = $request->user();
 
-        // Pastikan entitasnya benar-benar ada sebelum disimpan.
-        $this->resolveTarget($type, $targetId);
-
         $existing = $user->bookmarks()->forMorph($type, $targetId)->first();
 
+        // Melepas bookmark tidak butuh entitasnya masih ada. Peraturan yang
+        // di-soft-delete tetap harus bisa dilepas, jadi validasi target
+        // sengaja diletakkan setelah cabang ini.
         if ($existing) {
             $existing->delete();
 
@@ -119,10 +122,19 @@ class BookmarkController extends Controller
             ]);
         }
 
-        $bookmark = $user->bookmarks()->create([
-            'bookmarkable_type' => $type,
-            'bookmarkable_id' => $targetId,
-        ]);
+        // Hanya saat membuat bookmark baru entitasnya wajib ada.
+        $this->resolveTarget($type, $targetId);
+
+        try {
+            $bookmark = $user->bookmarks()->create([
+                'bookmarkable_type' => $type,
+                'bookmarkable_id' => $targetId,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            // Balapan: request lain menyimpan entitas yang sama lebih dulu.
+            // Kondisi akhir tetap "tersimpan", jadi kembalikan sukses.
+            $bookmark = $user->bookmarks()->forMorph($type, $targetId)->firstOrFail();
+        }
 
         return response()->json([
             'success' => true,

@@ -33,7 +33,7 @@
         <button onclick="runToggle()">Toggle</button>
         <button onclick="runToggleSlug()">Kirim slug (uji 500)</button>
     </div>
-    <p class="note">Tombol kedua sengaja mengirim <code>unique_id</code>. Sebelum perbaikan ini menghasilkan HTTP 500 (SQLSTATE 22P02); sekarang harus 404 dengan pesan rapi.</p>
+    <p class="note">Tombol kedua sengaja mengirim <code>unique_id</code>. Sebelum perbaikan ini menghasilkan HTTP 500 (SQLSTATE 22P02); sekarang ditolak validator dengan <code>422</code>.</p>
     <pre id="out-toggle">&mdash;</pre>
 
     <h2>2. Daftar bookmark &mdash; GET /api/bookmarks</h2>
