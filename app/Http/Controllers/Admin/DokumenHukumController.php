@@ -291,10 +291,6 @@ class DokumenHukumController extends Controller
                 }
             }
 
-            // MinIO Write-Back Sync (AC 3): Simpan data/teks terbaru ke MinIO dengan sufiks _edited.json
-            $fileName = $f['name'] ?? ($f['title'] ?? 'draft_dokumen');
-            $contentToSave = $f['correctionData'] ?? ($f['parsedData'] ?? $f);
-            $this->writeBackToMinio($fileName, $contentToSave);
         }
 
         if ($request->filled('id')) {
@@ -541,13 +537,6 @@ class DokumenHukumController extends Controller
                         $correctionData = is_string($fileData['correctionData']) ? json_decode($fileData['correctionData'], true) : $fileData['correctionData'];
                         $this->performUpdate($peraturan, $correctionData, true);
 
-                        // AC 3: MinIO Write-Back Sync
-                        $fileName = $fileData['name'] ?? ($peraturan->unique_id . '.json');
-                        $this->writeBackToMinio($fileName, $correctionData);
-                    } elseif ($parsed) {
-                        // AC 3: MinIO Write-Back Sync
-                        $fileName = $fileData['name'] ?? ($peraturan->unique_id . '.json');
-                        $this->writeBackToMinio($fileName, $parsed);
                     }
 
                     // Cek jika ada file PDF yang disertakan
@@ -1510,17 +1499,18 @@ class DokumenHukumController extends Controller
     {
         $disk = \Illuminate\Support\Facades\Storage::disk('minio');
 
-        // 1. Cek dari file_pdf_path yang tersimpan di database
+        // 1. Cek dari file_pdf_path yang tersimpan di database jika folder atau filenya ada di MinIO
         $pdfPath = $peraturan->file_pdf_path;
-        if (!$pdfPath) {
-            $pdfPath = \App\Services\DocumentStorageService::resolveValidMinioPath($peraturan);
-        }
-
         if ($pdfPath) {
             $dir = dirname($pdfPath);
 
-            // Cek apakah ocr.json sudah ada di folder tersebut
+            // Cek apakah ocr.json sudah ada di folder tersebut di MinIO
             if ($disk->exists($dir . '/ocr.json')) {
+                return $dir . '/ocr.json';
+            }
+
+            // Cek apakah file pdf ada di folder tersebut
+            if ($disk->exists($pdfPath)) {
                 return $dir . '/ocr.json';
             }
 
@@ -1533,12 +1523,9 @@ class DokumenHukumController extends Controller
                     }
                 }
             } catch (\Throwable $e) {}
-
-            // Jika belum ada file json di folder itu, gunakan ocr.json di folder yang sama
-            return $dir . '/ocr.json';
         }
 
-        // 2. Jika tidak ada file_pdf_path, cari folder dokumen di MinIO berdasarkan unique_id
+        // 2. Cek apakah ada file ocr.json di MinIO berdasarkan unique_id
         $uniqueId = $peraturan->unique_id;
         $kodeJenis = strtolower($peraturan->jenisPeraturan?->kode ?? 'uu');
 
@@ -1554,9 +1541,17 @@ class DokumenHukumController extends Controller
             }
         }
 
-        // 3. Fallback path standar
-        $slug = $peraturan->unique_id ?: ('peraturan_' . $peraturan->id);
-        return "documents/{$kodeJenis}/{$slug}/ocr.json";
+        // 3. Cek via DocumentStorageService
+        $resolvedPdf = \App\Services\DocumentStorageService::resolveValidMinioPath($peraturan);
+        if ($resolvedPdf && $disk->exists($resolvedPdf)) {
+            $dir = dirname($resolvedPdf);
+            if ($disk->exists($dir . '/ocr.json')) {
+                return $dir . '/ocr.json';
+            }
+        }
+
+        // Jika dokumen tidak pernah ada di MinIO, kembalikan null agar tidak membuat folder/file fiktif baru
+        return null;
     }
 
     /**
@@ -1667,8 +1662,8 @@ class DokumenHukumController extends Controller
             $disk = \Illuminate\Support\Facades\Storage::disk('minio');
             $jsonPath = $this->resolveMinioJsonPath($peraturan);
 
-            if (!$jsonPath) {
-                \Log::warning("Tidak dapat menentukan path MinIO JSON untuk peraturan: {$peraturan->unique_id}");
+            if (!$jsonPath || !$disk->exists($jsonPath)) {
+                \Log::info("Skip sinkronisasi MinIO: Dokumen {$peraturan->unique_id} tidak bersumber dari MinIO atau berkas ocr.json belum ada di MinIO.");
                 return false;
             }
 
@@ -1863,6 +1858,12 @@ class DokumenHukumController extends Controller
         try {
             $disk = \Illuminate\Support\Facades\Storage::disk('minio');
             $cleanPath = ltrim($originalNameOrPath, '/');
+
+            // Keamanan: JANGAN PERNAH simpan file apapun di luar folder documents/
+            if (!str_starts_with($cleanPath, 'documents/')) {
+                \Log::warning("Ditolak writeBackToMinio: Path '{$cleanPath}' berada di luar folder documents/");
+                return false;
+            }
 
             // Jika belum ada ekstensi, beri ekstensi .json secara default
             if (!str_contains(basename($cleanPath), '.')) {

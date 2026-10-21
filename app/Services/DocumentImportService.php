@@ -154,7 +154,31 @@ class DocumentImportService
                 $peraturan = $queryPlaceholder->first();
             }
 
-            $tipeFolder = strtolower($tipePeraturan);
+            $standardFolderMap = [
+                'undang-undang' => 'uu',
+                'uu' => 'uu',
+                'undang-undang dasar' => 'uud',
+                'uud' => 'uud',
+                'undang-undang darurat' => 'uudrt',
+                'uudrt' => 'uudrt',
+                'peraturan pemerintah' => 'pp',
+                'pp' => 'pp',
+                'peraturan presiden' => 'perpres',
+                'perpres' => 'perpres',
+                'instruksi presiden' => 'inpres',
+                'inpres' => 'inpres',
+                'peraturan daerah' => 'perda',
+                'perda' => 'perda',
+                'peraturan menteri' => 'permen',
+                'permen' => 'permen',
+                'peraturan pemerintah pengganti undang-undang' => 'perpu',
+                'perpu' => 'perpu',
+                'perppu' => 'perpu',
+                'keputusan presiden' => 'keppres',
+                'keppres' => 'keppres',
+            ];
+            $keyLower = strtolower(trim($jenis->nama ?? $tipePeraturan));
+            $tipeFolder = $standardFolderMap[$keyLower] ?? (strtolower($jenis->kode ?? $tipePeraturan));
             $docFolder = $metadata['standard_id'] ?? $idDokumen;
             $pdfPath = "documents/{$tipeFolder}/{$docFolder}/document.pdf";
 

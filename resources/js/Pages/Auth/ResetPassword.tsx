@@ -2,6 +2,7 @@ import React, { FormEventHandler } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { AuthCard, FormInput } from '@/Components/common';
+import { Icon } from '@/Components/ui/icon';
 
 export default function ResetPassword({
     token,
@@ -16,6 +17,10 @@ export default function ResetPassword({
         password: '',
         password_confirmation: '',
     });
+
+    const hasCapital = /[A-Z]/.test(data.password);
+    const hasMinLength = data.password.length >= 8;
+    const hasNumberOrSymbol = /[0-9]/.test(data.password) || /[^a-zA-Z0-9]/.test(data.password);
 
     const validateEmail = (val: string) => {
         const trimmed = val.trim();
@@ -38,6 +43,13 @@ export default function ResetPassword({
         }
         if (val.length < 8) {
             setError('password', 'Panjang kata sandi minimal 8 karakter.');
+            return false;
+        }
+        const capital = /[A-Z]/.test(val);
+        const minLength = val.length >= 8;
+        const numOrSym = /[0-9]/.test(val) || /[^a-zA-Z0-9]/.test(val);
+        if (!capital || !minLength || !numOrSym) {
+            setError('password', 'Kata sandi belum memenuhi ketentuan.');
             return false;
         }
         clearErrors('password');
@@ -133,11 +145,22 @@ export default function ResetPassword({
                         onChange={(e) => {
                             const val = e.target.value;
                             setData('password', val);
-                            if (val.length >= 8) {
+                            const capital = /[A-Z]/.test(val);
+                            const minLength = val.length >= 8;
+                            const numOrSym = /[0-9]/.test(val) || /[^a-zA-Z0-9]/.test(val);
+
+                            if (capital && minLength && numOrSym) {
                                 clearErrors('password');
                             } else if (errors.password) {
-                                setError('password', 'Panjang kata sandi minimal 8 karakter.');
+                                if (!val) {
+                                    setError('password', 'Kata sandi wajib diisi.');
+                                } else if (!minLength) {
+                                    setError('password', 'Panjang kata sandi minimal 8 karakter.');
+                                } else {
+                                    setError('password', 'Kata sandi belum memenuhi ketentuan.');
+                                }
                             }
+
                             if (data.password_confirmation) {
                                 if (data.password_confirmation === val) {
                                     clearErrors('password_confirmation');
@@ -184,6 +207,43 @@ export default function ResetPassword({
                         }}
                     />
 
+                    {/* Ketentuan Kata Sandi */}
+                    <div className="pt-1 space-y-1.5">
+                        <p className="text-xs font-semibold text-neu-800">Ketentuan Kata Sandi:</p>
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                {hasCapital ? (
+                                    <Icon name="check" className="h-3.5 w-3.5 text-suc-800 shrink-0" strokeWidth={2.5} />
+                                ) : (
+                                    <Icon name="x" className="h-3.5 w-3.5 text-neu-400 shrink-0" strokeWidth={2.5} />
+                                )}
+                                <span className={hasCapital ? 'text-xs text-neu-700' : 'text-xs text-neu-500'}>
+                                    Menggunakan huruf Kapital
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {hasMinLength ? (
+                                    <Icon name="check" className="h-3.5 w-3.5 text-suc-800 shrink-0" strokeWidth={2.5} />
+                                ) : (
+                                    <Icon name="x" className="h-3.5 w-3.5 text-neu-400 shrink-0" strokeWidth={2.5} />
+                                )}
+                                <span className={hasMinLength ? 'text-xs text-neu-700' : 'text-xs text-neu-500'}>
+                                    Minimal 8 karakter
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {hasNumberOrSymbol ? (
+                                    <Icon name="check" className="h-3.5 w-3.5 text-suc-800 shrink-0" strokeWidth={2.5} />
+                                ) : (
+                                    <Icon name="x" className="h-3.5 w-3.5 text-neu-400 shrink-0" strokeWidth={2.5} />
+                                )}
+                                <span className={hasNumberOrSymbol ? 'text-xs text-neu-700' : 'text-xs text-neu-500'}>
+                                    Menggunakan angka atau simbol
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="pt-2">
                         <button
                             type="submit"
@@ -198,3 +258,4 @@ export default function ResetPassword({
         </GuestLayout>
     );
 }
+

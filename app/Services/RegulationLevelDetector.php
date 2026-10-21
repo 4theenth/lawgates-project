@@ -400,4 +400,12 @@ class RegulationLevelDetector
 
         return $result;
     }
+
+    /**
+     * Clear cached level detection if any.
+     */
+    public static function clearCache(): void
+    {
+        // Placeholder for clearing any static or application cache for level detection
+    }
 }

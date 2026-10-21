@@ -6,6 +6,7 @@ import {
   RefreshCw,
   XOctagon,
   Eye,
+  Sparkles,
 } from 'lucide-react';
 import { BookmarkButton } from '@/Components/common/BookmarkButton';
 
