@@ -14,12 +14,6 @@ export interface PeraturanItem {
     id: number;
     nama_status: string;
   };
-  relevant_pasal?: {
-    pasal_id: number;
-    nomor_pasal: string;
-    cuplikan: string;
-    similarity: number;
-  };
 }
 
 export interface FilterOption {

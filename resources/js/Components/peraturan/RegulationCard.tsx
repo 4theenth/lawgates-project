@@ -6,7 +6,6 @@ import {
   RefreshCw,
   XOctagon,
   Eye,
-  Sparkles,
 } from 'lucide-react';
 import { BookmarkButton } from '@/Components/common/BookmarkButton';
 
@@ -26,62 +25,14 @@ export interface RegulationCardItem {
     id?: number;
     nama_status: string;
   };
-  relevant_pasal?: {
-    pasal_id: number;
-    nomor_pasal: string;
-    cuplikan: string;
-    similarity: number;
-  };
 }
 
 interface RegulationCardProps {
   item: RegulationCardItem;
   className?: string;
   variant?: 'list' | 'grid';
-  searchQuery?: string;
   onClick?: (e: React.MouseEvent) => void;
 }
-
-function highlightMatches(text: string, query?: string): React.ReactNode {
-  if (!text) return '';
-  if (!query || !query.trim()) return text;
-
-  const stopwords = new Set([
-    'dan', 'atau', 'yang', 'di', 'ke', 'dari', 'tentang', 'pada', 'untuk', 'oleh',
-    'atas', 'dengan', 'aturan', 'pedoman', 'terkait', 'mengenai', 'soal', 'hal',
-    'adalah', 'yaitu', 'sebagai', 'dalam', 'ini', 'itu', 'apakah', 'bagaimana',
-  ]);
-
-  const words = query
-    .trim()
-    .split(/[\s\-_,\.]+/)
-    .filter((w) => w.length >= 3 && !stopwords.has(w.toLowerCase()))
-    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-
-  const finalWords = words.length > 0
-    ? words
-    : query
-      .trim()
-      .split(/[\s\-_,\.]+/)
-      .filter((w) => w.length >= 3)
-      .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-
-  if (finalWords.length === 0) return text;
-
-  const pattern = new RegExp(`(${finalWords.join('|')})`, 'gi');
-  const parts = text.split(pattern);
-
-  return parts.map((part, index) =>
-    pattern.test(part) ? (
-      <mark key={index} className="bg-sec-100 text-neu-900 font-semibold rounded px-0.5 not-italic">
-        {part}
-      </mark>
-    ) : (
-      part
-    )
-  );
-}
-
 
 function getRegulationStatusStyle(statusName: string) {
   const name = statusName.toLowerCase();
@@ -117,7 +68,6 @@ export function RegulationCard({
   item,
   className = '',
   variant = 'list',
-  searchQuery = '',
   onClick,
 }: RegulationCardProps) {
   const statusName = item.status_peraturan?.nama_status ?? 'Berlaku';
@@ -130,14 +80,14 @@ export function RegulationCard({
     (jenisNama.toLowerCase().includes('undang-undang') || jenisNama.toLowerCase().includes('undang undang')
       ? 'UU'
       : jenisNama.toLowerCase().includes('presiden')
-        ? 'PERPRES'
-        : jenisNama.toLowerCase().includes('menteri') || jenisNama.toLowerCase().includes('mentri')
-          ? 'PERMEN'
-          : jenisNama.toLowerCase().includes('pemerintah')
-            ? 'PP'
-            : jenisNama.toLowerCase().includes('daerah')
-              ? 'PERDA'
-              : jenisNama);
+      ? 'PERPRES'
+      : jenisNama.toLowerCase().includes('menteri') || jenisNama.toLowerCase().includes('mentri')
+      ? 'PERMEN'
+      : jenisNama.toLowerCase().includes('pemerintah')
+      ? 'PP'
+      : jenisNama.toLowerCase().includes('daerah')
+      ? 'PERDA'
+      : jenisNama);
 
   const statusStyle = getRegulationStatusStyle(statusName);
 
@@ -177,34 +127,9 @@ export function RegulationCard({
         </div>
 
         {/* ── Judul Dokumen Peraturan ── */}
-        <h3 className="text-[14px] sm:text-[15px] font-medium text-neu-800 group-hover:text-pr-900 transition-colors line-clamp-3 leading-snug mb-3.5">
-          {highlightMatches(item.judul, searchQuery)}
+        <h3 className="text-[14px] sm:text-[15px] font-medium text-neu-800 group-hover:text-pr-900 transition-colors line-clamp-3 leading-snug mb-5">
+          {item.judul}
         </h3>
-
-        {/* ── Highlight Cuplikan Pasal Paling Relevan & Skor Akurasi AI ── */}
-        {item.relevant_pasal && (
-          <div className="mb-4 p-3 sm:p-3.5 bg-pr-50/40 border border-pr-100/90 rounded-[14px] transition-all group-hover:border-pr-200">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-pr-900">
-                <Sparkles className="w-3.5 h-3.5 text-sec-900 shrink-0" />
-                <span>Pasal Paling Relevan: {item.relevant_pasal.nomor_pasal}</span>
-              </span>
-              {item.relevant_pasal.similarity > 0 ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sec-900 bg-sec-100/90 border border-sec-200 px-2.5 py-0.5 rounded-full">
-                  <Sparkles className="w-3 h-3 text-sec-900 shrink-0" />
-                  <span>{Math.round(item.relevant_pasal.similarity * 100)}% Relevansi AI</span>
-                </span>
-              ) : (
-                <span className="text-[11px] font-medium text-neu-600 bg-neu-100 px-2 py-0.5 rounded-full">
-                  Kecocokan Pasal
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-neu-700 leading-relaxed italic line-clamp-2">
-              &ldquo;{highlightMatches(item.relevant_pasal.cuplikan.replace(/\s+/g, ' ').trim(), searchQuery)}...&rdquo;
-            </p>
-          </div>
-        )}
       </div>
 
       {/* ── Row Bawah: Tahun, Garis, Instansi, Simpan (Bookmark), dan Tombol Lihat Detail ── */}

@@ -546,7 +546,6 @@ export default function Pencarian() {
                   <RegulationCard
                     key={item.id}
                     item={item}
-                    searchQuery={searchQuery}
                     variant="list"
                     onClick={() => {
                       requireAuth(() => {

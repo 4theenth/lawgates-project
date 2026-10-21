@@ -3,17 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Peraturan;
-use App\Services\SemanticSearchService;
 use Illuminate\Http\Request;
+use App\Models\Peraturan;
 use Illuminate\Support\Facades\DB;
 
 class SearchController extends Controller
 {
-    public function __construct(
-        protected SemanticSearchService $semanticService
-    ) {}
-
     public function search(Request $request)
     {
         // Tarik relasi agar nama jenis & status bisa ditampilkan di hasil React (hanya peraturan sah)
@@ -36,106 +31,24 @@ class SearchController extends Controller
                 '/\bperpres\b/i' => 'peraturan%presiden',
                 '/\bpermen\b/i' => 'peraturan%menteri',
                 '/\bpermendagri\b/i' => 'peraturan%menteri%dalam%negeri',
-                '/[\s\-]+/' => '%',
+                '/[\s\-]+/' => '%' // ubah spasi atau strip menjadi wildcard %
             ];
 
             $smartKeyword = preg_replace(array_keys($replacements), array_values($replacements), $keyword);
 
-            // Ekstrak token kata kunci untuk fallback leksikal
-            $cleanTokens = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', strtolower($keyword));
-            $tokens = array_values(array_filter(explode(' ', (string) $cleanTokens), fn ($t) => strlen($t) > 2));
+            $query->where(function ($sub) use ($keyword, $smartKeyword, $likeOp) {
+                $sub->where('judul', $likeOp, '%' . $keyword . '%')
+                    ->orWhere('nomor', $likeOp, '%' . $keyword . '%')
+                    ->orWhere('instansi', $likeOp, '%' . $keyword . '%')
+                    ->orWhere('lokasi_daerah', $likeOp, '%' . $keyword . '%')
+                    ->orWhere('tempat_penetapan', $likeOp, '%' . $keyword . '%');
 
-            // Coba pencarian semantik AI menggunakan Gemini embedding
-            $semanticMatches = $this->semanticService->searchRelevantPasal($keyword);
-            $semanticIds = $semanticMatches->keys()->toArray();
-            $lexicalPasalMatches = collect();
-
-            // Jika semantic search offline atau kuota habis, cari pasal-pasal yang relevan secara leksikal
-            if (empty($semanticIds) && ! empty($tokens)) {
-                // Perluas token dengan bentuk kata kunci hukum umum (misal: wewenang -> wenang untuk mencakup berwenang & kewenangan)
-                $searchTokens = array_map(function ($t) {
-                    if ($t === 'wewenang') {
-                        return 'wenang';
-                    }
-                    if ($t === 'kepolisian') {
-                        return 'polisi';
-                    }
-
-                    return $t;
-                }, $tokens);
-
-                $pasalCandidates = \App\Models\Pasal::where(function ($pq) use ($searchTokens, $likeOp) {
-                    foreach ($searchTokens as $token) {
-                        $pq->orWhere('isi_pasal', $likeOp, '%'.$token.'%');
-                    }
-                })->get();
-
-                $grouped = [];
-                foreach ($pasalCandidates as $p) {
-                    $score = 0;
-                    $isi = strtolower($p->isi_pasal);
-                    foreach ($searchTokens as $t) {
-                        if (str_contains($isi, $t)) {
-                            // Beri bobot lebih tinggi untuk istilah entitas/subjek spesifik (misal: polisi, aparat)
-                            $weight = in_array($t, ['polisi', 'aparat']) ? 3 : 1;
-                            $score += $weight;
-                        }
-                    }
-                    if ($score > 0) {
-                        $pid = $p->peraturan_id;
-                        if (! isset($grouped[$pid]) || $score > $grouped[$pid]['score']) {
-                            $grouped[$pid] = [
-                                'pasal_id' => $p->id,
-                                'nomor_pasal' => $p->nomor_pasal,
-                                'cuplikan' => trim(mb_substr(preg_replace('/\s+/', ' ', $p->isi_pasal), 0, 180)),
-                                'similarity' => 0.0,
-                                'score' => $score,
-                            ];
-                        }
-                    }
+                if ($smartKeyword !== $keyword && $smartKeyword !== '%') {
+                    $sub->orWhere('judul', $likeOp, '%' . $smartKeyword . '%')
+                        ->orWhere('nomor', $likeOp, '%' . $smartKeyword . '%')
+                        ->orWhere('instansi', $likeOp, '%' . $smartKeyword . '%')
+                        ->orWhere('lokasi_daerah', $likeOp, '%' . $smartKeyword . '%');
                 }
-
-                uasort($grouped, fn ($a, $b) => $b['score'] <=> $a['score']);
-                $lexicalPasalMatches = collect($grouped);
-            }
-
-            $query->where(function ($sub) use ($keyword, $smartKeyword, $semanticIds, $lexicalPasalMatches, $tokens, $likeOp) {
-                // 1. Hasil Semantic AI (jika tersedia)
-                if (! empty($semanticIds)) {
-                    $sub->whereIn('id', $semanticIds);
-                }
-
-                // 2. Fallback pencocokan pasal berbasis token kata kunci (jika semantic tidak ada)
-                if (empty($semanticIds) && $lexicalPasalMatches->isNotEmpty()) {
-                    $sub->orWhereIn('id', $lexicalPasalMatches->keys()->toArray());
-                }
-
-                // 3. Pencarian eksak & token pada judul, nomor, instansi, atau lokasi
-                $sub->orWhere(function ($keywordSub) use ($keyword, $smartKeyword, $tokens, $likeOp) {
-                    $keywordSub->where('judul', $likeOp, '%'.$keyword.'%')
-                        ->orWhere('nomor', $likeOp, '%'.$keyword.'%')
-                        ->orWhere('instansi', $likeOp, '%'.$keyword.'%')
-                        ->orWhere('lokasi_daerah', $likeOp, '%'.$keyword.'%')
-                        ->orWhere('tempat_penetapan', $likeOp, '%'.$keyword.'%');
-
-                    if ($smartKeyword !== $keyword && $smartKeyword !== '%') {
-                        $keywordSub->orWhere('judul', $likeOp, '%'.$smartKeyword.'%')
-                            ->orWhere('nomor', $likeOp, '%'.$smartKeyword.'%')
-                            ->orWhere('instansi', $likeOp, '%'.$smartKeyword.'%')
-                            ->orWhere('lokasi_daerah', $likeOp, '%'.$smartKeyword.'%');
-                    }
-
-                    if (! empty($tokens)) {
-                        $keywordSub->orWhere(function ($tq) use ($tokens, $likeOp) {
-                            foreach ($tokens as $token) {
-                                $tq->orWhere('judul', $likeOp, '%'.$token.'%')
-                                    ->orWhere('subjek', $likeOp, '%'.$token.'%')
-                                    ->orWhere('instansi', $likeOp, '%'.$token.'%')
-                                    ->orWhere('lokasi_daerah', $likeOp, '%'.$token.'%');
-                            }
-                        });
-                    }
-                });
             });
         }
 
@@ -237,7 +150,7 @@ class SearchController extends Controller
         }
 
         // Kembalikan hasil dengan pagination dinamis
-        $perPage = $request->get('per_page', 10);
+        $perPage = (int) $request->get('per_page', 10);
         return response()->json($query->paginate($perPage));
     }
 }
