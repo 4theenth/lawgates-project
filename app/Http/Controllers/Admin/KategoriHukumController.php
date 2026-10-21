@@ -14,7 +14,7 @@ class KategoriHukumController extends Controller
     public function index(Request $request)
     {
         $activeTab = $request->input('tab', 'kategori');
-        $pageSize = (int) $request->input('pageSize', 10);
+        $pageSize = max(1, min(100, (int) $request->input('pageSize', 10)));
         $search = $request->input('search');
         $sortColumn = $request->input('sortColumn');
         $sortDirection = strtolower($request->input('sortDirection', 'asc')) === 'desc' ? 'desc' : 'asc';

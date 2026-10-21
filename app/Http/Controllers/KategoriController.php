@@ -273,7 +273,7 @@ class KategoriController extends Controller
             $peraturanQuery->orderBy('created_at', 'desc');
         }
 
-        $perPage = (int) $request->get('per_page', 10);
+        $perPage = max(1, min(100, (int) $request->get('per_page', 10)));
         $paginatedResults = $peraturanQuery->paginate($perPage)->withQueryString();
 
         // Data referensi status, tahun, & subjek untuk dropdown filter
