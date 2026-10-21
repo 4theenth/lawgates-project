@@ -7,7 +7,7 @@ import {
   TEAM_TOOLBAR,
 } from '@/constants/team';
 import { TeamFilterPopover } from '@/Components/admin/team/TeamFilterPopover';
-import { StatusTabs } from '@/Components/admin/StatusTabs';
+import { StatusTabs } from '@/Components/common/StatusTabs';
 
 interface TeamToolbarProps {
   activeTab: TeamStatusTabId | 'all' | null;
