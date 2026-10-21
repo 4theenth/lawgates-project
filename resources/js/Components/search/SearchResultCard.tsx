@@ -65,6 +65,8 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
   const rawStatus = metadata?.status || genericItem?.status_peraturan?.nama_status || genericItem?.status || 'Berlaku';
   const tipe = metadata?.tipe_peraturan || genericItem?.jenis_peraturan?.nama || 'Peraturan';
 
+  // `detailId` untuk URL (halaman detail memang diakses lewat unique_id/slug),
+  // sedangkan tombol bookmark butuh primary key, bukan slug.
   const detailId = metadata?.standard_id || genericItem?.unique_id || String(genericItem?.id || '');
   const detailUrl = detailId ? `/peraturan/${detailId}` : '#';
 
@@ -135,9 +137,9 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
           </span>
 
           {/* Reusable Bookmark Button */}
-          {detailId && (
+          {genericItem?.id && (
             <BookmarkButton
-              peraturanId={detailId}
+              peraturanId={genericItem.id}
               variant="icon"
               size="sm"
             />

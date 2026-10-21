@@ -140,7 +140,7 @@ export default function DetailPeraturan({
               onCompare={canCompare ? () => router.visit(`/bandingkan?id=${peraturan?.unique_id}`) : undefined}
               viewerHref={`/peraturan/${peraturan?.unique_id}/lihat`}
               downloadHref={`/peraturan/${peraturan?.unique_id}/download`}
-              peraturanId={peraturan?.unique_id || peraturan?.id}
+              peraturanId={peraturan?.id}
             />
           </div>
         </section>
