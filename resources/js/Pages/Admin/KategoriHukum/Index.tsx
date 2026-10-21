@@ -13,7 +13,7 @@ import {
 import { CategoryModal } from '@/Components/admin/CategoryModal';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
 import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
-import { StatusTabs } from '@/Components/admin/StatusTabs';
+import { StatusTabs } from '@/Components/common/StatusTabs';
 import { Search, X, Gavel } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
