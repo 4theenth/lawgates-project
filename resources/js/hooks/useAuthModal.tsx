@@ -88,7 +88,7 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
         badgeText={modalOptions.badgeText}
         redirectUrl={
           modalOptions.redirectUrl ||
-          (typeof window !== 'undefined' && window.location.pathname !== '/'
+          (typeof window !== 'undefined'
             ? `${window.location.pathname}${window.location.search}`
             : undefined)
         }
