@@ -31,7 +31,7 @@ export default function GraphNodeCard({
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute z-50 pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
+            className="absolute z-30 pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
             style={{
                 left: cardPos.x,
                 top: cardPos.y,

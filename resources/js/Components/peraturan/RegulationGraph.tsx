@@ -108,6 +108,11 @@ export default function RegulationGraph({
 
     const initialCenterDone = useRef(false);
 
+    // Default zoom dekat (comfortable reading view):
+    // Selalu zoom in dekat secara konsisten baik pada regulasi dengan sedikit maupun banyak relasi,
+    // pengguna dapat menggeser (pan) atau zoom out secara manual jika ingin melihat keseluruhan konstelasi.
+    const DEFAULT_GRAPH_ZOOM = isMini ? 0.9 : 1.15;
+
     // Randomize Starburst Layout callback
     const handleRandomizeStarLayout = useCallback(() => {
         setClickedNode(null);
@@ -116,13 +121,14 @@ export default function RegulationGraph({
             links: prev.links,
         }));
         if (graphRef.current) {
-            graphRef.current.centerAt(0, 0, 400);
-            graphRef.current.zoom(1.1, 400);
+            const sidebarOffsetGraphX = isSidebarOpen ? (160 / DEFAULT_GRAPH_ZOOM) : 0;
+            graphRef.current.centerAt(-sidebarOffsetGraphX, 0, 400);
+            graphRef.current.zoom(DEFAULT_GRAPH_ZOOM, 400);
             if (graphRef.current.d3ReheatSimulation) {
                 graphRef.current.d3ReheatSimulation();
             }
         }
-    }, []);
+    }, [isSidebarOpen, DEFAULT_GRAPH_ZOOM]);
 
     // Find center node ID
     const centerNodeId = useMemo(() => {
@@ -179,10 +185,12 @@ export default function RegulationGraph({
             const mainX = centerNode ? (centerNode.x ?? 0) : 0;
             const mainY = centerNode ? (centerNode.y ?? 0) : 0;
 
-            graphRef.current.centerAt(mainX, mainY, 350);
-            graphRef.current.zoom(1.25, 350);
+            const focusZoom = 1.25;
+            const sidebarOffsetGraphX = isSidebarOpen ? (160 / focusZoom) : 0;
+            graphRef.current.centerAt(mainX - sidebarOffsetGraphX, mainY, 350);
+            graphRef.current.zoom(focusZoom, 350);
         }
-    }, [graphData.nodes]);
+    }, [graphData.nodes, isSidebarOpen]);
 
     const handleSelectFromSidebar = useCallback((node: GraphNode) => {
         focusOnNodeAndCenterMain(node);
@@ -303,37 +311,17 @@ export default function RegulationGraph({
     }, [isGraphReady, graphData.nodes, clickedNode]);
 
     // ─────────────────────────────────────────────
-    // Auto-fit Framing
+    // Default Close-up Framing
     // ─────────────────────────────────────────────
 
-    // Bungkus perhitungan auto-fit agar bisa dipakai ulang saat kanvas berubah ukuran
-    const fitGraphToViewport = useCallback((size: { width: number; height: number }) => {
-        if (!graphRef.current || graphData.nodes.length === 0) return;
-
-        let maxDist = 0;
-        graphData.nodes.forEach((node: any) => {
-            const dist = Math.sqrt((node.x || 0) ** 2 + (node.y || 0) ** 2);
-            if (dist > maxDist) maxDist = dist;
-        });
-
-        maxDist += 80;
-
-        const halfW = size.width / 2;
-        const halfH = size.height / 2;
-        const fitSize = Math.min(halfW, halfH);
-        const padding = isMini ? 30 : 50;
-
-        // Fullscreen memberi ruang lebih luas; node didekatkan agar peta terisi,
-        // bukan menyisakan tepi kosong yang lebar.
-        const isFullscreen = document.fullscreenElement !== null;
-        const fullscreenZoomBoost = isFullscreen ? 2.2 : 1;
-
-        const idealZoom = ((fitSize - padding) / maxDist) * fullscreenZoomBoost;
-        const clampedZoom = Math.max(0.35, Math.min(idealZoom, 4));
-
-        graphRef.current.centerAt(0, 0, 0);
-        graphRef.current.zoom(clampedZoom, 0);
-    }, [graphData.nodes, isMini]);
+    // Selalu pertahankan zoom in dekat (readable / detail view) secara default,
+    // tidak pernah auto zoom-out menjadi titik-titik kecil walau relasinya banyak atau sedikit.
+    const resetViewToDefault = useCallback((durationMs = 0) => {
+        if (!graphRef.current) return;
+        const sidebarOffsetGraphX = isSidebarOpen ? (160 / DEFAULT_GRAPH_ZOOM) : 0;
+        graphRef.current.centerAt(-sidebarOffsetGraphX, 0, durationMs);
+        graphRef.current.zoom(DEFAULT_GRAPH_ZOOM, durationMs);
+    }, [isSidebarOpen, DEFAULT_GRAPH_ZOOM]);
 
     // ─────────────────────────────────────────────
     // Resize Observer
@@ -350,10 +338,11 @@ export default function RegulationGraph({
                 };
                 setDimensions(nextSize);
 
-                // Fullscreen mengubah ukuran kanvas, jadi framing perlu dihitung ulang
-                // agar peta tidak tampak kecil di tengah layar yang lebih luas.
-                if (initialCenterDone.current) {
-                    fitGraphToViewport(nextSize);
+                // Re-center tanpa merusak level zoom yang sedang dinikmati pengguna
+                if (initialCenterDone.current && graphRef.current) {
+                    const currentZoom = graphRef.current.zoom() || DEFAULT_GRAPH_ZOOM;
+                    const sidebarOffsetGraphX = isSidebarOpen ? (160 / currentZoom) : 0;
+                    graphRef.current.centerAt(-sidebarOffsetGraphX, 0, 0);
                 }
             }
         });
@@ -366,7 +355,7 @@ export default function RegulationGraph({
         observer.observe(containerRef.current);
 
         return () => observer.disconnect();
-    }, [loading, graphData.nodes.length, fitGraphToViewport]);
+    }, [loading, graphData.nodes.length, isSidebarOpen, DEFAULT_GRAPH_ZOOM]);
 
     // ─────────────────────────────────────────────
     // D3 Force Configuration (Clean Wide Starburst Scattering)
@@ -448,24 +437,9 @@ export default function RegulationGraph({
         if (graphRef.current?.d3ReheatSimulation) {
             graphRef.current.d3ReheatSimulation();
         }
+    }, [graphData.nodes]);
 
-        const coords = graphRef.current?.graph2ScreenCoords(node.x, node.y);
-        if (!coords) return;
-        const margin = 50;
-        if (
-            coords.x < margin ||
-            coords.x > dimensions.width - margin ||
-            coords.y < margin ||
-            coords.y > dimensions.height - margin
-        ) {
-            const currentZoom = graphRef.current.zoom();
-            if (currentZoom > 0.35) {
-                graphRef.current.zoom(currentZoom * 0.98, 100);
-            }
-        }
-    }, [graphData.nodes, dimensions]);
-
-    // Adaptive card position calculation
+    // Adaptive card position calculation yang menjamin TIDAK PERNAH menimpa jendela daftar relasi
     const cardPos = useMemo(() => {
         if (!cardNode || !graphRef.current) return { x: dimensions.width / 2 + 30, y: dimensions.height / 2 - 100 };
         const node = graphData.nodes.find(n => n.id === cardNode.id) || cardNode;
@@ -478,23 +452,59 @@ export default function RegulationGraph({
             : { x: dimensions.width / 2, y: dimensions.height / 2 };
 
         const cardWidth = 310;
-        const cardHeight = 210;
+        const cardHeight = 220;
 
-        const isLeftOfCenter = coords.x < centerCoords.x;
-        let targetX = isLeftOfCenter ? coords.x - cardWidth - 25 : coords.x + 25;
+        // Lebar sidebar saat terbuka: w-80 adalah 320px, dibatasi max 85vw
+        const sidebarWidth = isSidebarOpen ? Math.min(320, dimensions.width * 0.85) : 0;
+        // Batas kiri aman agar kartu TIDAK PERNAH menimpa sidebar jendela daftar relasi
+        const minLeft = isSidebarOpen ? sidebarWidth + 16 : 16;
+        const maxRight = Math.max(minLeft, dimensions.width - cardWidth - 16);
+
+        // Opsi penempatan horizontal
+        const leftCandidate = coords.x - cardWidth - 25;
+        const rightCandidate = coords.x + 25;
+
+        let targetX: number;
         let targetY = coords.y - cardHeight / 2;
 
-        if (targetX < 16) {
-            targetX = Math.max(16, Math.min(coords.x - cardWidth / 2, dimensions.width - cardWidth - 16));
-            targetY = coords.y < centerCoords.y ? coords.y - cardHeight - 25 : coords.y + 25;
-        } else if (targetX + cardWidth > dimensions.width - 16) {
-            targetX = dimensions.width - cardWidth - 16;
+        if (isSidebarOpen) {
+            // Ketika jendela daftar relasi terbuka:
+            // 1. Prioritaskan sisi kanan node jika muat di dalam viewport
+            if (rightCandidate <= maxRight) {
+                targetX = Math.max(minLeft, rightCandidate);
+            }
+            // 2. Jika tidak muat di kanan tapi muat di kiri tanpa menabrak sidebar
+            else if (leftCandidate >= minLeft) {
+                targetX = leftCandidate;
+            }
+            // 3. Jika ruang sempit, letakkan di atas / bawah node dan clamp X agar tetap di kanan sidebar
+            else {
+                targetX = Math.max(minLeft, Math.min(coords.x - cardWidth / 2, maxRight));
+                targetY = coords.y < centerCoords.y ? coords.y - cardHeight - 25 : coords.y + 25;
+            }
+        } else {
+            // Sidebar tertutup: letakkan di kiri atau kanan tergantung posisi terhadap center node
+            const isLeftOfCenter = coords.x < centerCoords.x;
+            if (isLeftOfCenter && leftCandidate >= minLeft) {
+                targetX = leftCandidate;
+            } else if (rightCandidate <= maxRight) {
+                targetX = rightCandidate;
+            } else if (leftCandidate >= minLeft) {
+                targetX = leftCandidate;
+            } else {
+                targetX = Math.max(minLeft, Math.min(coords.x - cardWidth / 2, maxRight));
+                targetY = coords.y < centerCoords.y ? coords.y - cardHeight - 25 : coords.y + 25;
+            }
         }
 
+        // Clamp akhir yang absolut: targetX PASTI >= minLeft dan <= maxRight
+        targetX = Math.max(minLeft, Math.min(targetX, maxRight));
+
+        // Clamp vertikal agar tidak keluar batas atas dan bawah canvas
         targetY = Math.max(16, Math.min(targetY, dimensions.height - cardHeight - 16));
 
         return { x: targetX, y: targetY };
-    }, [cardNode, graphData.nodes, dimensions]);
+    }, [cardNode, graphData.nodes, dimensions, isSidebarOpen]);
 
     // Canvas render delegates
     const onDrawNode = useCallback((node: any, ctx: CanvasRenderingContext2D) => {
@@ -596,10 +606,7 @@ export default function RegulationGraph({
                 onRandomizeLayout={handleRandomizeStarLayout}
                 onResetCamera={() => {
                     setClickedNode(null);
-                    if (graphRef.current) {
-                        graphRef.current.centerAt(0, 0, 400);
-                        graphRef.current.zoom(1.1, 400);
-                    }
+                    resetViewToDefault(400);
                 }}
                 onToggleFullscreen={() => {
                     if (containerRef.current) {
@@ -690,7 +697,7 @@ export default function RegulationGraph({
                         if (initialCenterDone.current) return;
                         initialCenterDone.current = true;
 
-                        fitGraphToViewport(dimensions);
+                        resetViewToDefault(0);
 
                         requestAnimationFrame(() => {
                             setIsGraphReady(true);
