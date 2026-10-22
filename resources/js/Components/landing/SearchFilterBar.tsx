@@ -477,56 +477,64 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
   const handleSearchSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
+    const keyword = searchQuery.trim();
+
+    let formattedTahun = '';
+    if (tahunDari && tahunSampai) {
+      const y1 = Number(tahunDari);
+      const y2 = Number(tahunSampai);
+      if (!isNaN(y1) && !isNaN(y2)) {
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        formattedTahun = minY === maxY ? String(minY) : `${minY}-${maxY}`;
+      } else {
+        formattedTahun = `${tahunDari}-${tahunSampai}`;
+      }
+    } else if (tahunDari) {
+      formattedTahun = tahunDari;
+    } else if (tahunSampai) {
+      formattedTahun = tahunSampai;
+    }
+
+    const isAllKategori =
+      selectedKategori.length === 0 ||
+      (kategoriOptions.length > 0 && selectedKategori.length === kategoriOptions.length);
+    const kategoriParam = isAllKategori ? '' : selectedKategori.join(',');
+
+    const isAllStatus =
+      selectedStatus.length === 0 ||
+      (statusOptions.length > 0 && selectedStatus.length === statusOptions.length);
+    const statusParam = isAllStatus ? '' : selectedStatus.join(',');
+
+    const isPerdaSelected = selectedKategori.some((id) => {
+      const k = listKategori.find((x) => String(x.id) === String(id));
+      if (!k) return false;
+      return k.nama.toLowerCase().includes('perda') || k.nama.toLowerCase().includes('peraturan daerah');
+    });
+
+    const lokasiParam = isPerdaSelected && selectedLokasi.length > 0 ? selectedLokasi.join(',') : '';
+
+    const subjekParam = selectedSubjek.length > 0 ? selectedSubjek.join(',') : '';
+
+    const filters = {
+      kategori: kategoriParam,
+      tahun: formattedTahun,
+      status: statusParam,
+      lokasi_daerah: lokasiParam,
+      subjek: subjekParam,
+    };
+
+    // Parameter wajib dibangun SEBELUM requireAuth agar redirectUrl yang
+    // diteruskan ke modal login sudah memuat filter. Bila dibangun di dalam
+    // callback, modal terbuka lebih dulu tanpa tujuan dan filter hilang
+    // setelah user berhasil login.
+    if (onSearch) {
+      onSearch(keyword, filters);
+      return;
+    }
+
     requireAuth(() => {
-      const keyword = searchQuery.trim();
       setErrorMsg('');
-
-      let formattedTahun = '';
-      if (tahunDari && tahunSampai) {
-        const y1 = Number(tahunDari);
-        const y2 = Number(tahunSampai);
-        if (!isNaN(y1) && !isNaN(y2)) {
-          const minY = Math.min(y1, y2);
-          const maxY = Math.max(y1, y2);
-          formattedTahun = minY === maxY ? String(minY) : `${minY}-${maxY}`;
-        } else {
-          formattedTahun = `${tahunDari}-${tahunSampai}`;
-        }
-      } else if (tahunDari) {
-        formattedTahun = tahunDari;
-      } else if (tahunSampai) {
-        formattedTahun = tahunSampai;
-      }
-
-      const isAllKategori =
-        selectedKategori.length === 0 ||
-        (kategoriOptions.length > 0 && selectedKategori.length === kategoriOptions.length);
-      const kategoriParam = isAllKategori ? '' : selectedKategori.join(',');
-
-      const isAllStatus =
-        selectedStatus.length === 0 ||
-        (statusOptions.length > 0 && selectedStatus.length === statusOptions.length);
-      const statusParam = isAllStatus ? '' : selectedStatus.join(',');
-
-      const isPerdaSelected = selectedKategori.some((id) => {
-        const k = listKategori.find((x) => String(x.id) === String(id));
-        if (!k) return false;
-        return k.nama.toLowerCase().includes('perda') || k.nama.toLowerCase().includes('peraturan daerah');
-      });
-
-      const lokasiParam = isPerdaSelected && selectedLokasi.length > 0 ? selectedLokasi.join(',') : '';
-
-      const subjekParam = selectedSubjek.length > 0 ? selectedSubjek.join(',') : '';
-
-      if (onSearch) {
-        onSearch(keyword, {
-          kategori: kategoriParam,
-          tahun: formattedTahun,
-          status: statusParam,
-          lokasi_daerah: lokasiParam,
-          subjek: subjekParam,
-        });
-      }
     });
   };
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Auth\Concerns\SanitizesIntendedRedirect;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
@@ -13,13 +14,15 @@ use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
+    use SanitizesIntendedRedirect;
+
     /**
      * Display the login view.
      */
     public function create(Request $request): Response
     {
-        $redirect = $request->query('redirect');
-        if (!empty($redirect) && $redirect !== '/') {
+        $redirect = $this->safeIntended($request->query('redirect'));
+        if ($redirect) {
             session()->put('url.intended', $redirect);
         }
 
@@ -32,7 +35,7 @@ class AuthenticatedSessionController extends Controller
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
-            'redirect' => (!empty($redirect) && $redirect !== '/') ? $redirect : $intended,
+            'redirect' => $redirect ?? $intended,
         ]);
     }
 
@@ -45,8 +48,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        $redirect = $request->input('redirect') ?: $request->query('redirect');
-        if (!empty($redirect) && $redirect !== '/') {
+        $redirect = $this->safeIntended($request->input('redirect') ?: $request->query('redirect'));
+        // Perbarui url.intended hanya bila redirect valid. Jangan dihapus saat
+        // kosong: intended yang sudah ada (mis. diisi middleware auth saat user
+        // ditolak dari halaman /pencarian) harus tetap dipakai.
+        if ($redirect) {
             session()->put('url.intended', $redirect);
         }
 
@@ -54,13 +60,18 @@ class AuthenticatedSessionController extends Controller
         if ($user && in_array($user->role, ['admin', 'superadmin'])) {
             $intended = session()->get('url.intended');
 
-            // Jika intended URL adalah rute admin internal, arahkan ke halaman tersebut
+            // Rute admin internal -> lanjut ke sana.
             if ($intended && (str_starts_with($intended, '/admin') || str_contains($intended, url('/admin')))) {
                 return redirect()->intended(route('admin.dashboard'))->with('success', 'Berhasil masuk ke dashboard Admin');
             }
 
-            // Hapus url.intended publik agar admin tidak terarah ke landing page
-            session()->forget('url.intended');
+            // Tujuan publik yang jelas (mis. /pencarian?keyword=...) dihormati
+            // agar filter yang dipilih sebelum login tidak hilang.
+            if ($intended) {
+                session()->forget('url.intended');
+                return redirect($intended)->with('success', 'Berhasil masuk ke akun Anda');
+            }
+
             return redirect()->route('admin.dashboard')->with('success', 'Berhasil masuk ke dashboard Admin');
         }
 

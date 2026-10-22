@@ -57,6 +57,7 @@ export default function MandatoryLoginModal({
       ? `${loginPath}?redirect=${encodeURIComponent(redirectUrl)}`
       : loginPath;
 
+    onClose();
     router.visit(targetUrl);
   };
 
