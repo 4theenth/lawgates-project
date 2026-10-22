@@ -142,4 +142,26 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticated();
         $response->assertRedirect('/pencarian?keyword=uu');
     }
+
+    public function test_login_redirects_to_category_slug_intended_path(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'redirect' => '/kategori/undang-undang',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect('/kategori/undang-undang');
+    }
+
+    public function test_login_screen_preserves_category_redirect_parameter(): void
+    {
+        $response = $this->get('/login?redirect=/kategori/undang-undang');
+
+        $response->assertStatus(200);
+        $this->assertEquals('/kategori/undang-undang', session('url.intended'));
+    }
 }

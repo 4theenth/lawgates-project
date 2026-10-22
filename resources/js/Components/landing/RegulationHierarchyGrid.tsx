@@ -87,9 +87,20 @@ export function RegulationHierarchyGrid({ counts }: RegulationHierarchyGridProps
   const { requireAuth } = useAuthModal();
 
   const handleCardClick = (item: HierarchyCardItem) => {
-    requireAuth(() => {
-      router.visit(`/kategori/${item.slug || item.id}`);
-    });
+    const slug = item.slug || item.id;
+    const targetUrl = `/kategori/${slug}`;
+
+    // redirectUrl wajib dikirim eksplisit ke modal autentikasi: di halaman beranda
+    // path saat ini adalah '/', sehingga tanpa targetUrl eksplisit intended redirect URL
+    // tidak tersimpan dan pengguna dialihkan ke beranda setelah login berhasil.
+    requireAuth(
+      () => {
+        router.visit(targetUrl);
+      },
+      {
+        redirectUrl: targetUrl,
+      }
+    );
   };
 
   return (
