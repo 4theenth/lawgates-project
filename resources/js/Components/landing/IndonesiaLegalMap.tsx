@@ -443,12 +443,6 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
     [handleSelectProvince]
   );
 
-  // Handler saat user menekan Enter pada input search
-  const handleSubmitSearch = useCallback((query: string) => {
-    if (!query.trim()) return;
-    router.visit(`/pencarian?keyword=${encodeURIComponent(query.trim())}`);
-  }, []);
-
   // Reset zoom & kamera kembali ke Indonesia penuh serta HAPUS PILIHAN (Empty State)
   const handleResetMap = useCallback(() => {
     selectedProvinceRef.current = null;
@@ -761,7 +755,6 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
               searchResults={searchResults}
               onSelectProvince={handleSelectProvince}
               onSelectRegency={handleSelectRegency}
-              onSubmitSearch={handleSubmitSearch}
               inputOnly
             />
           </div>
@@ -838,7 +831,6 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
                 searchResults={searchResults}
                 onSelectProvince={handleSelectProvince}
                 onSelectRegency={handleSelectRegency}
-                onSubmitSearch={handleSubmitSearch}
               />
             </div>
 
@@ -868,7 +860,6 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
                   searchResults={searchResults}
                   onSelectProvince={handleSelectProvince}
                   onSelectRegency={handleSelectRegency}
-                  onSubmitSearch={handleSubmitSearch}
                 />
               </div>
 

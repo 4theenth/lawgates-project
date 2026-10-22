@@ -39,10 +39,13 @@ class RegisteredUserController extends Controller
             'email' => 'required|string|lowercase|email|max:255',
             'phone' => ['required', 'string', 'regex:/^[0-9+\-\s()]{8,20}$/', 'unique:users,phone'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'terms' => ['required', 'accepted'],
         ], [
             'phone.regex' => 'Format nomor telepon tidak valid.',
             'phone.required' => 'Nomor telepon wajib diisi.',
             'phone.unique' => 'Nomor telepon sudah terdaftar.',
+            'terms.required' => 'Anda harus menyetujui Syarat & Ketentuan.',
+            'terms.accepted' => 'Anda harus menyetujui Syarat & Ketentuan.',
         ]);
 
         $existingUser = User::where('email', $request->email)->first();
