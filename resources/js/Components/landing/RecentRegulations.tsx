@@ -50,9 +50,15 @@ export function RecentRegulations() {
   const { requireAuth } = useAuthModal();
 
   const handleItemClick = (title: string) => {
-    requireAuth(() => {
-      router.visit(`/pencarian?keyword=${encodeURIComponent(title)}`);
-    });
+    const targetUrl = `/pencarian?keyword=${encodeURIComponent(title)}`;
+    requireAuth(
+      () => {
+        router.visit(targetUrl);
+      },
+      {
+        redirectUrl: targetUrl,
+      }
+    );
   };
   return (
     <section className=" mt-[66px] w-full">
