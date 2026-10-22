@@ -50,13 +50,18 @@ export default function GraphControls({
     return (
         <>
             {/* ── Top Floating Legend & Sidebar Toggle Toolbar ── */}
-            <div className={`absolute top-0 left-0 w-full ${isMini ? 'p-3' : 'p-5'} flex justify-between items-start pointer-events-none z-20`}>
-                <div className="flex items-center gap-2 pointer-events-auto">
+            <div
+                className={`absolute top-0 left-0 w-full ${isMini ? 'p-3' : 'p-5'} flex justify-between items-start pointer-events-none z-30 transition-[padding] duration-300 ease-in-out`}
+                style={{
+                    paddingLeft: isSidebarOpen ? 'calc(min(320px, 85vw) + 16px)' : (isMini ? '12px' : '20px'),
+                }}
+            >
+                <div className="flex items-center gap-2 pointer-events-auto flex-wrap max-w-[calc(100%-140px)]">
                     {/* Toggle Sidebar Button */}
                     <button
                         type="button"
                         onClick={onToggleSidebar}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer border ${
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer border shrink-0 ${
                             isSidebarOpen
                                 ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-slate-900/20'
                                 : 'bg-white/90 backdrop-blur-md text-slate-700 hover:text-slate-900 hover:bg-slate-50 border-slate-200/80'
@@ -76,7 +81,7 @@ export default function GraphControls({
                     <button
                         type="button"
                         onClick={onToggleLines}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer border ${
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer border shrink-0 ${
                             showLines
                                 ? 'bg-indigo-600 text-white border-indigo-600 ring-2 ring-indigo-600/20'
                                 : 'bg-white/90 backdrop-blur-md text-slate-700 hover:text-slate-900 hover:bg-slate-50 border-slate-200/80'
@@ -88,7 +93,7 @@ export default function GraphControls({
                     </button>
 
                     {/* Interactive Legend & Category Line Filter Pills */}
-                    <div className="bg-white/90 backdrop-blur-md rounded-xl p-2 flex flex-wrap items-center gap-1.5 shadow-sm border border-slate-200/80 max-w-[75vw]">
+                    <div className="bg-white/90 backdrop-blur-md rounded-xl p-2 flex flex-wrap items-center gap-1.5 shadow-sm border border-slate-200/80 max-w-full">
                         {RELATION_LEGEND_ITEMS.map((cat) => {
                             const isFocused = activeFocusCategory === cat.key;
                             const isLineActive = showLines && (activeFocusCategory === null ? enabledLineCategories[cat.key] !== false : isFocused);
@@ -127,7 +132,7 @@ export default function GraphControls({
 
                 {/* Floating Fullscreen / Reset / Shuffle Toolbar */}
                 {!isMini && (
-                    <div className="flex items-center gap-2 pointer-events-auto">
+                    <div className="flex items-center gap-2 pointer-events-auto shrink-0">
                         <button
                             type="button"
                             onClick={onRandomizeLayout}
@@ -157,7 +162,7 @@ export default function GraphControls({
             </div>
 
             {/* ── Bottom Right Floating Zoom Pill ── */}
-            <div className={`absolute ${isMini ? 'bottom-3 right-3' : 'bottom-6 right-6'} flex flex-col bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-md rounded-xl pointer-events-auto z-10 overflow-hidden`}>
+            <div className={`absolute ${isMini ? 'bottom-3 right-3' : 'bottom-6 right-6'} flex flex-col bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-md rounded-xl pointer-events-auto z-30 overflow-hidden`}>
                 <button
                     type="button"
                     onClick={onZoomIn}
