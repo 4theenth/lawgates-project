@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { Navbar } from '../Components/layout/Navbar';
 import { Footer } from '../Components/layout/Footer';
 import { useScrollPosition } from '../hooks/useScrollPosition';
-import { AuthModalProvider } from '../hooks/useAuthModal';
 
 // ─────────────────────────────────────────────
 // Types & Props
@@ -80,19 +79,17 @@ export function PublicLayout({ children }: PublicLayoutProps) {
   const isScrolled = useScrollPosition(40);
 
   return (
-    <AuthModalProvider>
-      <div className="min-h-screen bg-[#F8F9FA] font-sans flex flex-col selection:bg-sec-900 selection:text-white w-full">
-        {/* Public Navbar */}
-        <Navbar isScrolled={isScrolled} />
+    <div className="min-h-screen bg-[#F8F9FA] font-sans flex flex-col selection:bg-sec-900 selection:text-white w-full">
+      {/* Public Navbar */}
+      <Navbar isScrolled={isScrolled} />
 
-        {/* Main Page Content */}
-        <main className="flex-1 w-full max-w-full min-w-0 flex flex-col items-center relative z-20">
-          {children}
-        </main>
+      {/* Main Page Content */}
+      <main className="flex-1 w-full max-w-full min-w-0 flex flex-col items-center relative z-20">
+        {children}
+      </main>
 
-        {/* Public Footer */}
-        <Footer />
-      </div>
-    </AuthModalProvider>
+      {/* Public Footer */}
+      <Footer />
+    </div>
   );
 }
