@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
 import MandatoryLoginModal from '@/Components/common/MandatoryLoginModal';
 
@@ -27,7 +27,7 @@ export interface AuthModalContextValue {
 const AuthModalContext = createContext<AuthModalContextValue | null>(null);
 
 export function AuthModalProvider({ children }: { children: React.ReactNode }) {
-  const { props } = usePage();
+  const { props, url } = usePage();
   const user = (props as any)?.auth?.user || null;
   const isAuthenticated = Boolean(user);
 
@@ -48,6 +48,14 @@ export function AuthModalProvider({ children }: { children: React.ReactNode }) {
     setIsOpen(false);
     setPendingAction(null);
   }, []);
+
+  // Provider ini hidup di luar komponen halaman, sehingga state modal
+  // bertahan saat Inertia berpindah halaman. Tutup modal setiap URL berubah
+  // agar tidak ikut tampil di halaman tujuan (mis. /login).
+  useEffect(() => {
+    setIsOpen(false);
+    setPendingAction(null);
+  }, [url]);
 
   const requireAuth = useCallback(
     (action: () => void, options?: AuthModalOptions) => {
