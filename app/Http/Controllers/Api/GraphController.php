@@ -23,7 +23,9 @@ class GraphController extends Controller
      */
     public function show(Request $request, $id)
     {
-        $peraturan = Peraturan::findOrFail($id);
+        $peraturan = is_numeric($id)
+            ? Peraturan::findOrFail((int) $id)
+            : Peraturan::where('unique_id', $id)->firstOrFail();
         $depth = max(1, min(2, (int) $request->query('depth', 1)));
 
         try {
