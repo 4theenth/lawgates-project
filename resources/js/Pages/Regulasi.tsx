@@ -1,6 +1,6 @@
 import React from 'react';
 import { Head } from '@inertiajs/react';
-import { PublicLayout, Section } from '@/Layouts/PublicLayout';
+import { PublicLayout } from '@/Layouts/PublicLayout';
 import { Breadcrumb } from '@/Components/common/Breadcrumb';
 import { RegulasiHero } from '@/Components/regulasi/RegulasiHero';
 import { IndonesiaLegalMap } from '@/Components/landing/IndonesiaLegalMap';

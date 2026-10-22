@@ -21,6 +21,7 @@ import {
 } from './indonesiaMapData';
 import { MAP_THEME } from '../../config/mapTheme';
 import { getRegenciesForProvince } from './map/regencyData';
+import { getRegencyCoordinates } from './map/regencyCoordinates';
 import { MapSearchCard, WilayahSearchResult } from './map/MapSearchCard';
 import { MapProvinceDetailCard } from './map/MapProvinceDetailCard';
 import { MapKabupatenPreviewCard } from './map/MapKabupatenPreviewCard';
@@ -294,6 +295,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
 
         if (regNameLower.includes(q) || fullRegLower.includes(q)) {
           const regTotal = counts[reg.name] ?? 0;
+          const regCoord = getRegencyCoordinates(reg.name, prov.id);
           results.push({
             key: `reg-${prov.id}-${reg.name}`,
             category: reg.type.toLowerCase().includes('kota') ? 'kota' : 'kabupaten',
@@ -302,6 +304,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
             provinceId: prov.id,
             provinceName: prov.name,
             total: regTotal,
+            coordinates: regCoord || undefined,
           });
         }
       }
@@ -336,7 +339,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
   }, [provincesData, searchQuery]);
 
   // Handler saat memilih provinsi (dari klik peta atau search dropdown)
-  const handleSelectProvince = useCallback((provKey: string) => {
+  const handleSelectProvince = useCallback((provKey: string, options?: { skipCamera?: boolean }) => {
     setIsViewingAllKabupaten(false);
     // Sinkronkan ref dan state seketika
     selectedProvinceRef.current = provKey;
@@ -347,7 +350,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
 
     // Ambil koordinat daratan pasti (solid landmass) untuk provinsi ini
     const landCoord = PROVINCE_LAND_COORDINATES[provKey];
-    if (landCoord) {
+    if (landCoord && !options?.skipCamera) {
       setPopupPos(landCoord);
     }
 
@@ -366,11 +369,15 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
           layer.bringToFront();
           const bounds = layer.getBounds();
           targetBounds = bounds;
-          if (!landCoord && bounds) {
+          if (!landCoord && bounds && !options?.skipCamera) {
             setPopupPos(bounds.getCenter());
           }
         }
       });
+    }
+
+    if (options?.skipCamera) {
+      return;
     }
 
     // Eksekusi animasi pergerakan kamera secara langsung (Direct & Smooth, tanpa delay dan tanpa parabolic zoom-out-in yang aneh)
@@ -397,16 +404,44 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
     }
   }, []);
 
-  // Handler pemilihan kabupaten (dari dropdown search atau kartu kabupaten)
-  const handleSelectRegency = useCallback((regencyFullName: string, provinceId?: string) => {
-    if (provinceId) {
-      handleSelectProvince(provinceId);
-    }
-    // Langsung arahkan ke pencarian dengan filter Perda (kategori_id=15) dan lokasi_daerah
-    router.visit(
-      `/pencarian?kategori_id=15&lokasi_daerah=${encodeURIComponent(regencyFullName)}`
-    );
-  }, [handleSelectProvince]);
+  // Handler pemilihan kabupaten/kota (dari dropdown search atau kartu kabupaten)
+  const handleSelectRegency = useCallback(
+    (regencyFullName: string, provinceId?: string, coordinates?: [number, number]) => {
+      // 1. Tentukan koordinat target (dari prop atau lookup)
+      const targetCoord = coordinates || getRegencyCoordinates(regencyFullName, provinceId);
+
+      // 2. Highlight provinsi di peta & update state tanpa menganimasikan kamera ke bounds provinsi
+      if (provinceId) {
+        handleSelectProvince(provinceId, { skipCamera: true });
+      }
+
+      // 3. Pasang pin/popup tepat di titik daerah yang dipilih
+      if (targetCoord) {
+        setPopupPos(targetCoord);
+      }
+
+      // 4. Fokuskan kamera Leaflet dengan animasi halus fly-to ke koordinat daerah (zoom in)
+      if (mapRef.current && targetCoord) {
+        const container = mapRef.current.getContainer();
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          if (rect.top < 0 || rect.bottom > window.innerHeight) {
+            container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
+
+        const mapSize = mapRef.current.getSize();
+        const isMobileMap = mapSize.y < 350;
+        const targetZoom = isMobileMap ? 7.0 : 7.8;
+
+        mapRef.current.flyTo(targetCoord, targetZoom, {
+          duration: 0.9,
+          easeLinearity: 0.25,
+        });
+      }
+    },
+    [handleSelectProvince]
+  );
 
   // Handler saat user menekan Enter pada input search
   const handleSubmitSearch = useCallback((query: string) => {
@@ -537,7 +572,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
           center={[-2.5, 118]}
           zoom={4.8}
           minZoom={3.8}
-          maxZoom={8}
+          maxZoom={12}
           zoomSnap={0.1}
           zoomDelta={0.5}
           wheelDebounceTime={40}
