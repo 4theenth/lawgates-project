@@ -2,7 +2,7 @@ import React, { FormEventHandler, useState, useEffect } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import axios from 'axios';
 import GuestLayout from '@/Layouts/GuestLayout';
-import { AuthCard, FormInput } from '@/Components/common';
+import { AuthCard, FormCheckbox, FormInput } from '@/Components/common';
 import { Icon } from '@/Components/ui/icon';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useToast } from '@/hooks/useToast';
@@ -14,6 +14,7 @@ export default function Register() {
         phone: '',
         password: '',
         password_confirmation: '',
+        terms: false,
     });
 
     const [emailValid, setEmailValid] = useState(false);
@@ -175,6 +176,11 @@ export default function Register() {
         }
 
         if (!validatePasswordConfirmation(data.password_confirmation, data.password)) {
+            hasError = true;
+        }
+
+        if (!data.terms) {
+            setError('terms', 'Anda harus menyetujui Syarat & Ketentuan.');
             hasError = true;
         }
 
@@ -413,6 +419,21 @@ export default function Register() {
                                 </span>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Persetujuan Syarat & Ketentuan */}
+                    <div className="pt-1">
+                        <FormCheckbox
+                            id="terms"
+                            name="terms"
+                            checked={data.terms}
+                            error={errors.terms}
+                            onChange={(e) => {
+                                setData('terms', e.target.checked);
+                                if (errors.terms && e.target.checked) clearErrors('terms');
+                            }}
+                            label="Saya menyetujui Syarat & Ketentuan layanan LawGates"
+                        />
                     </div>
 
                     {/* Submit Button */}
