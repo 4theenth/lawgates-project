@@ -10,6 +10,7 @@ export interface WilayahSearchResult {
   provinceId: string;
   provinceName: string;
   total: number;
+  coordinates?: [number, number];
 }
 
 export interface MapSearchCardProps {
@@ -18,7 +19,7 @@ export interface MapSearchCardProps {
   filteredProvinces?: ProvinceDetail[];
   searchResults?: WilayahSearchResult[];
   onSelectProvince: (provinceId: string) => void;
-  onSelectRegency?: (regencyName: string, provinceId: string) => void;
+  onSelectRegency?: (regencyName: string, provinceId: string, coordinates?: [number, number]) => void;
   className?: string;
   inputOnly?: boolean;
 }
@@ -88,7 +89,7 @@ export function MapSearchCard({
     if (item.category === 'provinsi') {
       onSelectProvince(item.provinceId);
     } else if (onSelectRegency) {
-      onSelectRegency(item.name, item.provinceId);
+      onSelectRegency(item.name, item.provinceId, item.coordinates);
     } else {
       onSelectProvince(item.provinceId);
     }
