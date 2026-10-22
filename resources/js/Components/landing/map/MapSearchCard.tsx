@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Earth, Search, Building2 } from 'lucide-react';
 import { ProvinceDetail } from '../indonesiaMapData';
 
@@ -19,7 +19,6 @@ export interface MapSearchCardProps {
   searchResults?: WilayahSearchResult[];
   onSelectProvince: (provinceId: string) => void;
   onSelectRegency?: (regencyName: string, provinceId: string) => void;
-  onSubmitSearch?: (query: string) => void;
   className?: string;
   inputOnly?: boolean;
 }
@@ -31,11 +30,46 @@ export function MapSearchCard({
   searchResults,
   onSelectProvince,
   onSelectRegency,
-  onSubmitSearch,
   className = '',
   inputOnly = false,
 }: MapSearchCardProps) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  // Empty state baru ditampilkan setelah user menekan Enter dan tidak ada hasil.
+  const [showNotFound, setShowNotFound] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearBlurTimeout = () => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleFocus = () => {
+    clearBlurTimeout();
+    setIsSearchFocused(true);
+  };
+
+  const handleBlur = () => {
+    clearBlurTimeout();
+    blurTimeoutRef.current = setTimeout(() => {
+      // Fokus bisa kembali ke input sebelum timer selesai (mis. klik ulang);
+      // jangan tutup dropdown jika input masih aktif.
+      if (document.activeElement !== inputRef.current) {
+        setIsSearchFocused(false);
+        setShowNotFound(false);
+      }
+    }, 200);
+  };
 
   // Jika searchResults disediakan gunakan itu, jika tidak fallback ke filteredProvinces
   const items: WilayahSearchResult[] = searchResults ?? filteredProvinces.map((prov) => ({
@@ -50,6 +84,7 @@ export function MapSearchCard({
 
   const handleSelect = (item: WilayahSearchResult) => {
     setIsSearchFocused(false);
+    setShowNotFound(false);
     if (item.category === 'provinsi') {
       onSelectProvince(item.provinceId);
     } else if (onSelectRegency) {
@@ -64,12 +99,12 @@ export function MapSearchCard({
       e.preventDefault();
       if (items.length > 0) {
         handleSelect(items[0]);
-      } else if (onSubmitSearch && searchQuery.trim()) {
-        setIsSearchFocused(false);
-        onSubmitSearch(searchQuery.trim());
+      } else if (searchQuery.trim()) {
+        setShowNotFound(true);
       }
     } else if (e.key === 'Escape') {
       setIsSearchFocused(false);
+      setShowNotFound(false);
     }
   };
 
@@ -79,11 +114,18 @@ export function MapSearchCard({
         <Search className="w-4 h-4" />
       </div>
       <input
+        ref={inputRef}
         type="text"
         value={searchQuery}
-        onChange={(e) => onSearchChange(e.target.value)}
-        onFocus={() => setIsSearchFocused(true)}
-        onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+        onChange={(e) => {
+          onSearchChange(e.target.value);
+          setShowNotFound(false);
+          // Mengetik berarti input sedang aktif; pastikan dropdown terbuka
+          // walau state blur sempat menutupnya.
+          setIsSearchFocused(true);
+        }}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         placeholder="Cari provinsi/kabupaten/kota"
         className={`w-full pl-10 sm:pl-11 pr-4 py-2 sm:py-2.5 bg-white ${inputOnly
@@ -93,7 +135,7 @@ export function MapSearchCard({
       />
 
       {/* Dropdown Pencarian Otomatis (Mendukung Provinsi & Kabupaten/Kota) */}
-      {isSearchFocused && searchQuery.trim().length > 0 && (
+      {isSearchFocused && searchQuery.trim().length > 0 && (items.length > 0 || showNotFound) && (
         <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-neu-200 rounded-xl shadow-lg max-h-64 overflow-y-auto no-scrollbar z-50 py-1">
           {items.length > 0 ? (
             items.map((item) => (
@@ -131,19 +173,6 @@ export function MapSearchCard({
           ) : (
             <div className="px-3 py-3 text-xs text-neu-500 text-center">
               Wilayah tidak ditemukan
-              {onSubmitSearch && searchQuery.trim() && (
-                <button
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setIsSearchFocused(false);
-                    onSubmitSearch(searchQuery.trim());
-                  }}
-                  className="block mx-auto mt-1.5 text-pr-900 hover:underline font-medium cursor-pointer"
-                >
-                  Cari peraturan &quot;{searchQuery.trim()}&quot; &rarr;
-                </button>
-              )}
             </div>
           )}
         </div>

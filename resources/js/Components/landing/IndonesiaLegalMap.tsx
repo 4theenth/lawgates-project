@@ -397,7 +397,15 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
     }
   }, []);
 
-  // Handler pemilihan kabupaten (dari dropdown search atau kartu kabupaten)
+  // Pemilihan kabupaten/kota dari dropdown search: tetap di peta,
+  // cukup fokuskan provinsinya tanpa berpindah ke halaman hasil pencarian.
+  const handleSelectSearchRegency = useCallback((_regencyFullName: string, provinceId?: string) => {
+    if (provinceId) {
+      handleSelectProvince(provinceId);
+    }
+  }, [handleSelectProvince]);
+
+  // Handler pemilihan kabupaten dari kartu kabupaten: buka hasil pencarian.
   const handleSelectRegency = useCallback((regencyFullName: string, provinceId?: string) => {
     if (provinceId) {
       handleSelectProvince(provinceId);
@@ -407,12 +415,6 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
       `/pencarian?kategori_id=15&lokasi_daerah=${encodeURIComponent(regencyFullName)}`
     );
   }, [handleSelectProvince]);
-
-  // Handler saat user menekan Enter pada input search
-  const handleSubmitSearch = useCallback((query: string) => {
-    if (!query.trim()) return;
-    router.visit(`/pencarian?keyword=${encodeURIComponent(query.trim())}`);
-  }, []);
 
   // Reset zoom & kamera kembali ke Indonesia penuh serta HAPUS PILIHAN (Empty State)
   const handleResetMap = useCallback(() => {
@@ -725,8 +727,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
               onSearchChange={setSearchQuery}
               searchResults={searchResults}
               onSelectProvince={handleSelectProvince}
-              onSelectRegency={handleSelectRegency}
-              onSubmitSearch={handleSubmitSearch}
+              onSelectRegency={handleSelectSearchRegency}
               inputOnly
             />
           </div>
@@ -802,8 +803,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
                 onSearchChange={setSearchQuery}
                 searchResults={searchResults}
                 onSelectProvince={handleSelectProvince}
-                onSelectRegency={handleSelectRegency}
-                onSubmitSearch={handleSubmitSearch}
+                onSelectRegency={handleSelectSearchRegency}
               />
             </div>
 
@@ -832,8 +832,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
                   onSearchChange={setSearchQuery}
                   searchResults={searchResults}
                   onSelectProvince={handleSelectProvince}
-                  onSelectRegency={handleSelectRegency}
-                  onSubmitSearch={handleSubmitSearch}
+                  onSelectRegency={handleSelectSearchRegency}
                 />
               </div>
 
