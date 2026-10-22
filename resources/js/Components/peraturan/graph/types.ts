@@ -21,6 +21,8 @@ export interface GraphNode {
     targetAngle?: number;
     baseX?: number;
     baseY?: number;
+    __origBaseX?: number;
+    __origBaseY?: number;
     driftSpeedX?: number;
     driftSpeedY?: number;
     driftAmpX?: number;
