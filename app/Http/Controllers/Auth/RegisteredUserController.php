@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Auth\Concerns\SanitizesIntendedRedirect;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -16,6 +17,8 @@ use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
+    use SanitizesIntendedRedirect;
+
     /**
      * Display the registration view.
      */
@@ -77,6 +80,11 @@ class RegisteredUserController extends Controller
         ]);
 
         event(new Registered($user));
+
+        $redirect = $this->safeIntended($request->input('redirect') ?: $request->query('redirect'));
+        if ($redirect) {
+            session()->put('url.intended', $redirect);
+        }
 
         Auth::login($user);
 

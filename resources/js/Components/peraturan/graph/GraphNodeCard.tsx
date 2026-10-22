@@ -34,7 +34,7 @@ export default function GraphNodeCard({
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute z-30 pointer-events-auto"
+            className="absolute z-20 pointer-events-auto"
             style={{
                 transform: `translate3d(${cardPos.x}px, ${cardPos.y}px, 0)`,
                 left: 0,
@@ -99,8 +99,9 @@ export default function GraphNodeCard({
                         onClick={(e) => {
                             e.stopPropagation();
                             if (onParentClose) onParentClose();
-                            if (cardNode.unique_id) {
-                                router.visit(`/peraturan/${cardNode.unique_id}`);
+                            const targetParam = cardNode.unique_id || cardNode.id;
+                            if (targetParam) {
+                                router.visit(`/peraturan/${targetParam}`);
                             }
                         }}
                         className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold tracking-wide transition-all shadow-sm hover:shadow cursor-pointer"

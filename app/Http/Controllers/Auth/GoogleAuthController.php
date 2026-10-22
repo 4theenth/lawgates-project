@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Auth\Concerns\SanitizesIntendedRedirect;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ use Inertia\Inertia;
 
 class GoogleAuthController extends Controller
 {
+    use SanitizesIntendedRedirect;
+
     public function syncView(Request $request)
     {
         return Inertia::render('Auth/GoogleSync', [
@@ -70,8 +73,8 @@ class GoogleAuthController extends Controller
                 'pending_link_phone',
             ]);
 
-            $redirect = $request->input('redirect') ?: $request->query('redirect');
-            if (!empty($redirect) && $redirect !== '/') {
+            $redirect = $this->safeIntended($request->input('redirect') ?: $request->query('redirect'));
+            if ($redirect) {
                 session()->put('url.intended', $redirect);
             }
 
@@ -81,8 +84,8 @@ class GoogleAuthController extends Controller
         }
 
         // 2. Alur login dengan Google
-        $redirect = $request->input('redirect') ?: $request->query('redirect');
-        if (!empty($redirect) && $redirect !== '/') {
+        $redirect = $this->safeIntended($request->input('redirect') ?: $request->query('redirect'));
+        if ($redirect) {
             session()->put('url.intended', $redirect);
         }
 
@@ -129,13 +132,18 @@ class GoogleAuthController extends Controller
         if (in_array($user->role, ['admin', 'superadmin'])) {
             $intended = session()->get('url.intended');
 
-            // Jika intended URL adalah rute admin internal, arahkan ke halaman tersebut
+            // Rute admin internal -> lanjut ke sana.
             if ($intended && (str_starts_with($intended, '/admin') || str_contains($intended, url('/admin')))) {
                 return redirect()->intended(route('admin.dashboard'))->with('success', 'Berhasil masuk ke dashboard Admin');
             }
 
-            // Hapus url.intended publik agar admin tidak terarah ke landing page
-            session()->forget('url.intended');
+            // Tujuan publik yang jelas (mis. /pencarian?keyword=...) dihormati
+            // agar filter yang dipilih sebelum login tidak hilang.
+            if ($intended) {
+                session()->forget('url.intended');
+                return redirect($intended)->with('success', 'Berhasil masuk dengan akun Google');
+            }
+
             return redirect()->route('admin.dashboard')->with('success', 'Berhasil masuk ke dashboard Admin');
         }
 

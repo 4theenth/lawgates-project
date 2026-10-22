@@ -4,6 +4,7 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { AuthModalProvider } from './hooks/useAuthModal';
 import axios from 'axios';
 
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
@@ -58,7 +59,18 @@ createInertiaApp({
         root.render(
             <GoogleOAuthProvider clientId={googleClientId}>
                 <ToastProvider initialFlash={initialFlash}>
-                    <App {...props} />
+                    {/*
+                     * AuthModalProvider harus berada di dalam <App> karena
+                     * memakai usePage() dari PageContext milik App. children
+                     * App adalah fungsi render ({Component, props, key}).
+                     */}
+                    <App {...props}>
+                        {({ Component, props: pageProps, key }) => (
+                            <AuthModalProvider>
+                                <Component key={key} {...pageProps} />
+                            </AuthModalProvider>
+                        )}
+                    </App>
                 </ToastProvider>
             </GoogleOAuthProvider>
         );
