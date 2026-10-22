@@ -32,6 +32,34 @@ export default function RegulationGraph({
     const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
     const [clickedNode, setClickedNode] = useState<GraphNode | null>(null);
     const [cardNode, setCardNode] = useState<GraphNode | null>(null);
+    const cardRef = useRef<HTMLDivElement | null>(null);
+    const cardNodeRef = useRef<GraphNode | null>(null);
+    cardNodeRef.current = cardNode;
+
+    const draggedNodeRef = useRef<any>(null);
+
+    // Fungsi penutup kartu detail terpadu (menghilangkan kartu dan fokus node seketika)
+    const handleCloseCard = useCallback(() => {
+        setClickedNode(null);
+        setCardNode(null);
+        cardNodeRef.current = null;
+    }, []);
+
+    // Global listener untuk tombol Escape (keyboard) agar kartu detail langsung tertutup
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                handleCloseCard();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleCloseCard]);
+
+    // Kunci offset posisi kartu relatif terhadap node agar tidak melayang atau berubah sisi saat canvas dipan
+    const cardSideRef = useRef<'left' | 'right'>('right');
+    const cardRelativeOffsetRef = useRef<{ offsetX: number; offsetY: number }>({ offsetX: 25, offsetY: -110 });
 
     // Lines & Relation Filter Controls
     const [showLines, setShowLines] = useState(false);
@@ -115,7 +143,7 @@ export default function RegulationGraph({
 
     // Randomize Starburst Layout callback
     const handleRandomizeStarLayout = useCallback(() => {
-        setClickedNode(null);
+        handleCloseCard();
         setGraphData(prev => ({
             nodes: applyRandomStarPositions([...prev.nodes]),
             links: prev.links,
@@ -128,7 +156,7 @@ export default function RegulationGraph({
                 graphRef.current.d3ReheatSimulation();
             }
         }
-    }, [isSidebarOpen, DEFAULT_GRAPH_ZOOM]);
+    }, [isSidebarOpen, DEFAULT_GRAPH_ZOOM, handleCloseCard]);
 
     // Find center node ID
     const centerNodeId = useMemo(() => {
@@ -163,38 +191,60 @@ export default function RegulationGraph({
         });
     }, [connectedNodes, filterCategory, searchQuery]);
 
-    // Wait 240ms for node glide & camera POV centering to arrive at screen center before showing card
-    useEffect(() => {
-        if (!clickedNode) {
-            setCardNode(null);
-            return;
+    // Buka kartu detail tepat di samping posisi node saat ini secara instan
+    const openCardForNode = useCallback((node: GraphNode) => {
+        // Kunci posisi node saat ini agar stabil dan tidak melayang saat kartu dibuka
+        node.baseX = node.x ?? 0;
+        node.baseY = node.y ?? 0;
+        node.fx = node.x ?? 0;
+        node.fy = node.y ?? 0;
+        node.vx = 0;
+        node.vy = 0;
+
+        const cardWidth = 310;
+        const cardHeight = 220;
+
+        // Tentukan penempatan kartu (kiri atau kanan node) sekali saat diklik
+        let side: 'left' | 'right' = 'right';
+        if (isSidebarOpen) {
+            side = 'right';
+        } else if (graphRef.current) {
+            const screenPos = graphRef.current.graph2ScreenCoords(node.x ?? 0, node.y ?? 0);
+            if (screenPos) {
+                if (screenPos.x > dimensions.width - 340) {
+                    side = 'left';
+                } else if (screenPos.x < 340) {
+                    side = 'right';
+                } else {
+                    const centerNode = graphData.nodes.find(n => n.isCenter);
+                    const mainX = centerNode ? (centerNode.x ?? 0) : 0;
+                    side = (node.x ?? 0) < mainX ? 'left' : 'right';
+                }
+            } else {
+                side = (node.x ?? 0) < 0 ? 'left' : 'right';
+            }
+        } else {
+            side = (node.x ?? 0) < 0 ? 'left' : 'right';
         }
 
-        const timer = setTimeout(() => {
-            setCardNode(clickedNode);
-        }, 240);
+        cardSideRef.current = side;
+        const offsetX = side === 'left' ? -(cardWidth + 25) : 25;
+        const offsetY = -cardHeight / 2;
+        cardRelativeOffsetRef.current = { offsetX, offsetY };
 
-        return () => clearTimeout(timer);
-    }, [clickedNode]);
-
-    // Focus camera POV directly on the Main Center Node position
-    const focusOnNodeAndCenterMain = useCallback((node: GraphNode) => {
+        // Langsung tampilkan kartu seketika tanpa jeda 300ms dan tanpa memindahkan posisi node/kamera
         setClickedNode(node);
-        if (graphRef.current) {
-            const centerNode = graphData.nodes.find(n => n.isCenter);
-            const mainX = centerNode ? (centerNode.x ?? 0) : 0;
-            const mainY = centerNode ? (centerNode.y ?? 0) : 0;
-
-            const focusZoom = 1.25;
-            const sidebarOffsetGraphX = isSidebarOpen ? (160 / focusZoom) : 0;
-            graphRef.current.centerAt(mainX - sidebarOffsetGraphX, mainY, 350);
-            graphRef.current.zoom(focusZoom, 350);
-        }
-    }, [graphData.nodes, isSidebarOpen]);
+        setCardNode(node);
+    }, [graphData.nodes, isSidebarOpen, dimensions.width]);
 
     const handleSelectFromSidebar = useCallback((node: GraphNode) => {
-        focusOnNodeAndCenterMain(node);
-    }, [focusOnNodeAndCenterMain]);
+        openCardForNode(node);
+        if (graphRef.current) {
+            const currentZoom = graphRef.current.zoom() || DEFAULT_GRAPH_ZOOM;
+            const sidebarOffsetGraphX = 160 / currentZoom;
+            graphRef.current.centerAt((node.x ?? 0) - sidebarOffsetGraphX, node.y ?? 0, 300);
+        }
+    }, [openCardForNode, DEFAULT_GRAPH_ZOOM]);
 
     // Set of active/focused node IDs (Center Node + Clicked/Hovered Node)
     const activeNodeIds = useMemo(() => {
@@ -236,6 +286,91 @@ export default function RegulationGraph({
         fetchGraph();
     }, [peraturanId]);
 
+    // Posisi terkunci kartu: selalu tepat di sebelah node tanpa detaching atau clamping
+    const computeCardPosition = useCallback(() => {
+        const activeCard = cardNodeRef.current || cardNode;
+        if (!activeCard || !graphRef.current) return null;
+        const node = graphData.nodes.find(n => n.id === activeCard.id) || activeCard;
+        const coords = graphRef.current.graph2ScreenCoords(node.x ?? 0, node.y ?? 0);
+        if (!coords) return null;
+
+        const { offsetX, offsetY } = cardRelativeOffsetRef.current;
+        const targetX = coords.x + offsetX;
+        const targetY = coords.y + offsetY;
+
+        // Jika node keluar jauh dari viewport kanvas (misal saat dipan jauh), sembunyikan kartu
+        const isOffscreen = (
+            coords.x < -350 ||
+            coords.x > dimensions.width + 350 ||
+            coords.y < -300 ||
+            coords.y > dimensions.height + 300
+        );
+
+        return { x: targetX, y: targetY, isOffscreen };
+    }, [cardNode, graphData.nodes, dimensions]);
+
+    // Sinkronisasi posisi kartu secara realtime pada DOM menggunakan hardware-accelerated transform
+    const updateCardDOMPosition = useCallback(() => {
+        if (!cardRef.current) return;
+        const pos = computeCardPosition();
+        if (!pos) return;
+
+        if (pos.isOffscreen) {
+            cardRef.current.style.display = 'none';
+        } else {
+            cardRef.current.style.display = 'block';
+            cardRef.current.style.transform = `translate3d(${Math.round(pos.x)}px, ${Math.round(pos.y)}px, 0)`;
+        }
+    }, [computeCardPosition]);
+
+    // Sinkronisasi instan matematis saat event zoom / pan kanvas berlangsung (tanpa jeda frame)
+    const handleZoom = useCallback((transform: any) => {
+        if (!cardRef.current || !cardNodeRef.current) return;
+        const activeCard = cardNodeRef.current;
+        const node = graphData.nodes.find(n => n.id === activeCard.id) || activeCard;
+
+        const k = transform.k ?? 1;
+        const tx = transform.x ?? 0;
+        const ty = transform.y ?? 0;
+        const screenX = (node.x ?? 0) * k + tx;
+        const screenY = (node.y ?? 0) * k + ty;
+
+        const { offsetX, offsetY } = cardRelativeOffsetRef.current;
+        const targetX = screenX + offsetX;
+        const targetY = screenY + offsetY;
+
+        const isOffscreen = (
+            screenX < -350 ||
+            screenX > dimensions.width + 350 ||
+            screenY < -300 ||
+            screenY > dimensions.height + 300
+        );
+
+        if (isOffscreen) {
+            cardRef.current.style.display = 'none';
+        } else {
+            cardRef.current.style.display = 'block';
+            cardRef.current.style.transform = `translate3d(${Math.round(targetX)}px, ${Math.round(targetY)}px, 0)`;
+        }
+    }, [dimensions, graphData.nodes]);
+
+    // Sesuaikan posisi offset kartu jika sidebar dibuka/ditutup agar tidak tertutup sidebar
+    useEffect(() => {
+        if (!cardNode) return;
+        const node = graphData.nodes.find(n => n.id === cardNode.id) || cardNode;
+        const coords = graphRef.current?.graph2ScreenCoords(node.x ?? 0, node.y ?? 0);
+        if (!coords) return;
+
+        const cardWidth = 310;
+        const cardHeight = 220;
+
+        if (isSidebarOpen && coords.x - cardWidth - 25 < 340) {
+            cardSideRef.current = 'right';
+            cardRelativeOffsetRef.current = { offsetX: 25, offsetY: -cardHeight / 2 };
+        }
+        updateCardDOMPosition();
+    }, [isSidebarOpen, cardNode, graphData.nodes, updateCardDOMPosition]);
+
     // Continuous organic floating drift animation tick for nodes
     useEffect(() => {
         if (!isGraphReady || graphData.nodes.length === 0) return;
@@ -244,12 +379,24 @@ export default function RegulationGraph({
         let lastReheatTime = 0;
 
         const animateDrift = (timestamp: number) => {
-            graphData.nodes.forEach((node: any) => {
-                if (node.isCenter) return;
+            const dragged = draggedNodeRef.current;
 
-                if (node.isDragging || node.__isDragging) {
+            graphData.nodes.forEach((node: any) => {
+                const isDraggingNode = Boolean(
+                    node.isDragging ||
+                    node.__isDragging ||
+                    node.__dragged ||
+                    node.__initialDragPos ||
+                    (dragged && dragged.id === node.id)
+                );
+
+                if (isDraggingNode) {
                     node.baseX = node.x;
                     node.baseY = node.y;
+                    return;
+                }
+
+                if (node.isCenter) {
                     return;
                 }
 
@@ -258,28 +405,47 @@ export default function RegulationGraph({
 
                 const isNodeClicked = clickedNode && node.id === clickedNode.id;
 
-                let targetX = baseX;
-                let targetY = baseY;
+                let driftX = 0;
+                let driftY = 0;
 
-                if (isNodeClicked) {
-                    const centerNode = graphData.nodes.find(n => n.isCenter);
-                    const mainX = centerNode ? (centerNode.x ?? 0) : 0;
-                    const mainY = centerNode ? (centerNode.y ?? 0) : 0;
-
-                    const relX = (baseX - mainX);
-                    const relY = (baseY - mainY);
-                    const dist = Math.sqrt(relX * relX + relY * relY) || 1;
-                    const targetDist = 145;
-
-                    targetX = mainX + (relX / dist) * targetDist;
-                    targetY = mainY + (relY / dist) * targetDist;
-                } else {
+                if (!isNodeClicked) {
                     const t = timestamp / 1000;
-                    targetX = baseX + Math.sin(t * (node.driftSpeedX || 0.0001) * 1000 + (node.phaseX || 0)) * (node.driftAmpX || 8);
-                    targetY = baseY + Math.cos(t * (node.driftSpeedY || 0.0001) * 1000 + (node.phaseY || 0)) * (node.driftAmpY || 8);
+                    driftX = Math.sin(t * (node.driftSpeedX || 0.0001) * 1000 + (node.phaseX || 0)) * (node.driftAmpX || 8);
+                    driftY = Math.cos(t * (node.driftSpeedY || 0.0001) * 1000 + (node.phaseY || 0)) * (node.driftAmpY || 8);
                 }
 
-                const lerpFactor = isNodeClicked ? 0.08 : 0.04;
+                // Efek magnetik tolakan elastis: HANYA aktif saat ada node yang sedang di-drag
+                let repelX = 0;
+                let repelY = 0;
+                let isRepelling = false;
+
+                if (dragged && dragged.id !== node.id) {
+                    const dx = (node.x ?? baseX) - (dragged.x ?? 0);
+                    const dy = (node.y ?? baseY) - (dragged.y ?? 0);
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
+                    const magnetRadius = 115; // Jangkauan medan magnetik yang luas & halus
+
+                    if (dist < magnetRadius) {
+                        isRepelling = true;
+                        // Kurva Hermite / smoothstep kubik: sangat halus di tepian, menguat elastis saat mendekat
+                        const t = (magnetRadius - dist) / magnetRadius;
+                        const smoothStep = t * t * (3 - 2 * t);
+                        const pushMag = smoothStep * 85;
+
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+
+                        repelX = nx * pushMag;
+                        repelY = ny * pushMag;
+                    }
+                }
+
+                const targetX = baseX + driftX + repelX;
+                const targetY = baseY + driftY + repelY;
+
+                // Jika sedang mengalami tolakan magnet, gunakan respon yang lincah (0.16);
+                // jika tidak, mengapung santai dan kembali lembut (0.04) ke orbit konstelasi
+                const lerpFactor = isRepelling ? 0.16 : 0.04;
                 const curX = node.x ?? baseX;
                 const curY = node.y ?? baseY;
                 const newX = curX + (targetX - curX) * lerpFactor;
@@ -300,6 +466,10 @@ export default function RegulationGraph({
                 }
             }
 
+            if (cardNodeRef.current) {
+                updateCardDOMPosition();
+            }
+
             animationFrameId = requestAnimationFrame(animateDrift);
         };
 
@@ -308,7 +478,7 @@ export default function RegulationGraph({
         return () => {
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
         };
-    }, [isGraphReady, graphData.nodes, clickedNode]);
+    }, [isGraphReady, graphData.nodes, clickedNode, updateCardDOMPosition]);
 
     // ─────────────────────────────────────────────
     // Default Close-up Framing
@@ -400,111 +570,91 @@ export default function RegulationGraph({
 
     const handleNodeClick = useCallback((node: any) => {
         if (!node) {
-            setClickedNode(null);
+            handleCloseCard();
             return;
         }
 
-        focusOnNodeAndCenterMain(node);
-    }, [focusOnNodeAndCenterMain]);
+        openCardForNode(node);
+    }, [openCardForNode, handleCloseCard]);
 
     const handleNodeDragEnd = useCallback((node: any) => {
         node.isDragging = false;
-        graphData.nodes.forEach((n: any) => {
-            n.baseX = n.x;
-            n.baseY = n.y;
-            n.fx = n.x;
-            n.fy = n.y;
-            n.vx = 0;
-            n.vy = 0;
-        });
+        draggedNodeRef.current = null;
+        delete node.__initialDragPos;
+        node.baseX = node.x;
+        node.baseY = node.y;
+        node.fx = node.x;
+        node.fy = node.y;
+        node.vx = 0;
+        node.vy = 0;
+
         if (graphRef.current?.d3ReheatSimulation) {
             graphRef.current.d3ReheatSimulation();
         }
-    }, [graphData.nodes]);
+
+        if (cardNodeRef.current && cardNodeRef.current.id === node.id) {
+            updateCardDOMPosition();
+        }
+    }, [updateCardDOMPosition]);
 
     const handleNodeDrag = useCallback((node: any) => {
         node.isDragging = true;
+        draggedNodeRef.current = node;
         node.baseX = node.x;
         node.baseY = node.y;
+        node.fx = node.x;
+        node.fy = node.y;
 
-        graphData.nodes.forEach((n: any) => {
-            if (n.id !== node.id && !n.isCenter) {
-                n.fx = null;
-                n.fy = null;
+        // Bantalan pegas lembut (soft-cushion spring) agar node yang di-drag tidak menabrak kaku
+        // 1. Terhadap Center Node (yang statis di 0,0)
+        const centerDist = Math.sqrt((node.x ?? 0) * (node.x ?? 0) + (node.y ?? 0) * (node.y ?? 0)) || 0.001;
+        const minCenterDist = 72;
+        if (centerDist < minCenterDist) {
+            const overlap = minCenterDist - centerDist;
+            const nx = (node.x ?? 0) / centerDist;
+            const ny = (node.y ?? 0) / centerDist;
+            node.x += nx * overlap * 0.45;
+            node.y += ny * overlap * 0.45;
+            node.fx = node.x;
+            node.fy = node.y;
+        }
+
+        // 2. Terhadap node non-center lain jika mendekat sangat dekat (< 48px)
+        graphData.nodes.forEach((other: any) => {
+            if (other.id === node.id || other.isCenter) return;
+            const dx = (node.x ?? 0) - (other.x ?? 0);
+            const dy = (node.y ?? 0) - (other.y ?? 0);
+            const d = Math.sqrt(dx * dx + dy * dy) || 0.001;
+            const minContactDist = 48;
+            if (d < minContactDist) {
+                const overlap = minContactDist - d;
+                const nx = dx / d;
+                const ny = dy / d;
+                node.x += nx * overlap * 0.3;
+                node.y += ny * overlap * 0.3;
+                node.fx = node.x;
+                node.fy = node.y;
             }
         });
 
         if (graphRef.current?.d3ReheatSimulation) {
             graphRef.current.d3ReheatSimulation();
         }
-    }, [graphData.nodes]);
 
-    // Adaptive card position calculation yang menjamin TIDAK PERNAH menimpa jendela daftar relasi
-    const cardPos = useMemo(() => {
-        if (!cardNode || !graphRef.current) return { x: dimensions.width / 2 + 30, y: dimensions.height / 2 - 100 };
-        const node = graphData.nodes.find(n => n.id === cardNode.id) || cardNode;
-        const coords = graphRef.current.graph2ScreenCoords(node.x || 0, node.y || 0);
-        if (!coords) return { x: dimensions.width / 2 + 30, y: dimensions.height / 2 - 100 };
-
-        const centerNode = graphData.nodes.find(n => n.isCenter);
-        const centerCoords = centerNode
-            ? (graphRef.current.graph2ScreenCoords(centerNode.x || 0, centerNode.y || 0) || { x: dimensions.width / 2, y: dimensions.height / 2 })
-            : { x: dimensions.width / 2, y: dimensions.height / 2 };
-
-        const cardWidth = 310;
-        const cardHeight = 220;
-
-        // Lebar sidebar saat terbuka: w-80 adalah 320px, dibatasi max 85vw
-        const sidebarWidth = isSidebarOpen ? Math.min(320, dimensions.width * 0.85) : 0;
-        // Batas kiri aman agar kartu TIDAK PERNAH menimpa sidebar jendela daftar relasi
-        const minLeft = isSidebarOpen ? sidebarWidth + 16 : 16;
-        const maxRight = Math.max(minLeft, dimensions.width - cardWidth - 16);
-
-        // Opsi penempatan horizontal
-        const leftCandidate = coords.x - cardWidth - 25;
-        const rightCandidate = coords.x + 25;
-
-        let targetX: number;
-        let targetY = coords.y - cardHeight / 2;
-
-        if (isSidebarOpen) {
-            // Ketika jendela daftar relasi terbuka:
-            // 1. Prioritaskan sisi kanan node jika muat di dalam viewport
-            if (rightCandidate <= maxRight) {
-                targetX = Math.max(minLeft, rightCandidate);
-            }
-            // 2. Jika tidak muat di kanan tapi muat di kiri tanpa menabrak sidebar
-            else if (leftCandidate >= minLeft) {
-                targetX = leftCandidate;
-            }
-            // 3. Jika ruang sempit, letakkan di atas / bawah node dan clamp X agar tetap di kanan sidebar
-            else {
-                targetX = Math.max(minLeft, Math.min(coords.x - cardWidth / 2, maxRight));
-                targetY = coords.y < centerCoords.y ? coords.y - cardHeight - 25 : coords.y + 25;
-            }
-        } else {
-            // Sidebar tertutup: letakkan di kiri atau kanan tergantung posisi terhadap center node
-            const isLeftOfCenter = coords.x < centerCoords.x;
-            if (isLeftOfCenter && leftCandidate >= minLeft) {
-                targetX = leftCandidate;
-            } else if (rightCandidate <= maxRight) {
-                targetX = rightCandidate;
-            } else if (leftCandidate >= minLeft) {
-                targetX = leftCandidate;
-            } else {
-                targetX = Math.max(minLeft, Math.min(coords.x - cardWidth / 2, maxRight));
-                targetY = coords.y < centerCoords.y ? coords.y - cardHeight - 25 : coords.y + 25;
-            }
+        if (cardNodeRef.current && cardNodeRef.current.id === node.id) {
+            updateCardDOMPosition();
         }
+    }, [graphData.nodes, updateCardDOMPosition]);
 
-        // Clamp akhir yang absolut: targetX PASTI >= minLeft dan <= maxRight
-        targetX = Math.max(minLeft, Math.min(targetX, maxRight));
+    // Posisi inisial untuk render pertama saat komponen kartu di-mount
+    const initialCardPos = useMemo(() => {
+        const pos = computeCardPosition();
+        return pos ? { x: pos.x, y: pos.y } : { x: dimensions.width / 2 + 30, y: dimensions.height / 2 - 100 };
+    }, [computeCardPosition, dimensions.width, dimensions.height]);
 
-        // Clamp vertikal agar tidak keluar batas atas dan bawah canvas
-        targetY = Math.max(16, Math.min(targetY, dimensions.height - cardHeight - 16));
-
-        return { x: targetX, y: targetY };
-    }, [cardNode, graphData.nodes, dimensions, isSidebarOpen]);
+    useEffect(() => {
+        updateCardDOMPosition();
+    }, [cardNode, isSidebarOpen, dimensions, updateCardDOMPosition]);
 
     // Canvas render delegates
     const onDrawNode = useCallback((node: any, ctx: CanvasRenderingContext2D) => {
@@ -605,7 +755,7 @@ export default function RegulationGraph({
                 onCategoryPillClick={handleCategoryPillClick}
                 onRandomizeLayout={handleRandomizeStarLayout}
                 onResetCamera={() => {
-                    setClickedNode(null);
+                    handleCloseCard();
                     resetViewToDefault(400);
                 }}
                 onToggleFullscreen={() => {
@@ -665,7 +815,7 @@ export default function RegulationGraph({
                     linkCanvasObjectMode={() => 'replace'}
                     linkCanvasObject={onDrawLinkOverlay}
 
-                    // Zoom & Pan
+                    // Zoom & Pan: Pengguna bebas pan dan drag; kartu detail tetap terkunci rigid di samping node
                     minZoom={0.2}
                     maxZoom={4}
                     enablePanInteraction={true}
@@ -676,16 +826,31 @@ export default function RegulationGraph({
                     onNodeClick={handleNodeClick}
                     onNodeDrag={handleNodeDrag}
                     onNodeDragEnd={handleNodeDragEnd}
-                    onBackgroundClick={() => setClickedNode(null)}
+                    onBackgroundClick={handleCloseCard}
+                    onZoom={handleZoom}
+                    onRenderFramePost={() => {
+                        if (cardNodeRef.current) {
+                            updateCardDOMPosition();
+                        }
+                    }}
 
                     // Custom Orb Node Render
                     nodeCanvasObject={onDrawNode}
 
-                    // Pointer Touch Boundary Area for Easy Clicking
+                    // Pointer Touch Boundary Area for Easy Clicking & Dragging (Orb + Label Hit Area)
                     nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
                         ctx.fillStyle = color;
+                        const nx = node.x || 0;
+                        const ny = node.y || 0;
+
+                        // 1. Orb area (generous 26px radius)
                         ctx.beginPath();
-                        ctx.arc(node.x || 0, node.y || 0, 28, 0, Math.PI * 2);
+                        ctx.arc(nx, ny, 26, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // 2. Text label pill area
+                        ctx.beginPath();
+                        ctx.rect(nx - 45, ny + 5, 90, 22);
                         ctx.fill();
                     }}
 
@@ -709,9 +874,10 @@ export default function RegulationGraph({
             {/* Floating Interactive Detail Tooltip (Beside Clicked Node) */}
             {cardNode && (
                 <GraphNodeCard
+                    cardRef={cardRef}
                     cardNode={cardNode}
-                    cardPos={cardPos}
-                    onCloseCard={() => setClickedNode(null)}
+                    cardPos={initialCardPos}
+                    onCloseCard={handleCloseCard}
                     onParentClose={onClose}
                 />
             )}

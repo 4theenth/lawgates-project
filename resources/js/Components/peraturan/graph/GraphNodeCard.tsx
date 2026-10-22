@@ -11,6 +11,7 @@ import { GraphNode } from './types';
 import { formatTanggal, getNodeTheme, isDocumentAvailable } from './graphTheme';
 
 interface GraphNodeCardProps {
+    cardRef?: React.Ref<HTMLDivElement>;
     cardNode: GraphNode;
     cardPos: { x: number; y: number };
     onCloseCard: () => void;
@@ -18,6 +19,7 @@ interface GraphNodeCardProps {
 }
 
 export default function GraphNodeCard({
+    cardRef,
     cardNode,
     cardPos,
     onCloseCard,
@@ -28,14 +30,18 @@ export default function GraphNodeCard({
 
     return (
         <div
+            ref={cardRef}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute z-30 pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
+            className="absolute z-30 pointer-events-auto"
             style={{
-                left: cardPos.x,
-                top: cardPos.y,
+                transform: `translate3d(${cardPos.x}px, ${cardPos.y}px, 0)`,
+                left: 0,
+                top: 0,
                 maxWidth: 320,
+                transition: 'none',
+                willChange: 'transform',
             }}
         >
             <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/90 p-4.5 w-[310px] text-slate-900">
@@ -60,8 +66,10 @@ export default function GraphNodeCard({
                             onCloseCard();
                         }}
                         onPointerDown={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
                         className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                        title="Tutup Card Info"
+                        title="Tutup Card Info (Esc)"
+                        aria-label="Tutup"
                     >
                         <X className="w-4 h-4" />
                     </button>
