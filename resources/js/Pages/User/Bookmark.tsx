@@ -70,7 +70,9 @@ export default function UserBookmark({
     if (!selectedDeleteId) return;
 
     setIsDeleting(true);
-    router.delete(route('bookmarks.destroy', selectedDeleteId), {
+    // Item di daftar ini adalah baris bookmark, jadi dihapus berdasarkan id-nya
+    // lewat rute web (sesi), bukan endpoint API yang berbasis token.
+    router.delete(route('user.bookmarks.destroy', selectedDeleteId), {
       preserveScroll: true,
       onSuccess: () => {
         setIsDeleting(false);

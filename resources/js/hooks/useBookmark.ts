@@ -23,15 +23,18 @@ export function useBookmark(peraturanId?: string | number) {
 
   const idStr = peraturanId !== undefined && peraturanId !== null ? String(peraturanId).trim() : '';
 
-  // Synchronize server-provided bookmark IDs from Inertia page props
+  // Synchronize server-provided bookmark IDs from Inertia page props.
+  // Depend on a stable string key (bukan array literal) supaya effect tidak
+  // jalan tiap render, dan set lama dibersihkan lebih dulu supaya login akun
+  // lain di tab yang sama tidak mewarisi status akun sebelumnya.
   const serverBookmarkIds: (string | number)[] = props.auth?.bookmarkIds || [];
+  const serverBookmarkKey = serverBookmarkIds.map(String).sort().join(',');
 
   useEffect(() => {
-    if (serverBookmarkIds.length > 0) {
-      serverBookmarkIds.forEach((id) => globalBookmarkSet.add(String(id)));
-      notifyListeners();
-    }
-  }, [serverBookmarkIds]);
+    globalBookmarkSet.clear();
+    serverBookmarkKey.split(',').filter(Boolean).forEach((id) => globalBookmarkSet.add(id));
+    notifyListeners();
+  }, [serverBookmarkKey]);
 
   // Subscribe to changes in globalBookmarkSet
   const [, setTick] = useState(0);
@@ -69,21 +72,15 @@ export function useBookmark(peraturanId?: string | number) {
 
         setIsLoading(true);
         try {
-          const response = await axios.post(`/api/bookmarks/${idStr}/toggle`);
+          const response = await axios.post('/api/bookmarks/toggle', { type: 'peraturan', id: idStr });
           if (response.data && response.data.success) {
             const finalState = Boolean(response.data.bookmarked);
-            const returnedId = response.data.peraturan_id ? String(response.data.peraturan_id) : idStr;
-            const returnedUniqueId = response.data.unique_id ? String(response.data.unique_id) : idStr;
 
             if (finalState) {
               globalBookmarkSet.add(idStr);
-              globalBookmarkSet.add(returnedId);
-              globalBookmarkSet.add(returnedUniqueId);
               toast.success('Peraturan berhasil disimpan ke bookmark');
             } else {
               globalBookmarkSet.delete(idStr);
-              globalBookmarkSet.delete(returnedId);
-              globalBookmarkSet.delete(returnedUniqueId);
               toast.success('Peraturan dihapus dari bookmark');
             }
             notifyListeners();

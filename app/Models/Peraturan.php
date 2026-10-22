@@ -22,6 +22,14 @@ class Peraturan extends Model
         static::deleted(function () {
             \App\Http\Controllers\Api\RegionController::clearCache();
         });
+
+        // Skema bookmark bersifat polimorfik, jadi tidak bisa memakai foreign key
+        // cascade seperti dulu. Hapus bookmark hanya saat baris benar-benar hilang
+        // (force delete), supaya soft delete tetap menyisakan bookmark — peraturan
+        // yang di-soft-delete masih bisa dipulihkan beserta bookmark-nya.
+        static::forceDeleted(function (Peraturan $peraturan) {
+            $peraturan->bookmarks()->delete();
+        });
     }
 
     /**
@@ -115,7 +123,7 @@ class Peraturan extends Model
 
     public function bookmarks()
     {
-        return $this->hasMany(\App\Models\Bookmark::class, 'peraturan_id');
+        return $this->morphMany(\App\Models\Bookmark::class, 'bookmarkable');
     }
 
     public function getHasPembukaanAttribute(): bool

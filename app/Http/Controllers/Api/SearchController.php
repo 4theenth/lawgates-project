@@ -149,8 +149,9 @@ class SearchController extends Controller
             $query->orderBy('updated_at', 'desc')->orderBy('created_at', 'desc');
         }
 
-        // Kembalikan hasil dengan pagination dinamis
-        $perPage = (int) $request->get('per_page', 10);
+        // Batasi per_page seperti PeraturanController: nilai <=0 atau tak terbatas
+        // akan menghasilkan metadata pagination cacat (per_page negatif) atau dump seluruh tabel.
+        $perPage = max(1, min(100, (int) $request->get('per_page', 10)));
         return response()->json($query->paginate($perPage));
     }
 }

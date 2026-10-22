@@ -143,7 +143,7 @@ export function RegulationCard({
 
           {/* Reusable Bookmark Button */}
           <BookmarkButton
-            peraturanId={item.unique_id || item.id}
+            peraturanId={item.id}
             variant="icon"
             size="sm"
           />

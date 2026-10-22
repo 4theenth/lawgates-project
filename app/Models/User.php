@@ -70,8 +70,31 @@ class User extends Authenticatable
         return $this->hasMany(Bookmark::class);
     }
 
+    /**
+     * Folder (koleksi) bookmark milik user.
+     */
+    public function bookmarkCollections()
+    {
+        return $this->hasMany(BookmarkCollection::class);
+    }
+
+    /**
+     * Peraturan yang disimpan user, dalam bentuk many-to-many lewat tabel
+     * `user_bookmarks` yang bersifat polimorfik.
+     *
+     * Nama method sengaja dipertahankan supaya pemanggilnya — termasuk
+     * HandleInertiaRequests yang membagikan `auth.bookmarkIds` ke setiap
+     * halaman — tidak perlu diubah.
+     */
     public function bookmarkedPeraturans()
     {
-        return $this->belongsToMany(Peraturan::class, 'bookmarks', 'user_id', 'peraturan_id')->withTimestamps();
+        return $this->belongsToMany(
+            Peraturan::class,
+            'user_bookmarks',
+            'user_id',
+            'bookmarkable_id'
+        )
+            ->wherePivot('bookmarkable_type', 'peraturan')
+            ->withTimestamps();
     }
 }

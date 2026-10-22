@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\PeraturanController;
 use App\Models\JenisPeraturan; // Tambahan untuk referensi
 use App\Models\Status;         // Tambahan untuk referensi
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\BookmarkController;
 
 // =================================================================
 // Route Publik (Tanpa Token Auth)
@@ -42,6 +43,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', function (Request $request) {
         return $request->user();
     });
+
+    // Bookmark & folder koleksi. Terbuka untuk user biasa; admin tidak memakainya
+    // (tombol simpan disembunyikan di UI) sehingga route-nya tidak dimasukkan ke
+    // grup role:admin di bawah.
+    Route::get('/bookmarks', [BookmarkController::class, 'index']);
+    Route::post('/bookmarks/toggle', [BookmarkController::class, 'toggle']);
+    Route::put('/bookmarks/assign-collections', [BookmarkController::class, 'assignCollections']);
+
+    Route::get('/bookmark-collections', [BookmarkController::class, 'collections']);
+    Route::post('/bookmark-collections', [BookmarkController::class, 'storeCollection']);
+    Route::put('/bookmark-collections/{collection}', [BookmarkController::class, 'updateCollection']);
+    Route::delete('/bookmark-collections/{collection}', [BookmarkController::class, 'destroyCollection']);
 
     // Khusus Admin & Superadmin
     Route::middleware('role:superadmin,admin')->group(function () {

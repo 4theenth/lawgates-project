@@ -114,7 +114,7 @@ class DokumenHukumController extends Controller
             $query->orderBy('peraturan.updated_at', 'desc')->orderBy('peraturan.id', 'desc');
         }
 
-        $pageSize = $request->input('pageSize', 10);
+        $pageSize = max(1, min(100, (int) $request->input('pageSize', 10)));
         $paginator = $query->paginate($pageSize)->withQueryString();
 
         // Format data to match React component expectations

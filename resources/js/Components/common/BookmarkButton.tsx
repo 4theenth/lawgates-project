@@ -5,8 +5,6 @@ import { useBookmark } from '@/hooks/useBookmark';
 
 export interface BookmarkButtonProps {
   peraturanId: string | number;
-  initialBookmarked?: boolean;
-  isBookmarked?: boolean;
   variant?: 'icon' | 'pill';
   size?: 'sm' | 'md';
   className?: string;
@@ -23,7 +21,6 @@ export interface BookmarkButtonProps {
  */
 export function BookmarkButton({
   peraturanId,
-  isBookmarked: controlledBookmarked,
   variant = 'icon',
   size = 'md',
   className = '',
@@ -36,10 +33,7 @@ export function BookmarkButton({
   // Ini hanya UX; penolakan sebenarnya ada di middleware role pada route bookmark.
   const isAdmin = ['admin', 'superadmin'].includes(props.auth?.user?.role ?? '');
 
-  const { isBookmarked: hookBookmarked, isLoading, toggle } = useBookmark(peraturanId);
-
-  const isControlled = controlledBookmarked !== undefined;
-  const isBookmarked = isControlled ? controlledBookmarked : hookBookmarked;
+  const { isBookmarked, isLoading, toggle } = useBookmark(peraturanId);
 
   if (isAdmin) {
     return null;

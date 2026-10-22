@@ -9,7 +9,7 @@ use App\Http\Controllers\Api\PeraturanController;
 use App\Http\Controllers\KategoriController;
 use App\Http\Controllers\RegulasiController;
 use App\Http\Controllers\User\UserDashboardController;
-use App\Http\Controllers\User\BookmarkController;
+use App\Http\Controllers\User\BookmarkPageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,6 +35,15 @@ Route::get('/api/regions/statistics', [\App\Http\Controllers\Api\RegionControlle
 // ── PROTECTED ROUTES (MANDATORY LOGIN) ──────────────────────────────────
 Route::middleware('auth')->group(function () {
     // Route Testing Backend (Merender file Blade)
+    // Halaman diagnostik bookmark: memanggil endpoint API asli dan menampilkan
+    // status HTTP apa adanya. Tanpa ini, menguji toggle/folder harus lewat curl
+    // manual. Sama seperti /test-peraturan, hanya untuk pengujian internal.
+    Route::get('/test-bookmark', function () {
+        return view('test-bookmark', [
+            'contohId' => \App\Models\Peraturan::query()->value('id') ?? 1,
+        ]);
+    });
+
     Route::get('/test-peraturan/{id}', function ($id) {
         $peraturan = Peraturan::with(['pasal' => function ($query) {
             $query->orderBy('urutan', 'asc');
@@ -46,10 +55,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
 
     // Bookmark khusus akun user; admin dikembalikan ke beranda oleh middleware role.
+    // Halaman dan aksi hapusnya di sini karena keduanya berjalan lewat sesi web;
+    // endpoint API (routes/api.php) dipakai pemanggil berbasis token.
     Route::middleware('role:user')->group(function () {
-        Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('user.bookmarks');
-        Route::post('/api/bookmarks/{peraturanId}/toggle', [BookmarkController::class, 'toggle'])->name('bookmarks.toggle');
-        Route::delete('/bookmarks/{peraturanId}', [BookmarkController::class, 'destroy'])->name('bookmarks.destroy');
+        Route::get('/bookmarks', [BookmarkPageController::class, 'index'])->name('user.bookmarks');
+        Route::delete('/bookmarks/{bookmark}', [BookmarkPageController::class, 'destroy'])->name('user.bookmarks.destroy');
     });
 
     Route::get('/pencarian', function () {
