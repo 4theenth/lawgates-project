@@ -36,58 +36,68 @@ export default function GraphSidebar({
     onSelectNode,
 }: GraphSidebarProps) {
     return (
-        <div
-            className={`absolute top-0 left-0 bottom-0 z-40 w-80 max-w-[85vw] bg-white/95 backdrop-blur-md border-r border-slate-200/90 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
-                isOpen ? 'translate-x-0 pointer-events-auto' : '-translate-x-full pointer-events-none'
-            }`}
-        >
-            {/* Sidebar Header */}
-            <div className="p-4 border-b border-slate-200/80 bg-slate-50/70 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-slate-900 text-white rounded-lg">
-                            <Layers className="w-4 h-4" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-bold text-slate-900 leading-none">Daftar Relasi</h3>
-                            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                                {connectedNodes.length} Peraturan Terkait
-                            </p>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors cursor-pointer"
-                        title="Tutup Sidebar"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
+        <>
+            {/* Mobile Backdrop Overlay */}
+            {isOpen && (
+                <div
+                    className="absolute inset-0 bg-black/40 backdrop-blur-xs z-35 md:hidden transition-opacity"
+                    onClick={onClose}
+                    aria-hidden="true"
+                />
+            )}
 
-                {/* Search Input Filter */}
-                <div className="relative">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={e => onSearchQueryChange(e.target.value)}
-                        placeholder="Cari nomor, tahun, judul..."
-                        className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 transition-all"
-                    />
-                    {searchQuery && (
+            <div
+                className={`absolute top-0 left-0 bottom-0 z-40 w-80 max-w-[85vw] bg-white/95 backdrop-blur-md border-r border-slate-200/90 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
+                    isOpen ? 'translate-x-0 pointer-events-auto' : '-translate-x-full pointer-events-none'
+                }`}
+            >
+                {/* Sidebar Header */}
+                <div className="p-3.5 sm:p-4 border-b border-slate-200/80 bg-slate-50/70 flex flex-col gap-2.5 sm:gap-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-slate-900 text-white rounded-lg">
+                                <Layers className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-900 leading-none">Daftar Relasi</h3>
+                                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                    {connectedNodes.length} Peraturan Terkait
+                                </p>
+                            </div>
+                        </div>
                         <button
                             type="button"
-                            onClick={() => onSearchQueryChange('')}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                            onClick={onClose}
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors cursor-pointer"
+                            title="Tutup Sidebar"
                         >
-                            <X className="w-3 h-3" />
+                            <X className="w-4 h-4" />
                         </button>
-                    )}
-                </div>
+                    </div>
 
-                {/* Filter Category Tabs */}
-                <div className="flex flex-wrap items-center gap-1 p-1.5 bg-slate-200/60 rounded-xl text-[10.5px] font-semibold text-slate-600">
+                    {/* Search Input Filter */}
+                    <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={e => onSearchQueryChange(e.target.value)}
+                            placeholder="Cari nomor, tahun, judul..."
+                            className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-800 transition-all"
+                        />
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => onSearchQueryChange('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Filter Category Tabs */}
+                    <div className="flex items-center gap-1 p-1 bg-slate-200/60 rounded-xl text-[10.5px] font-semibold text-slate-600 overflow-x-auto no-scrollbar">
                     <button
                         type="button"
                         onClick={() => onFilterCategoryChange('all')}
@@ -242,5 +252,6 @@ export default function GraphSidebar({
                 )}
             </div>
         </div>
+        </>
     );
 }

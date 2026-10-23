@@ -65,20 +65,22 @@ export function DetailPeraturanHeader({
           <span className="text-neu-400">•</span>
           {instansi}
         </span>
-      </div>      {/* 3. Judul Dokumen Hukum & Action Buttons Row Sesuai Figma node #97:286 */}
+      </div>
+
+      {/* 3. Judul Dokumen Hukum & Action Buttons Row Sesuai Figma node #97:286 */}
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 sm:gap-6 pt-1">
         <h1 className="text-[20px] sm:text-[22px] lg:text-[24px] font-bold text-neu-900 leading-[1.3] tracking-tight flex-1 min-w-0">
           {judul}
         </h1>
 
         {/* Action Buttons Row: Salin Link, Bandingkan, Download Dokumen */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 self-start flex-wrap">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-2.5 lg:shrink-0">
           {/* Tombol Salin Link */}
           <button
             type="button"
             onClick={handleCopyLink}
             title="Salin Tautan Halaman Ini"
-            className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 min-w-[125px] rounded-full bg-white hover:bg-neu-50 text-neu-700 text-xs sm:text-sm font-semibold border border-neu-200 transition-all cursor-pointer"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-neu-200 bg-white px-3 text-xs font-semibold text-neu-700 transition-all hover:bg-neu-50 sm:w-auto sm:min-w-[125px] sm:px-4 sm:text-sm cursor-pointer"
           >
             {isLinkCopied ? <Check className="w-3.5 h-3.5 text-suc-900" /> : <Copy className="w-3.5 h-3.5 text-neu-500" />}
             <span>{isLinkCopied ? 'Link Tersalin!' : 'Salin Link'}</span>
@@ -89,7 +91,7 @@ export function DetailPeraturanHeader({
             <button
               type="button"
               onClick={onCompare}
-              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-white hover:bg-pr-50 text-pr-900 text-sm font-semibold border border-pr-900 transition-all cursor-pointer"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-pr-900 bg-white px-3 text-xs font-semibold text-pr-900 transition-all hover:bg-pr-50 sm:w-auto sm:gap-2.5 sm:px-6 sm:text-sm cursor-pointer"
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-pr-900 stroke-[2]" />
               <span>Bandingkan</span>
@@ -101,7 +103,7 @@ export function DetailPeraturanHeader({
             <button
               type="button"
               onClick={onDownload}
-              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-pr-900 hover:bg-pr-800 text-white text-sm font-semibold transition-all cursor-pointer"
+              className="col-span-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-pr-900 px-3 text-xs font-semibold text-white transition-all hover:bg-pr-800 sm:col-auto sm:w-auto sm:gap-2.5 sm:px-6 sm:text-sm cursor-pointer"
             >
               <Download className="w-4 h-4 text-white stroke-[2]" />
               <span>Download Dokumen</span>
@@ -109,7 +111,7 @@ export function DetailPeraturanHeader({
           ) : downloadHref ? (
             <Link
               href={downloadHref}
-              className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 rounded-full bg-pr-900 hover:bg-pr-800 text-white text-sm font-semibold transition-all cursor-pointer"
+              className="col-span-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-pr-900 px-3 text-xs font-semibold text-white transition-all hover:bg-pr-800 sm:col-auto sm:w-auto sm:gap-2.5 sm:px-6 sm:text-sm cursor-pointer"
             >
               <Download className="w-4 h-4 text-white stroke-[2]" />
               <span>Download Dokumen</span>
@@ -124,7 +126,7 @@ export function DetailPeraturanHeader({
         <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           {/* Status Badge */}
           <div
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
+            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs font-medium sm:px-3 ${
               isBerlaku
                 ? 'bg-suc-100 text-suc-900'
                 : 'bg-dan-50 text-dan-900 border border-dan-200'
@@ -139,20 +141,28 @@ export function DetailPeraturanHeader({
           </div>
 
           {/* Tanggal Penetapan - Neu Blok */}
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-neu-50 text-neu-800 text-xs font-medium">
+          <div
+            aria-label={`Ditetapkan: ${tanggalPenetapan || '-'}`}
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-neu-50 px-2.5 py-1.5 text-xs font-medium text-neu-800 sm:px-3.5"
+          >
             <Calendar className="w-4 h-4 text-neu-600" />
-            <span>Ditetapkan: {tanggalPenetapan || '-'}</span>
+            <span className="sm:hidden">{tanggalPenetapan || '-'}</span>
+            <span className="hidden sm:inline">Ditetapkan: {tanggalPenetapan || '-'}</span>
           </div>
 
           {/* Tempat Penetapan - Neu Blok */}
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-neu-50 text-neu-800 text-xs font-medium">
+          <div
+            aria-label={`Tempat Penetapan: ${tempatPenetapan || '-'}`}
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-neu-50 px-2.5 py-1.5 text-xs font-medium text-neu-800 sm:px-3.5"
+          >
             <MapPin className="w-4 h-4 text-neu-600" />
-            <span>Tempat Penetapan : {tempatPenetapan || '-'}</span>
+            <span className="sm:hidden">Di {tempatPenetapan || '-'}</span>
+            <span className="hidden sm:inline">Tempat Penetapan : {tempatPenetapan || '-'}</span>
           </div>
         </div>
 
         {/* Sisi Kanan: Tombol Simpan (Bookmark) Reusable Component */}
-        <div className="shrink-0 self-start sm:self-auto">
+        <div className="shrink-0 self-end sm:self-auto">
           <BookmarkButton
             variant="pill"
             peraturanId={peraturanId || ''}

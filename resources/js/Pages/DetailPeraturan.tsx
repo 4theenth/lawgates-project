@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
@@ -97,6 +97,32 @@ export default function DetailPeraturan({
       setShowFloatingPreview(true);
     }
   };
+
+  // Di mobile, saat peta relasi dibuka, posisikan scroll tepat di awal tampilan graph.
+  useEffect(() => {
+    if (!showGraph || typeof window === 'undefined' || window.innerWidth >= 1024) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      const graphSection = document.getElementById('regulation-graph-section');
+      if (!graphSection) return;
+
+      // Posisikan tombol tutup graph tepat di bawah navbar, seperti tampilan
+      // awal peta relasi di mobile.
+      const headerOffset = 80;
+      const offsetPosition =
+        graphSection.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+      const target = Math.max(0, offsetPosition);
+
+      // Dari posisi jauh di bawah (mis. footer), lompat langsung agar tidak
+      // terlihat diam di footer lalu bergerak perlahan ke atas.
+      const isFarBelow = window.pageYOffset > target + window.innerHeight;
+      window.scrollTo({ top: target, behavior: isFarBelow ? 'auto' : 'smooth' });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [showGraph]);
 
   const canCompare = Boolean(
     peraturan?.law_relations &&
@@ -255,14 +281,26 @@ export default function DetailPeraturan({
             </div>
           ) : (
             /* Layout Graph Inline (Menggantikan 3 Kolom) */
-            <div className="w-full mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-              <div className="flex justify-end mb-4">
+            <div
+              id="regulation-graph-section"
+              className="w-full mt-4 sm:mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative"
+            >
+              <div className="flex items-center justify-between gap-3 mb-3 sm:mb-4 px-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse shrink-0" />
+                  <h2 className="text-xs sm:text-sm font-bold text-pr-900 tracking-tight truncate uppercase">
+                    Peta Konstelasi Relasi Hukum
+                  </h2>
+                </div>
                 <button
+                  type="button"
                   onClick={() => setShowGraph(false)}
-                  className="px-4 py-2 bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+                  className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95 shrink-0"
                 >
-                  <X className="w-4 h-4" />
-                  Tutup Peta Relasi & Kembali ke Teks
+                  <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500" />
+                  <span>
+                    <span className="hidden sm:inline">Tutup &amp; </span>Kembali ke Dokumen
+                  </span>
                 </button>
               </div>
 
@@ -275,30 +313,32 @@ export default function DetailPeraturan({
         </div>
       </div>
 
-      {/* Mobile Drawer (Bottom Bar & Sheet Modal) */}
-      <DetailPeraturanMobileDrawer
-        pembukaanData={pembukaanData}
-        babList={babsState}
-        activeSectionId={activeSectionId}
-        onSearchChange={setSearchQuery}
-        onNavigateToStruktur={handleNavigateToStruktur}
-        onNavigateToPasal={handleNavigateToPasal}
-        onNavigateToPembukaan={() => {
-          setIsPembukaanOpen(true);
-          scrollToElement('section-pembukaan');
-        }}
-        onNavigateToSection={(sectionId) => {
-          if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
-          else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
-          else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
-          else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
+      {/* Mobile Drawer (Bottom Bar & Sheet Modal) - disembunyikan saat mode peta relasi aktif */}
+      {!showGraph && (
+        <DetailPeraturanMobileDrawer
+          pembukaanData={pembukaanData}
+          babList={babsState}
+          activeSectionId={activeSectionId}
+          onSearchChange={setSearchQuery}
+          onNavigateToStruktur={handleNavigateToStruktur}
+          onNavigateToPasal={handleNavigateToPasal}
+          onNavigateToPembukaan={() => {
+            setIsPembukaanOpen(true);
+            scrollToElement('section-pembukaan');
+          }}
+          onNavigateToSection={(sectionId) => {
+            if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
+            else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
+            else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
+            else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
 
-          setIsPembukaanOpen(true);
-          scrollToElement(sectionId);
-        }}
-        timelineData={timelineData}
-        onRelasiClick={handleRelasi}
-      />
+            setIsPembukaanOpen(true);
+            scrollToElement(sectionId);
+          }}
+          timelineData={timelineData}
+          onRelasiClick={handleRelasi}
+        />
+      )}
     </PublicLayout>
   );
 }
