@@ -58,7 +58,7 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
       {/* Tag pills daerah yang dipilih */}
       {selectedLokasi.length > 0 && (
         <div
-          className={`flex flex-wrap gap-1.5 mb-2 p-1.5 rounded-lg max-h-24 overflow-y-auto no-scrollbar ${
+          className={`flex flex-wrap gap-1.5 mb-2 p-1.5 rounded-lg max-h-16 overflow-y-auto custom-thin-scrollbar pr-1 ${
             isLight ? 'bg-gray-50 border border-gray-200' : 'bg-white/5 border border-white/10'
           }`}
         >
@@ -91,7 +91,7 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
       )}
 
       {/* Flat List Daerah */}
-      <div className="max-h-52 overflow-y-auto no-scrollbar space-y-0.5">
+      <div className="max-h-36 overflow-y-auto custom-thin-scrollbar pr-1 space-y-0.5">
         {filteredFlatLokasi.length === 0 ? (
           <div
             className={`text-center py-2.5 text-xs ${

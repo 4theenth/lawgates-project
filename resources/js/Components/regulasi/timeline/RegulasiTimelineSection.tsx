@@ -30,16 +30,16 @@ export function RegulasiTimelineSection({
   const [selectedMonth, setSelectedMonth] = useState<MonthTimelineData | null>(null);
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
 
-  // State filter seketika (langsung aktif setiap kali dipilih)
-  const [selectedJenis, setSelectedJenis] = useState<string>('Semua Jenis Peraturan');
-  const [selectedSubjek, setSelectedSubjek] = useState<string>('Semua Subjek');
+  // State filter seketika (multi-select array, kosong = semua)
+  const [selectedJenis, setSelectedJenis] = useState<string[]>([]);
+  const [selectedSubjek, setSelectedSubjek] = useState<string[]>([]);
   const [selectedLokasi, setSelectedLokasi] = useState<string[]>([]);
 
   // Hitung data timeline dinamis berdasarkan filter yang aktif
   const displayPeriod = useMemo(() => {
     const isDefaultFilter =
-      selectedJenis === 'Semua Jenis Peraturan' &&
-      selectedSubjek === 'Semua Subjek' &&
+      selectedJenis.length === 0 &&
+      selectedSubjek.length === 0 &&
       selectedLokasi.length === 0;
 
     if (isDefaultFilter) {
@@ -48,11 +48,11 @@ export function RegulasiTimelineSection({
 
     // Hitung faktor penyesuaian jika filter diterapkan
     let factor = 1;
-    if (selectedJenis !== 'Semua Jenis Peraturan') {
-      factor *= 0.42;
+    if (selectedJenis.length > 0) {
+      factor *= Math.max(0.2, 0.9 - (selectedJenis.length * 0.14));
     }
-    if (selectedSubjek !== 'Semua Subjek') {
-      factor *= 0.55;
+    if (selectedSubjek.length > 0) {
+      factor *= Math.max(0.2, 0.85 - (selectedSubjek.length * 0.12));
     }
     if (selectedLokasi.length > 0) {
       factor *= Math.min(0.8, 0.15 + selectedLokasi.length * 0.12);
@@ -156,8 +156,8 @@ export function RegulasiTimelineSection({
   // Handler Reset Filter: Mengembalikan ke default 2025-2026, Semua Jenis, Semua Subjek, dan deselect bulan
   const handleResetFilter = () => {
     setActivePeriod(TWO_YEAR_PERIODS[1]); // default 2025 - 2026
-    setSelectedJenis('Semua Jenis Peraturan');
-    setSelectedSubjek('Semua Subjek');
+    setSelectedJenis([]);
+    setSelectedSubjek([]);
     setSelectedLokasi([]);
     setSelectedMonth(null);
     setSelectedWeekId(null);

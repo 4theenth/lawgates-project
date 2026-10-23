@@ -6,8 +6,8 @@ import { MonthTimelineData } from './timelineData';
 interface TimelineWeeklyAccordionProps {
   selectedMonth: MonthTimelineData;
   selectedWeekId?: string | null;
-  selectedJenis?: string;
-  selectedSubjek?: string;
+  selectedJenis?: string | string[];
+  selectedSubjek?: string | string[];
   selectedLokasi?: string[];
   onToggleWeek?: (weekId: string) => void;
   onDeselectMonth?: () => void;
@@ -42,6 +42,17 @@ export function TimelineWeeklyAccordion({
   // Calculate total counts for active tab
   const totalBerlaku = selectedMonth.berlakuCount;
   const totalDicabut = selectedMonth.dicabutCount;
+
+  // Helper normalisasi filter ke array
+  const toArray = (v?: string | string[]): string[] => {
+    if (!v) return [];
+    if (Array.isArray(v)) return v.filter((item) => !item.startsWith('Semua '));
+    if (v.startsWith('Semua ')) return [];
+    return [v];
+  };
+
+  const jenisArr = toArray(selectedJenis);
+  const subjekArr = toArray(selectedSubjek);
 
   return (
     <div
@@ -120,28 +131,33 @@ export function TimelineWeeklyAccordion({
               regulations: day.regulations.filter((r) => {
                 if (r.status !== activeTab) return false;
 
-                // Filter Jenis
-                if (selectedJenis && selectedJenis !== 'Semua Jenis Peraturan') {
-                  const j = selectedJenis.toLowerCase();
-                  const rj = r.jenis.toLowerCase();
-                  if (j.includes('daerah') || j.includes('perda')) {
-                    if (!rj.includes('perda') && !rj.includes('daerah')) return false;
-                  } else if (j.includes('undang-undang') || j.includes('uu')) {
-                    if (!rj.includes('uu')) return false;
-                  } else if (j.includes('pemerintah') || j.includes('pp')) {
-                    if (!rj.includes('pp')) return false;
-                  } else if (j.includes('presiden') || j.includes('perpres')) {
-                    if (!rj.includes('perpres')) return false;
-                  } else if (j.includes('menteri') || j.includes('permen')) {
-                    if (!rj.includes('permen')) return false;
-                  }
+                // Filter Jenis (Multi-Select)
+                if (jenisArr.length > 0) {
+                  const matchesJenis = jenisArr.some((selectedJ) => {
+                    const j = selectedJ.toLowerCase();
+                    const rj = r.jenis.toLowerCase();
+                    if (j.includes('daerah') || j.includes('perda')) {
+                      return rj.includes('perda') || rj.includes('daerah');
+                    } else if (j.includes('undang-undang') || j.includes('uu')) {
+                      return rj.includes('uu');
+                    } else if (j.includes('pemerintah') || j.includes('pp')) {
+                      return rj.includes('pp');
+                    } else if (j.includes('presiden') || j.includes('perpres')) {
+                      return rj.includes('perpres');
+                    } else if (j.includes('menteri') || j.includes('permen')) {
+                      return rj.includes('permen');
+                    }
+                    return rj.includes(j);
+                  });
+                  if (!matchesJenis) return false;
                 }
 
-                // Filter Subjek
-                if (selectedSubjek && selectedSubjek !== 'Semua Subjek') {
-                  if (!r.subjek || !r.subjek.toLowerCase().includes(selectedSubjek.toLowerCase())) {
-                    return false;
-                  }
+                // Filter Subjek (Multi-Select)
+                if (subjekArr.length > 0) {
+                  const matchesSubjek = subjekArr.some((s) =>
+                    r.subjek && r.subjek.toLowerCase().includes(s.toLowerCase())
+                  );
+                  if (!matchesSubjek) return false;
                 }
 
                 // Filter Lokasi Daerah
@@ -166,8 +182,8 @@ export function TimelineWeeklyAccordion({
             .filter((day) => day.regulations.length > 0);
 
           const hasCustomFilter =
-            (selectedJenis && selectedJenis !== 'Semua Jenis Peraturan') ||
-            (selectedSubjek && selectedSubjek !== 'Semua Subjek') ||
+            jenisArr.length > 0 ||
+            subjekArr.length > 0 ||
             (selectedLokasi && selectedLokasi.length > 0);
 
           const weekCount = hasCustomFilter

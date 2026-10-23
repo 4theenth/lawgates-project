@@ -175,7 +175,7 @@
   /* ── Custom Scrollbar Utility (Sleek, rounded, menggunakan token LawGates) ── */
   .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-neu-300) transparent;
+    scrollbar-color: #bcbcbc transparent;
   }
 
   .custom-scrollbar::-webkit-scrollbar {
@@ -188,19 +188,19 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: var(--color-neu-300);
+    background-color: #bcbcbc;
     border-radius: 9999px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-neu-400);
+    background-color: #909090;
   }
 
   /* ── Custom Neu Thin Scrollbar Utility (Tipis & Neu) ── */
   .custom-neu-scrollbar,
   .custom-thin-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-neu-300) transparent;
+    scrollbar-color: #bcbcbc transparent;
   }
 
   .custom-neu-scrollbar::-webkit-scrollbar,
@@ -216,13 +216,13 @@
 
   .custom-neu-scrollbar::-webkit-scrollbar-thumb,
   .custom-thin-scrollbar::-webkit-scrollbar-thumb {
-    background-color: var(--color-neu-300);
+    background-color: #bcbcbc;
     border-radius: 9999px;
   }
 
   .custom-neu-scrollbar::-webkit-scrollbar-thumb:hover,
   .custom-thin-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-neu-400);
+    background-color: #909090;
   }
 
   .custom-scrollbar-dark {

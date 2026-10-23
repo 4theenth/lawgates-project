@@ -49,14 +49,21 @@ const ALL_38_PROVINCES = [
   'Pemerintah Provinsi Papua Barat Daya',
 ];
 
-interface TimelineDropdownProps {
-  value: string;
+interface TimelineMultiSelectDropdownProps {
+  label: string;
   options: string[];
-  onChange: (val: string) => void;
+  selectedValues: string[];
+  onChange: (values: string[]) => void;
   className?: string;
 }
 
-function TimelineDropdown({ value, options, onChange, className = '' }: TimelineDropdownProps) {
+function TimelineMultiSelectDropdown({
+  label,
+  options,
+  selectedValues,
+  onChange,
+  className = '',
+}: TimelineMultiSelectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -70,6 +77,24 @@ function TimelineDropdown({ value, options, onChange, className = '' }: Timeline
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const displayLabel = useMemo(() => {
+    if (selectedValues.length === 0) return `Semua ${label}`;
+    if (selectedValues.length === 1) return selectedValues[0];
+    return `${selectedValues.length} ${label}`;
+  }, [selectedValues, label]);
+
+  const handleToggle = (opt: string) => {
+    if (selectedValues.includes(opt)) {
+      onChange(selectedValues.filter((v) => v !== opt));
+    } else {
+      onChange([...selectedValues, opt]);
+    }
+  };
+
+  const handleSelectAll = () => {
+    onChange([]);
+  };
+
   return (
     <div ref={dropdownRef} className={`relative w-full ${className}`}>
       {/* Trigger Button */}
@@ -82,7 +107,7 @@ function TimelineDropdown({ value, options, onChange, className = '' }: Timeline
             : 'border-neu-100 hover:border-neu-300 shadow-2xs'
         }`}
       >
-        <span className="truncate text-left">{value}</span>
+        <span className="truncate text-left">{displayLabel}</span>
         <ChevronDown
           className={`w-4 h-4 text-neu-500 shrink-0 transition-transform duration-200 ${
             isOpen ? 'rotate-180 text-pr-900' : ''
@@ -90,27 +115,43 @@ function TimelineDropdown({ value, options, onChange, className = '' }: Timeline
         />
       </button>
 
-      {/* Popover Menu */}
+      {/* Popover Menu with custom-thin-scrollbar */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white rounded-xl border border-neu-100 shadow-lg py-1.5 max-h-60 overflow-y-auto animate-in fade-in-50 zoom-in-95 duration-100">
+        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white rounded-xl border border-neu-100 shadow-xl py-1.5 px-1 max-h-60 overflow-y-auto custom-thin-scrollbar animate-in fade-in-50 zoom-in-95 duration-100">
+          {/* Opsi Semua */}
+          <button
+            type="button"
+            onClick={handleSelectAll}
+            className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${
+              selectedValues.length === 0
+                ? 'bg-pr-50 text-pr-900 font-semibold'
+                : 'text-neu-700 hover:bg-neutral-50 hover:text-neu-900 font-normal'
+            }`}
+          >
+            <span className="truncate">Semua {label}</span>
+            {selectedValues.length === 0 && (
+              <Check className="w-3.5 h-3.5 text-pr-900 stroke-[2.5] shrink-0 ml-2" />
+            )}
+          </button>
+
+          {/* List Opsi */}
           {options.map((opt) => {
-            const isSelected = opt === value;
+            const isSelected = selectedValues.includes(opt);
             return (
               <button
                 key={opt}
                 type="button"
-                onClick={() => {
-                  onChange(opt);
-                  setIsOpen(false);
-                }}
-                className={`w-full px-4 py-2 text-left text-xs sm:text-sm transition-colors cursor-pointer flex items-center justify-between ${
+                onClick={() => handleToggle(opt)}
+                className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${
                   isSelected
                     ? 'bg-pr-50 text-pr-900 font-semibold'
                     : 'text-neu-700 hover:bg-neutral-50 hover:text-neu-900 font-normal'
                 }`}
               >
                 <span className="truncate">{opt}</span>
-                {isSelected && <Check className="w-3.5 h-3.5 text-pr-900 stroke-[2.5]" />}
+                {isSelected && (
+                  <Check className="w-3.5 h-3.5 text-pr-900 stroke-[2.5] shrink-0 ml-2" />
+                )}
               </button>
             );
           })}
@@ -120,17 +161,17 @@ function TimelineDropdown({ value, options, onChange, className = '' }: Timeline
   );
 }
 
-interface TimelineFilterToolbarProps {
+export interface TimelineFilterToolbarProps {
   periodLabel: string;
   startYear?: number;
   endYear?: number;
-  selectedJenis?: string;
-  selectedSubjek?: string;
+  selectedJenis?: string | string[];
+  selectedSubjek?: string | string[];
   selectedLokasi?: string[];
   onPeriodChange?: (period: string) => void;
   onYearsCompareChange?: (year1: number, year2: number) => void;
-  onJenisChange?: (jenis: string) => void;
-  onSubjekChange?: (subjek: string) => void;
+  onJenisChange?: (jenis: string[]) => void;
+  onSubjekChange?: (subjek: string[]) => void;
   onLokasiChange?: (lokasi: string[]) => void;
   onResetFilter?: () => void;
   jenisOptions?: { id: string | number; nama: string }[];
@@ -155,8 +196,18 @@ export function TimelineFilterToolbar({
 }: TimelineFilterToolbarProps) {
   const { allFlatLokasi: refLokasi } = useFilterReferences();
 
-  const [selectedJenis, setSelectedJenis] = useState<string>(propSelectedJenis || 'Semua Jenis Peraturan');
-  const [selectedSubjek, setSelectedSubjek] = useState<string>(propSelectedSubjek || 'Semua Subjek');
+  // Helper normalisasi input string / string[] menjadi array
+  const normalizeArray = (val?: string | string[]): string[] => {
+    if (!val) return [];
+    if (Array.isArray(val)) {
+      return val.filter((v) => v !== 'Semua Jenis Peraturan' && v !== 'Semua Subjek');
+    }
+    if (val === 'Semua Jenis Peraturan' || val === 'Semua Subjek') return [];
+    return [val];
+  };
+
+  const [selectedJenis, setSelectedJenis] = useState<string[]>(normalizeArray(propSelectedJenis));
+  const [selectedSubjek, setSelectedSubjek] = useState<string[]>(normalizeArray(propSelectedSubjek));
   const [selectedLokasi, setSelectedLokasi] = useState<string[]>(propSelectedLokasi || []);
 
   const [isJenisOpen, setIsJenisOpen] = useState(false);
@@ -164,11 +215,11 @@ export function TimelineFilterToolbar({
 
   // Sync state internal jika props luar berubah
   useEffect(() => {
-    if (propSelectedJenis !== undefined) setSelectedJenis(propSelectedJenis);
+    if (propSelectedJenis !== undefined) setSelectedJenis(normalizeArray(propSelectedJenis));
   }, [propSelectedJenis]);
 
   useEffect(() => {
-    if (propSelectedSubjek !== undefined) setSelectedSubjek(propSelectedSubjek);
+    if (propSelectedSubjek !== undefined) setSelectedSubjek(normalizeArray(propSelectedSubjek));
   }, [propSelectedSubjek]);
 
   useEffect(() => {
@@ -192,7 +243,6 @@ export function TimelineFilterToolbar({
   const currentEndYear = propEndYear || parsedYears[1] || 2026;
 
   const defaultJenisList = [
-    'Semua Jenis Peraturan',
     'Undang-Undang (UU)',
     'Peraturan Pemerintah (PP)',
     'Peraturan Presiden (Perpres)',
@@ -200,13 +250,14 @@ export function TimelineFilterToolbar({
     'Peraturan Menteri (Permen)',
   ];
 
-  const jenisList =
+  const rawJenisList =
     jenisOptions.length > 0
-      ? ['Semua Jenis Peraturan', ...jenisOptions.map((opt) => opt.nama)]
+      ? jenisOptions.map((opt) => opt.nama)
       : defaultJenisList;
 
+  const jenisList = rawJenisList.filter((j) => j !== 'Semua Jenis Peraturan');
+
   const defaultSubjekList = [
-    'Semua Subjek',
     'Hukum & Peradilan',
     'Ekonomi & Bisnis',
     'Pajak & Keuangan',
@@ -262,37 +313,64 @@ export function TimelineFilterToolbar({
     if (onLokasiChange) onLokasiChange(next);
   };
 
-  // Handler Jenis Peraturan
-  const handleSelectJenis = (opt: string) => {
-    const isPerda = opt.toLowerCase().includes('perda') || opt.toLowerCase().includes('peraturan daerah');
-    setSelectedJenis(opt);
-    if (onJenisChange) onJenisChange(opt);
+  // Handler toggle Jenis Peraturan (multi-select)
+  const handleToggleJenis = (opt: string) => {
+    const isOptPerda =
+      opt.toLowerCase().includes('perda') ||
+      opt.toLowerCase().includes('peraturan daerah');
 
-    if (!isPerda) {
-      setSelectedLokasi([]);
-      if (onLokasiChange) onLokasiChange([]);
-      setIsJenisOpen(false);
+    let next: string[];
+    if (selectedJenis.includes(opt)) {
+      next = selectedJenis.filter((j) => j !== opt);
+      if (isOptPerda) {
+        setSelectedLokasi([]);
+        if (onLokasiChange) onLokasiChange([]);
+      }
+    } else {
+      next = [...selectedJenis, opt];
     }
+
+    setSelectedJenis(next);
+    if (onJenisChange) onJenisChange(next);
+  };
+
+  // Handler pilih Semua Jenis
+  const handleSelectAllJenis = () => {
+    setSelectedJenis([]);
+    setSelectedLokasi([]);
+    if (onJenisChange) onJenisChange([]);
+    if (onLokasiChange) onLokasiChange([]);
   };
 
   // Label tampilan trigger Jenis Peraturan
-  const isPerdaSelected =
-    selectedJenis.toLowerCase().includes('perda') ||
-    selectedJenis.toLowerCase().includes('peraturan daerah');
+  const displayJenisLabel = useMemo(() => {
+    if (selectedJenis.length === 0) return 'Semua Jenis Peraturan';
 
-  let displayJenisLabel = selectedJenis;
-  if (isPerdaSelected) {
-    if (selectedLokasi.length === 1) {
-      displayJenisLabel = `Perda - ${selectedLokasi[0]}`;
-    } else if (selectedLokasi.length > 1) {
-      displayJenisLabel = `Perda (${selectedLokasi.length} Daerah)`;
+    if (selectedJenis.length === 1) {
+      const isPerda =
+        selectedJenis[0].toLowerCase().includes('perda') ||
+        selectedJenis[0].toLowerCase().includes('peraturan daerah');
+      if (isPerda) {
+        if (selectedLokasi.length === 1) return `Perda - ${selectedLokasi[0]}`;
+        if (selectedLokasi.length > 1) return `Perda (${selectedLokasi.length} Daerah)`;
+      }
+      return selectedJenis[0];
     }
-  }
+
+    const hasPerda = selectedJenis.some(
+      (j) => j.toLowerCase().includes('perda') || j.toLowerCase().includes('peraturan daerah')
+    );
+    if (hasPerda && selectedLokasi.length > 0) {
+      return `${selectedJenis.length} Jenis Peraturan (${selectedLokasi.length} Daerah)`;
+    }
+
+    return `${selectedJenis.length} Jenis Peraturan`;
+  }, [selectedJenis, selectedLokasi]);
 
   // Handler Reset Filter: Mengembalikan ke default (2025-2026, Semua Jenis, Semua Subjek, Lokasi kosong)
   const handleReset = () => {
-    setSelectedJenis('Semua Jenis Peraturan');
-    setSelectedSubjek('Semua Subjek');
+    setSelectedJenis([]);
+    setSelectedSubjek([]);
     setSelectedLokasi([]);
     setIsJenisOpen(false);
 
@@ -301,8 +379,8 @@ export function TimelineFilterToolbar({
     } else {
       if (onYearsCompareChange) onYearsCompareChange(2025, 2026);
       if (onPeriodChange) onPeriodChange('2025 - 2026');
-      if (onJenisChange) onJenisChange('Semua Jenis Peraturan');
-      if (onSubjekChange) onSubjekChange('Semua Subjek');
+      if (onJenisChange) onJenisChange([]);
+      if (onSubjekChange) onSubjekChange([]);
       if (onLokasiChange) onLokasiChange([]);
     }
   };
@@ -311,7 +389,7 @@ export function TimelineFilterToolbar({
     <div
       className={`w-full bg-white rounded-[15px] border border-neu-50 p-3 sm:px-6 sm:py-3.5 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 ${className}`}
     >
-      {/* ── 3 Input Dropdown: Tahun, Jenis Peraturan (dengan FlatLocationPicker), & Subjek ── */}
+      {/* ── 3 Input Dropdown: Tahun, Jenis Peraturan (Multi-select + FlatLocationPicker), & Subjek (Multi-select) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 flex-1 min-w-0">
         {/* 1. Pemilih 2 Tahun Komparasi */}
         <TimelineYearComparePicker
@@ -327,7 +405,7 @@ export function TimelineFilterToolbar({
           }}
         />
 
-        {/* 2. Dropdown Jenis Peraturan + Peraturan Daerah Search Lokasi */}
+        {/* 2. Dropdown Jenis Peraturan + Multi-select + Peraturan Daerah Search Lokasi */}
         <div ref={jenisDropdownRef} className="relative w-full">
           <button
             type="button"
@@ -347,9 +425,26 @@ export function TimelineFilterToolbar({
           </button>
 
           {isJenisOpen && (
-            <div className="absolute top-full left-0 right-0 sm:min-w-[320px] mt-1.5 z-50 bg-white rounded-xl border border-neu-100 shadow-xl py-2 px-1 max-h-[460px] overflow-y-auto no-scrollbar animate-in fade-in-50 zoom-in-95 duration-100">
+            <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white rounded-xl border border-neu-100 shadow-xl py-2 px-1 max-h-[440px] overflow-y-auto custom-thin-scrollbar animate-in fade-in-50 zoom-in-95 duration-100">
+              {/* Opsi Semua Jenis Peraturan */}
+              <button
+                type="button"
+                onClick={handleSelectAllJenis}
+                className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${
+                  selectedJenis.length === 0
+                    ? 'bg-pr-50 text-pr-900 font-semibold'
+                    : 'text-neu-700 hover:bg-neutral-50 hover:text-neu-900 font-normal'
+                }`}
+              >
+                <span className="truncate">Semua Jenis Peraturan</span>
+                {selectedJenis.length === 0 && (
+                  <Check className="w-3.5 h-3.5 text-pr-900 stroke-[2.5] shrink-0 ml-2" />
+                )}
+              </button>
+
+              {/* List Jenis Peraturan */}
               {jenisList.map((opt) => {
-                const isSelected = opt === selectedJenis;
+                const isSelected = selectedJenis.includes(opt);
                 const isOptPerda =
                   opt.toLowerCase().includes('perda') ||
                   opt.toLowerCase().includes('peraturan daerah');
@@ -358,7 +453,7 @@ export function TimelineFilterToolbar({
                   <div key={opt} className="flex flex-col">
                     <button
                       type="button"
-                      onClick={() => handleSelectJenis(opt)}
+                      onClick={() => handleToggleJenis(opt)}
                       className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${
                         isSelected
                           ? 'bg-pr-50 text-pr-900 font-semibold'
@@ -371,9 +466,9 @@ export function TimelineFilterToolbar({
                       )}
                     </button>
 
-                    {/* Jika Peraturan Daerah dipilih, tampilkan FlatLocationPicker (search + provinsi + kabupaten) persis landing page */}
+                    {/* Jika Peraturan Daerah dipilih, tampilkan FlatLocationPicker (search + provinsi + kabupaten) */}
                     {isOptPerda && isSelected && (
-                      <div className="pt-1 pb-2">
+                      <div className="pt-1 pb-1">
                         <FlatLocationPicker
                           selectedLokasi={selectedLokasi}
                           onToggleLokasi={handleToggleLokasi}
@@ -381,18 +476,6 @@ export function TimelineFilterToolbar({
                           allFlatLokasi={allFlatLokasi}
                           variant="light"
                         />
-                        <div className="flex justify-end pt-1 pr-2">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setIsJenisOpen(false);
-                            }}
-                            className="px-3 py-1 rounded-lg bg-pr-900 text-white text-xs font-medium hover:bg-pr-800 transition-colors cursor-pointer"
-                          >
-                            Tutup
-                          </button>
-                        </div>
                       </div>
                     )}
                   </div>
@@ -402,13 +485,14 @@ export function TimelineFilterToolbar({
           )}
         </div>
 
-        {/* 3. Dropdown Subjek */}
-        <TimelineDropdown
-          value={selectedSubjek}
+        {/* 3. Dropdown Subjek (Multi-select) */}
+        <TimelineMultiSelectDropdown
+          label="Subjek"
           options={defaultSubjekList}
-          onChange={(newVal) => {
-            setSelectedSubjek(newVal);
-            if (onSubjekChange) onSubjekChange(newVal);
+          selectedValues={selectedSubjek}
+          onChange={(newVals) => {
+            setSelectedSubjek(newVals);
+            if (onSubjekChange) onSubjekChange(newVals);
           }}
         />
       </div>
@@ -426,4 +510,3 @@ export function TimelineFilterToolbar({
     </div>
   );
 }
-
