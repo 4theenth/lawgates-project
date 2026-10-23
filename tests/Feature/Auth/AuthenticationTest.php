@@ -47,9 +47,8 @@ class AuthenticationTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'admin']);
 
-        // Simulate intended url set to root '/'
-        session(['url.intended' => '/']);
-
+        // intended '/' tidak sah (safeIntended menolaknya), jadi harus fallback
+        // ke dashboard admin dan bukan ke '/'.
         $response = $this->post('/login', [
             'email' => $admin->email,
             'password' => 'password',
@@ -93,5 +92,76 @@ class AuthenticationTest extends TestCase
 
         $this->assertGuest();
         $response->assertRedirect('/');
+    }
+
+    public function test_login_redirects_to_internal_intended_path(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'redirect' => '/pencarian?keyword=uu&tahun=2020',
+        ]);
+
+        $response->assertRedirect('/pencarian?keyword=uu&tahun=2020');
+    }
+
+    /**
+     * Nilai `redirect` datang dari URL yang bisa ditulis siapa saja.
+     * `//evil.com` dan `/\evil.com` dibaca browser sebagai URL absolut, jadi
+     * harus dibuang agar pengguna tidak mendarat di domain lain setelah login.
+     */
+    public function test_login_ignores_open_redirect_payloads(): void
+    {
+        $user = User::factory()->create();
+
+        foreach (['//evil.com', '/\\evil.com', 'https://evil.com', 'evil.com'] as $payload) {
+            $response = $this->post('/login', [
+                'email' => $user->email,
+                'password' => 'password',
+                'redirect' => $payload,
+            ]);
+
+            $this->assertAuthenticated();
+            $response->assertRedirect('/');
+            $this->post('/logout');
+        }
+    }
+
+    public function test_admin_follows_intended_search_path(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->post('/login', [
+            'email' => $admin->email,
+            'password' => 'password',
+            'redirect' => '/pencarian?keyword=uu',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect('/pencarian?keyword=uu');
+    }
+
+    public function test_login_redirects_to_category_slug_intended_path(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+            'redirect' => '/kategori/undang-undang',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect('/kategori/undang-undang');
+    }
+
+    public function test_login_screen_preserves_category_redirect_parameter(): void
+    {
+        $response = $this->get('/login?redirect=/kategori/undang-undang');
+
+        $response->assertStatus(200);
+        $this->assertEquals('/kategori/undang-undang', session('url.intended'));
     }
 }

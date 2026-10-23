@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Auth\Concerns\SanitizesIntendedRedirect;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -16,6 +17,8 @@ use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
+    use SanitizesIntendedRedirect;
+
     /**
      * Display the registration view.
      */
@@ -36,10 +39,13 @@ class RegisteredUserController extends Controller
             'email' => 'required|string|lowercase|email|max:255',
             'phone' => ['required', 'string', 'regex:/^[0-9+\-\s()]{8,20}$/', 'unique:users,phone'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'terms' => ['required', 'accepted'],
         ], [
             'phone.regex' => 'Format nomor telepon tidak valid.',
             'phone.required' => 'Nomor telepon wajib diisi.',
             'phone.unique' => 'Nomor telepon sudah terdaftar.',
+            'terms.required' => 'Anda harus menyetujui Syarat & Ketentuan.',
+            'terms.accepted' => 'Anda harus menyetujui Syarat & Ketentuan.',
         ]);
 
         $existingUser = User::where('email', $request->email)->first();
@@ -77,6 +83,11 @@ class RegisteredUserController extends Controller
         ]);
 
         event(new Registered($user));
+
+        $redirect = $this->safeIntended($request->input('redirect') ?: $request->query('redirect'));
+        if ($redirect) {
+            session()->put('url.intended', $redirect);
+        }
 
         Auth::login($user);
 

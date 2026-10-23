@@ -20,18 +20,21 @@ export default function Home({ categoryCounts }: HomeProps) {
   const { requireAuth } = useAuthModal();
 
   const handleSearch = (query: string, filters?: any) => {
-    requireAuth(() => {
-      // Siapkan parameter URL dari input user
-      const params: Record<string, string> = {};
-      if (query) params.keyword = query;
-      if (filters?.kategori) params.kategori_id = filters.kategori;
-      if (filters?.subjek) params.subjek = filters.subjek;
-      if (filters?.tahun) params.tahun = filters.tahun;
-      if (filters?.status) params.status_id = filters.status;
+    // Siapkan parameter URL dari input user
+    const params: Record<string, string> = {};
+    if (query) params.keyword = query;
+    if (filters?.kategori) params.kategori_id = filters.kategori;
+    if (filters?.subjek) params.subjek = filters.subjek;
+    if (filters?.tahun) params.tahun = filters.tahun;
+    if (filters?.status) params.status_id = filters.status;
 
-      // Pindah ke halaman /pencarian beserta query param-nya (Inertia Routing)
-      router.get('/pencarian', params);
-    });
+    const queryString = new URLSearchParams(params).toString();
+    const tujuan = `/pencarian${queryString ? `?${queryString}` : ''}`;
+
+    // redirectUrl wajib dikirim eksplisit: modal login di beranda tidak punya
+    // path yang bisa dipakai sebagai tujuan (pathname === '/'), sehingga tanpa
+    // ini filter pilihan user hilang setelah login.
+    requireAuth(() => router.get('/pencarian', params), { redirectUrl: tujuan });
   };
 
   return (

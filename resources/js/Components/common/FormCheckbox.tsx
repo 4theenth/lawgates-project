@@ -1,4 +1,5 @@
 import React, { forwardRef, InputHTMLAttributes } from 'react';
+import { Icon } from '@/Components/ui/icon';
 import { cn } from '@/lib/utils';
 import InputError from './InputError';
 
@@ -44,12 +45,21 @@ export const FormCheckbox = forwardRef<HTMLInputElement, FormCheckboxProps>(
                             type="checkbox"
                             checked={checked}
                             disabled={disabled}
+                            aria-invalid={error ? true : undefined}
                             className={cn(
-                                'h-4 w-4 rounded border-neu-300 text-pr-900 focus:ring-pr-900 focus:ring-offset-0 focus:ring-1 transition-colors cursor-pointer',
-                                disabled && 'cursor-not-allowed',
+                                'peer h-5 w-5 shrink-0 appearance-none rounded border bg-white transition-colors duration-150 cursor-pointer',
+                                'checked:border-pr-900 checked:bg-pr-900',
+                                'focus:outline-none focus-visible:ring-2 focus-visible:ring-pr-900/30 focus-visible:ring-offset-1',
+                                error ? 'border-dan-700' : 'border-neu-300',
+                                disabled && 'cursor-not-allowed opacity-60',
                                 className
                             )}
                             {...props}
+                        />
+                        <Icon
+                            name="check"
+                            className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 transition-opacity peer-checked:opacity-100"
+                            strokeWidth={3}
                         />
                     </div>
 
