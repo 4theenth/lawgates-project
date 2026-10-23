@@ -24,6 +24,20 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
     return allFlatLokasi.filter((item) => item.toLowerCase().includes(q));
   }, [allFlatLokasi, searchQuery]);
 
+  // Pindahkan daerah yang sudah dipilih ke paling atas agar mudah di-uncheck
+  const sortedFlatLokasi = useMemo(() => {
+    const checked: string[] = [];
+    const unchecked: string[] = [];
+    filteredFlatLokasi.forEach((item) => {
+      if (selectedLokasi.includes(item)) {
+        checked.push(item);
+      } else {
+        unchecked.push(item);
+      }
+    });
+    return [...checked, ...unchecked];
+  }, [filteredFlatLokasi, selectedLokasi]);
+
   const isLight = variant === 'light';
 
   return (
@@ -90,9 +104,9 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
         </div>
       )}
 
-      {/* Flat List Daerah */}
+      {/* Flat List Daerah (Daerah terpilih di atas) */}
       <div className="max-h-36 overflow-y-auto custom-thin-scrollbar pr-1 space-y-0.5">
-        {filteredFlatLokasi.length === 0 ? (
+        {sortedFlatLokasi.length === 0 ? (
           <div
             className={`text-center py-2.5 text-xs ${
               isLight ? 'text-gray-400' : 'text-neu-400 text-[10px]'
@@ -101,7 +115,7 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
             Daerah tidak ditemukan
           </div>
         ) : (
-          filteredFlatLokasi.map((item) => {
+          sortedFlatLokasi.map((item) => {
             const isChecked = selectedLokasi.includes(item);
             return (
               <div

@@ -83,6 +83,20 @@ function TimelineMultiSelectDropdown({
     return `${selectedValues.length} ${label}`;
   }, [selectedValues, label]);
 
+  // Pindahkan opsi yang sudah dicentang ke paling atas agar mudah di-uncheck
+  const sortedOptions = useMemo(() => {
+    const checked: string[] = [];
+    const unchecked: string[] = [];
+    options.forEach((opt) => {
+      if (selectedValues.includes(opt)) {
+        checked.push(opt);
+      } else {
+        unchecked.push(opt);
+      }
+    });
+    return [...checked, ...unchecked];
+  }, [options, selectedValues]);
+
   const handleToggle = (opt: string) => {
     if (selectedValues.includes(opt)) {
       onChange(selectedValues.filter((v) => v !== opt));
@@ -134,8 +148,8 @@ function TimelineMultiSelectDropdown({
             )}
           </button>
 
-          {/* List Opsi */}
-          {options.map((opt) => {
+          {/* List Opsi (Opsi terpilih di atas) */}
+          {sortedOptions.map((opt) => {
             const isSelected = selectedValues.includes(opt);
             return (
               <button
@@ -298,6 +312,20 @@ export function TimelineFilterToolbar({
     return Array.from(items).sort((a, b) => a.localeCompare(b, 'id'));
   }, [refLokasi]);
 
+  // Pindahkan Jenis Peraturan yang sudah dicentang ke paling atas agar mudah di-uncheck
+  const sortedJenisList = useMemo(() => {
+    const checked: string[] = [];
+    const unchecked: string[] = [];
+    jenisList.forEach((opt) => {
+      if (selectedJenis.includes(opt)) {
+        checked.push(opt);
+      } else {
+        unchecked.push(opt);
+      }
+    });
+    return [...checked, ...unchecked];
+  }, [jenisList, selectedJenis]);
+
   // Handler toggle lokasi
   const handleToggleLokasi = (lokasi: string) => {
     const next = selectedLokasi.includes(lokasi)
@@ -442,8 +470,8 @@ export function TimelineFilterToolbar({
                 )}
               </button>
 
-              {/* List Jenis Peraturan */}
-              {jenisList.map((opt) => {
+              {/* List Jenis Peraturan (Opsi terpilih di atas) */}
+              {sortedJenisList.map((opt) => {
                 const isSelected = selectedJenis.includes(opt);
                 const isOptPerda =
                   opt.toLowerCase().includes('perda') ||

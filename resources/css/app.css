@@ -209,6 +209,14 @@
     height: 4px;
   }
 
+  .custom-neu-scrollbar::-webkit-scrollbar-button,
+  .custom-thin-scrollbar::-webkit-scrollbar-button,
+  .custom-scrollbar::-webkit-scrollbar-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
   .custom-neu-scrollbar::-webkit-scrollbar-track,
   .custom-thin-scrollbar::-webkit-scrollbar-track {
     background: transparent;
