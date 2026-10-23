@@ -1,6 +1,5 @@
 import { router } from '@inertiajs/react';
 import { useAuthModal } from '@/hooks/useAuthModal';
-import { CountUp } from '../common/CountUp';
 import hierarchyCardBg from '@/assets/regulation-hierarchy-card.webp';
 
 interface HierarchyCardItem {
@@ -255,7 +254,7 @@ export function RegulationHierarchyGrid({ counts }: RegulationHierarchyGridProps
                       leading-[130%]
                     "
                   >
-                    <CountUp end={counts?.[item.id] ?? item.count} />
+                    {new Intl.NumberFormat('id-ID').format(counts?.[item.id] ?? item.count)}
                   </div>
 
                 </div>

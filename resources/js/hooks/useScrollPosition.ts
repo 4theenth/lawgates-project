@@ -22,3 +22,27 @@ export function useScrollPosition(threshold: number = 50): boolean {
 
   return isScrolled;
 }
+
+/** True selama ada elemen dengan `data-modal-open` di DOM (MutationObserver). */
+export function useModalOpen(): boolean {
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const sync = () => {
+      setIsModalOpen(document.querySelector('[data-modal-open]') !== null);
+    };
+
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-modal-open'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return isModalOpen;
+}

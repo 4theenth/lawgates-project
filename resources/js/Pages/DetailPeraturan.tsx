@@ -237,6 +237,7 @@ export default function DetailPeraturan({
                   riwayatPerubahan={timelineData}
                   onRelasiClick={handleRelasi}
                   className="flex-1 min-h-0"
+                  showScrollToTop
                 />
 
                 {/* Floating Graph Preview Window (Berada tepat di atas tombol Relasi) */}

@@ -94,8 +94,15 @@ export function PublicLayout({ children }: PublicLayoutProps) {
       {/* Public Footer */}
       <Footer />
 
+      {/* Di detail peraturan, versi desktop ditempatkan di samping tombol
+          RELASI. Versi mobile tetap mengambang, cukup rendah agar tidak
+          menutupi konten namun tetap di atas bottom bar. */}
       <ScrollToTop
-        positionClassName={component === 'DetailPeraturan' ? 'bottom-20 lg:bottom-10' : undefined}
+        positionClassName={
+          component === 'DetailPeraturan'
+            ? 'bottom-20 right-4 sm:right-6 lg:hidden'
+            : undefined
+        }
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { History } from 'lucide-react';
+import { ChevronUp, History } from 'lucide-react';
 import { Link } from '@inertiajs/react';
 
 export interface ReadonlyTimelineItem {
@@ -24,12 +24,15 @@ interface ReadonlyTimelineSectionProps {
   riwayatPerubahan: ReadonlyTimelineItem[];
   onRelasiClick?: () => void;
   className?: string;
+  /** Tampilkan tombol kembali ke atas di samping tombol RELASI (desktop). */
+  showScrollToTop?: boolean;
 }
 
 export function ReadonlyTimelineSection({
   riwayatPerubahan,
   onRelasiClick,
   className = '',
+  showScrollToTop = false,
 }: ReadonlyTimelineSectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentItemRef = useRef<HTMLDivElement>(null);
@@ -147,15 +150,27 @@ export function ReadonlyTimelineSection({
         )}
       </div>
 
-      {/* Tombol RELASI */}
-      <div className="pt-3 mt-3 border-t border-neu-50 shrink-0">
+      {/* Tombol RELASI & Kembali ke Atas */}
+      <div className="pt-3 mt-3 border-t border-neu-50 shrink-0 flex items-center gap-2">
         <button
           type="button"
           onClick={onRelasiClick}
-          className="w-full py-2.5 rounded-full bg-pr-900 hover:bg-pr-800 text-white text-xs font-bold tracking-wider uppercase transition-all shadow-2xs cursor-pointer"
+          className="flex-1 py-2.5 rounded-full bg-pr-900 hover:bg-pr-800 text-white text-xs font-bold tracking-wider uppercase transition-all shadow-2xs cursor-pointer"
         >
           RELASI
         </button>
+
+        {showScrollToTop && (
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            aria-label="Kembali ke atas"
+            title="Kembali ke atas"
+            className="hidden lg:flex w-9 h-9 shrink-0 items-center justify-center rounded-full bg-pr-900 hover:bg-pr-800 text-white border border-pr-800 shadow-2xs transition-all active:scale-95 cursor-pointer"
+          >
+            <ChevronUp className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );
