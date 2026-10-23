@@ -47,9 +47,9 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
           onChange={(e) => setSearchQuery(e.target.value)}
           onClick={(e) => e.stopPropagation()}
           placeholder="Cari provinsi / kabupaten..."
-          className={`w-full pl-8 pr-2.5 py-1.5 rounded-lg text-xs outline-none transition-all ${
+          className={`w-full pl-8 pr-2.5 py-1.5 rounded-lg text-xs transition-all outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${
             isLight
-              ? 'bg-gray-50 border border-gray-200 text-gray-800 placeholder:text-gray-400 focus:bg-white focus:ring-1 focus:ring-pr-900 focus:border-pr-900'
+              ? 'bg-neutral-50/80 border border-neu-100 text-neu-800 placeholder:text-neu-400 focus:bg-white focus:border-neu-300 shadow-2xs'
               : 'bg-white/5 border border-white/10 text-white placeholder:text-neu-400 focus:border-white/20'
           }`}
         />
