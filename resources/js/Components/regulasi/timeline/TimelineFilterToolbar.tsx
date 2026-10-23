@@ -77,11 +77,15 @@ function TimelineMultiSelectDropdown({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const isAllSelected =
+    selectedValues.length === 0 ||
+    (options.length > 0 && selectedValues.length === options.length);
+
   const displayLabel = useMemo(() => {
-    if (selectedValues.length === 0) return `Semua ${label}`;
+    if (isAllSelected) return `Semua ${label}`;
     if (selectedValues.length === 1) return selectedValues[0];
     return `${selectedValues.length} ${label}`;
-  }, [selectedValues, label]);
+  }, [selectedValues, options, label, isAllSelected]);
 
   // Pindahkan opsi yang sudah dicentang ke paling atas agar mudah di-uncheck
   const sortedOptions = useMemo(() => {
@@ -137,13 +141,13 @@ function TimelineMultiSelectDropdown({
             type="button"
             onClick={handleSelectAll}
             className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${
-              selectedValues.length === 0
+              isAllSelected
                 ? 'bg-pr-50 text-pr-900 font-semibold'
                 : 'text-neu-700 hover:bg-neutral-50 hover:text-neu-900 font-normal'
             }`}
           >
             <span className="truncate">Semua {label}</span>
-            {selectedValues.length === 0 && (
+            {isAllSelected && (
               <Check className="w-3.5 h-3.5 text-pr-900 stroke-[2.5] shrink-0 ml-2" />
             )}
           </button>
@@ -370,9 +374,18 @@ export function TimelineFilterToolbar({
     if (onLokasiChange) onLokasiChange([]);
   };
 
+  const isAllJenisSelected =
+    selectedJenis.length === 0 ||
+    (jenisList.length > 0 && selectedJenis.length === jenisList.length);
+
   // Label tampilan trigger Jenis Peraturan
   const displayJenisLabel = useMemo(() => {
-    if (selectedJenis.length === 0) return 'Semua Jenis Peraturan';
+    if (isAllJenisSelected) {
+      if (selectedLokasi.length > 0) {
+        return `Semua Jenis Peraturan (${selectedLokasi.length} Daerah)`;
+      }
+      return 'Semua Jenis Peraturan';
+    }
 
     if (selectedJenis.length === 1) {
       const isPerda =
@@ -393,7 +406,7 @@ export function TimelineFilterToolbar({
     }
 
     return `${selectedJenis.length} Jenis Peraturan`;
-  }, [selectedJenis, selectedLokasi]);
+  }, [selectedJenis, jenisList, selectedLokasi, isAllJenisSelected]);
 
   // Handler Reset Filter: Mengembalikan ke default (2025-2026, Semua Jenis, Semua Subjek, Lokasi kosong)
   const handleReset = () => {
@@ -459,13 +472,13 @@ export function TimelineFilterToolbar({
                 type="button"
                 onClick={handleSelectAllJenis}
                 className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${
-                  selectedJenis.length === 0
+                  isAllJenisSelected
                     ? 'bg-pr-50 text-pr-900 font-semibold'
                     : 'text-neu-700 hover:bg-neutral-50 hover:text-neu-900 font-normal'
                 }`}
               >
                 <span className="truncate">Semua Jenis Peraturan</span>
-                {selectedJenis.length === 0 && (
+                {isAllJenisSelected && (
                   <Check className="w-3.5 h-3.5 text-pr-900 stroke-[2.5] shrink-0 ml-2" />
                 )}
               </button>
