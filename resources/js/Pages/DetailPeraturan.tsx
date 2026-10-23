@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
-import { ChevronUp, X, AlertTriangle, AlignLeft } from 'lucide-react';
+import { X, AlertTriangle, AlignLeft } from 'lucide-react';
 import { ReadonlyTableOfContents } from '@/Components/public/peraturan/ReadonlyTableOfContents';
 import { ReadonlyPembukaanSection } from '@/Components/public/peraturan/ReadonlyPembukaanSection';
 import { ReadonlyBatangTubuhSection } from '@/Components/public/peraturan/ReadonlyBatangTubuhSection';
@@ -30,17 +30,7 @@ export default function DetailPeraturan({
 }: {
   peraturan: any;
 }) {
-  // Scroll to top state
-  const [showScrollTop, setShowScrollTop] = useState(false);
   const [isDaftarIsiOpen, setIsDaftarIsiOpen] = useState(true);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 300);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   // 1. Hook Pengolahan Pohon Dokumen & Navigasi (Bab, Pasal, Scroll)
   const {
@@ -308,16 +298,6 @@ export default function DetailPeraturan({
         timelineData={timelineData}
         onRelasiClick={handleRelasi}
       />
-
-      {/* Scroll to Top Button */}
-      <button
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className={`fixed bottom-20 lg:bottom-6 right-4 sm:right-8 p-3 rounded-full bg-pr-900 border border-pr-800 text-white transition-all duration-300 hover:bg-pr-800 hover:scale-105 active:scale-95 z-40 flex items-center justify-center ${showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'
-          }`}
-        aria-label="Scroll to top"
-      >
-        <ChevronUp className="w-5 h-5" />
-      </button>
     </PublicLayout>
   );
 }
