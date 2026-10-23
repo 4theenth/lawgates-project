@@ -21,3 +21,4 @@ export { DocumentTableOfContents, default as DocumentTableOfContentsComponent } 
 export { Pagination, default as PaginationComponent } from './Pagination';
 export { StatusTabs, default as StatusTabsComponent } from './StatusTabs';
 export type { TabOption, StatusTabsProps } from './StatusTabs';
+export { ScrollToTop } from './ScrollToTop';

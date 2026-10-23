@@ -7,6 +7,7 @@ export interface BookmarkButtonProps {
   peraturanId: string | number;
   variant?: 'icon' | 'pill';
   size?: 'sm' | 'md';
+  shape?: 'rounded' | 'circle';
   className?: string;
   onToggle?: (isBookmarked: boolean) => void;
   title?: string;
@@ -23,6 +24,7 @@ export function BookmarkButton({
   peraturanId,
   variant = 'icon',
   size = 'md',
+  shape = 'rounded',
   className = '',
   onToggle,
   title,
@@ -75,9 +77,26 @@ export function BookmarkButton({
     );
   }
 
-  // 2. Variant: Icon (Digunakan pada Card Regulasi / Hasil Pencarian)
+  // 2. Variant: Icon (Digunakan pada Card Regulasi / Hasil Pencarian / Detail Header)
   const iconSizeClass = size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4';
-  const paddingClass = size === 'sm' ? 'p-1' : 'p-1.5';
+  const paddingClass =
+    shape === 'circle'
+      ? size === 'sm'
+        ? 'p-1.5'
+        : 'p-1.5 sm:p-2'
+      : size === 'sm'
+        ? 'p-1'
+        : 'p-1.5';
+  const shapeClass = shape === 'circle' ? 'rounded-full' : 'rounded-md';
+
+  const defaultColorClass =
+    shape === 'circle'
+      ? isBookmarked
+        ? 'bg-pr-100 text-pr-900 border border-pr-200'
+        : 'bg-neu-50 hover:bg-neu-100 text-neu-700 hover:text-pr-900 border border-neu-100/80'
+      : isBookmarked
+        ? 'text-pr-900 fill-pr-900 bg-pr-50'
+        : 'text-neu-400 hover:text-neu-700 hover:bg-neu-50';
 
   return (
     <button
@@ -86,11 +105,7 @@ export function BookmarkButton({
       disabled={isLoading}
       title={buttonTitle}
       aria-label={buttonTitle}
-      className={`${paddingClass} rounded-md transition-colors cursor-pointer disabled:opacity-70 ${
-        isBookmarked
-          ? 'text-pr-900 fill-pr-900 bg-pr-50'
-          : 'text-neu-400 hover:text-neu-700 hover:bg-neu-50'
-      } ${className}`}
+      className={`inline-flex items-center justify-center ${paddingClass} ${shapeClass} transition-colors cursor-pointer disabled:opacity-70 ${defaultColorClass} ${className}`}
     >
       <Bookmark
         className={`${iconSizeClass} ${
