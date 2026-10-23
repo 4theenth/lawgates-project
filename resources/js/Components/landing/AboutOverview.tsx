@@ -1,5 +1,4 @@
 import { CountUp } from '../common/CountUp';
-import { Icon } from '@/Components/ui/icon';
 
 export function AboutOverview() {
   return (
@@ -38,11 +37,11 @@ export function AboutOverview() {
           }}
         />
 
-        {/* Content: Layout with right side wider than left */}
+        {/* Content: Layout with balanced columns for metrics and description */}
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 w-full items-center gap-6 lg:gap-8 xl:gap-10">
 
-          {/* LEFT: Badge + Metrics (col-span-5) */}
-          <div className="flex flex-col items-start gap-3 sm:gap-[15px] lg:col-span-5 w-full shrink-0">
+          {/* LEFT: Badge + 3 Large Metrics (col-span-6 for ample width) */}
+          <div className="flex flex-col items-start gap-3 sm:gap-[15px] lg:col-span-6 w-full shrink-0">
 
             {/* Badge */}
             <div
@@ -90,9 +89,9 @@ export function AboutOverview() {
             </div>
 
             {/* 3 Metrics */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-[20px] w-full lg:w-auto">
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-4 md:gap-[20px] w-full">
 
-              {/* Metric 1 */}
+              {/* Metric 1: Dokumen Hukum Terintegrasi */}
               <div className="flex flex-col items-start min-w-0">
                 <div
                   className="
@@ -116,15 +115,51 @@ export function AboutOverview() {
                     text-[11px]
                     sm:text-[12px]
                     font-normal
-                    leading-[16px]
+                    leading-[15px]
                     sm:leading-[18px]
+                    break-words
+                    [overflow-wrap:anywhere]
                   "
                 >
-                  Data Hukum
+                  Dokumen Hukum Terintegrasi
                 </span>
               </div>
 
-              {/* Metric 2 */}
+              {/* Metric 2: Lembaga/Kementerian Terdaftar */}
+              <div className="flex flex-col items-start min-w-0">
+                <div
+                  className="
+                    self-stretch
+                    text-white
+                    text-[18px]
+                    sm:text-[22px]
+                    md:text-[24px]
+                    font-semibold
+                    leading-[130%]
+                  "
+                >
+                  <CountUp end={100} />
+                  <span>+</span>
+                </div>
+
+                <span
+                  className="
+                    self-stretch
+                    text-neu-100
+                    text-[11px]
+                    sm:text-[12px]
+                    font-normal
+                    leading-[15px]
+                    sm:leading-[18px]
+                    break-words
+                    [overflow-wrap:anywhere]
+                  "
+                >
+                  Lembaga/Kementerian Terdaftar
+                </span>
+              </div>
+
+              {/* Metric 3: Regulasi Daerah Terpetakan */}
               <div className="flex flex-col items-start min-w-0">
                 <div
                   className="
@@ -148,51 +183,21 @@ export function AboutOverview() {
                     text-[11px]
                     sm:text-[12px]
                     font-normal
-                    leading-[16px]
+                    leading-[15px]
                     sm:leading-[18px]
+                    break-words
+                    [overflow-wrap:anywhere]
                   "
                 >
-                  Dokumen Hukum
-                </span>
-              </div>
-
-              {/* Metric 3 */}
-              <div className="flex flex-col items-start min-w-0">
-                <div
-                  className="
-                    self-stretch
-                    text-white
-                    text-[18px]
-                    sm:text-[22px]
-                    md:text-[24px]
-                    font-semibold
-                    leading-[130%]
-                  "
-                >
-                  <CountUp end={100000} />
-                  <span>+</span>
-                </div>
-
-                <span
-                  className="
-                    self-stretch
-                    text-neu-100
-                    text-[11px]
-                    sm:text-[12px]
-                    font-normal
-                    leading-[16px]
-                    sm:leading-[18px]
-                  "
-                >
-                  Pelanggan Aktif
+                  Regulasi Daerah Terpetakan
                 </span>
               </div>
 
             </div>
           </div>
 
-          {/* RIGHT: Description (col-span-7: wider to close gap and balance layout) */}
-          <div className="w-full lg:col-span-7">
+          {/* RIGHT: Description (col-span-6: balanced space and comfortable reading width) */}
+          <div className="w-full lg:col-span-6">
             <p className="text-white/95 text-justify text-[13px] sm:text-[14px] lg:text-[15px] xl:text-[16px] font-normal leading-[24px] sm:leading-[26px] [text-align-last:left]">
               LawGates adalah platform pangkalan data hukum terpadu yang
               merangkum seluruh peraturan perundang-undangan di Indonesia ke
