@@ -137,7 +137,9 @@ export function RegulationHierarchyGrid({ counts }: RegulationHierarchyGridProps
                 rounded-[20px]
                 overflow-hidden
                 shadow-sm
-                hover:shadow-md
+                hover:border-pr-900/60
+                hover:shadow-lg
+                hover:scale-[1.02]
                 transition-all
                 duration-300
                 cursor-pointer

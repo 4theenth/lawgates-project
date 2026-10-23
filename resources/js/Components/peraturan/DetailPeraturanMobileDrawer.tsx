@@ -34,7 +34,7 @@ export function DetailPeraturanMobileDrawer({
   return (
     <>
       {/* Mobile Bottom Navigation Bar (Khusus Layar HP) */}
-      <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40 bg-slate-900/95 backdrop-blur-md text-white px-4 py-2.5 rounded-full shadow-xl flex items-center justify-between border border-slate-800">
+      <div className="lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom)_+_1rem)] left-4 right-4 z-40 bg-slate-900/95 backdrop-blur-md text-white px-4 py-2.5 rounded-full shadow-xl flex items-center justify-between border border-slate-800">
         <button
           type="button"
           onClick={() => setMobileDrawer('toc')}
@@ -56,9 +56,15 @@ export function DetailPeraturanMobileDrawer({
 
       {/* Mobile Bottom Sheet Drawer Modal */}
       {mobileDrawer && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-200">
-          <div className="bg-white rounded-t-2xl max-h-[80vh] overflow-y-auto p-4 space-y-3 relative shadow-2xl">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+        <div
+          className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-200"
+          onClick={() => setMobileDrawer(null)}
+        >
+          <div
+            className="bg-white rounded-t-2xl max-h-[80dvh] flex flex-col p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] space-y-3 relative shadow-2xl overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100 shrink-0">
               <h3 className="font-bold text-sm text-gray-900 uppercase">
                 {mobileDrawer === 'toc' ? 'DAFTAR ISI' : 'STATUS & RELASI'}
               </h3>
@@ -72,32 +78,35 @@ export function DetailPeraturanMobileDrawer({
             </div>
 
             {mobileDrawer === 'toc' ? (
-              <ReadonlyTableOfContents
-                pembukaanJudul="Pembukaan"
-                pembukaanData={pembukaanData}
-                babList={babList}
-                activeSectionId={activeSectionId}
-                onSearchChange={onSearchChange}
-                onNavigateToStruktur={(id) => {
-                  setMobileDrawer(null);
-                  onNavigateToStruktur(id);
-                }}
-                onNavigateToPasal={(id) => {
-                  setMobileDrawer(null);
-                  onNavigateToPasal(id);
-                }}
-                onNavigateToPembukaan={() => {
-                  setMobileDrawer(null);
-                  onNavigateToPembukaan();
-                }}
-                onNavigateToSection={(sectionId) => {
-                  setMobileDrawer(null);
-                  onNavigateToSection(sectionId);
-                }}
-              />
+              <div className="min-h-0 overflow-y-auto overscroll-contain custom-thin-scrollbar">
+                <ReadonlyTableOfContents
+                  pembukaanJudul="Pembukaan"
+                  pembukaanData={pembukaanData}
+                  babList={babList}
+                  activeSectionId={activeSectionId}
+                  onSearchChange={onSearchChange}
+                  onNavigateToStruktur={(id) => {
+                    setMobileDrawer(null);
+                    onNavigateToStruktur(id);
+                  }}
+                  onNavigateToPasal={(id) => {
+                    setMobileDrawer(null);
+                    onNavigateToPasal(id);
+                  }}
+                  onNavigateToPembukaan={() => {
+                    setMobileDrawer(null);
+                    onNavigateToPembukaan();
+                  }}
+                  onNavigateToSection={(sectionId) => {
+                    setMobileDrawer(null);
+                    onNavigateToSection(sectionId);
+                  }}
+                />
+              </div>
             ) : (
               <ReadonlyTimelineSection
                 riwayatPerubahan={timelineData}
+                className="min-h-0"
                 onRelasiClick={() => {
                   setMobileDrawer(null);
                   onRelasiClick();
