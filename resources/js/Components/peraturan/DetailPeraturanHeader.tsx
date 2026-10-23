@@ -121,9 +121,9 @@ export function DetailPeraturanHeader({
       </div>
 
       {/* 4. Badges Status, Penetapan & Tombol Simpan Sejajar Sesuai Figma node #2174:39521 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
+      <div className="flex items-center justify-between gap-2.5 pt-1">
         {/* Sisi Kiri: Status, Tanggal Ditetapkan & Tempat Penetapan (Neu Blok) */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 min-w-0">
           {/* Status Badge */}
           <div
             className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs font-medium sm:px-3 ${
@@ -156,15 +156,16 @@ export function DetailPeraturanHeader({
             className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-neu-50 px-2.5 py-1.5 text-xs font-medium text-neu-800 sm:px-3.5"
           >
             <MapPin className="w-4 h-4 text-neu-600" />
-            <span className="sm:hidden">Di {tempatPenetapan || '-'}</span>
-            <span className="hidden sm:inline">Tempat Penetapan : {tempatPenetapan || '-'}</span>
+            <span className="sm:hidden">{tempatPenetapan || '-'}</span>
+            <span className="hidden sm:inline">Tempat Penetapan: {tempatPenetapan || '-'}</span>
           </div>
         </div>
 
-        {/* Sisi Kanan: Tombol Simpan (Bookmark) Reusable Component */}
-        <div className="shrink-0 self-end sm:self-auto">
+        {/* Sisi Kanan: Tombol Simpan (Bookmark) Reusable Component - Mode Icon */}
+        <div className="shrink-0 self-start sm:self-center">
           <BookmarkButton
-            variant="pill"
+            variant="icon"
+            shape="circle"
             peraturanId={peraturanId || ''}
             onToggle={onBookmarkToggle}
           />
