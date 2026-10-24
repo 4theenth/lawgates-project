@@ -24,6 +24,20 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
     return allFlatLokasi.filter((item) => item.toLowerCase().includes(q));
   }, [allFlatLokasi, searchQuery]);
 
+  // Pindahkan daerah yang sudah dipilih ke paling atas agar mudah di-uncheck
+  const sortedFlatLokasi = useMemo(() => {
+    const checked: string[] = [];
+    const unchecked: string[] = [];
+    filteredFlatLokasi.forEach((item) => {
+      if (selectedLokasi.includes(item)) {
+        checked.push(item);
+      } else {
+        unchecked.push(item);
+      }
+    });
+    return [...checked, ...unchecked];
+  }, [filteredFlatLokasi, selectedLokasi]);
+
   const isLight = variant === 'light';
 
   return (
@@ -47,9 +61,9 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
           onChange={(e) => setSearchQuery(e.target.value)}
           onClick={(e) => e.stopPropagation()}
           placeholder="Cari provinsi / kabupaten..."
-          className={`w-full pl-8 pr-2.5 py-1.5 rounded-lg text-xs outline-none transition-all ${
+          className={`w-full pl-8 pr-2.5 py-1.5 rounded-lg text-xs transition-all outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${
             isLight
-              ? 'bg-gray-50 border border-gray-200 text-gray-800 placeholder:text-gray-400 focus:bg-white focus:ring-1 focus:ring-pr-900 focus:border-pr-900'
+              ? 'bg-neutral-50/80 border border-neu-100 text-neu-800 placeholder:text-neu-400 focus:bg-white focus:border-neu-300 shadow-2xs'
               : 'bg-white/5 border border-white/10 text-white placeholder:text-neu-400 focus:border-white/20'
           }`}
         />
@@ -58,7 +72,7 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
       {/* Tag pills daerah yang dipilih */}
       {selectedLokasi.length > 0 && (
         <div
-          className={`flex flex-wrap gap-1.5 mb-2 p-1.5 rounded-lg max-h-24 overflow-y-auto no-scrollbar ${
+          className={`flex flex-wrap gap-1.5 mb-2 p-1.5 rounded-lg max-h-16 overflow-y-auto custom-thin-scrollbar pr-1 ${
             isLight ? 'bg-gray-50 border border-gray-200' : 'bg-white/5 border border-white/10'
           }`}
         >
@@ -90,9 +104,9 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
         </div>
       )}
 
-      {/* Flat List Daerah */}
-      <div className="max-h-52 overflow-y-auto no-scrollbar space-y-0.5">
-        {filteredFlatLokasi.length === 0 ? (
+      {/* Flat List Daerah (Daerah terpilih di atas) */}
+      <div className="max-h-36 overflow-y-auto custom-thin-scrollbar pr-1 space-y-0.5">
+        {sortedFlatLokasi.length === 0 ? (
           <div
             className={`text-center py-2.5 text-xs ${
               isLight ? 'text-gray-400' : 'text-neu-400 text-[10px]'
@@ -101,7 +115,7 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
             Daerah tidak ditemukan
           </div>
         ) : (
-          filteredFlatLokasi.map((item) => {
+          sortedFlatLokasi.map((item) => {
             const isChecked = selectedLokasi.includes(item);
             return (
               <div
