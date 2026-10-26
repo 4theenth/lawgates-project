@@ -52,12 +52,21 @@ Route::middleware('auth')->group(function () {
         return view('test-peraturan', compact('peraturan'));
     });
 
-    Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
+    // Bookmark khusus akun user; admin dikembalikan ke beranda oleh middleware role.
+    // Halaman dan aksi hapusnya di sini karena keduanya berjalan lewat sesi web;
+    // endpoint API (routes/api.php) dipakai pemanggil berbasis token.
+    //
+    // 'verified.or.admin' menjaga fitur akun dari email palsu/spam pendaftaran
+    // massal. Admin dikecualikan agar panel admin tidak bisa mengunci dirinya
+    // sendiri saat email_verified_at belum diset.
+    Route::middleware('verified.or.admin')->group(function () {
+        Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
+    });
 
     // Bookmark khusus akun user; admin dikembalikan ke beranda oleh middleware role.
     // Halaman dan aksi hapusnya di sini karena keduanya berjalan lewat sesi web;
     // endpoint API (routes/api.php) dipakai pemanggil berbasis token.
-    Route::middleware('role:user')->group(function () {
+    Route::middleware(['role:user', 'verified.or.admin'])->group(function () {
         Route::get('/bookmarks', [BookmarkPageController::class, 'index'])->name('user.bookmarks');
         Route::delete('/bookmarks/{bookmark}', [BookmarkPageController::class, 'destroy'])->name('user.bookmarks.destroy');
     });

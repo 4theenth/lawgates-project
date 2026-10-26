@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,6 +23,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        // QUEUE_CONNECTION=sync pada proyek ini, dan tabel `jobs` tidak ada.
+        // Worker `queue:listen` bawaan `artisan dev` karena itu hanya menulis
+        // error "relation jobs does not exist" berulang ke log tanpa manfaat.
+        DevCommands::except('queue');
 
         // Bookmark menyimpan tipe entitas sebagai alias, bukan nama class penuh,
         // supaya class bisa di-rename tanpa merusak data yang sudah tersimpan.
