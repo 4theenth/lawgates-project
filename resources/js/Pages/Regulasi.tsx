@@ -3,9 +3,10 @@ import { Head } from '@inertiajs/react';
 import { PublicLayout } from '@/Layouts/PublicLayout';
 import { Breadcrumb } from '@/Components/common/Breadcrumb';
 import { RegulasiHero } from '@/Components/regulasi/RegulasiHero';
-import { IndonesiaLegalMap } from '@/Components/landing/IndonesiaLegalMap';
+// import { IndonesiaLegalMap } from '@/Components/landing/IndonesiaLegalMap'; // Disimpan untuk kebutuhan mendatang
 import { RegulasiRecentSection } from '@/Components/regulasi/RegulasiRecentSection';
 import { RegulasiHierarchySection } from '@/Components/regulasi/RegulasiHierarchySection';
+import { RegulasiTimelineSection } from '@/Components/regulasi/timeline/RegulasiTimelineSection';
 
 interface DailyStats {
   total: number;
@@ -61,9 +62,16 @@ export default function Regulasi({
           <RegulasiHero stats={heroStats} />
         </div>
 
-        {/* 2. Peta Hukum Indonesia (Di atas background default #F8F9FA) */}
+        {/* 2. Peta Hukum Indonesia (Dinonaktifkan sementara, disimpan untuk kebutuhan mendatang) */}
+        {/*
         <div className="w-full max-w-[1240px] mx-auto px-4 sm:px-6 mt-12 sm:mt-16">
           <IndonesiaLegalMap variant="regulasi" />
+        </div>
+        */}
+
+        {/* 2. Timeline Jejak Perubahan Hukum (Horizontal Diverging Timeline) */}
+        <div className="w-full max-w-[1240px] mx-auto px-4 sm:px-6 mt-12 sm:mt-16">
+          <RegulasiTimelineSection filterReferences={filterReferences} />
         </div>
 
         {/* 3. Sistem Hukum Terbaru (Frame warna putih background: #FFF sesuai Figma #2358:57719) */}
