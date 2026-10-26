@@ -20,6 +20,7 @@ export interface ReadonlyTableOfContentsProps {
   hideHeader?: boolean;
   className?: string;
   onHeaderClick?: () => void;
+  showSearch?: boolean;
 }
 
 /**
@@ -30,7 +31,7 @@ export function ReadonlyTableOfContents({
   pembukaanJudul = 'Pembukaan',
   pembukaanData,
   babList = [],
-  activeSectionId,
+  activeSectionId = '',
   onNavigateToStruktur,
   onNavigateToPasal,
   onNavigateToPembukaan,
@@ -39,6 +40,7 @@ export function ReadonlyTableOfContents({
   hideHeader = false,
   className = '',
   onHeaderClick,
+  showSearch = true,
 }: ReadonlyTableOfContentsProps) {
   return (
     <DocumentTableOfContents
@@ -46,7 +48,6 @@ export function ReadonlyTableOfContents({
       pembukaanData={pembukaanData}
       babList={babList}
       activeSection={activeSectionId}
-      defaultExpandFirstCount={0}
       onPembukaanClick={onNavigateToPembukaan}
       onSectionClick={onNavigateToSection}
       onBabClick={onNavigateToStruktur}
@@ -55,6 +56,8 @@ export function ReadonlyTableOfContents({
           onNavigateToPasal(pasalId);
         }
       }}
+      showSearch={showSearch}
+      onSearchChange={onSearchChange}
       hideHeader={hideHeader}
       className={`lg:h-[calc(100vh-160px)] ${className}`}
       onHeaderClick={onHeaderClick}

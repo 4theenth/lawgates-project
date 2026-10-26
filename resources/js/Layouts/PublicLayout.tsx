@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
+import { usePage } from '@inertiajs/react';
 import { Navbar } from '../Components/layout/Navbar';
 import { Footer } from '../Components/layout/Footer';
+import { ScrollToTop } from '../Components/common/ScrollToTop';
 import { useScrollPosition } from '../hooks/useScrollPosition';
 
 // ─────────────────────────────────────────────
@@ -77,6 +79,7 @@ export function Section({ children, className = '', fullWidth = false }: Section
 
 export function PublicLayout({ children }: PublicLayoutProps) {
   const isScrolled = useScrollPosition(40);
+  const { component } = usePage();
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] font-sans flex flex-col selection:bg-sec-900 selection:text-white w-full">
@@ -90,6 +93,17 @@ export function PublicLayout({ children }: PublicLayoutProps) {
 
       {/* Public Footer */}
       <Footer />
+
+      {/* Di detail peraturan, versi desktop ditempatkan di samping tombol
+          RELASI. Versi mobile tetap mengambang, cukup rendah agar tidak
+          menutupi konten namun tetap di atas bottom bar. */}
+      <ScrollToTop
+        positionClassName={
+          component === 'DetailPeraturan'
+            ? 'bottom-20 right-4 sm:right-6 lg:hidden'
+            : undefined
+        }
+      />
     </div>
   );
 }

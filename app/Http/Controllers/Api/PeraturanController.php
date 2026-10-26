@@ -232,10 +232,14 @@ class PeraturanController extends Controller
         ->first();
 
         if (!$peraturan) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Data peraturan tidak ditemukan.'
-            ], 404);
+            if (request()->is('api/*') || request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data peraturan tidak ditemukan.'
+                ], 404);
+            }
+
+            abort(404);
         }
 
         // Jika request datang dari Inertia (Frontend React), render halaman DetailPeraturan

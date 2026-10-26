@@ -264,13 +264,14 @@ export default function RegulationGraph({
         }
 
         // Hitung area pandang kanvas yang terlihat (tidak tertutup sidebar & header)
-        const sidebarW = isSidebarOpen ? 320 : 0;
+        const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 768;
+        const sidebarW = isSidebarOpen && !isMobileScreen ? 320 : 0;
         const topHeaderH = 80;
         const availWidth = dimensions.width - sidebarW;
         const availHeight = dimensions.height - topHeaderH;
 
         // Titik target ideal layar untuk node:
-        const targetScreenX = isSidebarOpen
+        const targetScreenX = isSidebarOpen && !isMobileScreen
             ? sidebarW + Math.max(50, (availWidth - (cardWidth + 50)) * 0.35)
             : (dimensions.width / 2 - (cardSideRef.current === 'right' ? 80 : -80));
 
@@ -356,6 +357,20 @@ export default function RegulationGraph({
     // Sinkronisasi posisi kartu secara realtime pada DOM menggunakan hardware-accelerated transform
     const updateCardDOMPosition = useCallback(() => {
         if (!cardRef.current) return;
+        const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 640;
+
+        if (isMobileScreen) {
+            cardRef.current.style.display = 'block';
+            cardRef.current.style.transform = 'none';
+            cardRef.current.style.left = '12px';
+            cardRef.current.style.right = '12px';
+            cardRef.current.style.bottom = '12px';
+            cardRef.current.style.top = 'auto';
+            cardRef.current.style.width = 'auto';
+            cardRef.current.style.maxWidth = 'calc(100% - 24px)';
+            return;
+        }
+
         const pos = computeCardPosition();
         if (!pos) return;
 
@@ -363,6 +378,11 @@ export default function RegulationGraph({
             cardRef.current.style.display = 'none';
         } else {
             cardRef.current.style.display = 'block';
+            cardRef.current.style.left = '0px';
+            cardRef.current.style.top = '0px';
+            cardRef.current.style.bottom = 'auto';
+            cardRef.current.style.right = 'auto';
+            cardRef.current.style.maxWidth = '320px';
             cardRef.current.style.transform = `translate3d(${Math.round(pos.x)}px, ${Math.round(pos.y)}px, 0)`;
         }
     }, [computeCardPosition]);
@@ -370,6 +390,7 @@ export default function RegulationGraph({
     // Sinkronisasi instan matematis saat event zoom / pan kanvas berlangsung (tanpa jeda frame)
     const handleZoom = useCallback((transform: any) => {
         if (!cardRef.current || !cardNodeRef.current) return;
+        if (typeof window !== 'undefined' && window.innerWidth < 640) return;
         const activeCard = cardNodeRef.current;
         const node = graphData.nodes.find(n => n.id === activeCard.id) || activeCard;
 
@@ -609,7 +630,8 @@ export default function RegulationGraph({
                 // Re-center tanpa merusak level zoom yang sedang dinikmati pengguna
                 if (initialCenterDone.current && graphRef.current) {
                     const currentZoom = graphRef.current.zoom() || DEFAULT_GRAPH_ZOOM;
-                    const sidebarOffsetGraphX = isSidebarOpen ? (160 / currentZoom) : 0;
+                    const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 768;
+                    const sidebarOffsetGraphX = isSidebarOpen && !isMobileScreen ? (160 / currentZoom) : 0;
                     graphRef.current.centerAt(-sidebarOffsetGraphX, 0, 0);
                 }
             }
