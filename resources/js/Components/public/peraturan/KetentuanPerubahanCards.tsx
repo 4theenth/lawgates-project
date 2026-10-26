@@ -40,8 +40,6 @@ export const PERUBAHAN_THEME = {
     btnClose: 'perubahan-detail-btn-close',
     contentCard: 'perubahan-detail-content',
     penjelasanCard: 'perubahan-detail-penjelasan',
-    footerBtnBack: 'perubahan-detail-footer-btn-back',
-    footerBtnClose: 'perubahan-detail-footer-btn-close',
   },
 };
 
@@ -233,26 +231,6 @@ export function RincianPasalTargetGrid({
             <span className={theme.detailPanel.badgeTitle}>
               Rincian Teks: {activeSubPasal.nomor} ({targetInduk.labelSingkat || targetInduk.standardId})
             </span>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleScrollBackToGrid}
-                title="Kembali ke atas daftar tombol pasal"
-                className={theme.detailPanel.btnBackToGrid}
-              >
-                <ArrowUp className="w-3.5 h-3.5" />
-                <span>Ke Pusat Pasal</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleCloseSubPasal}
-                className={theme.detailPanel.btnClose}
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>Tutup Rincian</span>
-              </button>
-            </div>
           </div>
 
           <div className={theme.detailPanel.contentCard}>
@@ -266,22 +244,24 @@ export function RincianPasalTargetGrid({
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2 border-t border-sec-200 text-[11px] flex-wrap gap-2">
+          <div className="flex items-center justify-between pt-2 border-t border-sec-200 flex-wrap gap-2">
             <button
               type="button"
               onClick={handleScrollBackToGrid}
-              className={theme.detailPanel.footerBtnBack}
+              title="Kembali ke atas daftar tombol pasal"
+              className={theme.detailPanel.btnBackToGrid}
             >
               <ArrowUp className="w-3.5 h-3.5" />
-              <span>Kembali ke Pusat Daftar Pasal Target</span>
+              <span>Ke Pusat Pasal</span>
             </button>
 
             <button
               type="button"
               onClick={handleCloseSubPasal}
-              className={theme.detailPanel.footerBtnClose}
+              className={theme.detailPanel.btnClose}
             >
-              Tutup Rincian & Kembali
+              <X className="w-3.5 h-3.5" />
+              <span>Tutup Rincian</span>
             </button>
           </div>
         </div>
