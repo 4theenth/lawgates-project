@@ -10,10 +10,14 @@
 /.idea
 /.nova
 /.phpunit.cache
+/.postman
 /.vscode
 /.zed
 /auth.json
+/docker-compose.yml
 /node_modules
+/opencode.json
+/postman
 /public/build
 /public/fonts-manifest.dev.json
 /public/hot

@@ -44,7 +44,7 @@ export default function GraphNodeCard({
                 willChange: 'transform',
             }}
         >
-            <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/90 p-4.5 w-[310px] text-slate-900">
+            <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/90 p-3.5 sm:p-4.5 w-full sm:w-[310px] text-slate-900">
                 {/* Header: Badge + Close */}
                 <div className="flex items-start justify-between mb-2.5">
                     <div className="flex items-center gap-2">
