@@ -107,11 +107,11 @@ export function RegulationHierarchyGrid({ counts }: RegulationHierarchyGridProps
       {/* Section Header */}
       <div className="mb-8">
         <h2 className="text-2xl sm:text-[26px] font-semibold text-neu-900 tracking-tight">
-          Statistik Peraturan
+          Kategori Peraturan
         </h2>
 
         <p className="text-neu-600 text-md sm:text-[14px] mt-1 max-w-2xl leading-relaxed">
-          Akses ribuan hingga jutaan peraturan dan relasi dari UUD 1945,
+          Jelajahi peraturan berdasarkan kategori hierarki, mulai dari UUD 1945,
           Undang-Undang, Perppu, PP, Perpres, hingga Perda.
         </p>
       </div>
