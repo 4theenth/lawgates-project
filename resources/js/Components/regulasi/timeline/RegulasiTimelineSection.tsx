@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import axios from 'axios';
 import {
-  TWO_YEAR_PERIODS,
   YearPeriodData,
   MonthTimelineData,
-  getOrGenerateTwoYearPeriod,
+  buildWeeksForMonth,
+  TimelineEventRecord,
 } from './timelineData';
+import { useRegulationTimeline } from '@/hooks/useRegulationTimelineApi';
 import { TimelineFilterToolbar } from './TimelineFilterToolbar';
 import { TimelineDivergingChart } from './TimelineDivergingChart';
 import { TimelineWeeklyAccordion } from './TimelineWeeklyAccordion';
@@ -21,99 +23,103 @@ interface RegulasiTimelineSectionProps {
   className?: string;
 }
 
+/**
+ * Rentang default: tahun berjalan dan tahun sebelumnya.
+ *
+ * Dihitung saat komponen dipasang, bukan saat modul dimuat, supaya nilainya
+ * ikut berubah kalau tab dibiarkan terbuka melewati pergantian tahun.
+ */
+function defaultYearRange(): [number, number] {
+  const currentYear = new Date().getFullYear();
+  return [currentYear - 1, currentYear];
+}
+
 export function RegulasiTimelineSection({
   filterReferences,
   className = '',
 }: RegulasiTimelineSectionProps) {
-  // Periode aktif 2-tahunan (default 2025 - 2026)
-  const [activePeriod, setActivePeriod] = useState<YearPeriodData>(TWO_YEAR_PERIODS[1]);
-  const [selectedMonth, setSelectedMonth] = useState<MonthTimelineData | null>(null);
+  const [yearRange, setYearRange] = useState<[number, number]>(defaultYearRange);
+
+  const [selectedMonthId, setSelectedMonthId] = useState<string | null>(null);
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
 
-  // State filter seketika (multi-select array, kosong = semua)
+  // Filter seketika (multi-select array, kosong = semua)
   const [selectedJenis, setSelectedJenis] = useState<string[]>([]);
   const [selectedSubjek, setSelectedSubjek] = useState<string[]>([]);
   const [selectedLokasi, setSelectedLokasi] = useState<string[]>([]);
 
-  // Hitung data timeline dinamis berdasarkan filter yang aktif
-  const displayPeriod = useMemo(() => {
-    const isDefaultFilter =
-      selectedJenis.length === 0 &&
-      selectedSubjek.length === 0 &&
-      selectedLokasi.length === 0;
+  // Data dari API — angka di grafik berasal langsung dari sini, tidak ada
+  // penyesuaian buatan di sisi klien.
+  const { period, isLoading, error } = useRegulationTimeline(
+    yearRange[0],
+    yearRange[1],
+    { jenis: selectedJenis, subjek: selectedSubjek, lokasi: selectedLokasi }
+  );
 
-    if (isDefaultFilter) {
-      return activePeriod;
-    }
+  const [weeksByMonthId, setWeeksByMonthId] = useState<Record<string, ReturnType<typeof buildWeeksForMonth>>>({});
 
-    // Hitung faktor penyesuaian jika filter diterapkan
-    let factor = 1;
-    if (selectedJenis.length > 0) {
-      factor *= Math.max(0.2, 0.9 - (selectedJenis.length * 0.14));
-    }
-    if (selectedSubjek.length > 0) {
-      factor *= Math.max(0.2, 0.85 - (selectedSubjek.length * 0.12));
-    }
-    if (selectedLokasi.length > 0) {
-      factor *= Math.min(0.8, 0.15 + selectedLokasi.length * 0.12);
-    }
+  // Rincian peraturan per hari diambil saat bulan dipilih — endpoint agregat
+  // bulanan tidak membawa daftar peraturannya.
+  useEffect(() => {
+    if (!selectedMonthId) return;
 
-    const adjustMonths = (months: MonthTimelineData[]) => {
-      return months.map((m) => {
-        // Bulan kosong (contoh: Nov & Des 2026) tetap 0
-        if (m.berlakuCount === 0 && m.dicabutCount === 0) {
-          return m;
-        }
-        const b = Math.max(1, Math.round(m.berlakuCount * factor));
-        const d = Math.max(1, Math.round(m.dicabutCount * factor));
-        return {
-          ...m,
-          berlakuCount: b,
-          dicabutCount: d,
-        };
+    const [yearStr, monthStr] = selectedMonthId.split('-');
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    if (Number.isNaN(year) || Number.isNaN(month)) return;
+
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const controller = new AbortController();
+
+    axios
+      .get<{ events: TimelineEventRecord[] }>('/api/timeline/events', {
+        params: {
+          start_date: `${year}-${String(month).padStart(2, '0')}-01`,
+          end_date: `${year}-${String(month).padStart(2, '0')}-${lastDay}`,
+          ...(selectedJenis.length > 0 ? { regulation_type: selectedJenis.join(',') } : {}),
+          ...(selectedSubjek.length > 0 ? { subjek: selectedSubjek.join(',') } : {}),
+          ...(selectedLokasi.length > 0 ? { lokasi: selectedLokasi.join(',') } : {}),
+        },
+        signal: controller.signal,
+      })
+      .then((res) => {
+        const weeks = buildWeeksForMonth(year, month - 1, res.data.events ?? []);
+        setWeeksByMonthId((prev) => ({ ...prev, [selectedMonthId]: weeks }));
+      })
+      .catch((err) => {
+        if (axios.isCancel(err)) return;
+        console.error('Gagal memuat rincian peraturan bulan:', err);
       });
-    };
 
-    const m1 = adjustMonths(activePeriod.year1.months);
-    const m2 = adjustMonths(activePeriod.year2.months);
+    return () => controller.abort();
+  }, [selectedMonthId, selectedJenis, selectedSubjek, selectedLokasi]);
 
-    const b1 = m1.reduce((sum, m) => sum + m.berlakuCount, 0);
-    const d1 = m1.reduce((sum, m) => sum + m.dicabutCount, 0);
-    const b2 = m2.reduce((sum, m) => sum + m.berlakuCount, 0);
-    const d2 = m2.reduce((sum, m) => sum + m.dicabutCount, 0);
+  // Bulan terpilih selalu diambil dari periode terbaru supaya angkanya ikut
+  // berubah saat filter berganti.
+  const selectedMonth = useMemo<MonthTimelineData | null>(() => {
+    if (!selectedMonthId) return null;
 
-    return {
-      ...activePeriod,
-      year1: {
-        ...activePeriod.year1,
-        berlakuCount: b1,
-        dicabutCount: d1,
-        months: m1,
-      },
-      year2: {
-        ...activePeriod.year2,
-        berlakuCount: b2,
-        dicabutCount: d2,
-        months: m2,
-      },
-    };
-  }, [activePeriod, selectedJenis, selectedSubjek, selectedLokasi]);
+    const all = [...period.year1.months, ...period.year2.months];
+    const found = all.find((m) => m.id === selectedMonthId);
+    if (!found) return null;
 
-  // Toggle selection: jika bulan yang sedang aktif diklik lagi, batalkan pilihan (deselect)
+    const weeks = weeksByMonthId[selectedMonthId];
+    return weeks ? { ...found, weeks } : found;
+  }, [selectedMonthId, period, weeksByMonthId]);
+
   const handleSelectMonth = (month: MonthTimelineData) => {
-    if (selectedMonth?.id === month.id) {
-      setSelectedMonth(null);
+    if (selectedMonthId === month.id) {
+      setSelectedMonthId(null);
       setSelectedWeekId(null);
-    } else {
-      const allMonths = [...displayPeriod.year1.months, ...displayPeriod.year2.months];
-      const matched = allMonths.find((m) => m.id === month.id) || month;
-      setSelectedMonth(matched);
-      setSelectedWeekId(null);
+      return;
     }
+
+    setSelectedMonthId(month.id);
+    setSelectedWeekId(null);
   };
 
   const handleDeselectMonth = () => {
-    setSelectedMonth(null);
+    setSelectedMonthId(null);
     setSelectedWeekId(null);
   };
 
@@ -133,39 +139,30 @@ export function RegulasiTimelineSection({
   };
 
   const handleYearsCompareChange = (year1: number, year2: number) => {
-    const period = getOrGenerateTwoYearPeriod(year1, year2);
-    setActivePeriod(period);
-    setSelectedMonth(null);
+    setYearRange([year1, year2]);
+    setSelectedMonthId(null);
     setSelectedWeekId(null);
   };
 
   const handlePeriodChangeFromDropdown = (periodLabel: string) => {
     const parsed = periodLabel.split('-').map((s) => parseInt(s.trim(), 10));
-    if (parsed.length === 2 && !isNaN(parsed[0]) && !isNaN(parsed[1])) {
+    if (parsed.length === 2 && !Number.isNaN(parsed[0]) && !Number.isNaN(parsed[1])) {
       handleYearsCompareChange(parsed[0], parsed[1]);
-      return;
-    }
-    const found = TWO_YEAR_PERIODS.find((p) => p.label === periodLabel);
-    if (found) {
-      setActivePeriod(found);
-      setSelectedMonth(null);
-      setSelectedWeekId(null);
     }
   };
 
-  // Handler Reset Filter: Mengembalikan ke default 2025-2026, Semua Jenis, Semua Subjek, dan deselect bulan
   const handleResetFilter = () => {
-    setActivePeriod(TWO_YEAR_PERIODS[1]); // default 2025 - 2026
+    setYearRange(defaultYearRange());
     setSelectedJenis([]);
     setSelectedSubjek([]);
     setSelectedLokasi([]);
-    setSelectedMonth(null);
+    setSelectedMonthId(null);
     setSelectedWeekId(null);
   };
 
   return (
     <section className={`w-full flex flex-col space-y-6 ${className}`}>
-      {/* ── 1. Section Header: Judul & Deskripsi Sesuai Figma #2890:58616 ── */}
+      {/* ── 1. Section Header ── */}
       <div className="flex flex-col gap-1.5">
         <h2 className="text-2xl sm:text-[26px] font-semibold text-neu-900 tracking-tight leading-[1.3]">
           Timeline Peraturan
@@ -175,11 +172,11 @@ export function RegulasiTimelineSection({
         </p>
       </div>
 
-      {/* ── 2. Filter Toolbar Kapsul dengan Filter Langsung Aktif & Tombol Reset Filter ── */}
+      {/* ── 2. Filter Toolbar ── */}
       <TimelineFilterToolbar
-        periodLabel={activePeriod.label}
-        startYear={activePeriod.startYear}
-        endYear={activePeriod.endYear}
+        periodLabel={period.label}
+        startYear={period.startYear}
+        endYear={period.endYear}
         selectedJenis={selectedJenis}
         selectedSubjek={selectedSubjek}
         selectedLokasi={selectedLokasi}
@@ -187,33 +184,30 @@ export function RegulasiTimelineSection({
         onPeriodChange={handlePeriodChangeFromDropdown}
         onJenisChange={(val) => {
           setSelectedJenis(val);
-          setSelectedMonth(null);
+          setSelectedMonthId(null);
           setSelectedWeekId(null);
         }}
         onSubjekChange={(val) => {
           setSelectedSubjek(val);
-          setSelectedMonth(null);
+          setSelectedMonthId(null);
           setSelectedWeekId(null);
         }}
         onLokasiChange={(val) => {
           setSelectedLokasi(val);
-          setSelectedMonth(null);
+          setSelectedMonthId(null);
           setSelectedWeekId(null);
         }}
         onResetFilter={handleResetFilter}
         jenisOptions={filterReferences?.kategori}
       />
 
-      {/* ── 3. Legend Row Sesuai Figma #2926:47416 ── */}
+      {/* ── 3. Legend ── */}
       <div className="flex items-center px-1">
         <div className="flex items-center gap-6">
-          {/* Legend Berlaku (Segitiga Hijau Ke Atas) */}
           <div className="flex items-center gap-2">
             <span className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[8px] border-b-suc-900 inline-block" />
             <span className="text-xs sm:text-sm font-medium text-neu-700">Berlaku</span>
           </div>
-
-          {/* Legend Dicabut (Segitiga Merah Ke Bawah) */}
           <div className="flex items-center gap-2">
             <span className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[8px] border-t-dan-900 inline-block" />
             <span className="text-xs sm:text-sm font-medium text-neu-700">Dicabut</span>
@@ -221,38 +215,38 @@ export function RegulasiTimelineSection({
         </div>
       </div>
 
-      {/* ── 4. Card Utama Timeline Sesuai Figma #2891:45516 ── */}
+      {/* ── 4. Card Utama Timeline ── */}
       <div className="w-full bg-white rounded-[20px] border border-neu-50 p-6 sm:p-8 shadow-2xs">
-        <TimelineDivergingChart
-          activePeriod={displayPeriod}
-          selectedMonth={selectedMonth}
-          selectedWeekId={selectedWeekId}
-          onSelectWeek={handleToggleWeek}
-          onSelectMonth={handleSelectMonth}
-          onDeselectMonth={handleDeselectMonth}
-          onPeriodChange={(period) => {
-            setActivePeriod(period);
-            setSelectedMonth(null);
-            setSelectedWeekId(null);
-          }}
-        />
+        {error ? (
+          <div className="py-16 text-center text-sm text-dan-900">{error}</div>
+        ) : (
+          <TimelineDivergingChart
+            activePeriod={period}
+            isLoading={isLoading}
+            selectedMonth={selectedMonth}
+            selectedWeekId={selectedWeekId}
+            onSelectWeek={handleToggleWeek}
+            onSelectMonth={handleSelectMonth}
+            onDeselectMonth={handleDeselectMonth}
+            onPeriodChange={(p: YearPeriodData) => {
+              setYearRange([p.startYear, p.endYear]);
+              setSelectedMonthId(null);
+              setSelectedWeekId(null);
+            }}
+          />
+        )}
       </div>
 
-      {/* ── 5. Bagian Tabel Bawah: Empty State vs Weekly Accordion Sesuai Figma #3021:46181 & #3124:56240 ── */}
+      {/* ── 5. Empty State vs Weekly Accordion ── */}
       <div>
         {selectedMonth ? (
-          /* Tampilan Tabel Mingguan saat bulan telah dipilih */
           <TimelineWeeklyAccordion
             selectedMonth={selectedMonth}
             selectedWeekId={selectedWeekId}
-            selectedJenis={selectedJenis}
-            selectedSubjek={selectedSubjek}
-            selectedLokasi={selectedLokasi}
             onToggleWeek={handleToggleWeek}
             onDeselectMonth={handleDeselectMonth}
           />
         ) : (
-          /* Tampilan Garis Putus-putus saat belum ada bulan yang dipilih */
           <TimelineEmptyState />
         )}
       </div>

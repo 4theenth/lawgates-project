@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays, ArrowLeft } from 'lucide-react';
-import { MonthTimelineData, TWO_YEAR_PERIODS, YearPeriodData, getOrGenerateTwoYearPeriod } from './timelineData';
+import { MonthTimelineData, YearPeriodData } from './timelineData';
 import { TimelineBarColumn, TimelineMonthTooltip } from './TimelineBarColumn';
 
 interface TimelineDivergingChartProps {
-  activePeriod?: YearPeriodData;
+  activePeriod: YearPeriodData;
+  /** Menampilkan penanda pemuatan tanpa menghapus grafik yang sedang tampil. */
+  isLoading?: boolean;
   selectedMonth: MonthTimelineData | null;
   selectedWeekId?: string | null;
   onSelectWeek?: (weekId: string) => void;
@@ -16,6 +18,7 @@ interface TimelineDivergingChartProps {
 
 export function TimelineDivergingChart({
   activePeriod,
+  isLoading = false,
   selectedMonth,
   selectedWeekId,
   onSelectWeek,
@@ -24,10 +27,14 @@ export function TimelineDivergingChart({
   onPeriodChange,
   className = '',
 }: TimelineDivergingChartProps) {
-  // Periode 2-Tahunan: Gunakan activePeriod langsung jika diberikan
-  const [internalPeriodIndex, setInternalPeriodIndex] = useState<number>(1);
+  // Periode datang sepenuhnya dari induk — komponen ini tidak lagi menyimpan
+  // daftar periode contoh maupun menghitung data sendiri.
+  const currentPeriod = activePeriod;
 
-  const currentPeriod = activePeriod || TWO_YEAR_PERIODS[internalPeriodIndex] || TWO_YEAR_PERIODS[1];
+  // Batas navigasi mengikuti tahun berjalan supaya tidak bisa maju ke tahun
+  // yang belum punya data sama sekali.
+  const currentYear = new Date().getFullYear();
+  const MIN_YEAR = 1945;
 
   // Hover state (default null jika belum ada kursor yang mengarah ke chart)
   const [hoveredMonthId, setHoveredMonthId] = useState<string | null>(null);
@@ -55,52 +62,30 @@ export function TimelineDivergingChart({
   // Apakah periode tahun berurutan (misal 2025 - 2026, 2023 - 2024, 2020 - 2021)
   const isConsecutive = Math.abs(currentPeriod.year2.year - currentPeriod.year1.year) === 1;
 
-  // Status navigasi:
-  // - Jika custom non-consecutive: selalu aktif untuk kembali ke default (2025 - 2026)
-  // - Jika consecutive: next hanya sampai maksimal 2026, prev sampai tahun 2000
-  const canGoNext = !isConsecutive ? true : currentPeriod.year2.year < 2026;
-  const canGoPrev = !isConsecutive ? true : currentPeriod.year1.year > 2000;
+  // Batas navigasi: tidak ada periode tetap untuk "kembali ke default" karena
+  // seluruh rentang kini berasal dari data. Maju dibatasi tahun berjalan,
+  // mundur dibatasi tahun paling awal yang mungkin punya peraturan.
+  const canGoNext = currentPeriod.year2.year < currentYear;
+  const canGoPrev = currentPeriod.year1.year > MIN_YEAR;
 
   const handlePrevPeriod = () => {
-    if (!isConsecutive) {
-      // Custom non-consecutive: kembali ke default 2025 - 2026
-      const defaultPeriod = TWO_YEAR_PERIODS[1];
-      setInternalPeriodIndex(1);
-      setHoveredMonthId(null);
-      if (onPeriodChange) onPeriodChange(defaultPeriod);
-      return;
-    }
+    if (!canGoPrev) return;
 
-    if (canGoPrev) {
-      // Pindah bergeser 1 tahun (contoh: 2022-2023 -> 2021-2022)
-      const prevStart = currentPeriod.year1.year - 1;
-      const prevEnd = currentPeriod.year2.year - 1;
-      const newPeriod = getOrGenerateTwoYearPeriod(prevStart, prevEnd);
-      setHoveredMonthId(null);
-      if (onPeriodChange) onPeriodChange(newPeriod);
-    }
+    const prevStart = currentPeriod.year1.year - 1;
+    const prevEnd = currentPeriod.year2.year - 1;
+    setHoveredMonthId(null);
+    onPeriodChange?.({ ...currentPeriod, startYear: prevStart, endYear: prevEnd });
   };
 
   const handleNextPeriod = () => {
-    if (!isConsecutive) {
-      // Custom non-consecutive: kembali ke default 2025 - 2026
-      const defaultPeriod = TWO_YEAR_PERIODS[1];
-      setInternalPeriodIndex(1);
-      setHoveredMonthId(null);
-      if (onPeriodChange) onPeriodChange(defaultPeriod);
-      return;
-    }
+    if (!canGoNext) return;
 
-    if (canGoNext) {
-      // Pindah bergeser 1 tahun (contoh: 2022-2023 -> 2023-2024, maks tahun 2026)
-      const nextStart = currentPeriod.year1.year + 1;
-      const nextEnd = currentPeriod.year2.year + 1;
-      if (nextEnd <= 2026) {
-        const newPeriod = getOrGenerateTwoYearPeriod(nextStart, nextEnd);
-        setHoveredMonthId(null);
-        if (onPeriodChange) onPeriodChange(newPeriod);
-      }
-    }
+    const nextStart = currentPeriod.year1.year + 1;
+    const nextEnd = currentPeriod.year2.year + 1;
+    if (nextEnd > currentYear) return;
+
+    setHoveredMonthId(null);
+    onPeriodChange?.({ ...currentPeriod, startYear: nextStart, endYear: nextEnd });
   };
 
   // ── Touch Swipe Handlers (Mobile / Tablet) ──
@@ -245,6 +230,15 @@ export function TimelineDivergingChart({
 
   return (
     <div className={`w-full flex flex-col relative ${className}`}>
+      {/* Penanda pemuatan tipis — grafik lama tetap tampil supaya tidak melompat */}
+      <div
+        className={`absolute top-0 left-0 right-0 h-[2px] overflow-hidden z-20 transition-opacity duration-200 ${
+          isLoading ? 'opacity-100' : 'opacity-0'
+        }`}
+        aria-hidden={!isLoading}
+      >
+        <div className="h-full w-1/3 bg-pr-900 animate-pulse" />
+      </div>
       {/* ── Outer Track Container dengan Tombol Navigasi ── */}
       <div className="relative w-full">
         {/* ════════════════════════════════════════════════════════════════

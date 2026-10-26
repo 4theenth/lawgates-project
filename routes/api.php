@@ -9,6 +9,7 @@ use App\Models\JenisPeraturan; // Tambahan untuk referensi
 use App\Models\Status;         // Tambahan untuk referensi
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\BookmarkController;
+use App\Http\Controllers\Api\TimelineController;
 
 // =================================================================
 // Route Publik (Tanpa Token Auth)
@@ -18,6 +19,11 @@ Route::post('/register', [AuthController::class, 'register'])->middleware('throt
 Route::get('/regions', [\App\Http\Controllers\Api\RegionController::class, 'index']);
 Route::get('/regions/statistics', [\App\Http\Controllers\Api\RegionController::class, 'statistics']);
 Route::get('/regions/{provinceSlug}/regencies', [\App\Http\Controllers\Api\RegionController::class, 'regenciesByProvince']);
+
+// Timeline regulasi publik — dipakai halaman /regulasi yang bisa dibuka tanpa
+// login, jadi sengaja berada di luar grup auth:sanctum bersama route /regions.
+Route::get('/timeline/events', [TimelineController::class, 'events'])->middleware('throttle:60,1');
+Route::get('/timeline/frequency', [TimelineController::class, 'frequency'])->middleware('throttle:60,1');
 
 
 // =================================================================

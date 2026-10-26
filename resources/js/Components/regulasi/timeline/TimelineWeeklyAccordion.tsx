@@ -6,9 +6,6 @@ import { MonthTimelineData } from './timelineData';
 interface TimelineWeeklyAccordionProps {
   selectedMonth: MonthTimelineData;
   selectedWeekId?: string | null;
-  selectedJenis?: string | string[];
-  selectedSubjek?: string | string[];
-  selectedLokasi?: string[];
   onToggleWeek?: (weekId: string) => void;
   onDeselectMonth?: () => void;
   className?: string;
@@ -17,9 +14,6 @@ interface TimelineWeeklyAccordionProps {
 export function TimelineWeeklyAccordion({
   selectedMonth,
   selectedWeekId,
-  selectedJenis,
-  selectedSubjek,
-  selectedLokasi = [],
   onToggleWeek,
   className = '',
 }: TimelineWeeklyAccordionProps) {
@@ -42,17 +36,6 @@ export function TimelineWeeklyAccordion({
   // Calculate total counts for active tab
   const totalBerlaku = selectedMonth.berlakuCount;
   const totalDicabut = selectedMonth.dicabutCount;
-
-  // Helper normalisasi filter ke array
-  const toArray = (v?: string | string[]): string[] => {
-    if (!v) return [];
-    if (Array.isArray(v)) return v.filter((item) => !item.startsWith('Semua '));
-    if (v.startsWith('Semua ')) return [];
-    return [v];
-  };
-
-  const jenisArr = toArray(selectedJenis);
-  const subjekArr = toArray(selectedSubjek);
 
   return (
     <div
@@ -124,73 +107,18 @@ export function TimelineWeeklyAccordion({
         {selectedMonth.weeks.map((week) => {
           const isExpanded = activeExpandedId === week.id;
 
-          // Filter regulasi di minggu ini berdasarkan tab aktif dan filter kustom
+          // Filter jenis/subjek/lokasi sudah diterapkan server saat
+          // `/api/timeline/events` dipanggil. Yang tersisa di klien hanya tab
+          // status, karena satu event hanya bisa "berlaku" atau "dicabut".
           const filteredDays = week.days
             .map((day) => ({
               ...day,
-              regulations: day.regulations.filter((r) => {
-                if (r.status !== activeTab) return false;
-
-                // Filter Jenis (Multi-Select)
-                if (jenisArr.length > 0) {
-                  const matchesJenis = jenisArr.some((selectedJ) => {
-                    const j = selectedJ.toLowerCase();
-                    const rj = r.jenis.toLowerCase();
-                    if (j.includes('daerah') || j.includes('perda')) {
-                      return rj.includes('perda') || rj.includes('daerah');
-                    } else if (j.includes('undang-undang') || j.includes('uu')) {
-                      return rj.includes('uu');
-                    } else if (j.includes('pemerintah') || j.includes('pp')) {
-                      return rj.includes('pp');
-                    } else if (j.includes('presiden') || j.includes('perpres')) {
-                      return rj.includes('perpres');
-                    } else if (j.includes('menteri') || j.includes('permen')) {
-                      return rj.includes('permen');
-                    }
-                    return rj.includes(j);
-                  });
-                  if (!matchesJenis) return false;
-                }
-
-                // Filter Subjek (Multi-Select)
-                if (subjekArr.length > 0) {
-                  const matchesSubjek = subjekArr.some((s) =>
-                    r.subjek && r.subjek.toLowerCase().includes(s.toLowerCase())
-                  );
-                  if (!matchesSubjek) return false;
-                }
-
-                // Filter Lokasi Daerah
-                if (selectedLokasi && selectedLokasi.length > 0) {
-                  const matchesLokasi = selectedLokasi.some((lok) => {
-                    const l = lok
-                      .toLowerCase()
-                      .replace(/^(pemerintah\s+provinsi|provinsi|kabupaten|kota)\s+/i, '')
-                      .trim();
-                    return (
-                      r.judul.toLowerCase().includes(l) ||
-                      r.judul.toLowerCase().includes(lok.toLowerCase()) ||
-                      (r.nomor && r.nomor.toLowerCase().includes(l))
-                    );
-                  });
-                  if (!matchesLokasi) return false;
-                }
-
-                return true;
-              }),
+              regulations: day.regulations.filter((r) => r.status === activeTab),
             }))
             .filter((day) => day.regulations.length > 0);
 
-          const hasCustomFilter =
-            jenisArr.length > 0 ||
-            subjekArr.length > 0 ||
-            (selectedLokasi && selectedLokasi.length > 0);
-
-          const weekCount = hasCustomFilter
-            ? filteredDays.reduce((acc, d) => acc + d.regulations.length, 0)
-            : activeTab === 'berlaku'
-            ? week.berlakuCount
-            : week.dicabutCount;
+          const weekCount =
+            activeTab === 'berlaku' ? week.berlakuCount : week.dicabutCount;
 
           return (
             <div key={week.id} id={`accordion-week-${week.id}`} className="w-full flex flex-col scroll-mt-6">
