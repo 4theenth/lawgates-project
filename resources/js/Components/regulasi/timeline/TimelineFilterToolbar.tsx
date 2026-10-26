@@ -85,7 +85,7 @@ function TimelineMultiSelectDropdown({
     if (isAllSelected) return `Semua ${label}`;
     if (selectedValues.length === 1) return selectedValues[0];
     return `${selectedValues.length} ${label}`;
-  }, [selectedValues, options, label, isAllSelected]);
+  }, [selectedValues, label, isAllSelected]);
 
   // Pindahkan opsi yang sudah dicentang ke paling atas agar mudah di-uncheck
   const sortedOptions = useMemo(() => {
@@ -119,17 +119,15 @@ function TimelineMultiSelectDropdown({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`w-full h-11 sm:h-12 px-4 rounded-xl border bg-white text-xs sm:text-sm text-neu-800 font-normal flex items-center justify-between transition-all cursor-pointer outline-none focus:outline-none focus:ring-0 ${
-          isOpen
+        className={`w-full h-11 sm:h-12 px-4 rounded-xl border bg-white text-xs sm:text-sm text-neu-800 font-normal flex items-center justify-between transition-all cursor-pointer outline-none focus:outline-none focus:ring-0 ${isOpen
             ? 'border-neu-200 shadow-2xs'
             : 'border-neu-100 hover:border-neu-300 shadow-2xs'
-        }`}
+          }`}
       >
         <span className="truncate text-left">{displayLabel}</span>
         <ChevronDown
-          className={`w-4 h-4 text-neu-500 shrink-0 transition-transform duration-200 ${
-            isOpen ? 'rotate-180 text-pr-900' : ''
-          }`}
+          className={`w-4 h-4 text-neu-500 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-pr-900' : ''
+            }`}
         />
       </button>
 
@@ -140,11 +138,10 @@ function TimelineMultiSelectDropdown({
           <button
             type="button"
             onClick={handleSelectAll}
-            className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${
-              isAllSelected
-                ? 'bg-pr-50 text-pr-900 font-semibold'
+            className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${isAllSelected
+                ? 'text-pr-900 font-bold hover:bg-neutral-50'
                 : 'text-neu-700 hover:bg-neutral-50 hover:text-neu-900 font-normal'
-            }`}
+              }`}
           >
             <span className="truncate">Semua {label}</span>
             {isAllSelected && (
@@ -160,11 +157,10 @@ function TimelineMultiSelectDropdown({
                 key={opt}
                 type="button"
                 onClick={() => handleToggle(opt)}
-                className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${
-                  isSelected
-                    ? 'bg-pr-50 text-pr-900 font-semibold'
+                className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${isSelected
+                    ? 'text-pr-900 font-bold hover:bg-neutral-50'
                     : 'text-neu-700 hover:bg-neutral-50 hover:text-neu-900 font-normal'
-                }`}
+                  }`}
               >
                 <span className="truncate">{opt}</span>
                 {isSelected && (
@@ -380,33 +376,10 @@ export function TimelineFilterToolbar({
 
   // Label tampilan trigger Jenis Peraturan
   const displayJenisLabel = useMemo(() => {
-    if (isAllJenisSelected) {
-      if (selectedLokasi.length > 0) {
-        return `Semua Jenis Peraturan (${selectedLokasi.length} Daerah)`;
-      }
-      return 'Semua Jenis Peraturan';
-    }
-
-    if (selectedJenis.length === 1) {
-      const isPerda =
-        selectedJenis[0].toLowerCase().includes('perda') ||
-        selectedJenis[0].toLowerCase().includes('peraturan daerah');
-      if (isPerda) {
-        if (selectedLokasi.length === 1) return `Perda - ${selectedLokasi[0]}`;
-        if (selectedLokasi.length > 1) return `Perda (${selectedLokasi.length} Daerah)`;
-      }
-      return selectedJenis[0];
-    }
-
-    const hasPerda = selectedJenis.some(
-      (j) => j.toLowerCase().includes('perda') || j.toLowerCase().includes('peraturan daerah')
-    );
-    if (hasPerda && selectedLokasi.length > 0) {
-      return `${selectedJenis.length} Jenis Peraturan (${selectedLokasi.length} Daerah)`;
-    }
-
+    if (isAllJenisSelected) return 'Semua Jenis Peraturan';
+    if (selectedJenis.length === 1) return selectedJenis[0];
     return `${selectedJenis.length} Jenis Peraturan`;
-  }, [selectedJenis, jenisList, selectedLokasi, isAllJenisSelected]);
+  }, [selectedJenis, isAllJenisSelected]);
 
   // Handler Reset Filter: Mengembalikan ke default (2025-2026, Semua Jenis, Semua Subjek, Lokasi kosong)
   const handleReset = () => {
@@ -451,17 +424,15 @@ export function TimelineFilterToolbar({
           <button
             type="button"
             onClick={() => setIsJenisOpen((prev) => !prev)}
-            className={`w-full h-11 sm:h-12 px-4 rounded-xl border bg-white text-xs sm:text-sm text-neu-800 font-normal flex items-center justify-between transition-all cursor-pointer outline-none focus:outline-none focus:ring-0 ${
-              isJenisOpen
+            className={`w-full h-11 sm:h-12 px-4 rounded-xl border bg-white text-xs sm:text-sm text-neu-800 font-normal flex items-center justify-between transition-all cursor-pointer outline-none focus:outline-none focus:ring-0 ${isJenisOpen
                 ? 'border-neu-200 shadow-2xs'
                 : 'border-neu-100 hover:border-neu-300 shadow-2xs'
-            }`}
+              }`}
           >
             <span className="truncate text-left">{displayJenisLabel}</span>
             <ChevronDown
-              className={`w-4 h-4 text-neu-500 shrink-0 transition-transform duration-200 ${
-                isJenisOpen ? 'rotate-180 text-pr-900' : ''
-              }`}
+              className={`w-4 h-4 text-neu-500 shrink-0 transition-transform duration-200 ${isJenisOpen ? 'rotate-180 text-pr-900' : ''
+                }`}
             />
           </button>
 
@@ -471,11 +442,10 @@ export function TimelineFilterToolbar({
               <button
                 type="button"
                 onClick={handleSelectAllJenis}
-                className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${
-                  isAllJenisSelected
-                    ? 'bg-pr-50 text-pr-900 font-semibold'
+                className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${isAllJenisSelected
+                    ? 'text-pr-900 font-bold hover:bg-neutral-50'
                     : 'text-neu-700 hover:bg-neutral-50 hover:text-neu-900 font-normal'
-                }`}
+                  }`}
               >
                 <span className="truncate">Semua Jenis Peraturan</span>
                 {isAllJenisSelected && (
@@ -495,11 +465,10 @@ export function TimelineFilterToolbar({
                     <button
                       type="button"
                       onClick={() => handleToggleJenis(opt)}
-                      className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${
-                        isSelected
-                          ? 'bg-pr-50 text-pr-900 font-semibold'
+                      className={`w-full px-3 py-2 text-left text-xs sm:text-sm rounded-lg transition-colors cursor-pointer flex items-center justify-between ${isSelected
+                          ? 'text-pr-900 font-bold hover:bg-neutral-50'
                           : 'text-neu-700 hover:bg-neutral-50 hover:text-neu-900 font-normal'
-                      }`}
+                        }`}
                     >
                       <span className="truncate">{opt}</span>
                       {isSelected && (

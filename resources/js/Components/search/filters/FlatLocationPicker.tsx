@@ -127,8 +127,8 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
                 className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors ${
                   isChecked
                     ? isLight
-                      ? 'bg-pr-50 text-pr-900 font-semibold'
-                      : 'bg-white/5 text-white font-medium'
+                      ? 'text-pr-900 font-bold hover:bg-neutral-50'
+                      : 'text-white font-bold hover:bg-white/10'
                     : isLight
                     ? 'text-gray-700 hover:bg-gray-50'
                     : 'text-neu-200 hover:text-white hover:bg-white/10'
