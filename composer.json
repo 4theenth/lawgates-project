@@ -15,7 +15,6 @@
         "laravel/tinker": "^3.0",
         "laudis/neo4j-php-client": "^3.6",
         "league/flysystem-aws-s3-v3": "*",
-        "predis/predis": "^3.7",
         "resend/resend-php": "^1.17",
         "tightenco/ziggy": "^2.0"
     },
