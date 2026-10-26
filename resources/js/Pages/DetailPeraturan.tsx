@@ -238,6 +238,7 @@ export default function DetailPeraturan({
                   onToggleBab={handleToggleBab}
                   onTogglePasal={handleTogglePasal}
                   searchQuery={searchQuery}
+                  activeSectionId={activeSectionId}
                 />
               </div>
 

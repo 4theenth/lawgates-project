@@ -30,6 +30,7 @@ export function ReadonlyTableOfContents({
   pembukaanJudul = 'Pembukaan',
   pembukaanData,
   babList = [],
+  activeSectionId,
   onNavigateToStruktur,
   onNavigateToPasal,
   onNavigateToPembukaan,
@@ -44,6 +45,8 @@ export function ReadonlyTableOfContents({
       pembukaanJudul={pembukaanJudul}
       pembukaanData={pembukaanData}
       babList={babList}
+      activeSection={activeSectionId}
+      defaultExpandFirstCount={0}
       onPembukaanClick={onNavigateToPembukaan}
       onSectionClick={onNavigateToSection}
       onBabClick={onNavigateToStruktur}

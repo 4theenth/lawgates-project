@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlignLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { AlignLeft, ChevronRight, ChevronDown, ArrowUpRight } from 'lucide-react';
 
 export interface TocArticleItem {
   id: string;
@@ -8,6 +8,12 @@ export interface TocArticleItem {
   penjelasan?: string;
   isExpanded?: boolean;
   pasalList?: TocArticleItem[];
+  targetInduk?: {
+    standardId: string;
+    labelSingkat?: string;
+    namaLengkap?: string;
+  };
+  tipe?: string;
 }
 
 export interface TocChapterItem {
@@ -41,7 +47,7 @@ export interface DocumentTableOfContentsProps {
   onPembukaanClick?: () => void;
   /** Callback saat sub-section Pembukaan (Menimbang, dll) diklik */
   onSectionClick?: (sectionId: string) => void;
-  /** Callback saat header BAB diklik */
+  /** Callback saat header BAB/Bagian diklik untuk navigasi ke dokumen */
   onBabClick?: (babId: string) => void;
   /** Callback saat item Pasal diklik */
   onPasalClick?: (babId: string, pasalId: string) => void;
@@ -63,6 +69,316 @@ export interface DocumentTableOfContentsProps {
   variant?: 'card' | 'integrated';
 }
 
+interface TocChapterNodeProps {
+  bab: TocChapterItem;
+  index: number;
+  depth: number;
+  isExpanded: boolean;
+  onToggleExpand: (babId: string, currentState: boolean, e?: React.MouseEvent) => void;
+  onBabClick?: (babId: string) => void;
+  onPasalClick?: (babId: string, pasalId: string) => void;
+  scrollToTarget: (targetId: string) => void;
+  isSectionActive: (id: string) => boolean;
+  isBabExpanded: (bab: TocChapterItem, index: number) => boolean;
+  expandedContainers: Record<string, boolean>;
+  setExpandedContainers: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+}
+
+function TocChapterNode({
+  bab,
+  index,
+  depth,
+  isExpanded,
+  onToggleExpand,
+  onBabClick,
+  onPasalClick,
+  scrollToTarget,
+  isSectionActive,
+  isBabExpanded,
+  expandedContainers,
+  setExpandedContainers,
+}: TocChapterNodeProps) {
+  const validPasals = (bab.pasalList || []).filter(
+    (p) => p.nomor && p.nomor.trim() !== '' && p.nomor.trim() !== '-'
+  );
+  const hasSubChapters = Boolean(bab.children && bab.children.length > 0);
+  const hasChildren = hasSubChapters || validPasals.length > 0;
+  const isBabActive = isSectionActive(bab.id);
+
+  // Klik baris kategori HANYA untuk expand / collapse di TOC
+  const handleRowClick = (e: React.MouseEvent) => {
+    onToggleExpand(bab.id, isExpanded, e);
+  };
+
+  // Navigasi eksplisit ke posisi bagian di dokumen utama
+  const handleNavigateToDoc = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onBabClick) {
+      onBabClick(bab.id);
+    }
+    scrollToTarget(`section-${bab.id}`);
+  };
+
+  const handleArticleClick = (babId: string, pasalId: string) => {
+    if (onPasalClick) {
+      onPasalClick(babId, pasalId);
+    }
+    scrollToTarget(`section-${pasalId}`);
+  };
+
+  const renderPasalItem = (pasal: TocArticleItem, parentBabId: string) => {
+    const isPasalActive = isSectionActive(pasal.id);
+    const hasChildPasals = Boolean(pasal.pasalList && pasal.pasalList.length > 0);
+    const hasChildActive = Boolean(
+      hasChildPasals && pasal.pasalList?.some((child) => isSectionActive(child.id))
+    );
+
+    const isContainerOpen =
+      expandedContainers[pasal.id] !== undefined
+        ? expandedContainers[pasal.id]
+        : isPasalActive || hasChildActive;
+
+    return (
+      <div key={pasal.id} className="flex flex-col">
+        <button
+          type="button"
+          onClick={() => {
+            if (hasChildPasals) {
+              setExpandedContainers((prev) => ({
+                ...prev,
+                [pasal.id]: !isContainerOpen,
+              }));
+            }
+            handleArticleClick(parentBabId, pasal.id);
+          }}
+          className={`px-2 py-1.5 rounded-[6px] text-left text-[12px] transition-colors w-full cursor-pointer flex items-center justify-between min-w-0 ${
+            isPasalActive || hasChildActive
+              ? 'bg-pr-50 text-pr-900 font-semibold'
+              : 'font-medium text-neu-600 hover:text-pr-900 hover:bg-neu-50'
+          }`}
+        >
+          <div className="flex flex-col min-w-0 pr-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="truncate">{pasal.nomor}</span>
+              {pasal.targetInduk && (
+                <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-sec-100 text-sec-900 border border-sec-200 shrink-0">
+                  {pasal.targetInduk.labelSingkat || 'Perubahan'}
+                </span>
+              )}
+            </div>
+            {pasal.targetInduk?.namaLengkap && (
+              <span
+                className="text-[10px] text-neu-500 truncate max-w-[190px]"
+                title={pasal.targetInduk.namaLengkap}
+              >
+                {pasal.targetInduk.namaLengkap}
+              </span>
+            )}
+          </div>
+
+          {hasChildPasals && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpandedContainers((prev) => ({
+                  ...prev,
+                  [pasal.id]: !isContainerOpen,
+                }));
+              }}
+              className="shrink-0 p-0.5 text-neu-400 hover:text-neu-700 cursor-pointer"
+            >
+              {isContainerOpen ? (
+                <ChevronDown className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5" />
+              )}
+            </span>
+          )}
+        </button>
+
+        {/* Render Sub-Pasal amandemen */}
+        {hasChildPasals && isContainerOpen && (
+          <div className="border-l-2 border-sec-200 pl-2.5 ml-2.5 py-0.5 flex flex-col gap-[2px] mt-0.5">
+            {pasal.pasalList!.map((childPasal) => {
+              const isChildActive = isSectionActive(childPasal.id);
+
+              return (
+                <button
+                  key={childPasal.id}
+                  type="button"
+                  onClick={() => handleArticleClick(parentBabId, childPasal.id)}
+                  className={`px-2 py-1 rounded-[5px] text-left text-[11px] transition-colors w-full cursor-pointer flex items-center justify-between ${
+                    isChildActive
+                      ? 'bg-sec-100 text-sec-900 font-semibold'
+                      : 'font-medium text-neu-600 hover:text-pr-900 hover:bg-neu-50'
+                  }`}
+                >
+                  <span className="truncate">{childPasal.nomor}</span>
+                  <span className="text-[9px] px-1 rounded text-neu-400 font-medium shrink-0">
+                    Diubah
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Depth 0: Tingkat BAB
+  if (depth === 0) {
+    return (
+      <div className="flex flex-col gap-1 w-full">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={handleRowClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleRowClick(e as any);
+            }
+          }}
+          className={`group w-full px-3 py-2 rounded-lg border border-neu-50 flex items-center justify-between text-left transition-colors cursor-pointer select-none ${
+            isBabActive
+              ? 'bg-pr-50 text-pr-900 font-semibold'
+              : 'bg-white hover:bg-neu-50/70'
+          }`}
+        >
+          <div className="flex items-center gap-1.5 min-w-0 pr-1 flex-1">
+            {hasChildren ? (
+              isExpanded ? (
+                <ChevronDown className="w-3.5 h-3.5 text-neu-600 shrink-0 transition-transform" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 text-neu-600 shrink-0 transition-transform" />
+              )
+            ) : (
+              <span className="w-3.5 shrink-0" />
+            )}
+            <span
+              className={`truncate text-[12px] font-medium leading-[18px] ${
+                isBabActive ? 'text-pr-900 font-semibold' : 'text-neu-700'
+              }`}
+            >
+              {bab.judul}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            title="Loncat ke bab di dokumen"
+            onClick={handleNavigateToDoc}
+            className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-neu-200/60 rounded text-neu-400 hover:text-neu-800 transition-opacity shrink-0 cursor-pointer"
+          >
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Sub-Bab / Bagian / Paragraf dan Pasal */}
+        {isExpanded && hasChildren && (
+          <div className="border-l-2 border-neu-100 pl-2.5 ml-3.5 py-0.5 flex flex-col gap-[2px]">
+            {/* Render Sub-bab (Bagian / Paragraf) rekursif */}
+            {bab.children?.map((childBab, cIdx) => (
+              <TocChapterNode
+                key={childBab.id}
+                bab={childBab}
+                index={cIdx}
+                depth={depth + 1}
+                isExpanded={isBabExpanded(childBab, cIdx)}
+                onToggleExpand={onToggleExpand}
+                onBabClick={onBabClick}
+                onPasalClick={onPasalClick}
+                scrollToTarget={scrollToTarget}
+                isSectionActive={isSectionActive}
+                isBabExpanded={isBabExpanded}
+                expandedContainers={expandedContainers}
+                setExpandedContainers={setExpandedContainers}
+              />
+            ))}
+
+            {/* Render Pasal-pasal langsung di bawah BAB */}
+            {validPasals.map((pasal) => renderPasalItem(pasal, bab.id))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Depth > 0: Tingkat Bagian, Paragraf, dll.
+  return (
+    <div className="flex flex-col gap-0.5 w-full">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={handleRowClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleRowClick(e as any);
+          }
+        }}
+        className={`group w-full px-2 py-1.5 rounded-[6px] flex items-center justify-between text-left transition-colors cursor-pointer select-none ${
+          isBabActive
+            ? 'bg-pr-50 text-pr-900 font-semibold'
+            : 'hover:bg-neu-50 text-neu-700'
+        }`}
+      >
+        <div className="flex items-center gap-1 min-w-0 pr-1 flex-1">
+          {hasChildren ? (
+            isExpanded ? (
+              <ChevronDown className="w-3 h-3 text-neu-500 shrink-0 transition-transform" />
+            ) : (
+              <ChevronRight className="w-3 h-3 text-neu-500 shrink-0 transition-transform" />
+            )
+          ) : (
+            <span className="w-3 shrink-0" />
+          )}
+          <span className="truncate text-[11.5px] font-medium leading-[16px]">
+            {bab.judul}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          title="Loncat ke posisi ini di dokumen"
+          onClick={handleNavigateToDoc}
+          className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-neu-200/60 rounded text-neu-400 hover:text-neu-800 transition-opacity shrink-0 cursor-pointer"
+        >
+          <ArrowUpRight className="w-3 h-3" />
+        </button>
+      </div>
+
+      {/* Children di bawah Bagian / Paragraf */}
+      {isExpanded && hasChildren && (
+        <div className="border-l-2 border-neu-100 pl-2 ml-2 py-0.5 flex flex-col gap-[2px]">
+          {/* Sub-children rekursif (misal Paragraf di bawah Bagian) */}
+          {bab.children?.map((childBab, cIdx) => (
+            <TocChapterNode
+              key={childBab.id}
+              bab={childBab}
+              index={cIdx}
+              depth={depth + 1}
+              isExpanded={isBabExpanded(childBab, cIdx)}
+              onToggleExpand={onToggleExpand}
+              onBabClick={onBabClick}
+              onPasalClick={onPasalClick}
+              scrollToTarget={scrollToTarget}
+              isSectionActive={isSectionActive}
+              isBabExpanded={isBabExpanded}
+              expandedContainers={expandedContainers}
+              setExpandedContainers={setExpandedContainers}
+            />
+          ))}
+
+          {/* Pasal-pasal di bawah Bagian / Paragraf */}
+          {validPasals.map((pasal) => renderPasalItem(pasal, bab.id))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DocumentTableOfContents({
   pembukaanJudul = 'Pembukaan UUD 1945',
   pembukaanData,
@@ -76,11 +392,12 @@ export function DocumentTableOfContents({
   className = '',
   hideHeader = false,
   headerTitle = 'DAFTAR ISI',
-  defaultExpandFirstCount = 2,
+  defaultExpandFirstCount = 0,
   onHeaderClick,
   variant = 'card',
 }: DocumentTableOfContentsProps) {
   const [expandedBabs, setExpandedBabs] = useState<Record<string, boolean>>({});
+  const [expandedContainers, setExpandedContainers] = useState<Record<string, boolean>>({});
   const [isPembukaanExpanded, setIsPembukaanExpanded] = useState<boolean>(false);
 
   const hasPembukaanSubItems = Boolean(
@@ -95,10 +412,20 @@ export function DocumentTableOfContents({
     if (expandedBabs[bab.id] !== undefined) {
       return expandedBabs[bab.id];
     }
-    if (bab.isExpanded !== undefined) {
-      return bab.isExpanded;
+    if (defaultExpandFirstCount > 0) {
+      return index < defaultExpandFirstCount;
     }
-    return index < defaultExpandFirstCount;
+    return false;
+  };
+
+  const handleToggleExpand = (chapterId: string, currentState: boolean, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    setExpandedBabs((prev) => ({
+      ...prev,
+      [chapterId]: !currentState,
+    }));
   };
 
   const scrollToTarget = (targetId: string) => {
@@ -160,25 +487,6 @@ export function DocumentTableOfContents({
       onSectionClick(sectionId);
     }
     scrollToTarget(sectionId);
-  };
-
-  const handleHeaderBabClick = (bab: TocChapterItem, index: number) => {
-    const currentState = isBabExpanded(bab, index);
-    setExpandedBabs((prev) => ({
-      ...prev,
-      [bab.id]: !currentState,
-    }));
-    if (onBabClick) {
-      onBabClick(bab.id);
-    }
-    scrollToTarget(`section-${bab.id}`);
-  };
-
-  const handleArticleClick = (babId: string, pasalId: string) => {
-    if (onPasalClick) {
-      onPasalClick(babId, pasalId);
-    }
-    scrollToTarget(`section-${pasalId}`);
   };
 
   // Filter out invalid/empty babs
@@ -300,108 +608,23 @@ export function DocumentTableOfContents({
         </div>
 
         {/* ── DAFTAR BAB (Figma node #2258:48489, #2258:48501, dll) ───── */}
-        {filteredBabs.map((bab, index) => {
-          const isExpanded = isBabExpanded(bab, index);
-          const validPasals = (bab.pasalList || []).filter(
-            (p) => p.nomor && p.nomor.trim() !== '' && p.nomor.trim() !== '-'
-          );
-          const hasChildren = (bab.children && bab.children.length > 0) || validPasals.length > 0;
-          const isBabActive = isSectionActive(bab.id);
-
-          return (
-            <div key={bab.id} className="flex flex-col gap-1 w-full">
-              {/* BAB Header Button (Figma node #2258:48490 & #2258:48502) */}
-              <button
-                type="button"
-                onClick={() => handleHeaderBabClick(bab, index)}
-                className={`w-full px-3 py-2 rounded-lg border border-neu-50 flex items-center justify-between text-left transition-colors cursor-pointer ${
-                  isBabActive
-                    ? 'bg-pr-50 text-pr-900 font-semibold'
-                    : 'bg-white hover:bg-neu-50/60'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 min-w-0 pr-1">
-                  {hasChildren ? (
-                    isExpanded ? (
-                      <ChevronDown className="w-3.5 h-3.5 text-neu-600 shrink-0 transition-transform" />
-                    ) : (
-                      <ChevronRight className="w-3.5 h-3.5 text-neu-600 shrink-0 transition-transform" />
-                    )
-                  ) : (
-                    <ChevronRight className="w-3.5 h-3.5 text-neu-400 shrink-0" />
-                  )}
-                  <span
-                    className={`truncate text-[12px] font-medium leading-[18px] ${
-                      isBabActive ? 'text-pr-900 font-semibold' : 'text-neu-600'
-                    }`}
-                  >
-                    {bab.judul}
-                  </span>
-                </div>
-              </button>
-
-              {/* Nested Articles / Pasal (Figma node #2258:48496 & #2258:48508) */}
-              {isExpanded && hasChildren && (
-                <div className="border-l-2 border-neu-100 pl-3 ml-3.5 py-0.5 flex flex-col gap-[2px]">
-                  {/* Render Sub-bab jika ada */}
-                  {bab.children?.map((childBab, cIdx) => (
-                    <div key={childBab.id} className="flex flex-col gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleHeaderBabClick(childBab, cIdx)}
-                        className="px-2 py-1 rounded-[6px] text-left text-[11px] font-medium text-neu-700 hover:text-pr-900 hover:bg-neu-50 transition-colors w-full cursor-pointer flex items-center gap-1"
-                      >
-                        <ChevronRight className="w-3 h-3 text-neu-500 shrink-0" />
-                        <span className="truncate">{childBab.judul}</span>
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* Render Pasal-pasal */}
-                  {validPasals.map((pasal) => {
-                    const isPasalActive = isSectionActive(pasal.id);
-
-                    return (
-                      <div key={pasal.id} className="flex flex-col">
-                        <button
-                          type="button"
-                          onClick={() => handleArticleClick(bab.id, pasal.id)}
-                          className={`px-2 py-1.5 rounded-[6px] text-left text-[12px] transition-colors w-full cursor-pointer flex items-center justify-between ${
-                            isPasalActive
-                              ? 'bg-pr-50 text-pr-900 font-semibold'
-                              : 'font-medium text-neu-600 hover:text-pr-900 hover:bg-neu-50'
-                          }`}
-                        >
-                          <span className="truncate">{pasal.nomor}</span>
-                        </button>
-
-                        {/* Render Sub-Pasal / Ayat jika bertingkat */}
-                        {pasal.pasalList &&
-                          pasal.pasalList.length > 0 &&
-                          isPasalActive && (
-                            <div className="border-l border-neu-100 pl-2.5 ml-2 py-0.5 flex flex-col gap-[2px]">
-                              {pasal.pasalList.map((childPasal) => (
-                                <button
-                                  key={childPasal.id}
-                                  type="button"
-                                  onClick={() =>
-                                    handleArticleClick(bab.id, childPasal.id)
-                                  }
-                                  className="px-1.5 py-1 rounded text-left text-[11px] font-medium text-neu-500 hover:text-pr-900 hover:bg-neu-50 transition-colors w-full cursor-pointer"
-                                >
-                                  {childPasal.nomor}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {filteredBabs.map((bab, index) => (
+          <TocChapterNode
+            key={bab.id}
+            bab={bab}
+            index={index}
+            depth={0}
+            isExpanded={isBabExpanded(bab, index)}
+            onToggleExpand={handleToggleExpand}
+            onBabClick={onBabClick}
+            onPasalClick={onPasalClick}
+            scrollToTarget={scrollToTarget}
+            isSectionActive={isSectionActive}
+            isBabExpanded={isBabExpanded}
+            expandedContainers={expandedContainers}
+            setExpandedContainers={setExpandedContainers}
+          />
+        ))}
       </nav>
     </aside>
   );
