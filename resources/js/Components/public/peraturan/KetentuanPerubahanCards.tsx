@@ -4,44 +4,44 @@ import { ArticleItem, detectActionType } from '../../admin/import/correctionPars
 import { cleanOcrText } from '../../../utils/ocrTextCleaner';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KONFIGURASI TEMA WARNA (CENTRALIZED COLOR THEME)
-// Ubah kelas warna Tailwind di sini jika ingin mengganti palet warna seluruh kartu.
+// KONFIGURASI TEMA WARNA & CLASS (CENTRALIZED SOURCE OF TRUTH: app.css)
+// Definisi class `@layer components` ada di resources/css/app.css
 // ─────────────────────────────────────────────────────────────────────────────
 export const PERUBAHAN_THEME = {
   // 1. Banner Atas: Ketentuan Perubahan Peraturan
   banner: {
-    wrapper: 'p-3.5 bg-gradient-to-r from-sec-50 to-sec-100/40 border-l-4 border-sec-900 rounded-xl shadow-2xs flex items-center justify-between flex-wrap gap-2.5 border border-sec-200',
-    iconColor: 'text-sec-900',
-    titleColor: 'text-neu-900',
-    targetLabelColor: 'text-neu-900',
-    targetHighlightColor: 'text-pr-900',
+    wrapper: 'perubahan-banner',
+    iconColor: 'perubahan-banner-icon',
+    titleColor: 'perubahan-banner-title',
+    targetLabelColor: 'perubahan-banner-target-label',
+    targetHighlightColor: 'perubahan-banner-target-highlight',
   },
 
   // 2. Kotak Rincian Pasal Target yang Diintervensi (Grid Container)
   grid: {
-    wrapper: 'p-4 bg-gradient-to-r from-sec-50/90 to-sec-100/50 border-2 border-sec-200 rounded-xl shadow-2xs space-y-2.5 scroll-mt-28',
-    iconColor: 'text-sec-900',
-    titleColor: 'text-neu-900',
-    badgeHint: 'text-[11px] font-normal text-neu-800 bg-sec-100 px-2 py-0.5 rounded-md',
+    wrapper: 'perubahan-grid',
+    header: 'perubahan-grid-header',
+    iconColor: 'perubahan-grid-icon',
+    badgeHint: 'perubahan-grid-hint',
   },
 
   // 3. Tombol-tombol Pasal di Dalam Grid
   button: {
-    default: 'bg-white hover:bg-sec-50 text-neu-800 border-sec-200 hover:border-sec-300',
-    active: 'bg-pr-900 text-white border-pr-900 shadow-sm ring-2 ring-pr-300',
-    badgeActive: 'bg-pr-700 text-white border-pr-600',
+    default: 'perubahan-btn',
+    active: 'perubahan-btn-active',
+    badgeActive: 'perubahan-btn-badge-active',
   },
 
   // 4. Panel Rincian Teks Sub-Pasal Aktif (Saat Tombol Pasal Diklik)
   detailPanel: {
-    wrapper: 'mt-3 pl-4 border-l-4 border-sec-900 bg-sec-50/40 p-4 rounded-xl space-y-3 border border-sec-200 animate-in fade-in duration-200 scroll-mt-28 shadow-sm',
-    badgeTitle: 'font-bold text-[12.5px] text-neu-900 bg-sec-100 px-2.5 py-0.5 rounded-md',
-    btnBackToGrid: 'flex items-center gap-1 text-[11px] bg-sec-100 hover:bg-sec-200 text-neu-900 px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer',
-    btnClose: 'flex items-center gap-1 text-[11px] bg-white hover:bg-sec-50 text-neu-900 border border-sec-300 px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer shadow-2xs',
-    contentCard: 'text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify bg-white/95 p-4 rounded-lg border border-sec-200 shadow-2xs',
-    penjelasanCard: 'text-[12px] text-pr-900 leading-relaxed whitespace-pre-line text-justify bg-pr-50/60 p-3.5 rounded-lg border border-pr-200',
-    footerBtnBack: 'flex items-center gap-1.5 text-neu-900 hover:text-pr-900 font-semibold cursor-pointer py-1 px-3 rounded-md bg-sec-100 hover:bg-sec-200 transition-colors',
-    footerBtnClose: 'text-sec-900 hover:text-sec-800 font-semibold underline cursor-pointer',
+    wrapper: 'perubahan-detail-panel',
+    badgeTitle: 'perubahan-detail-badge-title',
+    btnBackToGrid: 'perubahan-detail-btn-back',
+    btnClose: 'perubahan-detail-btn-close',
+    contentCard: 'perubahan-detail-content',
+    penjelasanCard: 'perubahan-detail-penjelasan',
+    footerBtnBack: 'perubahan-detail-footer-btn-back',
+    footerBtnClose: 'perubahan-detail-footer-btn-close',
   },
 };
 
@@ -108,14 +108,14 @@ export function KetentuanPerubahanBanner({
 
   return (
     <div className={theme.banner.wrapper}>
-      <div className={`flex items-center gap-2 font-bold text-[12px] ${theme.banner.titleColor}`}>
-        <Zap className={`w-4 h-4 shrink-0 ${theme.banner.iconColor}`} />
+      <div className={theme.banner.titleColor}>
+        <Zap className={theme.banner.iconColor} />
         <span>Ketentuan Perubahan Peraturan</span>
       </div>
       <div className="flex items-center gap-2 flex-wrap text-[12px]">
-        <span className={`font-medium ${theme.banner.targetLabelColor}`}>
+        <span className={theme.banner.targetLabelColor}>
           Mengubah Peraturan Induk:{' '}
-          <span className={`font-extrabold ${theme.banner.targetHighlightColor}`}>
+          <span className={theme.banner.targetHighlightColor}>
             {targetInduk.namaLengkap || targetInduk.labelSingkat}
           </span>
         </span>
@@ -189,9 +189,9 @@ export function RincianPasalTargetGrid({
     <>
       {/* Kotak Grid Tombol Pasal Target */}
       <div ref={rincianGridRef} className={theme.grid.wrapper}>
-        <div className={`flex items-center justify-between flex-wrap gap-2 font-bold text-[12px] ${theme.grid.titleColor}`}>
+        <div className={theme.grid.header}>
           <div className="flex items-center gap-1.5">
-            <Zap className={`w-4 h-4 shrink-0 ${theme.grid.iconColor}`} />
+            <Zap className={theme.grid.iconColor} />
             <span>Rincian Pasal Target yang Diintervensi:</span>
           </div>
           <span className={theme.grid.badgeHint}>
@@ -210,9 +210,7 @@ export function RincianPasalTargetGrid({
                 id={`section-${subP.id}`}
                 type="button"
                 onClick={() => handleSubPasalClick(subP.id)}
-                className={`flex items-center justify-between p-2 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer ${
-                  isActive ? theme.button.active : theme.button.default
-                }`}
+                className={isActive ? theme.button.active : theme.button.default}
               >
                 <span className="truncate pr-1">{subP.nomor}</span>
                 <span
