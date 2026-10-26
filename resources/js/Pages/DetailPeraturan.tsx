@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
@@ -86,17 +86,68 @@ export default function DetailPeraturan({
   // Format dates & active status
   const tanggalPenetapan = peraturan?.tanggal_penetapan ? formatTanggal(peraturan.tanggal_penetapan) : '-';
 
-  // Graph State
+  // Graph State & History Navigation
   const [showGraph, setShowGraph] = useState(false);
   const [showFloatingPreview, setShowFloatingPreview] = useState(false);
+  const showGraphRef = useRef(showGraph);
+  showGraphRef.current = showGraph;
+  const scrollPosRef = useRef<number>(0);
+
+  const openGraph = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      scrollPosRef.current = window.scrollY;
+      const currentState = window.history.state || {};
+      if (!currentState.relationGraph) {
+        window.history.pushState({ ...currentState, relationGraph: true }, '');
+      }
+    }
+    setShowFloatingPreview(false);
+    setShowGraph(true);
+  }, []);
+
+  const closeGraph = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.state?.relationGraph) {
+      window.history.back();
+    } else {
+      setShowGraph(false);
+    }
+  }, []);
 
   const handleRelasi = () => {
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      setShowGraph(true);
+      openGraph();
     } else {
       setShowFloatingPreview(true);
     }
   };
+
+  // Sinkronisasi tombol navigasi browser (arrow back/forward) agar kembali ke detail dokumen
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (showGraphRef.current && !event.state?.relationGraph) {
+        setShowGraph(false);
+      } else if (!showGraphRef.current && event.state?.relationGraph) {
+        setShowGraph(true);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  // Kembalikan posisi scroll pembacaan dokumen setelah grafik ditutup
+  const prevShowGraphRef = useRef(showGraph);
+  useEffect(() => {
+    if (prevShowGraphRef.current && !showGraph && scrollPosRef.current > 0) {
+      const savedPos = scrollPosRef.current;
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: savedPos, behavior: 'instant' });
+      });
+    }
+    prevShowGraphRef.current = showGraph;
+  }, [showGraph]);
 
   // Di mobile, saat peta relasi dibuka, posisikan scroll tepat di awal tampilan graph.
   useEffect(() => {
@@ -273,8 +324,7 @@ export default function DetailPeraturan({
                     peraturanId={peraturan?.id}
                     onClose={() => setShowFloatingPreview(false)}
                     onExpand={() => {
-                      setShowFloatingPreview(false);
-                      setShowGraph(true);
+                      openGraph();
                     }}
                   />
                 )}
@@ -295,7 +345,7 @@ export default function DetailPeraturan({
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowGraph(false)}
+                  onClick={closeGraph}
                   className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95 shrink-0"
                 >
                   <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500" />
@@ -307,7 +357,7 @@ export default function DetailPeraturan({
 
               <RegulationGraph
                 peraturanId={peraturan?.id}
-                onClose={() => setShowGraph(false)}
+                onClose={closeGraph}
               />
             </div>
           )}

@@ -21,12 +21,15 @@ export default function GraphHoverCard({
 
     const displayTitle = node.judul || `${node.jenis || 'Undang-Undang'} Nomor ${node.nomor} Tahun ${node.tahun}`;
 
+    const safeX = typeof pos?.x === 'number' && !isNaN(pos.x) ? Math.round(pos.x) : 0;
+    const safeY = typeof pos?.y === 'number' && !isNaN(pos.y) ? Math.round(pos.y) : 0;
+
     return (
         <div
             ref={cardRef}
             className="absolute z-30 pointer-events-none select-none"
             style={{
-                transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
+                transform: `translate3d(${safeX}px, ${safeY}px, 0)`,
                 left: 0,
                 top: 0,
                 transition: 'none',

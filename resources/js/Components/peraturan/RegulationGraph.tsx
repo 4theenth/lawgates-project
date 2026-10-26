@@ -35,6 +35,7 @@ export default function RegulationGraph({
     hoverNodeRef.current = hoverNode;
     const hoverCardRef = useRef<HTMLDivElement | null>(null);
     const [hoverCardPos, setHoverCardPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const currentHoverPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
     const mousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
     const [clickedNode, setClickedNode] = useState<GraphNode | null>(null);
@@ -702,18 +703,25 @@ export default function RegulationGraph({
         return { x: posX, y: posY };
     }, [dimensions]);
 
-    const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const updatePointerPos = useCallback((clientX: number, clientY: number) => {
         if (!containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
-        const cursorX = e.clientX - rect.left;
-        const cursorY = e.clientY - rect.top;
+        const cursorX = clientX - rect.left;
+        const cursorY = clientY - rect.top;
         mousePosRef.current = { x: cursorX, y: cursorY };
 
-        if (hoverCardRef.current && hoverNodeRef.current) {
-            const { x, y } = computeHoverCardPosition(cursorX, cursorY);
-            hoverCardRef.current.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+        if (hoverNodeRef.current) {
+            const nextPos = computeHoverCardPosition(cursorX, cursorY);
+            currentHoverPosRef.current = nextPos;
+            if (hoverCardRef.current) {
+                hoverCardRef.current.style.transform = `translate3d(${Math.round(nextPos.x)}px, ${Math.round(nextPos.y)}px, 0)`;
+            }
         }
     }, [computeHoverCardPosition]);
+
+    const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
+        updatePointerPos(e.clientX, e.clientY);
+    }, [updatePointerPos]);
 
     const handleMouseLeave = useCallback(() => {
         setHoverNode(null);
@@ -733,13 +741,14 @@ export default function RegulationGraph({
 
             if (curX === 0 && curY === 0 && graphRef.current) {
                 const screenCoords = graphRef.current.graph2ScreenCoords(nextNode.x ?? 0, nextNode.y ?? 0);
-                if (screenCoords) {
+                if (screenCoords && !isNaN(screenCoords.x) && !isNaN(screenCoords.y)) {
                     curX = screenCoords.x;
                     curY = screenCoords.y;
                 }
             }
 
             const initialPos = computeHoverCardPosition(curX, curY);
+            currentHoverPosRef.current = initialPos;
             setHoverCardPos(initialPos);
             if (hoverCardRef.current) {
                 hoverCardRef.current.style.transform = `translate3d(${Math.round(initialPos.x)}px, ${Math.round(initialPos.y)}px, 0)`;
@@ -847,6 +856,22 @@ export default function RegulationGraph({
         drawNode(node, ctx, { hoverNode, clickedNode, activeNodeIds });
     }, [hoverNode, clickedNode, activeNodeIds]);
 
+    const onNodePointerAreaPaint = useCallback((node: any, color: string, ctx: CanvasRenderingContext2D) => {
+        ctx.fillStyle = color;
+        const nx = node.x || 0;
+        const ny = node.y || 0;
+
+        // 1. Orb area (generous 26px radius)
+        ctx.beginPath();
+        ctx.arc(nx, ny, 26, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 2. Text label pill area
+        ctx.beginPath();
+        ctx.rect(nx - 45, ny + 5, 90, 22);
+        ctx.fill();
+    }, []);
+
     const onDrawLinkOverlay = useCallback((link: any, ctx: CanvasRenderingContext2D) => {
         drawLinkOverlay(link, ctx, {
             clickedNode,
@@ -912,7 +937,9 @@ export default function RegulationGraph({
     return (
         <div
             ref={containerRef}
-            onMouseMove={handleMouseMove}
+            onPointerMove={handlePointerMove}
+            onMouseMove={handlePointerMove}
+            onPointerLeave={handleMouseLeave}
             onMouseLeave={handleMouseLeave}
             className={`w-full relative bg-[#fafafa] overflow-hidden flex flex-col ${isMini ? 'h-full' : 'rounded-2xl border border-slate-200/80 shadow-sm'}`}
             style={{
@@ -992,9 +1019,11 @@ export default function RegulationGraph({
                     ref={graphRef}
                     width={dimensions.width}
                     height={dimensions.height}
-                    graphData={graphData}
+                    graphData={graphData as any}
                     nodeRelSize={1}
                     d3VelocityDecay={0.88}
+                    autoPauseRedraw={false}
+                    nodeLabel={() => ''}
 
                     // Links
                     linkColor={onGetLinkColor}
@@ -1024,23 +1053,7 @@ export default function RegulationGraph({
 
                     // Custom Orb Node Render
                     nodeCanvasObject={onDrawNode}
-
-                    // Pointer Touch Boundary Area for Easy Clicking & Dragging (Orb + Label Hit Area)
-                    nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
-                        ctx.fillStyle = color;
-                        const nx = node.x || 0;
-                        const ny = node.y || 0;
-
-                        // 1. Orb area (generous 26px radius)
-                        ctx.beginPath();
-                        ctx.arc(nx, ny, 26, 0, Math.PI * 2);
-                        ctx.fill();
-
-                        // 2. Text label pill area
-                        ctx.beginPath();
-                        ctx.rect(nx - 45, ny + 5, 90, 22);
-                        ctx.fill();
-                    }}
+                    nodePointerAreaPaint={onNodePointerAreaPaint}
 
                     // Warmup & Auto-fit framing
                     warmupTicks={100}
@@ -1071,11 +1084,11 @@ export default function RegulationGraph({
             )}
 
             {/* Floating Quick Summary Tooltip (Following Mouse Cursor on Hover) */}
-            {hoverNode && !draggedNodeRef.current && (
+            {hoverNode && hoverNode.id !== cardNode?.id && !draggedNodeRef.current && (
                 <GraphHoverCard
                     cardRef={hoverCardRef}
                     node={hoverNode}
-                    pos={hoverCardPos}
+                    pos={currentHoverPosRef.current.x ? currentHoverPosRef.current : hoverCardPos}
                 />
             )}
         </div>
