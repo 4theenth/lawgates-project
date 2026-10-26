@@ -9,6 +9,7 @@ import {
 import { useRegulationTimeline } from '@/hooks/useRegulationTimelineApi';
 import { TimelineFilterToolbar } from './TimelineFilterToolbar';
 import { TimelineDivergingChart } from './TimelineDivergingChart';
+import { TimelineLoadingBar } from './TimelineLoadingBar';
 import { TimelineWeeklyAccordion } from './TimelineWeeklyAccordion';
 import { TimelineEmptyState } from './TimelineEmptyState';
 
@@ -42,6 +43,7 @@ export function RegulasiTimelineSection({
 
   const [selectedMonthId, setSelectedMonthId] = useState<string | null>(null);
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
+  const [activeWeekStatus, setActiveWeekStatus] = useState<'berlaku' | 'dicabut'>('berlaku');
 
   // Filter seketika (multi-select array, kosong = semua)
   const [selectedJenis, setSelectedJenis] = useState<string[]>([]);
@@ -107,32 +109,63 @@ export function RegulasiTimelineSection({
     return weeks ? { ...found, weeks } : found;
   }, [selectedMonthId, period, weeksByMonthId]);
 
+  const scrollToWeek = (weekId: string, attempts = 5) => {
+    setTimeout(() => {
+      const el = document.getElementById(`accordion-week-${weekId}`);
+      if (el) {
+        const headerBtn = el.querySelector('button') || el;
+        const rect = headerBtn.getBoundingClientRect();
+        const scrollY = window.scrollY ?? window.pageYOffset ?? 0;
+
+        // Posisikan tombol header minggu di sekitar 36% tinggi layar
+        // sehingga header dan rincian konten peraturan di bawahnya berada tepat di tengah viewport
+        const viewportHeight = window.innerHeight;
+        const targetTopInViewport = Math.max(90, Math.round(viewportHeight * 0.36));
+        const targetScrollTop = scrollY + rect.top - targetTopInViewport;
+
+        window.scrollTo({
+          top: Math.max(0, targetScrollTop),
+          behavior: 'smooth',
+        });
+      } else if (attempts > 0) {
+        // Coba lagi dengan jeda singkat jika elemen belum selesai me-mount pada render berikutnya
+        scrollToWeek(weekId, attempts - 1);
+      }
+    }, 60);
+  };
+
   const handleSelectMonth = (month: MonthTimelineData) => {
     if (selectedMonthId === month.id) {
       setSelectedMonthId(null);
       setSelectedWeekId(null);
+      setActiveWeekStatus('berlaku');
       return;
     }
 
     setSelectedMonthId(month.id);
     setSelectedWeekId(null);
+    setActiveWeekStatus('berlaku');
   };
 
   const handleDeselectMonth = () => {
     setSelectedMonthId(null);
     setSelectedWeekId(null);
+    setActiveWeekStatus('berlaku');
+  };
+
+  const handleSelectWeek = (weekId: string, status?: 'berlaku' | 'dicabut') => {
+    setSelectedWeekId(weekId);
+    if (status) {
+      setActiveWeekStatus(status);
+    }
+    scrollToWeek(weekId);
   };
 
   const handleToggleWeek = (weekId: string) => {
     setSelectedWeekId((prev) => {
       const next = prev === weekId ? null : weekId;
       if (next) {
-        setTimeout(() => {
-          const el = document.getElementById(`accordion-week-${weekId}`);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }
-        }, 50);
+        scrollToWeek(next);
       }
       return next;
     });
@@ -142,6 +175,7 @@ export function RegulasiTimelineSection({
     setYearRange([year1, year2]);
     setSelectedMonthId(null);
     setSelectedWeekId(null);
+    setActiveWeekStatus('berlaku');
   };
 
   const handlePeriodChangeFromDropdown = (periodLabel: string) => {
@@ -158,6 +192,7 @@ export function RegulasiTimelineSection({
     setSelectedLokasi([]);
     setSelectedMonthId(null);
     setSelectedWeekId(null);
+    setActiveWeekStatus('berlaku');
   };
 
   return (
@@ -186,16 +221,19 @@ export function RegulasiTimelineSection({
           setSelectedJenis(val);
           setSelectedMonthId(null);
           setSelectedWeekId(null);
+          setActiveWeekStatus('berlaku');
         }}
         onSubjekChange={(val) => {
           setSelectedSubjek(val);
           setSelectedMonthId(null);
           setSelectedWeekId(null);
+          setActiveWeekStatus('berlaku');
         }}
         onLokasiChange={(val) => {
           setSelectedLokasi(val);
           setSelectedMonthId(null);
           setSelectedWeekId(null);
+          setActiveWeekStatus('berlaku');
         }}
         onResetFilter={handleResetFilter}
         jenisOptions={filterReferences?.kategori}
@@ -206,17 +244,20 @@ export function RegulasiTimelineSection({
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <span className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[8px] border-b-suc-900 inline-block" />
-            <span className="text-xs sm:text-sm font-medium text-neu-700">Berlaku</span>
+            <span className="text-xs sm:text-sm font-medium text-suc-900">Berlaku</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[8px] border-t-dan-900 inline-block" />
-            <span className="text-xs sm:text-sm font-medium text-neu-700">Dicabut</span>
+            <span className="text-xs sm:text-sm font-medium text-dan-900">Dicabut</span>
           </div>
         </div>
       </div>
 
       {/* ── 4. Card Utama Timeline ── */}
-      <div className="w-full bg-white rounded-[20px] border border-neu-50 p-6 sm:p-8 shadow-2xs">
+      <div className="w-full bg-white rounded-[20px] border border-neu-50 p-6 sm:p-8 shadow-2xs relative overflow-hidden">
+        {/* Indikator Loading Progress Bar Elegan & Terlihat Jelas */}
+        <TimelineLoadingBar isLoading={isLoading} />
+
         {error ? (
           <div className="py-16 text-center text-sm text-dan-900">{error}</div>
         ) : (
@@ -225,13 +266,14 @@ export function RegulasiTimelineSection({
             isLoading={isLoading}
             selectedMonth={selectedMonth}
             selectedWeekId={selectedWeekId}
-            onSelectWeek={handleToggleWeek}
+            onSelectWeek={handleSelectWeek}
             onSelectMonth={handleSelectMonth}
             onDeselectMonth={handleDeselectMonth}
             onPeriodChange={(p: YearPeriodData) => {
               setYearRange([p.startYear, p.endYear]);
               setSelectedMonthId(null);
               setSelectedWeekId(null);
+              setActiveWeekStatus('berlaku');
             }}
           />
         )}
@@ -243,6 +285,8 @@ export function RegulasiTimelineSection({
           <TimelineWeeklyAccordion
             selectedMonth={selectedMonth}
             selectedWeekId={selectedWeekId}
+            activeStatus={activeWeekStatus}
+            onStatusChange={setActiveWeekStatus}
             onToggleWeek={handleToggleWeek}
             onDeselectMonth={handleDeselectMonth}
           />
