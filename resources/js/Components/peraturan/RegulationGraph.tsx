@@ -13,6 +13,7 @@ import {
     GraphControls,
     GraphSidebar,
     GraphNodeCard,
+    GraphHoverCard,
 } from './graph';
 
 export default function RegulationGraph({
@@ -30,6 +31,12 @@ export default function RegulationGraph({
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
     const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
+    const hoverNodeRef = useRef<GraphNode | null>(null);
+    hoverNodeRef.current = hoverNode;
+    const hoverCardRef = useRef<HTMLDivElement | null>(null);
+    const [hoverCardPos, setHoverCardPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const mousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
     const [clickedNode, setClickedNode] = useState<GraphNode | null>(null);
     const [cardNode, setCardNode] = useState<GraphNode | null>(null);
     const cardRef = useRef<HTMLDivElement | null>(null);
@@ -676,12 +683,73 @@ export default function RegulationGraph({
     // Event Handlers
     // ─────────────────────────────────────────────
 
-    const handleNodeHover = useCallback((node: any) => {
-        setHoverNode(node || null);
-        document.body.style.cursor = node ? 'pointer' : 'default';
+    const computeHoverCardPosition = useCallback((cursorX: number, cursorY: number) => {
+        const cardWidth = 270;
+        const cardHeight = 115;
+        let posX = cursorX + 16;
+        let posY = cursorY + 16;
+
+        if (posX + cardWidth + 12 > dimensions.width) {
+            posX = cursorX - cardWidth - 16;
+        }
+        if (posY + cardHeight + 12 > dimensions.height) {
+            posY = cursorY - cardHeight - 16;
+        }
+
+        posX = Math.max(12, posX);
+        posY = Math.max(12, posY);
+
+        return { x: posX, y: posY };
+    }, [dimensions]);
+
+    const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        const cursorX = e.clientX - rect.left;
+        const cursorY = e.clientY - rect.top;
+        mousePosRef.current = { x: cursorX, y: cursorY };
+
+        if (hoverCardRef.current && hoverNodeRef.current) {
+            const { x, y } = computeHoverCardPosition(cursorX, cursorY);
+            hoverCardRef.current.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+        }
+    }, [computeHoverCardPosition]);
+
+    const handleMouseLeave = useCallback(() => {
+        setHoverNode(null);
+        hoverNodeRef.current = null;
+        document.body.style.cursor = 'default';
     }, []);
 
+    const handleNodeHover = useCallback((node: any) => {
+        const nextNode = node || null;
+        setHoverNode(nextNode);
+        hoverNodeRef.current = nextNode;
+        document.body.style.cursor = nextNode ? 'pointer' : 'default';
+
+        if (nextNode) {
+            let curX = mousePosRef.current.x;
+            let curY = mousePosRef.current.y;
+
+            if (curX === 0 && curY === 0 && graphRef.current) {
+                const screenCoords = graphRef.current.graph2ScreenCoords(nextNode.x ?? 0, nextNode.y ?? 0);
+                if (screenCoords) {
+                    curX = screenCoords.x;
+                    curY = screenCoords.y;
+                }
+            }
+
+            const initialPos = computeHoverCardPosition(curX, curY);
+            setHoverCardPos(initialPos);
+            if (hoverCardRef.current) {
+                hoverCardRef.current.style.transform = `translate3d(${Math.round(initialPos.x)}px, ${Math.round(initialPos.y)}px, 0)`;
+            }
+        }
+    }, [computeHoverCardPosition]);
+
     const handleNodeClick = useCallback((node: any) => {
+        setHoverNode(null);
+        hoverNodeRef.current = null;
         if (!node) {
             handleCloseCard();
             return;
@@ -714,6 +782,8 @@ export default function RegulationGraph({
     }, [updateCardDOMPosition]);
 
     const handleNodeDrag = useCallback((node: any) => {
+        setHoverNode(null);
+        hoverNodeRef.current = null;
         node.isDragging = true;
         draggedNodeRef.current = node;
         node.baseX = node.x;
@@ -842,6 +912,8 @@ export default function RegulationGraph({
     return (
         <div
             ref={containerRef}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
             className={`w-full relative bg-[#fafafa] overflow-hidden flex flex-col ${isMini ? 'h-full' : 'rounded-2xl border border-slate-200/80 shadow-sm'}`}
             style={{
                 fontFamily: "'Inter', system-ui, sans-serif",
@@ -995,6 +1067,15 @@ export default function RegulationGraph({
                     cardPos={initialCardPos}
                     onCloseCard={handleCloseCard}
                     onParentClose={onClose}
+                />
+            )}
+
+            {/* Floating Quick Summary Tooltip (Following Mouse Cursor on Hover) */}
+            {hoverNode && !draggedNodeRef.current && (
+                <GraphHoverCard
+                    cardRef={hoverCardRef}
+                    node={hoverNode}
+                    pos={hoverCardPos}
                 />
             )}
         </div>

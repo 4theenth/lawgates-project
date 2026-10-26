@@ -9,6 +9,12 @@ export interface TocArticleItem {
   penjelasan?: string;
   isExpanded?: boolean;
   pasalList?: TocArticleItem[];
+  targetInduk?: {
+    standardId: string;
+    labelSingkat?: string;
+    namaLengkap?: string;
+  };
+  tipe?: string;
 }
 
 export interface TocChapterItem {
@@ -42,7 +48,7 @@ export interface DocumentTableOfContentsProps {
   onPembukaanClick?: () => void;
   /** Callback saat sub-section Pembukaan (Menimbang, dll) diklik */
   onSectionClick?: (sectionId: string) => void;
-  /** Callback saat header BAB diklik */
+  /** Callback saat header BAB/Bagian diklik untuk navigasi ke dokumen */
   onBabClick?: (babId: string) => void;
   /** Callback saat item Pasal diklik */
   onPasalClick?: (babId: string, pasalId: string) => void;
@@ -123,7 +129,7 @@ export function DocumentTableOfContents({
   className = '',
   hideHeader = false,
   headerTitle = 'DAFTAR ISI',
-  defaultExpandFirstCount = 2,
+  defaultExpandFirstCount = 0,
   onHeaderClick,
   variant = 'card',
   showSearch = false,
@@ -131,25 +137,36 @@ export function DocumentTableOfContents({
   searchPlaceholder = 'Cari bab atau pasal...',
 }: DocumentTableOfContentsProps) {
   const [expandedBabs, setExpandedBabs] = useState<Record<string, boolean>>({});
+  const [expandedContainers, setExpandedContainers] = useState<Record<string, boolean>>({});
   const [isPembukaanExpanded, setIsPembukaanExpanded] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const hasPembukaanSubItems = Boolean(
     pembukaanData &&
-      (pembukaanData.menimbang ||
-        pembukaanData.mengingat ||
-        pembukaanData.memutuskan ||
-        pembukaanData.menetapkan)
+    (pembukaanData.menimbang ||
+      pembukaanData.mengingat ||
+      pembukaanData.memutuskan ||
+      pembukaanData.menetapkan)
   );
 
   const isBabExpanded = (bab: TocChapterItem, index: number): boolean => {
     if (expandedBabs[bab.id] !== undefined) {
       return expandedBabs[bab.id];
     }
-    if (bab.isExpanded !== undefined) {
-      return bab.isExpanded;
+    if (defaultExpandFirstCount > 0) {
+      return index < defaultExpandFirstCount;
     }
-    return index < defaultExpandFirstCount;
+    return false;
+  };
+
+  const handleToggleExpand = (chapterId: string, currentState: boolean, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    setExpandedBabs((prev) => ({
+      ...prev,
+      [chapterId]: !currentState,
+    }));
   };
 
   const scrollToTarget = (targetId: string) => {
@@ -296,13 +313,11 @@ export function DocumentTableOfContents({
         <button
           type="button"
           onClick={() => handleArticleClick(parentChapterId, pasal.id)}
-          className={`px-2 py-1.5 rounded-[6px] text-left transition-colors w-full cursor-pointer flex items-center justify-between ${
-            depth > 0 ? 'text-[11px]' : 'text-[12px]'
-          } ${
-            isPasalActive
+          className={`px-2 py-1.5 rounded-[6px] text-left transition-colors w-full cursor-pointer flex items-center justify-between ${depth > 0 ? 'text-[11px]' : 'text-[12px]'
+            } ${isPasalActive
               ? 'bg-pr-50 text-pr-900 font-semibold'
               : 'font-medium text-neu-600 hover:text-pr-900 hover:bg-neu-50'
-          }`}
+            }`}
         >
           <span className="truncate">{pasal.nomor}</span>
         </button>
@@ -317,11 +332,10 @@ export function DocumentTableOfContents({
                   key={childPasal.id}
                   type="button"
                   onClick={() => handleArticleClick(parentChapterId, childPasal.id)}
-                  className={`px-1.5 py-1 rounded text-left text-[11px] transition-colors w-full cursor-pointer ${
-                    isChildActive
+                  className={`px-1.5 py-1 rounded text-left text-[11px] transition-colors w-full cursor-pointer ${isChildActive
                       ? 'bg-pr-50 text-pr-900 font-semibold'
                       : 'font-medium text-neu-500 hover:text-pr-900 hover:bg-neu-50'
-                  }`}
+                    }`}
                 >
                   {childPasal.nomor}
                 </button>
@@ -356,15 +370,13 @@ export function DocumentTableOfContents({
       <div
         {...(isExpanded ? {} : { inert: '' })}
         aria-hidden={!isExpanded}
-        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
-          isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-        }`}
+        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          }`}
       >
         <div className="min-h-0 overflow-hidden">
           <div
-            className={`border-l-2 border-neu-100 pl-3 ${
-              depth === 0 ? 'ml-3.5' : 'ml-2'
-            } py-0.5 flex flex-col gap-[2px]`}
+            className={`border-l-2 border-neu-100 pl-3 ${depth === 0 ? 'ml-3.5' : 'ml-2'
+              } py-0.5 flex flex-col gap-[2px]`}
           >
             {children.map((child, childIndex) => renderChapter(child, childIndex, depth + 1))}
             {validPasals.map((pasal) => renderArticle(pasal, chapter.id, depth))}
@@ -377,11 +389,10 @@ export function DocumentTableOfContents({
       return (
         <div key={chapter.id} className="flex flex-col gap-1 w-full">
           <div
-            className={`w-full px-2 py-1.5 rounded-lg border border-neu-50 flex items-center gap-1 text-left transition-colors ${
-              isChapterActive
+            className={`w-full px-2 py-1.5 rounded-lg border border-neu-50 flex items-center gap-1 text-left transition-colors ${isChapterActive
                 ? 'bg-pr-50 text-pr-900 font-semibold'
                 : 'bg-white hover:bg-neu-50/60'
-            }`}
+              }`}
           >
             {hasChildren ? (
               <button
@@ -390,18 +401,16 @@ export function DocumentTableOfContents({
                   e.stopPropagation();
                   handleToggleBab(chapter, isExpanded);
                 }}
-                className={`p-1 rounded-md transition-colors cursor-pointer shrink-0 ${
-                  isChapterActive
+                className={`p-1 rounded-md transition-colors cursor-pointer shrink-0 ${isChapterActive
                     ? 'text-pr-900 hover:bg-pr-100/50'
                     : 'text-neu-600 hover:bg-neu-50 hover:text-neu-800'
-                }`}
+                  }`}
                 title={isExpanded ? `Tutup ${chapter.judul}` : `Buka ${chapter.judul}`}
                 aria-label={isExpanded ? `Tutup ${chapter.judul}` : `Buka ${chapter.judul}`}
               >
                 <ChevronRight
-                  className={`w-3.5 h-3.5 transition-transform duration-300 ease-out ${
-                    isExpanded ? 'rotate-90' : ''
-                  }`}
+                  className={`w-3.5 h-3.5 transition-transform duration-300 ease-out ${isExpanded ? 'rotate-90' : ''
+                    }`}
                 />
               </button>
             ) : (
@@ -416,9 +425,8 @@ export function DocumentTableOfContents({
               className="flex-1 min-w-0 text-left py-0.5 pr-1 cursor-pointer flex items-center"
             >
               <span
-                className={`truncate text-[12px] font-medium leading-[18px] ${
-                  isChapterActive ? 'text-pr-900 font-semibold' : 'text-neu-600 hover:text-pr-900'
-                }`}
+                className={`truncate text-[12px] font-medium leading-[18px] ${isChapterActive ? 'text-pr-900 font-semibold' : 'text-neu-600 hover:text-pr-900'
+                  }`}
               >
                 {chapter.judul}
               </span>
@@ -433,11 +441,10 @@ export function DocumentTableOfContents({
     return (
       <div key={chapter.id} className="flex flex-col gap-1">
         <div
-          className={`px-1.5 py-0.5 rounded-[6px] text-left text-[11px] transition-colors w-full flex items-center gap-0.5 ${
-            isChapterActive
+          className={`px-1.5 py-0.5 rounded-[6px] text-left text-[11px] transition-colors w-full flex items-center gap-0.5 ${isChapterActive
               ? 'bg-pr-50 text-pr-900 font-semibold'
               : 'hover:bg-neu-50'
-          }`}
+            }`}
         >
           {hasChildren ? (
             <button
@@ -446,18 +453,16 @@ export function DocumentTableOfContents({
                 e.stopPropagation();
                 handleToggleBab(chapter, isExpanded);
               }}
-              className={`p-1 rounded transition-colors cursor-pointer shrink-0 ${
-                isChapterActive
+              className={`p-1 rounded transition-colors cursor-pointer shrink-0 ${isChapterActive
                   ? 'text-pr-900 hover:bg-pr-100/50'
                   : 'text-neu-500 hover:bg-neu-50 hover:text-neu-800'
-              }`}
+                }`}
               title={isExpanded ? `Tutup ${chapter.judul}` : `Buka ${chapter.judul}`}
               aria-label={isExpanded ? `Tutup ${chapter.judul}` : `Buka ${chapter.judul}`}
             >
               <ChevronRight
-                className={`w-3 h-3 transition-transform duration-300 ease-out ${
-                  isExpanded ? 'rotate-90' : ''
-                }`}
+                className={`w-3 h-3 transition-transform duration-300 ease-out ${isExpanded ? 'rotate-90' : ''
+                  }`}
               />
             </button>
           ) : (
@@ -472,11 +477,10 @@ export function DocumentTableOfContents({
             className="flex-1 min-w-0 text-left py-1 pr-1 cursor-pointer truncate flex items-center"
           >
             <span
-              className={`truncate ${
-                isChapterActive
+              className={`truncate ${isChapterActive
                   ? 'font-semibold text-pr-900'
                   : 'font-medium text-neu-700 hover:text-pr-900'
-              }`}
+                }`}
             >
               {chapter.judul}
             </span>
@@ -500,9 +504,8 @@ export function DocumentTableOfContents({
       {/* ── HEADER & PENCARIAN (sticky agar tetap terlihat saat daftar di-scroll) ── */}
       {(!hideHeader || showSearch) && (
         <div
-          className={`sticky top-0 z-10 flex flex-col gap-4 shrink-0 bg-white pb-2 ${
-            variant === 'card' ? 'rounded-t-[20px]' : ''
-          }`}
+          className={`sticky top-0 z-10 flex flex-col gap-4 shrink-0 bg-white pb-2 ${variant === 'card' ? 'rounded-t-[20px]' : ''
+            }`}
         >
           {/* ── HEADER DAFTAR ISI (Figma node #2258:48480) ─────────────── */}
           {!hideHeader && (
@@ -537,11 +540,10 @@ export function DocumentTableOfContents({
         {/* Item Pembukaan (Figma node #2258:48484) */}
         <div className="flex flex-col gap-1">
           <div
-            className={`w-full min-h-[34px] px-2 py-1 rounded-lg border border-neu-50 flex items-center text-left transition-colors ${
-              isSectionActive('pembukaan')
+            className={`w-full min-h-[34px] px-2 py-1 rounded-lg border border-neu-50 flex items-center text-left transition-colors ${isSectionActive('pembukaan')
                 ? 'bg-pr-50 text-pr-900 font-semibold'
                 : 'bg-white text-pr-800 hover:bg-neu-50/60 hover:text-pr-900'
-            }`}
+              }`}
           >
             <button
               type="button"
@@ -560,11 +562,10 @@ export function DocumentTableOfContents({
                   e.stopPropagation();
                   setIsPembukaanExpanded((prev) => !prev);
                 }}
-                className={`p-1 rounded-md transition-colors cursor-pointer shrink-0 ml-1 ${
-                  isSectionActive('pembukaan')
+                className={`p-1 rounded-md transition-colors cursor-pointer shrink-0 ml-1 ${isSectionActive('pembukaan')
                     ? 'text-pr-900 hover:bg-pr-100/50'
                     : 'text-neu-600 hover:bg-neu-50 hover:text-neu-800'
-                }`}
+                  }`}
                 title={isPembukaanExpanded ? `Tutup sub-bagian ${pembukaanJudul}` : `Buka sub-bagian ${pembukaanJudul}`}
                 aria-label={isPembukaanExpanded ? `Tutup sub-bagian ${pembukaanJudul}` : `Buka sub-bagian ${pembukaanJudul}`}
               >
@@ -584,11 +585,10 @@ export function DocumentTableOfContents({
                 <button
                   type="button"
                   onClick={() => handleSubSectionClick('section-menimbang')}
-                  className={`px-2 py-1.5 rounded-[6px] text-left text-[12px] transition-colors w-full cursor-pointer ${
-                    isSectionActive('menimbang')
+                  className={`px-2 py-1.5 rounded-[6px] text-left text-[12px] transition-colors w-full cursor-pointer ${isSectionActive('menimbang')
                       ? 'bg-pr-50 text-pr-900 font-semibold'
                       : 'font-medium text-neu-600 hover:text-pr-900 hover:bg-neu-50'
-                  }`}
+                    }`}
                 >
                   Menimbang
                 </button>
@@ -597,11 +597,10 @@ export function DocumentTableOfContents({
                 <button
                   type="button"
                   onClick={() => handleSubSectionClick('section-mengingat')}
-                  className={`px-2 py-1.5 rounded-[6px] text-left text-[12px] transition-colors w-full cursor-pointer ${
-                    isSectionActive('mengingat')
+                  className={`px-2 py-1.5 rounded-[6px] text-left text-[12px] transition-colors w-full cursor-pointer ${isSectionActive('mengingat')
                       ? 'bg-pr-50 text-pr-900 font-semibold'
                       : 'font-medium text-neu-600 hover:text-pr-900 hover:bg-neu-50'
-                  }`}
+                    }`}
                 >
                   Mengingat
                 </button>
@@ -610,11 +609,10 @@ export function DocumentTableOfContents({
                 <button
                   type="button"
                   onClick={() => handleSubSectionClick('section-memutuskan')}
-                  className={`px-2 py-1.5 rounded-[6px] text-left text-[12px] transition-colors w-full cursor-pointer ${
-                    isSectionActive('memutuskan')
+                  className={`px-2 py-1.5 rounded-[6px] text-left text-[12px] transition-colors w-full cursor-pointer ${isSectionActive('memutuskan')
                       ? 'bg-pr-50 text-pr-900 font-semibold'
                       : 'font-medium text-neu-600 hover:text-pr-900 hover:bg-neu-50'
-                  }`}
+                    }`}
                 >
                   Memutuskan
                 </button>
@@ -623,11 +621,10 @@ export function DocumentTableOfContents({
                 <button
                   type="button"
                   onClick={() => handleSubSectionClick('section-menetapkan')}
-                  className={`px-2 py-1.5 rounded-[6px] text-left text-[12px] transition-colors w-full cursor-pointer ${
-                    isSectionActive('menetapkan')
+                  className={`px-2 py-1.5 rounded-[6px] text-left text-[12px] transition-colors w-full cursor-pointer ${isSectionActive('menetapkan')
                       ? 'bg-pr-50 text-pr-900 font-semibold'
                       : 'font-medium text-neu-600 hover:text-pr-900 hover:bg-neu-50'
-                  }`}
+                    }`}
                 >
                   Menetapkan
                 </button>
