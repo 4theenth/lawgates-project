@@ -467,7 +467,14 @@ export default function Pencarian() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onSubmit={handleSearchSubmit}
-          onClear={() => setSearchQuery('')}
+          onSelectRecent={(q) => {
+            setSearchQuery(q);
+            applyFilters({ page: 1, keyword: q });
+          }}
+          onClear={() => {
+            setSearchQuery('');
+            applyFilters({ page: 1, keyword: '' });
+          }}
           placeholder="Cari peraturan yang ada di Indonesia..."
           className="mb-6 sm:mb-8"
         />
