@@ -28,7 +28,21 @@ class RegistrationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect('/');
+        $response->assertRedirect('/verify-email');
+    }
+
+    public function test_manually_registered_user_starts_unverified(): void
+    {
+        $this->post('/register', [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'phone' => '081234567890',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'terms' => true,
+        ]);
+
+        $this->assertNull(auth()->user()->email_verified_at);
     }
 
     public function test_registration_requires_terms_acceptance(): void

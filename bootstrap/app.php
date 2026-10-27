@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\CheckRole; // Tambahkan import ini
+use App\Http\Middleware\EnsureEmailIsVerifiedUnlessAdmin;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -24,7 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Mendaftarkan alias 'role' untuk memanggil CheckRole
         $middleware->alias([
-            'role' => CheckRole::class
+            'role' => CheckRole::class,
+            // Gate verifikasi email yang tidak mengunci admin
+            'verified.or.admin' => EnsureEmailIsVerifiedUnlessAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

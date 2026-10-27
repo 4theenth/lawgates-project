@@ -10,6 +10,8 @@ interface TimelineBarColumnProps {
   isHovered?: boolean;
   tooltip?: React.ReactNode;
   onClick?: () => void;
+  onTopClick?: () => void;
+  onBottomClick?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   className?: string;
@@ -29,6 +31,8 @@ export function TimelineBarColumn({
   isHovered = false,
   tooltip,
   onClick,
+  onTopClick,
+  onBottomClick,
   onMouseEnter,
   onMouseLeave,
   className = '',
@@ -36,6 +40,12 @@ export function TimelineBarColumn({
   const isHighlighted = isActive || isHovered;
   const hasTop = topCount > 0;
   const hasBottom = bottomCount > 0;
+
+  const handleBarClick = (event: React.MouseEvent, handler?: () => void) => {
+    if (!handler) return;
+    event.stopPropagation();
+    handler();
+  };
 
   return (
     <div
@@ -45,12 +55,13 @@ export function TimelineBarColumn({
       className={`flex flex-col items-center cursor-pointer group relative ${className}`}
     >
       {/* ── Section Atas: Tooltip (jika ada), Angka & Bar Hijau ── */}
-      <div className="h-[155px] w-full flex flex-col justify-end items-center pb-1 relative">
+      <div className="h-[200px] w-full flex flex-col justify-end items-center pb-1 relative">
         {tooltip}
 
         {hasTop ? (
           <>
             <span
+              onClick={(event) => handleBarClick(event, onTopClick)}
               className={`text-[12px] mb-1 leading-none ${
                 isHighlighted ? 'text-neu-900 font-bold' : 'text-neu-600 font-normal'
               }`}
@@ -58,6 +69,7 @@ export function TimelineBarColumn({
               {topCount}
             </span>
             <div
+              onClick={(event) => handleBarClick(event, onTopClick)}
               style={{ height: `${topHeight}px` }}
               className={`${barWidthClass} rounded-[4px] transition-all duration-150 ${
                 isHighlighted ? 'bg-suc-700' : 'bg-suc-300 group-hover:bg-suc-700'
@@ -83,16 +95,18 @@ export function TimelineBarColumn({
       </div>
 
       {/* ── Section Bawah: Bar Merah & Angka ── */}
-      <div className="h-[155px] w-full flex flex-col justify-start items-center pt-1 relative">
+      <div className="h-[200px] w-full flex flex-col justify-start items-center pt-1 relative">
         {hasBottom ? (
           <>
             <div
+              onClick={(event) => handleBarClick(event, onBottomClick)}
               style={{ height: `${bottomHeight}px` }}
               className={`${barWidthClass} rounded-[4px] transition-all duration-150 ${
                 isHighlighted ? 'bg-dan-700' : 'bg-dan-300 group-hover:bg-dan-700'
               }`}
             />
             <span
+              onClick={(event) => handleBarClick(event, onBottomClick)}
               className={`text-[12px] mt-1 leading-none ${
                 isHighlighted ? 'text-neu-900 font-bold' : 'text-neu-600 font-normal'
               }`}
@@ -113,6 +127,7 @@ interface TimelineMonthTooltipProps {
   berlakuCount: number;
   dicabutCount: number;
   alignment: { wrapper: string; arrow: string };
+  topHeight?: number;
 }
 
 /**
@@ -123,10 +138,16 @@ export function TimelineMonthTooltip({
   berlakuCount,
   dicabutCount,
   alignment,
+  topHeight = 0,
 }: TimelineMonthTooltipProps) {
+  // Hitung posisi vertikal tooltip agar selalu pas persis di atas bar / angka
+  // (mencegah tooltip melayang terlalu jauh saat bar pendek / count kecil)
+  const bottomPos = berlakuCount > 0 ? Math.max(topHeight + 26, 42) : 26;
+
   return (
     <div
-      className={`absolute bottom-full mb-1 ${alignment.wrapper} z-[70] bg-pr-900 text-white px-3.5 py-2.5 rounded-[10px] shadow-[0px_4px_16px_rgba(0,0,0,0.22)] border border-white/10 flex flex-col pointer-events-none whitespace-nowrap animate-in fade-in zoom-in-95 duration-100`}
+      style={{ bottom: `${bottomPos}px` }}
+      className={`absolute ${alignment.wrapper} z-[70] bg-pr-900 text-white px-3.5 py-2.5 rounded-[10px] shadow-[0px_4px_16px_rgba(0,0,0,0.22)] border border-white/10 flex flex-col pointer-events-none whitespace-nowrap animate-in fade-in zoom-in-95 duration-100`}
     >
       <span className="text-[13px] font-semibold leading-tight text-white">
         {fullName}

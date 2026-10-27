@@ -17,6 +17,8 @@ Route::middleware('guest')->group(function () {
         ->middleware('throttle:30,1');
     Route::get('auth/google/sync', [GoogleAuthController::class, 'syncView'])
         ->name('auth.google.sync');
+    Route::post('auth/google/cancel', [GoogleAuthController::class, 'cancel'])
+        ->name('auth.google.cancel');
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 

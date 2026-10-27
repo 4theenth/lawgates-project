@@ -65,17 +65,23 @@ class BookmarkPageController extends Controller
         }
 
         // Filter kata kunci pencarian (case-insensitive)
+        //
+        // whereLike() dipakai, bukan operator 'ilike', karena (a) SQLite tidak
+        // mengenal ilike sehingga suite test gagal, dan (b) 'tahun' bertipe
+        // integer sehingga `tahun ilike ?` ditolak PostgreSQL dengan
+        // "operator does not exist: integer ~~* unknown". whereLike menangani
+        // cast kolom dan memilih operator sesuai driver.
         if (!empty($search)) {
             $query->whereHasMorph('bookmarkable', ['peraturan'], function ($q) use ($search) {
                 $q->where(function ($w) use ($search) {
                     $kata = '%' . $search . '%';
-                    $w->where('judul', 'ilike', $kata)
-                        ->orWhere('nomor', 'ilike', $kata)
-                        ->orWhere('tahun', 'ilike', $kata)
-                        ->orWhere('subjek', 'ilike', $kata)
+                    $w->whereLike('judul', $kata)
+                        ->orWhereLike('nomor', $kata)
+                        ->orWhereLike('tahun', $kata)
+                        ->orWhereLike('subjek', $kata)
                         ->orWhereHas('jenisPeraturan', function ($jq) use ($kata) {
-                            $jq->where('nama', 'ilike', $kata)
-                                ->orWhere('kode', 'ilike', $kata);
+                            $jq->whereLike('nama', $kata)
+                                ->orWhereLike('kode', $kata);
                         });
                 });
             });
@@ -94,8 +100,8 @@ class BookmarkPageController extends Controller
                                 if (is_numeric($j)) {
                                     $subQ->orWhere('id', (int) $j);
                                 } else {
-                                    $subQ->orWhere('nama', 'ilike', '%' . $j . '%')
-                                        ->orWhere('kode', 'ilike', '%' . $j . '%');
+                                    $subQ->orWhereLike('nama', '%' . $j . '%')
+                                        ->orWhereLike('kode', '%' . $j . '%');
                                 }
                             }
                         });
@@ -115,10 +121,10 @@ class BookmarkPageController extends Controller
                         foreach ($lokasiList as $item) {
                             $trimmed = trim($item);
                             $clean = preg_replace('/^(pemerintah\s+provinsi|pemerintah\s+kabupaten|pemerintah\s+kota|pemerintah\s+daerah|kabupaten|kota)\s+/i', '', $trimmed);
-                            $subQ->orWhere('lokasi_daerah', 'ilike', '%' . $trimmed . '%')
-                                ->orWhere('lokasi_daerah', 'ilike', '%' . $clean . '%')
-                                ->orWhere('tempat_penetapan', 'ilike', '%' . $clean . '%')
-                                ->orWhere('instansi', 'ilike', '%' . $clean . '%');
+                            $subQ->orWhereLike('lokasi_daerah', '%' . $trimmed . '%')
+                                ->orWhereLike('lokasi_daerah', '%' . $clean . '%')
+                                ->orWhereLike('tempat_penetapan', '%' . $clean . '%')
+                                ->orWhereLike('instansi', '%' . $clean . '%');
                         }
                     });
                 });

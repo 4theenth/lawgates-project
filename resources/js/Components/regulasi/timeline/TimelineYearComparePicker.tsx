@@ -43,9 +43,9 @@ export function TimelineYearComparePicker({
 
   return (
     <div ref={containerRef} className={`relative w-full ${className}`}>
-      {/* ── Dual Tab Trigger: Kolom dengan 2 Tab Tahun (Status Tab Bersih Tanpa Minus) ── */}
+      {/* ── Dual Tab Trigger: Kolom dengan 2 Tab Tahun Berdampingan Presisi ── */}
       <div
-        className={`w-full h-11 sm:h-12 p-1 rounded-xl border bg-white shadow-2xs flex items-center gap-1.5 transition-all ${
+        className={`w-full h-11 sm:h-12 p-1 rounded-xl border bg-white shadow-2xs flex items-center transition-all ${
           activeTab !== null
             ? 'border-neu-200'
             : 'border-neu-100 hover:border-neu-300'
@@ -55,33 +55,36 @@ export function TimelineYearComparePicker({
         <button
           type="button"
           onClick={() => setActiveTab((prev) => (prev === 'left' ? null : 'left'))}
-          className={`flex-1 h-full rounded-lg text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer outline-none ${
+          className={`flex-1 h-full px-3 sm:px-3.5 rounded-lg text-xs sm:text-sm transition-all flex items-center justify-between cursor-pointer outline-none ${
             activeTab === 'left'
-              ? 'bg-neutral-100 text-neu-900 font-semibold shadow-2xs'
-              : 'text-neu-800 hover:bg-neutral-50 font-normal'
+              ? 'bg-neu-100 text-neu-900 font-semibold shadow-2xs'
+              : 'text-neu-700 hover:bg-neu-50 font-medium'
           }`}
         >
-          <span>{startYear}</span>
+          <span className="tabular-nums">{startYear}</span>
           <ChevronDown
-            className={`w-3.5 h-3.5 text-neu-400 transition-transform duration-150 ${
+            className={`w-3.5 h-3.5 text-neu-400 transition-transform duration-200 ${
               activeTab === 'left' ? 'rotate-180 text-neu-900' : ''
             }`}
           />
         </button>
 
+        {/* Divider Vertikal Halus di Antara Kedua Tahun */}
+        <div className="w-[1px] h-5 bg-neu-200/80 shrink-0 mx-0.5" />
+
         {/* Tab Tahun Kanan (Tahun 2) */}
         <button
           type="button"
           onClick={() => setActiveTab((prev) => (prev === 'right' ? null : 'right'))}
-          className={`flex-1 h-full rounded-lg text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer outline-none ${
+          className={`flex-1 h-full px-3 sm:px-3.5 rounded-lg text-xs sm:text-sm transition-all flex items-center justify-between cursor-pointer outline-none ${
             activeTab === 'right'
-              ? 'bg-neutral-100 text-neu-900 font-semibold shadow-2xs'
-              : 'text-neu-800 hover:bg-neutral-50 font-normal'
+              ? 'bg-neu-100 text-neu-900 font-semibold shadow-2xs'
+              : 'text-neu-700 hover:bg-neu-50 font-medium'
           }`}
         >
-          <span>{endYear}</span>
+          <span className="tabular-nums">{endYear}</span>
           <ChevronDown
-            className={`w-3.5 h-3.5 text-neu-400 transition-transform duration-150 ${
+            className={`w-3.5 h-3.5 text-neu-400 transition-transform duration-200 ${
               activeTab === 'right' ? 'rotate-180 text-neu-900' : ''
             }`}
           />
@@ -93,7 +96,6 @@ export function TimelineYearComparePicker({
         <YearGridPopover
           selectedYear={startYear}
           disabledYear={endYear}
-          align="left"
           onSelectYear={handleSelectYear1}
           onClose={() => setActiveTab(null)}
         />
@@ -104,7 +106,6 @@ export function TimelineYearComparePicker({
         <YearGridPopover
           selectedYear={endYear}
           disabledYear={startYear}
-          align="right"
           onSelectYear={handleSelectYear2}
           onClose={() => setActiveTab(null)}
         />

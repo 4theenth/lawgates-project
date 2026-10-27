@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { LogIn, Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { NAVBAR_MENUS, NAVBAR_THEME } from '../../config/navigation';
 import type { MenuItem } from '../../types/navigation';
 import Dropdown from '@/Components/common/Dropdown';
 import ApplicationLogo from '@/Components/common/ApplicationLogo';
+import { useAuthModal } from '@/hooks/useAuthModal';
 import profileAvatar from '@/assets/profile-avatar.webp';
 
 interface NavPillButtonProps {
@@ -32,6 +33,7 @@ interface NavbarProps {
 export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
   const { url, props } = usePage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { requireAuth } = useAuthModal();
 
   const auth = (props as any)?.auth;
   const user = auth?.user;
@@ -60,6 +62,26 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
   const isPill = isScrolled;
   const isLightPage = !isHome;
   const theme = isLightPage || isPill ? NAVBAR_THEME.scrolled : NAVBAR_THEME.default;
+
+  /**
+   * Menu bertanda `requiresAuth` rutenya dilindungi middleware `auth`.
+   * Tanpa penjagaan ini, klik menu hanya berpindah ke halaman yang kemudian
+   * me-redirect ke /login. Modal login ditampilkan lebih dulu dan URL tujuan
+   * disertakan supaya pengguna kembali ke halaman yang ia maksud.
+   */
+  const guardNavigation = (event: React.MouseEvent, item: MenuItem) => {
+    if (item.disabled) {
+      event.preventDefault();
+      return;
+    }
+
+    if (!item.requiresAuth || user) {
+      return;
+    }
+
+    event.preventDefault();
+    requireAuth(() => router.visit(item.path), { redirectUrl: item.path });
+  };
 
   return (
     <>
@@ -196,7 +218,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
               <Link
                 key={item.id}
                 href={item.disabled ? '#' : item.path}
-                onClick={item.disabled ? (e) => e.preventDefault() : undefined}
+                onClick={(e) => guardNavigation(e, item)}
                 className={`transition-colors duration-150 ease-out relative py-1 ${NAVBAR_THEME.fontSize} ${active
                   ? theme.activeItem
                   : theme.inactiveItem
@@ -276,8 +298,14 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                     key={item.id}
                     href={item.disabled ? '#' : item.path}
                     onClick={(e) => {
-                      if (item.disabled) e.preventDefault();
-                      else setMobileMenuOpen(false);
+                      if (item.disabled) {
+                        e.preventDefault();
+                        return;
+                      }
+                      // Drawer ditutup lebih dulu agar tidak bertumpuk dengan
+                      // modal login saat rute butuh autentikasi.
+                      setMobileMenuOpen(false);
+                      guardNavigation(e, item);
                     }}
                     className={`px-3.5 py-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${active
                       ? NAVBAR_THEME.mobileMenu.active
