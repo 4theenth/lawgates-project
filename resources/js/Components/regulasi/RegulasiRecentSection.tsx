@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { Search, FileText } from 'lucide-react';
 import { SearchResultCard } from '@/Components/search/SearchResultCard';
@@ -6,6 +6,8 @@ import { Pagination } from '@/Components/admin/Pagination';
 import { CountUp } from '@/Components/common/CountUp';
 import { CategoryFilterPopover } from '@/Components/kategori/CategoryFilterPopover';
 import { FilterOption } from '@/types/peraturan';
+import { RecentSearchesDropdown } from '@/Components/common/RecentSearchesDropdown';
+import { useRecentSearches } from '@/hooks/useRecentSearches';
 
 import { useFilterReferences } from '@/hooks/useFilterReferences';
 
@@ -94,7 +96,22 @@ export function RegulasiRecentSection({
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
+
+  // Recent Searches state
+  const { addSearch } = useRecentSearches();
+  const [isRecentOpen, setIsRecentOpen] = useState(false);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) {
+        setIsRecentOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Dynamic references loaded via centralized hook & optional props
   const filterRefs = useFilterReferences();
@@ -269,18 +286,47 @@ export function RegulasiRecentSection({
           />
 
           {/* Search Input Box (Melebar ke kiri mengisi ruang kosong) */}
-          <div className="relative w-full lg:flex-1 shrink-0 min-w-[260px]">
+          <div ref={searchBoxRef} className="relative w-full lg:flex-1 shrink-0 min-w-[260px]">
             <input
               type="text"
               value={keyword}
+              onFocus={() => setIsRecentOpen(true)}
+              onClick={() => setIsRecentOpen(true)}
               onChange={(e) => {
-                setKeyword(e.target.value);
+                const val = e.target.value;
+                setKeyword(val);
+                if (!val.trim()) {
+                  setIsRecentOpen(true);
+                }
                 setCurrentPage(1);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const q = keyword.trim();
+                  if (q) {
+                    addSearch(q);
+                  }
+                  setIsRecentOpen(false);
+                }
               }}
               placeholder="Cari peraturan..."
               className="w-full h-[48px] bg-white border border-neu-100 hover:border-neu-300 rounded-[20px] py-2 pl-11 pr-4 text-xs sm:text-sm text-neu-900 placeholder:text-neu-400 focus:outline-none focus:border-neu-300 focus:ring-2 focus:ring-neu-100 shadow-2xs transition-all"
             />
             <Search className="w-4 h-4 text-neu-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+
+            <RecentSearchesDropdown
+              isOpen={isRecentOpen}
+              onClose={() => setIsRecentOpen(false)}
+              onSelect={(selectedQuery) => {
+                setKeyword(selectedQuery);
+                addSearch(selectedQuery);
+                setCurrentPage(1);
+                setIsRecentOpen(false);
+              }}
+              variant="light"
+              searchQuery={keyword}
+              className="top-[calc(100%+8px)]"
+            />
           </div>
         </div>
       </div>
@@ -307,7 +353,7 @@ export function RegulasiRecentSection({
                 currentPage={currentPage}
                 totalPages={lastPage}
                 pageSize={perPage}
-                pageSizeOptions={[10, 15, 20, 50]}
+                pageSizeOptions={[5, 10, 15, 20]}
                 onPageChange={(p) => setCurrentPage(p)}
                 onPageSizeChange={(size) => {
                   setPerPage(size);
