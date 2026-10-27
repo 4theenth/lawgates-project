@@ -25,7 +25,9 @@ class EnsureEmailIsVerifiedUnlessAdmin
         }
 
         if (! $user->hasVerifiedEmail()) {
-            return $request->expectsJson()
+            // `api/*` selalu dijawab JSON: klien REST tidak bisa mengikuti
+            // redirect ke halaman verifikasi web.
+            return ($request->expectsJson() || $request->is('api/*'))
                 ? response()->json(['message' => 'Email belum diverifikasi.'], 403)
                 : redirect()->route('verification.notice');
         }

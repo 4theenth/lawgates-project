@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'google' => [
+        // Dipakai untuk memastikan access token yang dikirim frontend memang
+        // diterbitkan untuk aplikasi LawGates, bukan aplikasi Google lain.
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+    ],
+
 ];

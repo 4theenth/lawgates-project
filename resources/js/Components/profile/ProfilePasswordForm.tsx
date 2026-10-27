@@ -13,8 +13,11 @@ interface ProfilePasswordFormProps {
 export function ProfilePasswordForm({ user, className = '', onSuccess }: ProfilePasswordFormProps) {
   const { toast } = useToast();
 
-  // Akun dengan auth_provider 'google' tidak punya kata sandi lokal
-  const isGoogleAccount = user.auth_provider === 'google' || Boolean(user.google_id);
+  // Akun yang terhubung Google dan belum punya kata sandi lokal: field
+  // "Password Saat Ini" tidak relevan, tapi pengguna tetap boleh membuat
+  // kata sandi untuk login manual.
+  const isGoogleLinked = Boolean(user.google_id) || user.auth_provider === 'google';
+  const hasPassword = user.has_password ?? !isGoogleLinked;
 
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -45,7 +48,8 @@ export function ProfilePasswordForm({ user, className = '', onSuccess }: Profile
     e.preventDefault();
 
     let hasClientError = false;
-    if (!data.current_password) {
+    // Password saat ini hanya diperiksa kalau akun memang sudah punya kata sandi.
+    if (hasPassword && !data.current_password) {
       setError('current_password', 'Password saat ini wajib diisi.');
       hasClientError = true;
     }
@@ -84,67 +88,80 @@ export function ProfilePasswordForm({ user, className = '', onSuccess }: Profile
 
   return (
     <form onSubmit={handleSubmit} className={`space-y-4 ${className}`}>
-      {/* Akun Google tidak punya kata sandi lokal, jadi form ini tidak relevan.
-          Ditampilkan sebagai pesan agar pengguna tahu ke mana harus mengelola. */}
-      {isGoogleAccount ? (
-        <div className="flex items-start gap-3 rounded-[10px] border border-dan-200 bg-dan-50 p-4">
-          <Info className="w-[18px] h-[18px] text-dan-900 shrink-0 mt-0.5 stroke-[1.75]" />
+      {/* Akun terhubung Google selalu diberi catatan ini — baik saat membuat
+          kata sandi pertama maupun saat menggantinya — supaya jelas bahwa
+          kredensial Google di luar lingkup form ini. */}
+      {isGoogleLinked && (
+        <div className="flex items-start gap-3 rounded-[10px] border border-sec-200 bg-sec-50 p-4">
+          <Info className="w-[18px] h-[18px] text-sec-700 shrink-0 mt-0.5 stroke-[1.75]" />
           <div className="flex flex-col gap-1">
-            <p className="font-sans text-[13px] font-medium leading-[20px] text-dan-900">
-              Kata sandi dikelola oleh Google
+            <p className="font-sans text-[13px] font-medium leading-[20px] text-neu-900">
+              Akun ini terhubung dengan Google
             </p>
-            <p className="font-sans text-[12px] font-normal leading-[18px] text-dan-900/80">
-              Akun ini masuk menggunakan Google ({user.email}), sehingga tidak memiliki kata sandi
-              LawGates untuk diubah. Silakan kelola kata sandi melalui pengaturan akun Google Anda.
+            <p className="font-sans text-[12px] font-normal leading-[18px] text-neu-700">
+              Kata sandi di sini hanya dipakai untuk <strong>login manual</strong> (email + kata
+              sandi) di LawGates. Login lewat tombol Google tetap berjalan seperti biasa, dan
+              kata sandi akun Google Anda tidak ikut berubah.
             </p>
           </div>
         </div>
-      ) : (
-        <>
+      )}
+
       {/* Row 1: Password Saat Ini & Password Baru */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-[13px] w-full">
-        {/* Field 1: Password Saat Ini */}
-        <div className="flex flex-col gap-2 w-full">
-          <label className="font-sans text-[12px] font-normal leading-[18px] text-neu-900">
-            Password Saat Ini <span className="text-dan-900 font-semibold">*</span>
-          </label>
-          <div className="relative w-full">
-            <input
-              type={showCurrentPassword ? 'text' : 'password'}
-              required
-              value={data.current_password}
-              onChange={(e) => {
-                setData('current_password', e.target.value);
-                if (errors.current_password) clearErrors('current_password');
-              }}
-              placeholder="Masukan password saat ini"
-              className={`w-full h-10 pl-4 pr-10 py-2.5 rounded-[10px] bg-white border ${
-                errors.current_password
-                  ? 'border-dan-900 focus:border-dan-900'
-                  : 'border-neu-100 focus:border-pr-900'
-              } font-sans text-[12px] font-normal leading-[18px] text-neu-900 placeholder:text-neu-600 focus:outline-none focus:ring-1 ${
-                errors.current_password ? 'focus:ring-dan-900' : 'focus:ring-pr-900'
-              } transition-all`}
-            />
-            <button
-              type="button"
-              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-neu-600 hover:text-neu-900 cursor-pointer"
-              title={showCurrentPassword ? 'Sembunyikan' : 'Tampilkan'}
-            >
-              {showCurrentPassword ? (
-                <Eye className="w-[18px] h-[18px] stroke-[1.5]" />
-              ) : (
-                <EyeOff className="w-[18px] h-[18px] stroke-[1.5]" />
-              )}
-            </button>
+        {/* Field 1: Password Saat Ini — hanya kalau akun sudah punya kata sandi */}
+        {hasPassword ? (
+          <div className="flex flex-col gap-2 w-full">
+            <label className="font-sans text-[12px] font-normal leading-[18px] text-neu-900">
+              Password Saat Ini <span className="text-dan-900 font-semibold">*</span>
+            </label>
+            <div className="relative w-full">
+              <input
+                type={showCurrentPassword ? 'text' : 'password'}
+                required
+                value={data.current_password}
+                onChange={(e) => {
+                  setData('current_password', e.target.value);
+                  if (errors.current_password) clearErrors('current_password');
+                }}
+                placeholder="Masukan password saat ini"
+                className={`w-full h-10 pl-4 pr-10 py-2.5 rounded-[10px] bg-white border ${
+                  errors.current_password
+                    ? 'border-dan-900 focus:border-dan-900'
+                    : 'border-neu-100 focus:border-pr-900'
+                } font-sans text-[12px] font-normal leading-[18px] text-neu-900 placeholder:text-neu-600 focus:outline-none focus:ring-1 ${
+                  errors.current_password ? 'focus:ring-dan-900' : 'focus:ring-pr-900'
+                } transition-all`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neu-600 hover:text-neu-900 cursor-pointer"
+                title={showCurrentPassword ? 'Sembunyikan' : 'Tampilkan'}
+              >
+                {showCurrentPassword ? (
+                  <Eye className="w-[18px] h-[18px] stroke-[1.5]" />
+                ) : (
+                  <EyeOff className="w-[18px] h-[18px] stroke-[1.5]" />
+                )}
+              </button>
+            </div>
+            {errors.current_password && (
+              <p className="text-[11px] text-dan-900 -mt-1">
+                {errors.current_password}
+              </p>
+            )}
           </div>
-          {errors.current_password && (
-            <p className="text-[11px] text-dan-900 -mt-1">
-              {errors.current_password}
-            </p>
-          )}
-        </div>
+        ) : (
+          <div className="flex flex-col gap-2 w-full">
+            <label className="font-sans text-[12px] font-normal leading-[18px] text-neu-900">
+              Password Saat Ini
+            </label>
+            <div className="flex h-10 items-center rounded-[10px] border border-neu-100 bg-neu-50/60 px-4 font-sans text-[12px] text-neu-600">
+              Belum ada kata sandi
+            </div>
+          </div>
+        )}
 
         {/* Field 2: Password Baru */}
         <div className="flex flex-col gap-2 w-full">
@@ -293,8 +310,6 @@ export function ProfilePasswordForm({ user, className = '', onSuccess }: Profile
           </button>
         </div>
       </div>
-        </>
-      )}
     </form>
   );
 }

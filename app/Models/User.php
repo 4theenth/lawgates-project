@@ -18,7 +18,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable; // Tambahkan HasApiTokens di sini
 
-    protected $appends = ['name'];
+    protected $appends = ['name', 'has_password'];
 
     public function getNameAttribute(): ?string
     {
@@ -28,6 +28,18 @@ class User extends Authenticatable implements MustVerifyEmail
     public function setNameAttribute($value): void
     {
         $this->attributes['username'] = $value;
+    }
+
+    /**
+     * Apakah akun ini punya kata sandi lokal.
+     *
+     * Dipakai UI profil untuk memutuskan apakah field "Password Saat Ini"
+     * perlu ditampilkan. Akun yang hanya masuk lewat Google punya password
+     * NULL, sehingga tidak ada kata sandi lama yang bisa diverifikasi.
+     */
+    public function getHasPasswordAttribute(): bool
+    {
+        return ! empty($this->attributes['password']);
     }
 
     public function getAvatarAttribute($value): ?string
@@ -63,6 +75,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function sendPasswordResetNotification($token)
     {
         $this->notify(new \App\Notifications\ResetPasswordNotification($token));
+    }
+
+    /**
+     * Pakai notifikasi verifikasi berbahasa Indonesia, bukan bawaan Laravel.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new \App\Notifications\VerifyEmailNotification);
     }
 
     public function bookmarks()

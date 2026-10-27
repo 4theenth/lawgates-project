@@ -57,6 +57,14 @@ class AuthenticatedSessionController extends Controller
         }
 
         $user = Auth::user();
+
+        // Akun manual yang belum memverifikasi email diarahkan ke halaman
+        // pemberitahuan verifikasi. Admin dikecualikan agar panel admin tidak
+        // bisa terkunci (konsisten dengan middleware 'verified.or.admin').
+        if ($user && ! in_array($user->role, ['admin', 'superadmin'], true) && ! $user->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice');
+        }
+
         if ($user && in_array($user->role, ['admin', 'superadmin'])) {
             $intended = session()->get('url.intended');
 

@@ -16,11 +16,43 @@ class GoogleAuthController extends Controller
 {
     use SanitizesIntendedRedirect;
 
+    /**
+     * Halaman ini hanya untuk pengguna yang belum masuk dan perlu memutuskan
+     * apakah akun Google-nya dihubungkan ke akun LawGates yang sudah ada.
+     *
+     * Kalau sesinya ternyata sudah terautentikasi, permintaan ini tidak punya
+     * tujuan lagi — `callback` hanya dijalankan dari alur login/registrasi
+     * (keduanya di middleware `guest`). Tanpa pengalihan ini halaman akan
+     * merender kartu "Hubungkan Akun?" untuk orang yang sudah masuk.
+     */
     public function syncView(Request $request)
     {
+        if ($request->user()) {
+            return redirect()->route('home');
+        }
+
         return Inertia::render('Auth/GoogleSync', [
-            'email' => $request->query('email', 'Mangadi@gmail.com'),
+            'email' => (string) $request->query('email', ''),
         ]);
+    }
+
+    /**
+     * Batalkan alur sinkronisasi dan bersihkan state pending.
+     *
+     * Tanpa ini, menekan "Batal" meninggalkan pending_link_* di session
+     * sehingga login Google berikutnya masih dipengaruhi pendaftaran lama.
+     */
+    public function cancel(Request $request)
+    {
+        $request->session()->forget([
+            'pending_link_email',
+            'pending_link_hash',
+            'pending_link_name',
+            'pending_link_phone',
+            'pending_link_expires_at',
+        ]);
+
+        return redirect()->route($request->boolean('is_register_flow') ? 'register' : 'login');
     }
 
     public function callback(Request $request)
@@ -35,7 +67,6 @@ class GoogleAuthController extends Controller
 
         // Fetch user info from Google
         $response = Http::withToken($accessToken)
-            ->when(app()->environment('local'), fn ($http) => $http->withoutVerifying())
             ->get('https://www.googleapis.com/oauth2/v3/userinfo');
 
         if ($response->failed()) {
@@ -44,11 +75,29 @@ class GoogleAuthController extends Controller
 
         $googleUser = $response->json();
 
-        // 1. Cek apakah ada alur sinkronisasi kata sandi dari registrasi manual
-        $pendingEmail = session('pending_link_email');
-        $pendingPassword = session('pending_link_password');
+        // Pastikan token benar-benar diterbitkan untuk aplikasi ini.
+        // `userinfo` tidak mengembalikan `aud`, jadi audience dicek lewat
+        // `tokeninfo`. Tanpa cek ini, access token milik aplikasi Google
+        // pihak ketiga mana pun bisa dipakai untuk masuk ke akun LawGates.
+        $expectedAudience = config('services.google.client_id');
+        if ($expectedAudience) {
+            $tokenInfo = Http::get('https://www.googleapis.com/oauth2/v3/tokeninfo', ['access_token' => $accessToken]);
 
-        if ($pendingEmail && $pendingPassword) {
+            if ($tokenInfo->failed() || ($tokenInfo->json('aud') !== $expectedAudience)) {
+                return response()->json(['message' => 'Google token audience tidak cocok'], 401);
+            }
+        }
+
+        // 1. Alur sinkronisasi kata sandi dari registrasi manual.
+        $pendingEmail = session('pending_link_email');
+        $pendingHash = session('pending_link_hash');
+        $pendingExpiresAt = (int) session('pending_link_expires_at');
+
+        // State pending hanya berlaku 15 menit. Tanpa batas waktu, pendaftaran
+        // yang ditinggalkan (mis. tombol "Batal") masih memengaruhi login Google
+        // berhari-hari kemudian: memblokir akun Google lain dengan pesan "tidak
+        // cocok", atau diam-diam menimpa password akun yang emailnya sama.
+        if ($pendingEmail && $pendingHash && $pendingExpiresAt > now()->timestamp) {
             // Verifikasi bahwa akun Google yang dipilih cocok dengan email pendaftaran
             if (strtolower(trim($googleUser['email'])) !== strtolower(trim($pendingEmail))) {
                 return Inertia::render('Auth/GoogleSync', [
@@ -59,18 +108,54 @@ class GoogleAuthController extends Controller
             }
 
             $user = User::where('email', $pendingEmail)->first();
-            if ($user) {
-                $user->update([
-                    'password' => Hash::make($pendingPassword),
-                    'google_id' => $user->google_id ?: $googleUser['sub'],
+
+            // Akun pending bisa saja sudah dihapus (mis. oleh admin) di tengah
+            // alur. Jangan lanjut: Auth::login(null) melempar TypeError dan
+            // berakhir sebagai 500, bukan pesan yang bisa dibaca pengguna.
+            if (! $user) {
+                session()->forget([
+                    'pending_link_email',
+                    'pending_link_hash',
+                    'pending_link_name',
+                    'pending_link_phone',
+                    'pending_link_expires_at',
                 ]);
+
+                return redirect()->route('login')->withErrors([
+                    'email' => 'Akun untuk email tersebut sudah tidak tersedia. Silakan daftar ulang.',
+                ]);
+            }
+
+            // Nama & nomor telepon yang diisi saat pendaftaran ikut disimpan.
+            // Sebelumnya keduanya hanya ditulis ke session lalu dibuang, sehingga
+            // nomor HP pengguna tetap kosong setelah akun terhubung.
+            $pendingName = session('pending_link_name');
+            $pendingPhone = session('pending_link_phone');
+            $phoneTaken = $pendingPhone
+                && User::where('phone', $pendingPhone)->where('id', '!=', $user->id)->exists();
+
+            // Hash sudah dibuat saat registrasi, jadi tidak perlu Hash::make lagi.
+            // `password` punya cast 'hashed' di model, jadi bypass cast dengan
+            // forceFill + save agar hash tidak di-hash dua kali.
+            $user->forceFill([
+                'password' => $pendingHash,
+                'google_id' => $user->google_id ?: $googleUser['sub'],
+                'username' => $pendingName ?: $user->username,
+                'phone' => $phoneTaken ? $user->phone : ($pendingPhone ?: $user->phone),
+            ])->save();
+
+            // Google sudah membuktikan kepemilikan alamat ini, konsisten dengan
+            // alur login Google lainnya.
+            if (! $user->hasVerifiedEmail()) {
+                $user->markEmailAsVerified();
             }
 
             session()->forget([
                 'pending_link_email',
-                'pending_link_password',
+                'pending_link_hash',
                 'pending_link_name',
                 'pending_link_phone',
+                'pending_link_expires_at',
             ]);
 
             $redirect = $this->safeIntended($request->input('redirect') ?: $request->query('redirect'));
@@ -81,6 +166,18 @@ class GoogleAuthController extends Controller
             Auth::login($user, $remember);
 
             return $this->redirectUserByRole($user);
+        }
+
+        // State pending yang basi atau tidak lengkap tidak boleh menyandera
+        // login berikutnya — bersihkan sebelum lanjut ke alur login biasa.
+        if ($pendingEmail || $pendingHash || $pendingExpiresAt) {
+            session()->forget([
+                'pending_link_email',
+                'pending_link_hash',
+                'pending_link_name',
+                'pending_link_phone',
+                'pending_link_expires_at',
+            ]);
         }
 
         // 2. Alur login dengan Google
@@ -106,7 +203,10 @@ class GoogleAuthController extends Controller
                 }
             }
         } else {
-            // Create new user
+            // Akun baru via Google. `email_verified_at` tidak diisi di sini:
+            // kolom itu tidak ada di #[Fillable], jadi nilainya akan dibuang
+            // diam-diam oleh create(). Verifikasi diset eksplisit lewat
+            // markEmailAsVerified() di bawah, yang juga menangani akun lama.
             $user = User::create([
                 'username' => $googleUser['name'] ?? explode('@', $googleUser['email'])[0],
                 'email' => $googleUser['email'],
@@ -117,6 +217,12 @@ class GoogleAuthController extends Controller
             ]);
 
             event(new Registered($user));
+        }
+
+        // Akun Google lama yang belum punya email_verified_at ikut diverifikasi,
+        // karena Google sendiri yang menjamin kepemilikan alamat tersebut.
+        if ($user && ! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
         }
 
         Auth::login($user, $remember);
@@ -147,6 +253,6 @@ class GoogleAuthController extends Controller
             return redirect()->route('admin.dashboard')->with('success', 'Berhasil masuk ke dashboard Admin');
         }
 
-        return redirect()->intended('/')->with('success', 'Berhasil masuk dengan akun Google');
+        return redirect()->intended(route('home'))->with('success', 'Berhasil masuk dengan akun Google');
     }
 }
