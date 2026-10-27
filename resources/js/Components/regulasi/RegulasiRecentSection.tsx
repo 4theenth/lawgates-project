@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import axios from 'axios';
 import { Search, FileText } from 'lucide-react';
 import { SearchResultCard } from '@/Components/search/SearchResultCard';
 import { Pagination } from '@/Components/admin/Pagination';
@@ -170,23 +171,18 @@ export function RegulasiRecentSection({
       params.append('page', currentPage.toString());
       params.append('per_page', perPage.toString());
 
-      const res = await fetch(`/api/search?${params.toString()}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.data && json.data.length > 0) {
-          setRegulations(json.data);
-          setCurrentPage(json.current_page || 1);
-          setLastPage(json.last_page || 1);
-        } else if (!keyword && selectedKategori.length === 0 && !tahunParam && selectedStatus.length === 0 && selectedSubjek.length === 0) {
-          // Gunakan Figma dummy fallback jika belum ada data di database
-          setRegulations(FIGMA_DUMMY_REGULATIONS);
-          setLastPage(1);
-        } else {
-          setRegulations([]);
-          setLastPage(1);
-        }
-      } else {
+      const res = await axios.get('/api/search', { params });
+      const json = res.data;
+      if (json && json.data && json.data.length > 0) {
+        setRegulations(json.data);
+        setCurrentPage(json.current_page || 1);
+        setLastPage(json.last_page || 1);
+      } else if (!keyword && selectedKategori.length === 0 && !tahunParam && selectedStatus.length === 0 && selectedSubjek.length === 0) {
         setRegulations(FIGMA_DUMMY_REGULATIONS);
+        setLastPage(1);
+      } else {
+        setRegulations([]);
+        setLastPage(1);
       }
     } catch {
       setRegulations(FIGMA_DUMMY_REGULATIONS);

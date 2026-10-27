@@ -42,7 +42,7 @@ class UserDashboardController extends Controller
                 ];
             });
 
-        return Inertia::render('User/Dashboard', [
+        return Inertia::render('User/Ringkasan', [
             'totalBookmarks' => $totalBookmarks,
             'recentBookmarks' => $recentBookmarks,
         ]);

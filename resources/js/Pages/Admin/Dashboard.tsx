@@ -2,7 +2,7 @@ import React from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
-import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
+import { PageHeader } from '@/Components/common/PageHeader';
 import { StatCard } from '@/Components/admin/StatCard';
 import { RevenueTrendChart } from '@/Components/admin/RevenueTrendChart';
 import { SubscriptionDonutChart } from '@/Components/admin/SubscriptionDonutChart';
@@ -24,8 +24,8 @@ export default function AdminDashboard() {
         <Breadcrumb items={breadcrumbs} />
       </div>
 
-      {/* 2. Page Header Menggunakan Reusable Component AdminPageHeader */}
-      <AdminPageHeader
+      {/* 2. Page Header Menggunakan Reusable Component PageHeader */}
+      <PageHeader
         title="Selamat datang, Super Admin"
         description="Berikut adalah ringkasan performa bulanan LawGates"
       />

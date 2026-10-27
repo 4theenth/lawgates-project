@@ -120,13 +120,13 @@ export const SIDEBAR_MENUS = ADMIN_SIDEBAR_MENUS;
 export const USER_SIDEBAR_MENUS: SidebarMenuItem[] = [
   {
     id: 'dashboard',
-    label: 'Dashboard',
+    label: 'Ringkasan',
     href: '/dashboard',
     icon: LayoutGrid,
   },
   {
     id: 'bookmark',
-    label: 'Bookmark',
+    label: 'Bookmark Saya',
     href: '/bookmarks',
     icon: Bookmark,
   },

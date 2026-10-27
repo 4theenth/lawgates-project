@@ -3,6 +3,7 @@ import { usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { useAuthModal } from '@/hooks/useAuthModal';
 import { useToast } from '@/hooks/useToast';
+import { useBookmarkCollectionModal } from '@/hooks/useBookmarkCollectionModal';
 
 // Global reactive Set to synchronize bookmark status instantly across all components on screen
 const globalBookmarkSet = new Set<string>();
@@ -10,6 +11,16 @@ const listeners = new Set<() => void>();
 
 function notifyListeners() {
   listeners.forEach((listener) => listener());
+}
+
+export function removeGlobalBookmark(id: string | number) {
+  globalBookmarkSet.delete(String(id).trim());
+  notifyListeners();
+}
+
+export function addGlobalBookmark(id: string | number) {
+  globalBookmarkSet.add(String(id).trim());
+  notifyListeners();
 }
 
 /**
@@ -20,6 +31,7 @@ export function useBookmark(peraturanId?: string | number) {
   const { props } = usePage<any>();
   const { requireAuth } = useAuthModal();
   const { toast } = useToast();
+  const collectionModal = useBookmarkCollectionModal();
 
   const idStr = peraturanId !== undefined && peraturanId !== null ? String(peraturanId).trim() : '';
 
@@ -70,28 +82,53 @@ export function useBookmark(peraturanId?: string | number) {
         }
         notifyListeners();
 
+        // JIKA MENYIMPAN (nextState = true): Buka modal koleksi SECARA INSTAN seketika saat diklik!
+        if (nextState && collectionModal) {
+          setIsLoading(true);
+
+          const bookmarkPromise = axios
+            .post('/api/bookmarks/toggle', { type: 'peraturan', id: idStr })
+            .then((response) => {
+              if (response.data && response.data.success && response.data.bookmarked) {
+                globalBookmarkSet.add(idStr);
+                notifyListeners();
+                toast.success('Peraturan berhasil disimpan ke bookmark');
+                return response.data.bookmark_id;
+              }
+              return null;
+            })
+            .catch(() => {
+              // Rollback jika request backend gagal
+              globalBookmarkSet.delete(idStr);
+              notifyListeners();
+              collectionModal.closeCollectionModal();
+              toast.error('Gagal memperbarui bookmark.');
+              return null;
+            })
+            .finally(() => {
+              setIsLoading(false);
+            });
+
+          collectionModal.openCollectionModal({
+            peraturanId: idStr,
+            bookmarkPromise,
+          });
+
+          return;
+        }
+
+        // JIKA MENGHAPUS BOOKMARK (nextState = false):
         setIsLoading(true);
         try {
           const response = await axios.post('/api/bookmarks/toggle', { type: 'peraturan', id: idStr });
           if (response.data && response.data.success) {
-            const finalState = Boolean(response.data.bookmarked);
-
-            if (finalState) {
-              globalBookmarkSet.add(idStr);
-              toast.success('Peraturan berhasil disimpan ke bookmark');
-            } else {
-              globalBookmarkSet.delete(idStr);
-              toast.success('Peraturan dihapus dari bookmark');
-            }
+            globalBookmarkSet.delete(idStr);
+            toast.success('Peraturan dihapus dari bookmark');
             notifyListeners();
           }
         } catch {
           // Rollback on failure
-          if (nextState) {
-            globalBookmarkSet.delete(idStr);
-          } else {
-            globalBookmarkSet.add(idStr);
-          }
+          globalBookmarkSet.add(idStr);
           notifyListeners();
           toast.error('Gagal memperbarui bookmark.');
         } finally {
@@ -99,7 +136,7 @@ export function useBookmark(peraturanId?: string | number) {
         }
       });
     },
-    [idStr, isLoading, requireAuth, toast]
+    [idStr, isLoading, requireAuth, toast, collectionModal]
   );
 
   return {

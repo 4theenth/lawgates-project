@@ -15,14 +15,16 @@ export default function Modal({
     backdropClassName = '',
     backdropStyle,
     panelClassName = '',
+    bottomSheetMobile = false,
 }: PropsWithChildren<{
     show: boolean;
-    maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'status';
+    maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'status' | 'collection';
     closeable?: boolean;
     onClose: CallableFunction;
     backdropClassName?: string;
     backdropStyle?: React.CSSProperties;
     panelClassName?: string;
+    bottomSheetMobile?: boolean;
 }>) {
     const close = () => {
         if (closeable) {
@@ -34,13 +36,14 @@ export default function Modal({
         sm: 'sm:max-w-sm',
         md: 'sm:max-w-md',
         status: 'sm:max-w-[454px]',
+        collection: 'sm:max-w-[430px]',
         lg: 'sm:max-w-lg',
         xl: 'sm:max-w-xl',
         '2xl': 'sm:max-w-2xl',
     }[maxWidth];
 
     return (
-        <Transition show={show} leave="duration-200">
+        <Transition show={show} leave="duration-100">
             <Dialog
                 as="div"
                 id="modal"
@@ -49,34 +52,66 @@ export default function Modal({
             >
                 {/* 1. Backdrop Gelap Hanya di Belakang Modal */}
                 <TransitionChild
-                    enter="ease-out duration-300"
+                    enter="ease-out duration-150 transition-opacity"
                     enterFrom="opacity-0"
                     enterTo="opacity-100"
-                    leave="ease-in duration-200"
+                    leave="ease-in duration-100 transition-opacity"
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
                     <div
-                        className={`fixed inset-0 transition-opacity ${backdropClassName || ''}`}
+                        className={`fixed inset-0 ${backdropClassName || ''}`}
                         style={backdropStyle || { backgroundColor: 'rgba(55, 55, 55, 0.60)' }}
                         aria-hidden="true"
                     />
                 </TransitionChild>
 
-                {/* 2. Container Centered Modal di Depan Backdrop */}
-                <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
-                    <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                {/* 2. Container Modal di Depan Backdrop (Bottom Sheet on Mobile jika bottomSheetMobile=true) */}
+                <div
+                    className={`fixed inset-0 z-10 ${
+                        bottomSheetMobile
+                            ? 'flex flex-col justify-end sm:justify-center items-center overflow-hidden sm:overflow-y-auto p-0 sm:p-4'
+                            : 'overflow-y-auto'
+                    }`}
+                >
+                    <div
+                        className={
+                            bottomSheetMobile
+                                ? 'w-full sm:w-auto flex justify-center'
+                                : 'flex min-h-full items-center justify-center p-4 text-center sm:p-0'
+                        }
+                    >
                         <TransitionChild
-                            enter="ease-out duration-300"
-                            enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                            enterTo="opacity-100 translate-y-0 sm:scale-100"
-                            leave="ease-in duration-200"
-                            leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-                            leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                            enter="transition-transform duration-150 ease-out"
+                            enterFrom={
+                                bottomSheetMobile
+                                    ? 'translate-y-full sm:translate-y-0 sm:opacity-0 sm:scale-95'
+                                    : 'opacity-0 -translate-y-2 scale-[0.98]'
+                            }
+                            enterTo={
+                                bottomSheetMobile
+                                    ? 'translate-y-0 sm:scale-100 sm:opacity-100'
+                                    : 'opacity-100 translate-y-0 scale-100'
+                            }
+                            leave="transition-transform duration-100 ease-in"
+                            leaveFrom={
+                                bottomSheetMobile
+                                    ? 'translate-y-0 sm:scale-100 sm:opacity-100'
+                                    : 'opacity-100 translate-y-0 scale-100'
+                            }
+                            leaveTo={
+                                bottomSheetMobile
+                                    ? 'translate-y-full sm:translate-y-0 sm:opacity-0 sm:scale-95'
+                                    : 'opacity-0 -translate-y-1 scale-[0.98]'
+                            }
                         >
-                            {/* 3. Panel Form Modal Putih Bersih Solid (Bukan Transparan/Burem) */}
+                            {/* 3. Panel Form Modal Putih Bersih Solid */}
                             <DialogPanel
-                                className={`relative transform rounded-[16px] text-left shadow-2xl transition-all sm:my-8 sm:w-full border border-neu-100 ${maxWidthClass} ${panelClassName}`}
+                                className={`relative text-left shadow-2xl ${
+                                    bottomSheetMobile
+                                        ? 'w-full my-0 sm:my-8 sm:w-full border-t sm:border border-neu-100 rounded-t-[30px] rounded-b-none sm:rounded-[20px]'
+                                        : 'rounded-[16px] sm:my-8 sm:w-full border border-neu-100'
+                                } ${maxWidthClass} ${panelClassName}`}
                                 style={{ backgroundColor: '#ffffff', opacity: 1 }}
                             >
                                 {children}

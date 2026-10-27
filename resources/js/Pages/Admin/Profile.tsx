@@ -2,7 +2,7 @@ import React from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
-import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
+import { PageHeader } from '@/Components/common/PageHeader';
 import { ProfileAvatarCard, ProfileFormCard } from '@/Components/profile';
 import { PageProps } from '@/types';
 
@@ -32,8 +32,8 @@ export default function AdminProfile({
         />
       </div>
 
-      {/* 2. Page Header Menggunakan Reusable Component AdminPageHeader */}
-      <AdminPageHeader
+      {/* 2. Page Header Menggunakan Reusable Component PageHeader */}
+      <PageHeader
         title="Profile Saya"
         description="Kelola informasi akun anda"
       />
@@ -41,10 +41,10 @@ export default function AdminProfile({
       {/* 3. Container 2 Card Sejajar Desktop */}
       <div className="flex flex-col md:flex-row items-start gap-5 lg:gap-6 w-full max-w-[1240px]">
         {/* KIRI: Profile Summary Card */}
-        <ProfileAvatarCard user={user} />
+        <ProfileAvatarCard user={user} className="w-full md:w-[480px] lg:w-[500px] shrink-0" />
 
         {/* KANAN: Tab Forms Card (Informasi Pribadi & Reset Password) */}
-        <ProfileFormCard user={user} />
+        <ProfileFormCard user={user} className="w-full md:flex-1 md:max-w-[681px]" />
       </div>
     </AdminLayout>
   );

@@ -11,6 +11,7 @@ axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 axios.defaults.withCredentials = true;
 
 import { ToastProvider } from '@/hooks/useToast';
+import { BookmarkCollectionModalProvider } from '@/hooks/useBookmarkCollectionModal';
 
 // ─────────────────────────────────────────────────────────────
 // DOM Node Safeguard
@@ -60,14 +61,15 @@ createInertiaApp({
             <GoogleOAuthProvider clientId={googleClientId}>
                 <ToastProvider initialFlash={initialFlash}>
                     {/*
-                     * AuthModalProvider harus berada di dalam <App> karena
-                     * memakai usePage() dari PageContext milik App. children
-                     * App adalah fungsi render ({Component, props, key}).
+                     * AuthModalProvider & BookmarkCollectionModalProvider harus berada di dalam <App>
+                     * karena memakai usePage() dari PageContext milik App.
                      */}
                     <App {...props}>
                         {({ Component, props: pageProps, key }) => (
                             <AuthModalProvider>
-                                <Component key={key} {...pageProps} />
+                                <BookmarkCollectionModalProvider>
+                                    <Component key={key} {...pageProps} />
+                                </BookmarkCollectionModalProvider>
                             </AuthModalProvider>
                         )}
                     </App>

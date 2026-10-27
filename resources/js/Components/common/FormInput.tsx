@@ -86,7 +86,7 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
                             ? 'border-dan-700 focus-within:border-dan-800 focus-within:ring-1 focus-within:ring-dan-700'
                             : isValidated
                             ? 'border-suc-600 focus-within:border-suc-600 focus-within:ring-1 focus-within:ring-suc-600'
-                            : 'border-neu-50 hover:border-neu-200 focus-within:border-pr-900 focus-within:ring-1 focus-within:ring-pr-900',
+                            : 'border-neu-50 hover:border-neu-200 focus-within:border-neu-200 focus-within:ring-2 focus-within:ring-pr-900/5',
                         disabled && 'bg-neu-100 opacity-60 cursor-not-allowed',
                         className
                     )}

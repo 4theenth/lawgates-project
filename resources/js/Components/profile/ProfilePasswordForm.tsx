@@ -120,11 +120,9 @@ export function ProfilePasswordForm({ user, className = '', onSuccess }: Profile
               placeholder="Masukan password saat ini"
               className={`w-full h-10 pl-4 pr-10 py-2.5 rounded-[10px] bg-white border ${
                 errors.current_password
-                  ? 'border-dan-900 focus:border-dan-900'
-                  : 'border-neu-100 focus:border-pr-900'
-              } font-sans text-[12px] font-normal leading-[18px] text-neu-900 placeholder:text-neu-600 focus:outline-none focus:ring-1 ${
-                errors.current_password ? 'focus:ring-dan-900' : 'focus:ring-pr-900'
-              } transition-all`}
+                  ? 'border-dan-900 focus:border-dan-900 focus:ring-dan-900'
+                  : 'border-neu-100 hover:border-neu-200 focus:border-neu-300 focus:ring-pr-900/5'
+              } font-sans text-[12px] font-normal leading-[18px] text-neu-900 placeholder:text-neu-600 focus:outline-none focus:ring-2 transition-all`}
             />
             <button
               type="button"
@@ -163,11 +161,9 @@ export function ProfilePasswordForm({ user, className = '', onSuccess }: Profile
               placeholder="Masukan password baru"
               className={`w-full h-10 pl-4 pr-10 py-2.5 rounded-[10px] bg-white border ${
                 errors.password
-                  ? 'border-dan-900 focus:border-dan-900'
-                  : 'border-neu-100 focus:border-pr-900'
-              } font-sans text-[12px] font-normal leading-[18px] text-neu-900 placeholder:text-neu-600 focus:outline-none focus:ring-1 ${
-                errors.password ? 'focus:ring-dan-900' : 'focus:ring-pr-900'
-              } transition-all`}
+                  ? 'border-dan-900 focus:border-dan-900 focus:ring-dan-900'
+                  : 'border-neu-100 hover:border-neu-200 focus:border-neu-300 focus:ring-pr-900/5'
+              } font-sans text-[12px] font-normal leading-[18px] text-neu-900 placeholder:text-neu-600 focus:outline-none focus:ring-2 transition-all`}
             />
             <button
               type="button"
@@ -207,13 +203,9 @@ export function ProfilePasswordForm({ user, className = '', onSuccess }: Profile
               placeholder="Konfirmasi password baru"
               className={`w-full h-10 pl-4 pr-10 py-2.5 rounded-[10px] bg-white border ${
                 errors.password_confirmation
-                  ? 'border-dan-900 focus:border-dan-900'
-                  : 'border-neu-100 focus:border-pr-900'
-              } font-sans text-[12px] font-normal leading-[18px] text-neu-900 placeholder:text-neu-600 focus:outline-none focus:ring-1 ${
-                errors.password_confirmation
-                  ? 'focus:ring-dan-900'
-                  : 'focus:ring-pr-900'
-              } transition-all`}
+                  ? 'border-dan-900 focus:border-dan-900 focus:ring-dan-900'
+                  : 'border-neu-100 hover:border-neu-200 focus:border-neu-300 focus:ring-pr-900/5'
+              } font-sans text-[12px] font-normal leading-[18px] text-neu-900 placeholder:text-neu-600 focus:outline-none focus:ring-2 transition-all`}
             />
             <button
               type="button"

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import UserLayout from '@/Layouts/UserLayout';
+import { UserDashboardLayout } from '@/Layouts/UserDashboardLayout';
 import { PageProps } from '@/types';
-import { Breadcrumb } from '@/Components/common/Breadcrumb';
-import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
+import { PageHeader } from '@/Components/common/PageHeader';
 import { ProfileAvatarCard, ProfileFormCard } from '@/Components/profile';
 
 interface ProfileEditProps extends PageProps {
@@ -17,35 +17,53 @@ export default function ProfileEdit({
 }: ProfileEditProps) {
   const { auth } = usePage<ProfileEditProps>().props;
   const user = auth.user;
+  const isAdmin = ['admin', 'superadmin'].includes(user?.role || '');
 
-  return (
-    <UserLayout>
-      <Head title="Profile Saya - LawGates" />
+  // Konten Form Profil (Avatar Card + Form Card Tab)
+  const content = (
+    <>
+      <Head title="Pengaturan Akun - LawGates" />
 
-      {/* 1. Breadcrumb Navigasi: Dashboard > Profile Setting */}
-      <div className="mb-4">
-        <Breadcrumb
-          items={[
-            { label: 'Dashboard', href: route('dashboard') },
-            { label: 'Profile Setting' },
-          ]}
-        />
-      </div>
-
-      {/* 2. Page Header */}
-      <AdminPageHeader
-        title="Profile Saya"
-        description="Kelola informasi akun anda"
+      {/* Header Halaman Reusable */}
+      <PageHeader
+        title="Pengaturan Akun"
+        description="Kelola informasi profil, email, dan kata sandi akun Anda"
+        size="lg"
       />
 
-      {/* 3. Container 2 Card Sejajar Desktop (1:1 dengan Admin Profile) */}
-      <div className="flex flex-col md:flex-row items-start gap-5 lg:gap-6 w-full max-w-[1240px]">
-        {/* KIRI: Profile Summary Card */}
-        <ProfileAvatarCard user={user} />
+      {/* Container 2 Card Form Profil Atas-Bawah (Avatar & Ringkasan di atas, Form di bawah) */}
+      <div className="flex flex-col gap-5 lg:gap-6 w-full">
+        {/* ATAS: Profile Summary Card (Avatar & Ringkasan Akun) */}
+        <ProfileAvatarCard user={user} className="w-full" />
 
-        {/* KANAN: Tab Forms Card (Informasi Pribadi & Reset Password) */}
-        <ProfileFormCard user={user} />
+        {/* BAWAH: Tab Forms Card (Informasi Pribadi & Reset Password) */}
+        <ProfileFormCard user={user} className="w-full" />
       </div>
-    </UserLayout>
+    </>
+  );
+
+  // Jika akun admin, tampilkan dengan UserLayout sidebar admin
+  if (isAdmin) {
+    return (
+      <UserLayout>
+        <div className="w-full max-w-[1240px]">
+          {content}
+        </div>
+      </UserLayout>
+    );
+  }
+
+  // Jika akun pengguna reguler, tampilkan dengan UserDashboardLayout sesuai desain user
+  return (
+    <UserDashboardLayout
+      activeMenu="pengaturan"
+      breadcrumbs={[
+        { label: 'Beranda', href: '/' },
+        { label: 'Ringkasan', href: route('dashboard') },
+        { label: 'Pengaturan Akun' },
+      ]}
+    >
+      {content}
+    </UserDashboardLayout>
   );
 }
