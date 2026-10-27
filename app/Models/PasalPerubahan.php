@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PasalPerubahan extends Model
 {
-    protected $table = 'pasal_perubahans'; // Sesuaikan jika nama tabel di migrasimu tanpa huruf 's'
+    protected $table = 'pasal_perubahan';
     protected $guarded = [];
     public $timestamps = false;
 

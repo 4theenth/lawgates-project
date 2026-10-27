@@ -27483,6 +27483,7 @@ JSON;
             $activeStrukturId = null; // Menunjuk ke struktur terdalam saat ini
             
             $pasalUrutan = 1;
+            $pasalPerubahanMap = [];
 
             foreach ($chunks as $chunk) {
                 $tipe = $chunk['tipe'] ?? '';
@@ -27510,26 +27511,40 @@ JSON;
                     if ($tipe === 'BAB') {
                         $currentBabId = $strukturId;
                         $currentBagianId = null; // Reset child saat ada BAB baru
+                        $pasalPerubahanMap = []; // Reset kontainer pengubah agar tidak bocor melintasi batas BAB
                     } elseif ($tipe === 'BAGIAN') {
                         $currentBagianId = $strukturId;
                     }
                     
                     $activeStrukturId = $strukturId;
                     
-                } elseif ($tipe === 'PASAL') {
+                } elseif ($tipe === 'PASAL' || $tipe === 'PASAL_PERUBAHAN') {
                     // Extract nomor pasal dari label, contoh: "Pasal 1" -> "1"
                     $nomorPasal = str_ireplace('Pasal ', '', $label);
-                    $nomorPasal = trim($nomorPasal);
+                    $nomorPasal = trim($nomorPasal) ?: $label;
+
+                    $parentRef = $chunk['parent_pasal_perubahan'] ?? null;
+                    $parentPasalId = null;
+                    if ($parentRef && isset($pasalPerubahanMap[$parentRef])) {
+                        $parentPasalId = $pasalPerubahanMap[$parentRef];
+                    }
                     
-                    DB::table('pasal')->insert([
+                    $pasalId = DB::table('pasal')->insertGetId([
                         'peraturan_id' => $peraturan->id,
                         'struktur_id' => $activeStrukturId,
+                        'parent_pasal_id' => $parentPasalId,
                         'nomor_pasal' => $nomorPasal,
                         'isi_pasal' => $teks,
                         'urutan' => $pasalUrutan++,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+
+                    if ($tipe === 'PASAL_PERUBAHAN' || (!empty($chunk['target_induk']) && empty($parentRef))) {
+                        $pasalPerubahanMap[$label] = $pasalId;
+                        $pasalPerubahanMap[$nomorPasal] = $pasalId;
+                        $pasalPerubahanMap['Pasal ' . $nomorPasal] = $pasalId;
+                    }
                 }
             }
             // 5. Proses Relasi (jika ada file yang belum ada, buat draft dummy document)
@@ -27587,6 +27602,64 @@ JSON;
                                 'created_at' => now(),
                                 'updated_at' => now(),
                             ]);
+                        }
+                    }
+                }
+
+                // 5.1 Proses Detail Perubahan (Pasal Perubahan)
+                if (isset($data['relasi']['detail_perubahan']) && is_array($data['relasi']['detail_perubahan'])) {
+                    $this->command->info("Memproses detail perubahan pasal...");
+                    $perubahanTypeId = DB::table('perubahan_types')->where('nama_perubahan', 'diubah')->value('id');
+                    if (!$perubahanTypeId) {
+                        $perubahanTypeId = DB::table('perubahan_types')->insertGetId(['nama_perubahan' => 'diubah']);
+                    }
+
+                    $nomorUrutDetail = 1;
+                    foreach ($data['relasi']['detail_perubahan'] as $detail) {
+                        $targetStandardId = $detail['peraturan_induk'] ?? null;
+                        if (!$targetStandardId) continue;
+
+                        $targetPeraturanId = DB::table('peraturan')->where('unique_id', $targetStandardId)->value('id');
+                        if (!$targetPeraturanId) {
+                            $tahunTarget = date('Y');
+                            if (preg_match('/-(\d{4})$/', $targetStandardId, $matches)) {
+                                $tahunTarget = $matches[1];
+                            }
+                            $targetPeraturanId = DB::table('peraturan')->insertGetId([
+                                'unique_id' => $targetStandardId,
+                                'jenis_peraturan_id' => $jenisId,
+                                'nomor' => null,
+                                'tahun' => $tahunTarget,
+                                'judul' => str_replace('-', ' ', Str::title($targetStandardId)),
+                                'status_id' => $statusId,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+
+                        // Cari pasal container pengubah untuk targetStandardId ini
+                        $containerPasalId = null;
+                        foreach ($chunks as $c) {
+                            if (($c['tipe'] ?? '') === 'PASAL_PERUBAHAN' && ($c['target_induk'] ?? '') === $targetStandardId) {
+                                $cLabel = $c['label'] ?? '';
+                                $containerPasalId = $pasalPerubahanMap[$cLabel] ?? null;
+                                if ($containerPasalId) break;
+                            }
+                        }
+
+                        if ($containerPasalId && isset($detail['pasal_diubah']) && is_array($detail['pasal_diubah'])) {
+                            foreach ($detail['pasal_diubah'] as $pasalDiubahLabel) {
+                                DB::table('pasal_perubahan')->insert([
+                                    'pasal_romawi_id' => $containerPasalId,
+                                    'nomor_urut' => $nomorUrutDetail++,
+                                    'perubahan_type_id' => $perubahanTypeId,
+                                    'target_peraturan_id' => $targetPeraturanId,
+                                    'target_nomor_pasal' => $pasalDiubahLabel,
+                                    'isi_perubahan' => 'Diubah oleh peraturan ini',
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ]);
+                            }
                         }
                     }
                 }
