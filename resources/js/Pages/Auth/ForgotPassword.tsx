@@ -5,11 +5,12 @@ import { AuthCard, FormInput } from '@/Components/common';
 
 export interface ForgotPasswordProps {
     status?: string;
+    email?: string;
 }
 
-export default function ForgotPassword({ status }: ForgotPasswordProps) {
+export default function ForgotPassword({ status, email }: ForgotPasswordProps) {
     const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
-        email: '',
+        email: email || '',
     });
 
     const validateEmail = (val: string) => {

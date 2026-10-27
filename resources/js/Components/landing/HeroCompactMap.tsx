@@ -7,6 +7,7 @@ import {
   INDONESIA_GEOJSON,
   INDONESIA_LAND_BORDERS,
   NEIGHBORING_COUNTRIES,
+  INDONESIA_BOUNDS,
   PROVINCES_DATA,
   PROVINCE_LAND_COORDINATES,
   normalizeProvinceKey,
@@ -35,7 +36,23 @@ function MiniMapController({
         padding: [10, 10],
         animate: false,
       });
+      const fitZoom = map.getZoom();
+      map.setMinZoom(Math.floor(fitZoom * 10) / 10);
     }
+  }, [geoJsonBounds, map]);
+
+  useEffect(() => {
+    const container = map.getContainer();
+    if (!container) return;
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize();
+      if (geoJsonBounds) {
+        const boundsZoom = map.getBoundsZoom(geoJsonBounds, false, L.point(10, 10));
+        map.setMinZoom(Math.floor(boundsZoom * 10) / 10);
+      }
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
   }, [geoJsonBounds, map]);
 
   return null;
@@ -119,15 +136,12 @@ export function HeroCompactMap() {
       <MapContainer
         center={[-2.5489, 118.0149]}
         zoom={4.5}
-        minZoom={3.5}
+        minZoom={4.0}
         maxZoom={8}
         zoomControl={false}
         attributionControl={false}
         renderer={svgRenderer}
-        maxBounds={[
-          [24, 85],
-          [-20, 152],
-        ]}
+        maxBounds={INDONESIA_BOUNDS}
         maxBoundsViscosity={1.0}
         className="w-full h-full bg-[#07132B]"
         style={{ width: '100%', height: '100%', background: '#07132B' }}

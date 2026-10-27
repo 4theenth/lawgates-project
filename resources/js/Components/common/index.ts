@@ -22,3 +22,4 @@ export { Pagination, default as PaginationComponent } from './Pagination';
 export { StatusTabs, default as StatusTabsComponent } from './StatusTabs';
 export type { TabOption, StatusTabsProps } from './StatusTabs';
 export { ScrollToTop } from './ScrollToTop';
+export { ExpiredResetLinkCard, default as ExpiredResetLinkCardComponent } from './ExpiredResetLinkCard';
