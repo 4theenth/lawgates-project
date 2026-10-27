@@ -1,8 +1,9 @@
 import React from 'react';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { Mail, Phone, ChevronRight } from 'lucide-react';
 import endlessClouds from '@/assets/endless-clouds.svg';
 import ApplicationLogo from '@/Components/common/ApplicationLogo';
+import { useAuthModal } from '@/hooks/useAuthModal';
 
 function InstagramIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
@@ -23,14 +24,16 @@ function InstagramIcon({ className = 'w-4 h-4' }: { className?: string }) {
 }
 
 const EXPLORE_MENUS = [
-  { title: 'Beranda', href: '/', disabled: false },
-  { title: 'Regulasi', href: '/regulasi', disabled: false },
-  { title: 'Langganan', href: '#', disabled: true },
-  { title: 'Tentang', href: '#', disabled: true },
+  { title: 'Beranda', href: '/', disabled: false, requiresAuth: false },
+  { title: 'Regulasi', href: '/regulasi', disabled: false, requiresAuth: true },
+  { title: 'Langganan', href: '#', disabled: true, requiresAuth: false },
+  { title: 'Tentang', href: '#', disabled: true, requiresAuth: false },
 ];
 
 export function Footer() {
-  const { url } = usePage();
+  const { url, props } = usePage();
+  const { requireAuth } = useAuthModal();
+  const isAuthenticated = Boolean((props as any)?.auth?.user);
 
   // Bersihkan parameter query dan hash agar pengecekan path URL akurat
   const currentPath = url ? url.split('?')[0].split('#')[0] : '/';
@@ -116,6 +119,15 @@ export function Footer() {
                   <li key={item.title}>
                     <Link
                       href={item.href}
+                      onClick={(e) => {
+                        if (!item.requiresAuth || isAuthenticated) {
+                          return;
+                        }
+                        e.preventDefault();
+                        requireAuth(() => router.visit(item.href), {
+                          redirectUrl: item.href,
+                        });
+                      }}
                       className={`group inline-flex items-center gap-2 text-[14px] transition-colors ${
                         isActive
                           ? 'text-white font-medium'

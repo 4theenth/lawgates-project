@@ -12,6 +12,7 @@ import { TimelineDivergingChart } from './TimelineDivergingChart';
 import { TimelineLoadingBar } from './TimelineLoadingBar';
 import { TimelineWeeklyAccordion } from './TimelineWeeklyAccordion';
 import { TimelineEmptyState } from './TimelineEmptyState';
+import { TimelineErrorState } from './TimelineErrorState';
 
 interface FilterReferences {
   kategori?: { id: string | number; nama: string }[];
@@ -52,7 +53,7 @@ export function RegulasiTimelineSection({
 
   // Data dari API — angka di grafik berasal langsung dari sini, tidak ada
   // penyesuaian buatan di sisi klien.
-  const { period, isLoading, error } = useRegulationTimeline(
+  const { period, isLoading, error, retry } = useRegulationTimeline(
     yearRange[0],
     yearRange[1],
     { jenis: selectedJenis, subjek: selectedSubjek, lokasi: selectedLokasi }
@@ -259,7 +260,7 @@ export function RegulasiTimelineSection({
         <TimelineLoadingBar isLoading={isLoading} />
 
         {error ? (
-          <div className="py-16 text-center text-sm text-dan-900">{error}</div>
+          <TimelineErrorState onRetry={retry} isRetrying={isLoading} />
         ) : (
           <TimelineDivergingChart
             activePeriod={period}

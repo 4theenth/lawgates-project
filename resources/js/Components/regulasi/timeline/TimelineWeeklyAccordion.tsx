@@ -54,7 +54,7 @@ export function TimelineWeeklyAccordion({
       className={`w-full bg-white rounded-[20px] border border-neu-50 overflow-hidden shadow-2xs ${className}`}
     >
       {/* ── 1. Header Tab Panel (Sesuai Figma #3003:46020) ── */}
-      <div className="h-[49px] border-b border-neu-100 px-4 sm:px-8 flex items-center justify-between bg-white select-none">
+      <div className="h-[49px] border-b border-neu-50 px-4 sm:px-8 flex items-center justify-between bg-white select-none">
         {/* Left: Tab Berlaku & Dicabut */}
         <div className="flex items-center gap-4 sm:gap-8 h-full">
           {/* Tab Berlaku */}
@@ -194,7 +194,7 @@ export function TimelineWeeklyAccordion({
                       filteredDays.map((dayGroup, dIdx) => (
                         <div key={dIdx} className="w-full flex flex-col">
                           {/* A. Baris Tanggal (Figma #3010:46363) */}
-                          <div className="h-[36px] w-full bg-[#F8F9FA] border-l-4 border-pr-900 px-3 sm:px-8 flex items-center">
+                          <div className="h-[36px] w-full bg-[#F8F9FA] border-l-4 border-l-pr-900 px-3 sm:px-8 flex items-center">
                             <div className="flex items-center gap-2">
                               <CalendarDays className="w-3.5 h-3.5 text-pr-900 stroke-[1.8]" />
                               <span className="text-xs font-semibold text-neu-900">
@@ -208,7 +208,7 @@ export function TimelineWeeklyAccordion({
                           </div>
 
                           {/* B. Table Column Header (Figma #3021:46413) */}
-                          <div className="h-[34px] w-full bg-pr-50/70 border-l-4 border-pr-900 px-3 sm:px-8 flex items-center text-[11px] sm:text-xs font-semibold text-neu-600 select-none">
+                          <div className="h-[34px] w-full bg-pr-50/70 border-l-4 border-l-pr-900 px-3 sm:px-8 flex items-center text-[11px] sm:text-xs font-semibold text-neu-600 select-none border-b-[0.5px] border-neu-100/35">
                             <div className="w-14 sm:w-[120px] shrink-0 uppercase tracking-wider">
                               JENIS
                             </div>
@@ -228,7 +228,7 @@ export function TimelineWeeklyAccordion({
                             {dayGroup.regulations.map((reg) => (
                               <div
                                 key={reg.id}
-                                className="min-h-[58px] w-full bg-white border-l-4 border-pr-900 px-3 sm:px-8 py-2.5 flex items-center border-b border-neu-100/70 last:border-b-0 hover:bg-pr-50/25 transition-colors"
+                                className="min-h-[58px] w-full bg-white border-l-4 border-l-pr-900 px-3 sm:px-8 py-2.5 flex items-center border-b-[0.5px] border-neu-100/35 last:border-b-0 hover:bg-pr-50/25 transition-colors"
                               >
                                 {/* Kolom 1: JENIS */}
                                 <div className="w-14 sm:w-[120px] shrink-0">
@@ -273,7 +273,7 @@ export function TimelineWeeklyAccordion({
                         </div>
                       ))
                     ) : (
-                      <div className="h-[70px] border-l-4 border-pr-900 flex items-center justify-center text-xs text-neu-400 bg-[#F8F9FA]">
+                      <div className="h-[70px] border-l-4 border-l-pr-900 flex items-center justify-center text-xs text-neu-400 bg-[#F8F9FA]">
                         Tidak ada peraturan dengan status {activeTab} pada minggu ini.
                       </div>
                     )}

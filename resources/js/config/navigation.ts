@@ -25,6 +25,7 @@ export const NAVBAR_MENUS: MenuItem[] = [
     title: 'Regulasi',
     path: '/regulasi',
     disabled: false,
+    requiresAuth: true,
   },
   {
     id: 3,

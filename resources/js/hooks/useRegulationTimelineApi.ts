@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import {
   buildYearPeriod,
@@ -34,6 +34,12 @@ interface UseRegulationTimelineResult {
   error: string | null;
   /** true kalau kedua tahun dalam periode tidak punya satu event pun. */
   isEmpty: boolean;
+  /**
+   * Mengulang permintaan untuk rentang tahun & filter yang sedang aktif, tanpa
+   * memuat ulang seluruh halaman. Hanya menyentuh data timeline — komponen lain
+   * di halaman /regulasi tidak ikut di-fetch.
+   */
+  retry: () => void;
 }
 
 /**
@@ -55,6 +61,11 @@ export function useRegulationTimeline(
   const [frequencyByYear, setFrequencyByYear] = useState<Record<number, MonthlyFrequency[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Dinaikkan oleh `retry()` supaya efek fetch di bawah dijalankan ulang dengan
+  // parameter yang sama, tanpa menduplikasi logika permintaannya.
+  const [retryToken, setRetryToken] = useState(0);
+
+  const retry = useCallback(() => setRetryToken((n) => n + 1), []);
 
   // Filter dikirim sebagai string supaya efek tidak jalan ulang hanya karena
   // array baru dengan isi yang sama.
@@ -125,7 +136,7 @@ export function useRegulationTimeline(
       cancelled = true;
       controller.abort();
     };
-  }, [year1, year2, filtersKey]);
+  }, [year1, year2, filtersKey, retryToken]);
 
   const period = useMemo(() => {
     const y1 = frequencyByYear[year1];
@@ -143,7 +154,7 @@ export function useRegulationTimeline(
     && period.year2.berlakuCount === 0
     && period.year2.dicabutCount === 0;
 
-  return { period, isLoading, error, isEmpty };
+  return { period, isLoading, error, isEmpty, retry };
 }
 
 export { getEmptyYearPeriod };

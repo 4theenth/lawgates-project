@@ -67,7 +67,7 @@ function getRegulationStatusStyle(statusName: string) {
 export function RegulationCard({
   item,
   className = '',
-  variant = 'list',
+  variant: _variant = 'list',
   onClick,
 }: RegulationCardProps) {
   const statusName = item.status_peraturan?.nama_status ?? 'Berlaku';
@@ -149,8 +149,8 @@ export function RegulationCard({
           />
         </div>
 
-        {/* Tombol Lihat Detail (Tetap lembut #E7E8EC dan text-pr-900 sesuai Figma node #1684:24754) */}
-        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#E7E8EC] text-pr-900 rounded-[10px] text-xs font-medium transition-colors shrink-0">
+        {/* Tombol Lihat Detail (Hover ganti warna ketika tombol ini di-hover) */}
+        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-pr-50 hover:bg-pr-900 text-pr-900 hover:text-white rounded-[10px] text-xs font-medium transition-colors shrink-0">
           <Eye className="w-4 h-4 stroke-[1.75]" />
           <span>Lihat Detail</span>
         </span>
