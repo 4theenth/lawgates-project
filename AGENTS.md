@@ -417,6 +417,13 @@ LawGates uses Tailwind CSS with `app.css` as the centralized source of truth for
 3. **Component-specific styles should use Tailwind classes from app.css definitions**
 4. **Avoid inline style objects unless absolutely necessary**
 5. **Do not use arbitrary values** (e.g., `bg-[#ff0000]`) when a defined token exists
+6. **Input Focus & Active State Rule (STRICT)**:
+   - **DILARANG KERAS** memberikan border warna hitam pekat atau gelap pekat (seperti `border-black`, `border-pr-900`, `focus:border-pr-900`, `focus-within:border-pr-900`, `focus:ring-pr-900`, `focus-within:ring-pr-900`) pada input form, search bar, select, maupun textarea ketika aktif / fokus!
+   - Efek fokus harus selalu menggunakan border lembut dan ring tipis transparan (soft ring) yang elegan dan tidak kontras kasar:
+     - Gunakan border halus: `focus-within:border-neu-200` atau `focus:border-neu-200` (atau `border-neu-300`).
+     - Gunakan ring tipis transparan: `focus-within:ring-2 focus-within:ring-pr-900/5` (maksimal opacity 5%-10%).
+     - Border default cukup `border-neu-50` atau `border-neu-100` dengan hover `hover:border-neu-200`.
+     - Jangan pernah membuat outline garis hitam/gelap tajam yang merusak estetika desain Figma.
 
 ### app.css Structure:
 

@@ -12,7 +12,7 @@ import {
 } from '@/Components/admin/CategoryTable';
 import { CategoryModal } from '@/Components/admin/CategoryModal';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
-import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
+import { PageHeader } from '@/Components/common/PageHeader';
 import { StatusTabs } from '@/Components/common/StatusTabs';
 import { Search, X, Gavel } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
@@ -295,7 +295,7 @@ export default function KlasifikasiHukumIndex({
       </div>
 
       {/* 2. Page Header & Action Button Sesuai Mockup */}
-      <AdminPageHeader
+      <PageHeader
         title="Klasifikasi Hukum"
         description="Kelola kategori dan subjek hukum yang akan digunakan untuk menambahkan data hukum nantinya"
         action={{

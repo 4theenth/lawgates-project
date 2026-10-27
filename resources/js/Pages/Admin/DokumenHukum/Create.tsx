@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
-import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
+import { PageHeader } from '@/Components/common/PageHeader';
 import { ImportStepper } from '@/Components/admin/import/ImportStepper';
 import { StepUploadJson, UploadedJsonFile } from '@/Components/admin/import/StepUploadJson';
 import { MinioCategory } from '@/Components/admin/import/MinioCategoryTable';
@@ -852,8 +852,8 @@ export default function DokumenHukumCreate() {
         <Breadcrumb items={breadcrumbs} />
       </div>
 
-      {/* 2. Page Header Menggunakan Komponen Reusable AdminPageHeader (20px title, 14px description) */}
-      <AdminPageHeader
+      {/* 2. Page Header Menggunakan Komponen Reusable PageHeader (20px title, 14px description) */}
+      <PageHeader
         title="Tambah Data Hukum"
         description="Tambahkan data hukum dengan cara impor file JSON dari hasil OCR"
         action={

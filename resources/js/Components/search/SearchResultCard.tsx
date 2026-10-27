@@ -137,9 +137,9 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
           </span>
 
           {/* Reusable Bookmark Button */}
-          {genericItem?.id && (
+          {Boolean(genericItem?.id || (item as any)?.id) && (
             <BookmarkButton
-              peraturanId={genericItem.id}
+              peraturanId={(genericItem?.id || (item as any)?.id)!}
               variant="icon"
               size="sm"
             />

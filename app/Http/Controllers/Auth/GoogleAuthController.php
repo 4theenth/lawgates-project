@@ -114,9 +114,14 @@ class GoogleAuthController extends Controller
                 'auth_provider' => 'google',
                 'role' => 'user',
                 'password' => null,
+                'email_verified_at' => now(),
             ]);
 
             event(new Registered($user));
+        }
+
+        if ($user && is_null($user->email_verified_at)) {
+            $user->forceFill(['email_verified_at' => now()])->save();
         }
 
         Auth::login($user, $remember);

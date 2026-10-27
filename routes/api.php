@@ -49,10 +49,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // grup role:admin di bawah.
     Route::get('/bookmarks', [BookmarkController::class, 'index']);
     Route::post('/bookmarks/toggle', [BookmarkController::class, 'toggle']);
-    Route::put('/bookmarks/assign-collections', [BookmarkController::class, 'assignCollections']);
+    Route::match(['put', 'post'], '/bookmarks/assign-collections', [BookmarkController::class, 'assignCollections']);
 
     Route::get('/bookmark-collections', [BookmarkController::class, 'collections']);
+    Route::get('/bookmarks/collections', [BookmarkController::class, 'collections']);
     Route::post('/bookmark-collections', [BookmarkController::class, 'storeCollection']);
+    Route::post('/bookmarks/collections', [BookmarkController::class, 'storeCollection']);
     Route::put('/bookmark-collections/{collection}', [BookmarkController::class, 'updateCollection']);
     Route::delete('/bookmark-collections/{collection}', [BookmarkController::class, 'destroyCollection']);
 

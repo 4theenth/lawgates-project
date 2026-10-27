@@ -57,6 +57,10 @@ class AuthenticatedSessionController extends Controller
         }
 
         $user = Auth::user();
+        if ($user && is_null($user->email_verified_at)) {
+            $user->forceFill(['email_verified_at' => now()])->save();
+        }
+
         if ($user && in_array($user->role, ['admin', 'superadmin'])) {
             $intended = session()->get('url.intended');
 
