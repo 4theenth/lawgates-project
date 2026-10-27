@@ -56,6 +56,7 @@ export default function Pencarian() {
 
   const filterSidebarRef = useRef<HTMLDivElement>(null);
   const lastFetchedQueryRef = useRef<string | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sub-dropdown tahun (dari / sampai)
   const [openYearSub, setOpenYearSub] = useState<{ dari: boolean; sampai: boolean }>({
@@ -179,12 +180,33 @@ export default function Pencarian() {
         setCurrentPage(data.current_page || 1);
         setLastPage(data.last_page || 1);
         setIsSearching(false);
+        clearRetryTimer();
       })
       .catch((err) => {
         console.error('Gagal melakukan pencarian:', err);
         setIsSearching(false);
+        // Ulangi permintaan yang gagal tiap 1 menit selama halaman masih
+        // menampilkan query yang sama. Timer lama dibatalkan dulu supaya
+        // percobaan beruntun tidak menumpuk.
+        // ponytail: jeda tetap 60 detik tanpa batas percobaan; ubah ke backoff
+        // kalau endpoint benar-benar mati lama dan timer perlu berhenti sendiri.
+        clearRetryTimer();
+        retryTimerRef.current = setTimeout(() => {
+          if (lastFetchedQueryRef.current === queryString) {
+            fetchData(queryString);
+          }
+        }, 60_000);
       });
   };
+
+  const clearRetryTimer = () => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => clearRetryTimer, []);
 
   const subjekOptions: FilterOption[] = listSubjek
     .filter((s) => s.toLowerCase().includes(subjekSearchQuery.toLowerCase()))

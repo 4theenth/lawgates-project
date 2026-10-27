@@ -28,6 +28,12 @@ export interface MenuItem {
   isExternal?: boolean;
   subItems?: SubMenuItem[];
   disabled?: boolean;
+  /**
+   * Menu yang rutenya dilindungi middleware `auth` di backend. Saat pengguna
+   * belum login, klik menu ini memunculkan modal login di tempat alih-alih
+   * berpindah ke halaman yang akan langsung me-redirect ke /login.
+   */
+  requiresAuth?: boolean;
 }
 
 // Alias for backwards compatibility

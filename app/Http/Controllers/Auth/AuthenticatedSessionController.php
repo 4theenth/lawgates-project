@@ -57,8 +57,15 @@ class AuthenticatedSessionController extends Controller
         }
 
         $user = Auth::user();
-        if ($user && is_null($user->email_verified_at)) {
-            $user->forceFill(['email_verified_at' => now()])->save();
+
+        // Akun manual yang belum memverifikasi email diarahkan ke halaman
+        // pemberitahuan verifikasi. Admin dikecualikan agar panel admin tidak
+        // bisa terkunci (konsisten dengan middleware 'verified.or.admin').
+        //
+        // Catatan merge: versi origin/dev justru memaksa `email_verified_at`
+        // terisi di sini. Itu membatalkan gerbang verifikasi, jadi tidak dipakai.
+        if ($user && ! in_array($user->role, ['admin', 'superadmin'], true) && ! $user->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice');
         }
 
         if ($user && in_array($user->role, ['admin', 'superadmin'])) {

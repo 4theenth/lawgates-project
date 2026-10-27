@@ -649,28 +649,31 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
               offset={[0, -2]}
               className="custom-leaflet-popup"
             >
-              <div className="flex flex-col items-center select-none pointer-events-auto animate-in fade-in zoom-in-95 duration-150">
-                {/* Box Card Putih Sesuai Figma node #2622:44208 */}
-                <div className="bg-white rounded-[6px] border border-neu-50 px-2.5 py-[7px] min-w-[144px] shadow-md flex flex-col gap-1.5">
-                  {/* Header: NAMA PROVINSI (Uppercase) | Total */}
-                  <div className="flex items-center justify-between pb-1 border-b border-neu-50 h-[21px]">
-                    <span className="text-[12px] font-medium text-neu-900 tracking-wide uppercase leading-[18px]">
-                      {activeProvince.name}
-                    </span>
-                    <span className="text-[10px] font-medium text-pr-900 leading-[16px]">
+              <div className="flex flex-col items-center select-none cursor-default animate-in fade-in zoom-in-95 duration-150">
+                {/* Box Card Putih Sesuai Design System LawGates */}
+                <div className="bg-white rounded-[10px] border border-neu-100 p-2.5 sm:p-3 min-w-[155px] max-w-[210px] shadow-md flex flex-col gap-1.5">
+                  {/* Header: NAMA PROVINSI (Uppercase) | Total Peraturan */}
+                  <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-neu-100/80">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-pr-900 shrink-0" />
+                      <span className="text-[11px] sm:text-xs font-semibold text-neu-900 tracking-wide uppercase truncate">
+                        {activeProvince.name}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-semibold text-pr-900 shrink-0 tabular-nums">
                       {(activeProvince.total ?? 0).toLocaleString('id-ID')}
                     </span>
                   </div>
 
-                  {/* 4 Kabupaten/Kota Teratas (Sesuai Figma node #2622:44212) */}
-                  <div className="flex flex-col">
+                  {/* 4 Kabupaten/Kota Teratas (Statik tanpa efek hover) */}
+                  <div className="flex flex-col gap-1">
                     {(activeProvinceRegencies?.regencies || []).slice(0, 4).map((reg) => (
                       <div
                         key={reg.id}
-                        className="flex items-center justify-between text-[10px] text-neu-600 leading-[16px]"
+                        className="flex items-center justify-between text-[11px] text-neu-600 leading-[18px]"
                       >
-                        <span className="truncate pr-2">{reg.name}</span>
-                        <span className="tabular-nums font-normal shrink-0">
+                        <span className="truncate pr-2 font-normal text-neu-700">{reg.name}</span>
+                        <span className="tabular-nums font-normal text-neu-500 shrink-0">
                           {(reg.totalPeraturan ?? 0).toLocaleString('id-ID')}
                         </span>
                       </div>
@@ -678,8 +681,8 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
                   </div>
                 </div>
 
-                {/* Garis Pin Stem Menunjuk Wilayah Terpilih (Figma node #2622:44208: 1px garis vertikal) */}
-                <div className="w-[1px] h-[24px] bg-[#212121]" />
+                {/* Garis Pin Stem Menunjuk Wilayah Terpilih (Figma node #2622:44208) */}
+                <div className="w-[1px] h-[20px] bg-neu-900" />
               </div>
             </Popup>
           )}

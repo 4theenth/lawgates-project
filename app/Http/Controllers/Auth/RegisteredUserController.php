@@ -59,12 +59,21 @@ class RegisteredUserController extends Controller
             }
 
             // Jika akun terdaftar via Google (password masih kosong), simpan data pending di session
-            // dan alihkan ke layar Sinkronisasi Akun
+            // dan alihkan ke layar Sinkronisasi Akun.
+            //
+            // Password TIDAK disimpan mentah. Yang disimpan hanya hash sementara
+            // yang dibuat dengan Hash::make(); setelah alur Google selesai hash itu
+            // dipakai langsung sebagai password akun tanpa perlu password asli.
+            //
+            // Hanya berlaku 15 menit: state ini dibaca di awal callback Google,
+            // jadi kalau dibiarkan tanpa batas ia bisa memblokir atau menimpa
+            // password akun berhari-hari kemudian.
             session([
                 'pending_link_email' => $request->email,
-                'pending_link_password' => $request->password,
+                'pending_link_hash' => Hash::make($request->password),
                 'pending_link_name' => $request->name,
                 'pending_link_phone' => $request->phone,
+                'pending_link_expires_at' => now()->addMinutes(15)->timestamp,
             ]);
 
             return Inertia::render('Auth/GoogleSync', [
@@ -91,7 +100,9 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect()->intended('/');
+        // Akun manual wajib membuktikan kepemilikan email. Arahkan langsung ke
+        // halaman pemberitahuan verifikasi, bukan ke halaman tujuan semula.
+        return redirect()->route('verification.notice');
     }
 
     /**
@@ -105,9 +116,19 @@ class RegisteredUserController extends Controller
 
         $existingUser = User::where('email', $request->email)->first();
         if ($existingUser) {
-            throw ValidationException::withMessages([
-                'email' => 'Email sudah terdaftar. Silakan login.',
-            ]);
+            // Akun yang dibuat lewat Google belum punya password lokal. Pemiliknya
+            // tetap boleh melanjutkan: POST /register akan mengarahkan ke layar
+            // Sinkronisasi Akun, bukan membuat akun kedua. Tanpa pengecualian ini
+            // seluruh alur linking tidak pernah tercapai dari form registrasi.
+            $linkable = $existingUser->google_id && blank($existingUser->password);
+
+            if (! $linkable) {
+                throw ValidationException::withMessages([
+                    'email' => 'Email sudah terdaftar. Silakan login.',
+                ]);
+            }
+
+            return response()->json(['valid' => true, 'linkable' => true]);
         }
 
         return response()->json(['valid' => true]);
