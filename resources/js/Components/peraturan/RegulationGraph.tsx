@@ -45,6 +45,16 @@ export default function RegulationGraph({
     cardNodeRef.current = cardNode;
 
     const draggedNodeRef = useRef<any>(null);
+    const pointerInteractionRef = useRef<{
+        node: GraphNode;
+        startX: number;
+        startY: number;
+        offsetX: number;
+        offsetY: number;
+        hasDragged: boolean;
+        pointerId: number;
+    } | null>(null);
+    const lastClickedTimeRef = useRef<number>(0);
 
     // Fungsi penutup kartu detail terpadu (menghilangkan kartu dan fokus node seketika)
     const handleCloseCard = useCallback(() => {
@@ -466,7 +476,8 @@ export default function RegulationGraph({
                     node.__isDragging ||
                     node.__dragged ||
                     node.__initialDragPos ||
-                    (dragged && dragged.id === node.id)
+                    (dragged && dragged.id === node.id) ||
+                    (pointerInteractionRef.current?.node?.id === node.id)
                 );
 
                 if (isDraggingNode) {
@@ -756,7 +767,47 @@ export default function RegulationGraph({
         }
     }, [computeHoverCardPosition]);
 
+    // Deteksi node presisi matematis berbasis koordinat layar & zoom (kebal terhadap display scaling, fractional DPI, & color profile)
+    const findNodeAtScreenPos = useCallback((clientX: number, clientY: number, tolerancePx = 28): GraphNode | null => {
+        if (!graphRef.current || !containerRef.current || graphData.nodes.length === 0) return null;
+        const rect = containerRef.current.getBoundingClientRect();
+        const screenX = clientX - rect.left;
+        const screenY = clientY - rect.top;
+
+        if (screenX < 0 || screenX > rect.width || screenY < 0 || screenY > rect.height) {
+            return null;
+        }
+
+        const graphCoords = graphRef.current.screen2GraphCoords(screenX, screenY);
+        if (!graphCoords || isNaN(graphCoords.x) || isNaN(graphCoords.y)) return null;
+
+        const currentZoom = graphRef.current.zoom() || DEFAULT_GRAPH_ZOOM;
+        const hitRadius = tolerancePx / currentZoom;
+
+        let closestNode: GraphNode | null = null;
+        let minDist = Infinity;
+
+        for (const node of graphData.nodes) {
+            const nx = node.x ?? node.baseX ?? 0;
+            const ny = node.y ?? node.baseY ?? 0;
+            const dist = Math.hypot(nx - graphCoords.x, ny - graphCoords.y);
+
+            if (dist <= hitRadius && dist < minDist) {
+                minDist = dist;
+                closestNode = node;
+            }
+        }
+
+        return closestNode;
+    }, [graphData.nodes, DEFAULT_GRAPH_ZOOM]);
+
     const handleNodeClick = useCallback((node: any) => {
+        const now = Date.now();
+        if (now - lastClickedTimeRef.current < 300 && cardNodeRef.current?.id === node?.id) {
+            return;
+        }
+        lastClickedTimeRef.current = now;
+
         setHoverNode(null);
         hoverNodeRef.current = null;
         if (!node) {
@@ -770,8 +821,8 @@ export default function RegulationGraph({
 
     const handleNodeDragEnd = useCallback((node: any) => {
         node.isDragging = false;
+        node.__isDragging = false;
         draggedNodeRef.current = null;
-        delete node.__initialDragPos;
         node.__origBaseX = node.x;
         node.__origBaseY = node.y;
         node.baseX = node.x;
@@ -861,16 +912,146 @@ export default function RegulationGraph({
         const nx = node.x || 0;
         const ny = node.y || 0;
 
-        // 1. Orb area (generous 26px radius)
+        // Orb area hit-testing (generous 24px radius)
         ctx.beginPath();
-        ctx.arc(nx, ny, 26, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 2. Text label pill area
-        ctx.beginPath();
-        ctx.rect(nx - 45, ny + 5, 90, 22);
+        ctx.arc(nx, ny, 24, 0, Math.PI * 2);
         ctx.fill();
     }, []);
+
+    // Pointer events langsung pada canvas wrapper untuk menjamin drag & click responsif 100% di semua device
+    const handleCanvasPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        if (e.button !== 0) return;
+
+        const node = findNodeAtScreenPos(e.clientX, e.clientY, 28);
+        if (!node) return;
+
+        const isDraggable = !node.isCenter;
+
+        const rect = containerRef.current?.getBoundingClientRect();
+        const screenX = e.clientX - (rect?.left ?? 0);
+        const screenY = e.clientY - (rect?.top ?? 0);
+        const graphCoords = graphRef.current?.screen2GraphCoords(screenX, screenY);
+        const curX = node.x ?? node.baseX ?? 0;
+        const curY = node.y ?? node.baseY ?? 0;
+        const offsetX = curX - (graphCoords?.x ?? curX);
+        const offsetY = curY - (graphCoords?.y ?? curY);
+
+        pointerInteractionRef.current = {
+            node,
+            startX: e.clientX,
+            startY: e.clientY,
+            offsetX: isNaN(offsetX) ? 0 : offsetX,
+            offsetY: isNaN(offsetY) ? 0 : offsetY,
+            hasDragged: false,
+            pointerId: e.pointerId,
+        };
+
+        if (e.currentTarget.setPointerCapture) {
+            try {
+                e.currentTarget.setPointerCapture(e.pointerId);
+            } catch {
+                // Ignore pointer capture exceptions on unsupported environments
+            }
+        }
+
+        if (isDraggable) {
+            node.isDragging = true;
+            node.__isDragging = true;
+            draggedNodeRef.current = node;
+            setHoverNode(null);
+            hoverNodeRef.current = null;
+        }
+    }, [findNodeAtScreenPos]);
+
+    const handleCanvasPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        updatePointerPos(e.clientX, e.clientY);
+
+        const active = pointerInteractionRef.current;
+        if (active) {
+            const dx = e.clientX - active.startX;
+            const dy = e.clientY - active.startY;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > 4 && !active.node.isCenter) {
+                active.hasDragged = true;
+
+                if (!graphRef.current || !containerRef.current) return;
+                const rect = containerRef.current.getBoundingClientRect();
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
+                const graphCoords = graphRef.current.screen2GraphCoords(screenX, screenY);
+
+                if (graphCoords && !isNaN(graphCoords.x) && !isNaN(graphCoords.y)) {
+                    const nextX = graphCoords.x + active.offsetX;
+                    const nextY = graphCoords.y + active.offsetY;
+                    active.node.x = nextX;
+                    active.node.y = nextY;
+                    active.node.fx = nextX;
+                    active.node.fy = nextY;
+                    handleNodeDrag(active.node);
+                }
+            }
+            return;
+        }
+
+        // Dynamic geometric hover detection: update hover state dynamically as cursor moves
+        const hovered = findNodeAtScreenPos(e.clientX, e.clientY, 24);
+        if (hovered?.id !== hoverNodeRef.current?.id) {
+            handleNodeHover(hovered);
+        }
+    }, [updatePointerPos, findNodeAtScreenPos, handleNodeDrag, handleNodeHover]);
+
+    const handleCanvasPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        const active = pointerInteractionRef.current;
+        if (!active) return;
+
+        if (e.currentTarget.releasePointerCapture) {
+            try {
+                e.currentTarget.releasePointerCapture(active.pointerId);
+            } catch {
+                // Ignore release capture exceptions
+            }
+        }
+
+        const node = active.node;
+        const hasDragged = active.hasDragged;
+        pointerInteractionRef.current = null;
+
+        if (hasDragged) {
+            handleNodeDragEnd(node);
+            setHoverNode(null);
+            hoverNodeRef.current = null;
+            document.body.style.cursor = 'default';
+        } else {
+            node.isDragging = false;
+            node.__isDragging = false;
+            draggedNodeRef.current = null;
+            handleNodeClick(node);
+        }
+    }, [handleNodeDragEnd, handleNodeClick]);
+
+    const handleCanvasPointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        const active = pointerInteractionRef.current;
+        if (!active) return;
+
+        if (e.currentTarget.releasePointerCapture) {
+            try {
+                e.currentTarget.releasePointerCapture(active.pointerId);
+            } catch {
+                // Ignore release capture exceptions
+            }
+        }
+
+        const node = active.node;
+        node.isDragging = false;
+        node.__isDragging = false;
+        draggedNodeRef.current = null;
+        pointerInteractionRef.current = null;
+        setHoverNode(null);
+        hoverNodeRef.current = null;
+        document.body.style.cursor = 'default';
+        handleNodeDragEnd(node);
+    }, [handleNodeDragEnd]);
 
     const onDrawLinkOverlay = useCallback((link: any, ctx: CanvasRenderingContext2D) => {
         drawLinkOverlay(link, ctx, {
@@ -948,6 +1129,7 @@ export default function RegulationGraph({
                 minHeight: isMini ? '300px' : '500px',
                 backgroundImage: 'radial-gradient(#cbd5e1 1.2px, transparent 1.2px)',
                 backgroundSize: '24px 24px',
+                touchAction: 'none',
             }}
         >
             {/* Top Toolbar, Legend Pills & Zoom Controls */}
@@ -1014,7 +1196,18 @@ export default function RegulationGraph({
             )}
 
             {/* Force Graph Canvas Engine */}
-            <div className="flex-1 w-full relative min-h-0" style={{ opacity: isGraphReady ? 1 : 0, transition: 'opacity 0.25s ease-in' }}>
+            <div
+                className="flex-1 w-full relative min-h-0 select-none"
+                style={{
+                    opacity: isGraphReady ? 1 : 0,
+                    transition: 'opacity 0.25s ease-in',
+                    touchAction: 'none',
+                }}
+                onPointerDown={handleCanvasPointerDown}
+                onPointerMove={handleCanvasPointerMove}
+                onPointerUp={handleCanvasPointerUp}
+                onPointerCancel={handleCanvasPointerCancel}
+            >
                 <ForceGraph2D
                     ref={graphRef}
                     width={dimensions.width}
@@ -1035,8 +1228,8 @@ export default function RegulationGraph({
                     // Zoom & Pan: Pengguna bebas pan dan drag; kartu detail tetap terkunci rigid di samping node
                     minZoom={0.2}
                     maxZoom={4}
-                    enablePanInteraction={true}
-                    enableNodeDrag={true}
+                    enablePanInteraction={() => !pointerInteractionRef.current?.node}
+                    enableNodeDrag={false}
 
                     // Interactivity Handlers
                     onNodeHover={handleNodeHover}
