@@ -74,7 +74,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
         <div
           className={`relative flex items-center justify-between mx-auto rounded-full transition-all duration-200 ease-out pointer-events-auto ${
             isPill
-              ? 'h-[59px] w-[calc(100%-24px)] sm:w-[calc(100%-32px)] max-w-[1120px] bg-white/90 sm:bg-white/80 backdrop-blur-[16px] border border-white/60 shadow-[0px_4px_24px_-2px_rgba(0,0,0,0.08)] px-4 sm:px-6 lg:px-8'
+              ? 'h-[59px] w-[calc(100%-24px)] sm:w-[calc(100%-32px)] max-w-[1120px] bg-white/90 sm:bg-white/80 backdrop-blur-[16px] border border-white/60 shadow-[0px_2px_10px_-2px_rgba(0,0,0,0.05)] px-4 sm:px-6 lg:px-8'
               : 'h-[74px] w-full max-w-[1202px] px-4 sm:px-6 xl:px-0 bg-transparent border-transparent shadow-none'
             }`}
         >

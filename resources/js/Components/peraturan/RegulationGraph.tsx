@@ -13,6 +13,7 @@ import {
     GraphControls,
     GraphSidebar,
     GraphNodeCard,
+    GraphHoverCard,
 } from './graph';
 
 export default function RegulationGraph({
@@ -30,6 +31,13 @@ export default function RegulationGraph({
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
     const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
+    const hoverNodeRef = useRef<GraphNode | null>(null);
+    hoverNodeRef.current = hoverNode;
+    const hoverCardRef = useRef<HTMLDivElement | null>(null);
+    const [hoverCardPos, setHoverCardPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const currentHoverPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+    const mousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
     const [clickedNode, setClickedNode] = useState<GraphNode | null>(null);
     const [cardNode, setCardNode] = useState<GraphNode | null>(null);
     const cardRef = useRef<HTMLDivElement | null>(null);
@@ -37,6 +45,16 @@ export default function RegulationGraph({
     cardNodeRef.current = cardNode;
 
     const draggedNodeRef = useRef<any>(null);
+    const pointerInteractionRef = useRef<{
+        node: GraphNode;
+        startX: number;
+        startY: number;
+        offsetX: number;
+        offsetY: number;
+        hasDragged: boolean;
+        pointerId: number;
+    } | null>(null);
+    const lastClickedTimeRef = useRef<number>(0);
 
     // Fungsi penutup kartu detail terpadu (menghilangkan kartu dan fokus node seketika)
     const handleCloseCard = useCallback(() => {
@@ -257,13 +275,14 @@ export default function RegulationGraph({
         }
 
         // Hitung area pandang kanvas yang terlihat (tidak tertutup sidebar & header)
-        const sidebarW = isSidebarOpen ? 320 : 0;
+        const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 768;
+        const sidebarW = isSidebarOpen && !isMobileScreen ? 320 : 0;
         const topHeaderH = 80;
         const availWidth = dimensions.width - sidebarW;
         const availHeight = dimensions.height - topHeaderH;
 
         // Titik target ideal layar untuk node:
-        const targetScreenX = isSidebarOpen
+        const targetScreenX = isSidebarOpen && !isMobileScreen
             ? sidebarW + Math.max(50, (availWidth - (cardWidth + 50)) * 0.35)
             : (dimensions.width / 2 - (cardSideRef.current === 'right' ? 80 : -80));
 
@@ -349,6 +368,20 @@ export default function RegulationGraph({
     // Sinkronisasi posisi kartu secara realtime pada DOM menggunakan hardware-accelerated transform
     const updateCardDOMPosition = useCallback(() => {
         if (!cardRef.current) return;
+        const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 640;
+
+        if (isMobileScreen) {
+            cardRef.current.style.display = 'block';
+            cardRef.current.style.transform = 'none';
+            cardRef.current.style.left = '12px';
+            cardRef.current.style.right = '12px';
+            cardRef.current.style.bottom = '12px';
+            cardRef.current.style.top = 'auto';
+            cardRef.current.style.width = 'auto';
+            cardRef.current.style.maxWidth = 'calc(100% - 24px)';
+            return;
+        }
+
         const pos = computeCardPosition();
         if (!pos) return;
 
@@ -356,6 +389,11 @@ export default function RegulationGraph({
             cardRef.current.style.display = 'none';
         } else {
             cardRef.current.style.display = 'block';
+            cardRef.current.style.left = '0px';
+            cardRef.current.style.top = '0px';
+            cardRef.current.style.bottom = 'auto';
+            cardRef.current.style.right = 'auto';
+            cardRef.current.style.maxWidth = '320px';
             cardRef.current.style.transform = `translate3d(${Math.round(pos.x)}px, ${Math.round(pos.y)}px, 0)`;
         }
     }, [computeCardPosition]);
@@ -363,6 +401,7 @@ export default function RegulationGraph({
     // Sinkronisasi instan matematis saat event zoom / pan kanvas berlangsung (tanpa jeda frame)
     const handleZoom = useCallback((transform: any) => {
         if (!cardRef.current || !cardNodeRef.current) return;
+        if (typeof window !== 'undefined' && window.innerWidth < 640) return;
         const activeCard = cardNodeRef.current;
         const node = graphData.nodes.find(n => n.id === activeCard.id) || activeCard;
 
@@ -437,7 +476,8 @@ export default function RegulationGraph({
                     node.__isDragging ||
                     node.__dragged ||
                     node.__initialDragPos ||
-                    (dragged && dragged.id === node.id)
+                    (dragged && dragged.id === node.id) ||
+                    (pointerInteractionRef.current?.node?.id === node.id)
                 );
 
                 if (isDraggingNode) {
@@ -602,7 +642,8 @@ export default function RegulationGraph({
                 // Re-center tanpa merusak level zoom yang sedang dinikmati pengguna
                 if (initialCenterDone.current && graphRef.current) {
                     const currentZoom = graphRef.current.zoom() || DEFAULT_GRAPH_ZOOM;
-                    const sidebarOffsetGraphX = isSidebarOpen ? (160 / currentZoom) : 0;
+                    const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 768;
+                    const sidebarOffsetGraphX = isSidebarOpen && !isMobileScreen ? (160 / currentZoom) : 0;
                     graphRef.current.centerAt(-sidebarOffsetGraphX, 0, 0);
                 }
             }
@@ -654,12 +695,121 @@ export default function RegulationGraph({
     // Event Handlers
     // ─────────────────────────────────────────────
 
-    const handleNodeHover = useCallback((node: any) => {
-        setHoverNode(node || null);
-        document.body.style.cursor = node ? 'pointer' : 'default';
+    const computeHoverCardPosition = useCallback((cursorX: number, cursorY: number) => {
+        const cardWidth = 270;
+        const cardHeight = 115;
+        let posX = cursorX + 16;
+        let posY = cursorY + 16;
+
+        if (posX + cardWidth + 12 > dimensions.width) {
+            posX = cursorX - cardWidth - 16;
+        }
+        if (posY + cardHeight + 12 > dimensions.height) {
+            posY = cursorY - cardHeight - 16;
+        }
+
+        posX = Math.max(12, posX);
+        posY = Math.max(12, posY);
+
+        return { x: posX, y: posY };
+    }, [dimensions]);
+
+    const updatePointerPos = useCallback((clientX: number, clientY: number) => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        const cursorX = clientX - rect.left;
+        const cursorY = clientY - rect.top;
+        mousePosRef.current = { x: cursorX, y: cursorY };
+
+        if (hoverNodeRef.current) {
+            const nextPos = computeHoverCardPosition(cursorX, cursorY);
+            currentHoverPosRef.current = nextPos;
+            if (hoverCardRef.current) {
+                hoverCardRef.current.style.transform = `translate3d(${Math.round(nextPos.x)}px, ${Math.round(nextPos.y)}px, 0)`;
+            }
+        }
+    }, [computeHoverCardPosition]);
+
+    const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
+        updatePointerPos(e.clientX, e.clientY);
+    }, [updatePointerPos]);
+
+    const handleMouseLeave = useCallback(() => {
+        setHoverNode(null);
+        hoverNodeRef.current = null;
+        document.body.style.cursor = 'default';
     }, []);
 
+    const handleNodeHover = useCallback((node: any) => {
+        const nextNode = node || null;
+        setHoverNode(nextNode);
+        hoverNodeRef.current = nextNode;
+        document.body.style.cursor = nextNode ? 'pointer' : 'default';
+
+        if (nextNode) {
+            let curX = mousePosRef.current.x;
+            let curY = mousePosRef.current.y;
+
+            if (curX === 0 && curY === 0 && graphRef.current) {
+                const screenCoords = graphRef.current.graph2ScreenCoords(nextNode.x ?? 0, nextNode.y ?? 0);
+                if (screenCoords && !isNaN(screenCoords.x) && !isNaN(screenCoords.y)) {
+                    curX = screenCoords.x;
+                    curY = screenCoords.y;
+                }
+            }
+
+            const initialPos = computeHoverCardPosition(curX, curY);
+            currentHoverPosRef.current = initialPos;
+            setHoverCardPos(initialPos);
+            if (hoverCardRef.current) {
+                hoverCardRef.current.style.transform = `translate3d(${Math.round(initialPos.x)}px, ${Math.round(initialPos.y)}px, 0)`;
+            }
+        }
+    }, [computeHoverCardPosition]);
+
+    // Deteksi node presisi matematis berbasis koordinat layar & zoom (kebal terhadap display scaling, fractional DPI, & color profile)
+    const findNodeAtScreenPos = useCallback((clientX: number, clientY: number, tolerancePx = 28): GraphNode | null => {
+        if (!graphRef.current || !containerRef.current || graphData.nodes.length === 0) return null;
+        const rect = containerRef.current.getBoundingClientRect();
+        const screenX = clientX - rect.left;
+        const screenY = clientY - rect.top;
+
+        if (screenX < 0 || screenX > rect.width || screenY < 0 || screenY > rect.height) {
+            return null;
+        }
+
+        const graphCoords = graphRef.current.screen2GraphCoords(screenX, screenY);
+        if (!graphCoords || isNaN(graphCoords.x) || isNaN(graphCoords.y)) return null;
+
+        const currentZoom = graphRef.current.zoom() || DEFAULT_GRAPH_ZOOM;
+        const hitRadius = tolerancePx / currentZoom;
+
+        let closestNode: GraphNode | null = null;
+        let minDist = Infinity;
+
+        for (const node of graphData.nodes) {
+            const nx = node.x ?? node.baseX ?? 0;
+            const ny = node.y ?? node.baseY ?? 0;
+            const dist = Math.hypot(nx - graphCoords.x, ny - graphCoords.y);
+
+            if (dist <= hitRadius && dist < minDist) {
+                minDist = dist;
+                closestNode = node;
+            }
+        }
+
+        return closestNode;
+    }, [graphData.nodes, DEFAULT_GRAPH_ZOOM]);
+
     const handleNodeClick = useCallback((node: any) => {
+        const now = Date.now();
+        if (now - lastClickedTimeRef.current < 300 && cardNodeRef.current?.id === node?.id) {
+            return;
+        }
+        lastClickedTimeRef.current = now;
+
+        setHoverNode(null);
+        hoverNodeRef.current = null;
         if (!node) {
             handleCloseCard();
             return;
@@ -671,8 +821,8 @@ export default function RegulationGraph({
 
     const handleNodeDragEnd = useCallback((node: any) => {
         node.isDragging = false;
+        node.__isDragging = false;
         draggedNodeRef.current = null;
-        delete node.__initialDragPos;
         node.__origBaseX = node.x;
         node.__origBaseY = node.y;
         node.baseX = node.x;
@@ -692,6 +842,8 @@ export default function RegulationGraph({
     }, [updateCardDOMPosition]);
 
     const handleNodeDrag = useCallback((node: any) => {
+        setHoverNode(null);
+        hoverNodeRef.current = null;
         node.isDragging = true;
         draggedNodeRef.current = node;
         node.baseX = node.x;
@@ -754,6 +906,152 @@ export default function RegulationGraph({
     const onDrawNode = useCallback((node: any, ctx: CanvasRenderingContext2D) => {
         drawNode(node, ctx, { hoverNode, clickedNode, activeNodeIds });
     }, [hoverNode, clickedNode, activeNodeIds]);
+
+    const onNodePointerAreaPaint = useCallback((node: any, color: string, ctx: CanvasRenderingContext2D) => {
+        ctx.fillStyle = color;
+        const nx = node.x || 0;
+        const ny = node.y || 0;
+
+        // Orb area hit-testing (generous 24px radius)
+        ctx.beginPath();
+        ctx.arc(nx, ny, 24, 0, Math.PI * 2);
+        ctx.fill();
+    }, []);
+
+    // Pointer events langsung pada canvas wrapper untuk menjamin drag & click responsif 100% di semua device
+    const handleCanvasPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        if (e.button !== 0) return;
+
+        const node = findNodeAtScreenPos(e.clientX, e.clientY, 28);
+        if (!node) return;
+
+        const isDraggable = !node.isCenter;
+
+        const rect = containerRef.current?.getBoundingClientRect();
+        const screenX = e.clientX - (rect?.left ?? 0);
+        const screenY = e.clientY - (rect?.top ?? 0);
+        const graphCoords = graphRef.current?.screen2GraphCoords(screenX, screenY);
+        const curX = node.x ?? node.baseX ?? 0;
+        const curY = node.y ?? node.baseY ?? 0;
+        const offsetX = curX - (graphCoords?.x ?? curX);
+        const offsetY = curY - (graphCoords?.y ?? curY);
+
+        pointerInteractionRef.current = {
+            node,
+            startX: e.clientX,
+            startY: e.clientY,
+            offsetX: isNaN(offsetX) ? 0 : offsetX,
+            offsetY: isNaN(offsetY) ? 0 : offsetY,
+            hasDragged: false,
+            pointerId: e.pointerId,
+        };
+
+        if (e.currentTarget.setPointerCapture) {
+            try {
+                e.currentTarget.setPointerCapture(e.pointerId);
+            } catch {
+                // Ignore pointer capture exceptions on unsupported environments
+            }
+        }
+
+        if (isDraggable) {
+            node.isDragging = true;
+            node.__isDragging = true;
+            draggedNodeRef.current = node;
+            setHoverNode(null);
+            hoverNodeRef.current = null;
+        }
+    }, [findNodeAtScreenPos]);
+
+    const handleCanvasPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        updatePointerPos(e.clientX, e.clientY);
+
+        const active = pointerInteractionRef.current;
+        if (active) {
+            const dx = e.clientX - active.startX;
+            const dy = e.clientY - active.startY;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > 4 && !active.node.isCenter) {
+                active.hasDragged = true;
+
+                if (!graphRef.current || !containerRef.current) return;
+                const rect = containerRef.current.getBoundingClientRect();
+                const screenX = e.clientX - rect.left;
+                const screenY = e.clientY - rect.top;
+                const graphCoords = graphRef.current.screen2GraphCoords(screenX, screenY);
+
+                if (graphCoords && !isNaN(graphCoords.x) && !isNaN(graphCoords.y)) {
+                    const nextX = graphCoords.x + active.offsetX;
+                    const nextY = graphCoords.y + active.offsetY;
+                    active.node.x = nextX;
+                    active.node.y = nextY;
+                    active.node.fx = nextX;
+                    active.node.fy = nextY;
+                    handleNodeDrag(active.node);
+                }
+            }
+            return;
+        }
+
+        // Dynamic geometric hover detection: update hover state dynamically as cursor moves
+        const hovered = findNodeAtScreenPos(e.clientX, e.clientY, 24);
+        if (hovered?.id !== hoverNodeRef.current?.id) {
+            handleNodeHover(hovered);
+        }
+    }, [updatePointerPos, findNodeAtScreenPos, handleNodeDrag, handleNodeHover]);
+
+    const handleCanvasPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        const active = pointerInteractionRef.current;
+        if (!active) return;
+
+        if (e.currentTarget.releasePointerCapture) {
+            try {
+                e.currentTarget.releasePointerCapture(active.pointerId);
+            } catch {
+                // Ignore release capture exceptions
+            }
+        }
+
+        const node = active.node;
+        const hasDragged = active.hasDragged;
+        pointerInteractionRef.current = null;
+
+        if (hasDragged) {
+            handleNodeDragEnd(node);
+            setHoverNode(null);
+            hoverNodeRef.current = null;
+            document.body.style.cursor = 'default';
+        } else {
+            node.isDragging = false;
+            node.__isDragging = false;
+            draggedNodeRef.current = null;
+            handleNodeClick(node);
+        }
+    }, [handleNodeDragEnd, handleNodeClick]);
+
+    const handleCanvasPointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        const active = pointerInteractionRef.current;
+        if (!active) return;
+
+        if (e.currentTarget.releasePointerCapture) {
+            try {
+                e.currentTarget.releasePointerCapture(active.pointerId);
+            } catch {
+                // Ignore release capture exceptions
+            }
+        }
+
+        const node = active.node;
+        node.isDragging = false;
+        node.__isDragging = false;
+        draggedNodeRef.current = null;
+        pointerInteractionRef.current = null;
+        setHoverNode(null);
+        hoverNodeRef.current = null;
+        document.body.style.cursor = 'default';
+        handleNodeDragEnd(node);
+    }, [handleNodeDragEnd]);
 
     const onDrawLinkOverlay = useCallback((link: any, ctx: CanvasRenderingContext2D) => {
         drawLinkOverlay(link, ctx, {
@@ -820,6 +1118,10 @@ export default function RegulationGraph({
     return (
         <div
             ref={containerRef}
+            onPointerMove={handlePointerMove}
+            onMouseMove={handlePointerMove}
+            onPointerLeave={handleMouseLeave}
+            onMouseLeave={handleMouseLeave}
             className={`w-full relative bg-[#fafafa] overflow-hidden flex flex-col ${isMini ? 'h-full' : 'rounded-2xl border border-slate-200/80 shadow-sm'}`}
             style={{
                 fontFamily: "'Inter', system-ui, sans-serif",
@@ -827,6 +1129,7 @@ export default function RegulationGraph({
                 minHeight: isMini ? '300px' : '500px',
                 backgroundImage: 'radial-gradient(#cbd5e1 1.2px, transparent 1.2px)',
                 backgroundSize: '24px 24px',
+                touchAction: 'none',
             }}
         >
             {/* Top Toolbar, Legend Pills & Zoom Controls */}
@@ -893,14 +1196,27 @@ export default function RegulationGraph({
             )}
 
             {/* Force Graph Canvas Engine */}
-            <div className="flex-1 w-full relative min-h-0" style={{ opacity: isGraphReady ? 1 : 0, transition: 'opacity 0.25s ease-in' }}>
+            <div
+                className="flex-1 w-full relative min-h-0 select-none"
+                style={{
+                    opacity: isGraphReady ? 1 : 0,
+                    transition: 'opacity 0.25s ease-in',
+                    touchAction: 'none',
+                }}
+                onPointerDown={handleCanvasPointerDown}
+                onPointerMove={handleCanvasPointerMove}
+                onPointerUp={handleCanvasPointerUp}
+                onPointerCancel={handleCanvasPointerCancel}
+            >
                 <ForceGraph2D
                     ref={graphRef}
                     width={dimensions.width}
                     height={dimensions.height}
-                    graphData={graphData}
+                    graphData={graphData as any}
                     nodeRelSize={1}
                     d3VelocityDecay={0.88}
+                    autoPauseRedraw={false}
+                    nodeLabel={() => ''}
 
                     // Links
                     linkColor={onGetLinkColor}
@@ -912,8 +1228,8 @@ export default function RegulationGraph({
                     // Zoom & Pan: Pengguna bebas pan dan drag; kartu detail tetap terkunci rigid di samping node
                     minZoom={0.2}
                     maxZoom={4}
-                    enablePanInteraction={true}
-                    enableNodeDrag={true}
+                    enablePanInteraction={() => !pointerInteractionRef.current?.node}
+                    enableNodeDrag={false}
 
                     // Interactivity Handlers
                     onNodeHover={handleNodeHover}
@@ -930,23 +1246,7 @@ export default function RegulationGraph({
 
                     // Custom Orb Node Render
                     nodeCanvasObject={onDrawNode}
-
-                    // Pointer Touch Boundary Area for Easy Clicking & Dragging (Orb + Label Hit Area)
-                    nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
-                        ctx.fillStyle = color;
-                        const nx = node.x || 0;
-                        const ny = node.y || 0;
-
-                        // 1. Orb area (generous 26px radius)
-                        ctx.beginPath();
-                        ctx.arc(nx, ny, 26, 0, Math.PI * 2);
-                        ctx.fill();
-
-                        // 2. Text label pill area
-                        ctx.beginPath();
-                        ctx.rect(nx - 45, ny + 5, 90, 22);
-                        ctx.fill();
-                    }}
+                    nodePointerAreaPaint={onNodePointerAreaPaint}
 
                     // Warmup & Auto-fit framing
                     warmupTicks={100}
@@ -973,6 +1273,15 @@ export default function RegulationGraph({
                     cardPos={initialCardPos}
                     onCloseCard={handleCloseCard}
                     onParentClose={onClose}
+                />
+            )}
+
+            {/* Floating Quick Summary Tooltip (Following Mouse Cursor on Hover) */}
+            {hoverNode && hoverNode.id !== cardNode?.id && !draggedNodeRef.current && (
+                <GraphHoverCard
+                    cardRef={hoverCardRef}
+                    node={hoverNode}
+                    pos={currentHoverPosRef.current.x ? currentHoverPosRef.current : hoverCardPos}
                 />
             )}
         </div>

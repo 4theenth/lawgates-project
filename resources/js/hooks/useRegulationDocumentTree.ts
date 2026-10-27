@@ -26,33 +26,117 @@ export function useRegulationDocumentTree(peraturan: any) {
             : `Pasal ${rawNomor}`;
 
       const targetInfo = detectTargetPeraturan(p.isi_pasal || '');
-      const isAmendingContainer = Boolean(targetInfo) || /diubah\s+sebagai\s+berikut/i.test(p.isi_pasal || '');
+      const isAmendingContainer =
+        Boolean(targetInfo) ||
+        /diubah\s+sebagai\s+berikut/i.test(p.isi_pasal || '') ||
+        /beberapa\s+ketentuan\s+dalam/i.test(p.isi_pasal || '');
 
       pasalMap.set(p.id.toString(), {
         id: p.id.toString(),
-        nomor: p.nomor_pasal?.toLowerCase().startsWith('pasal') ? p.nomor_pasal : `Pasal ${p.nomor_pasal}`,
+        nomor: nomorFormatted,
         isi: p.isi_pasal || '',
         penjelasan: p.penjelasan?.isi_penjelasan,
+        tipe: p.parent_pasal_id
+          ? 'PASAL_PERUBAHAN'
+          : isAmendingContainer
+          ? 'PASAL_PERUBAHAN_CONTAINER'
+          : 'PASAL',
+        targetInduk: targetInfo,
         isExpanded: true,
         pasalList: [],
       });
     });
 
+    // Map struktur hierarchy to track root BAB of each node
+    const strukturMap = new Map<string, any>();
+    rawStrukturList.forEach((s: any) => {
+      if (s?.id) {
+        strukturMap.set(s.id.toString(), s);
+      }
+    });
+
+    const getBabIdOfStruktur = (strukturId: any): string | null => {
+      if (!strukturId) return null;
+      let curr = strukturMap.get(strukturId.toString());
+      while (curr) {
+        if (curr.tipe_struktur === 'BAB') return curr.id.toString();
+        if (!curr.parent_id) break;
+        curr = strukturMap.get(curr.parent_id.toString());
+      }
+      return null;
+    };
+
     // Nest pasals inside parent pasals if they have parent_pasal_id
+    // or through sequential container clustering (self-healing for un-nested imports)
     const rootPasals: any[] = [];
+    let currentContainerArticle: ArticleItem | null = null;
+
     rawPasalList.forEach((p: any) => {
       const articleItem = pasalMap.get(p.id.toString())!;
+
+      // 1. Explicit DB parent_pasal_id (validasi agar tidak bocor lintas BAB)
       if (p.parent_pasal_id) {
-        const parentArticle = pasalMap.get(p.parent_pasal_id.toString());
-        if (parentArticle) {
-          if (!parentArticle.pasalList) parentArticle.pasalList = [];
-          parentArticle.pasalList.push(articleItem);
-        } else {
-          rootPasals.push(p);
+        const rawParent = rawPasalList.find((rp: any) => rp.id?.toString() === p.parent_pasal_id.toString());
+        const pBab = getBabIdOfStruktur(p.struktur_id);
+        const parentBab = rawParent ? getBabIdOfStruktur(rawParent.struktur_id) : null;
+        const isCrossBab = Boolean(pBab && parentBab && pBab !== parentBab);
+
+        if (!isCrossBab) {
+          const parentArticle = pasalMap.get(p.parent_pasal_id.toString());
+          if (parentArticle) {
+            if (!parentArticle.pasalList) parentArticle.pasalList = [];
+            if (!articleItem.targetInduk && parentArticle.targetInduk) {
+              articleItem.targetInduk = parentArticle.targetInduk;
+            }
+            articleItem.tipe = 'PASAL_PERUBAHAN';
+            parentArticle.pasalList.push(articleItem);
+            return;
+          }
         }
-      } else {
-        rootPasals.push(p);
       }
+
+      // 2. Container pasal (PASAL_PERUBAHAN_CONTAINER)
+      if (articleItem.tipe === 'PASAL_PERUBAHAN_CONTAINER') {
+        currentContainerArticle = articleItem;
+        rootPasals.push(p);
+        return;
+      }
+
+      // 3. Sequential child clustering fallback if parent_pasal_id is null in DB
+      if (currentContainerArticle && !p.parent_pasal_id) {
+        const pBab = getBabIdOfStruktur(p.struktur_id);
+        const rawContainerPasal = rawPasalList.find((rp: any) => rp.id?.toString() === currentContainerArticle!.id.toString());
+        const containerBab = rawContainerPasal ? getBabIdOfStruktur(rawContainerPasal.struktur_id) : null;
+        const isCrossBab = Boolean(pBab && containerBab && pBab !== containerBab);
+
+        if (isCrossBab) {
+          currentContainerArticle = null;
+        } else {
+          const rawNum = parseInt(String(p.nomor_pasal || '').replace(/[^0-9]/g, ''), 10);
+          const containerNum = parseInt(String(currentContainerArticle.nomor || '').replace(/[^0-9]/g, ''), 10);
+
+          // Child pasal is identified if:
+          // - Its article number is lower than the container (e.g. Pasal 1, 6, 8 following container Pasal 17)
+          // - Or starts with 'Angka', 'Huruf'
+          const isChildOfContainer =
+            (!isNaN(rawNum) && !isNaN(containerNum) && rawNum < containerNum) ||
+            String(p.nomor_pasal || '').toLowerCase().startsWith('angka');
+
+          if (isChildOfContainer) {
+            if (!currentContainerArticle.pasalList) currentContainerArticle.pasalList = [];
+            if (!articleItem.targetInduk && currentContainerArticle.targetInduk) {
+              articleItem.targetInduk = currentContainerArticle.targetInduk;
+            }
+            articleItem.tipe = 'PASAL_PERUBAHAN';
+            currentContainerArticle.pasalList.push(articleItem);
+            return;
+          } else {
+            currentContainerArticle = null;
+          }
+        }
+      }
+
+      rootPasals.push(p);
     });
 
     // Deteksi apakah sebuah baris pada struktur_dokumen sebenarnya adalah Pasal

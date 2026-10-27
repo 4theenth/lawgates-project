@@ -29,3 +29,4 @@ export { DeleteConfirmModal, default as DeleteConfirmModalComponent } from './De
 export type { DeleteConfirmModalProps } from './DeleteConfirmModal';
 export { ActionMenu, ActionMenuPortal, default as ActionMenuComponent } from './ActionMenu';
 export type { ActionMenuItem, ActionMenuProps } from './ActionMenu';
+export { ScrollToTop } from './ScrollToTop';

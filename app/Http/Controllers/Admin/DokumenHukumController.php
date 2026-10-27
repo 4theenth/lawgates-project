@@ -1973,45 +1973,67 @@ class DokumenHukumController extends Controller
 
         // Simpan Sub-Pasal yang diubah di dalam pasal container ini
         if (!empty($pasalData['pasalList']) && is_array($pasalData['pasalList'])) {
+            $detected = $this->detectTargetIndukPhp($pasal->isi_pasal);
+            $targetPeraturan = null;
+
+            if ($detected) {
+                $importService = app(DocumentImportService::class);
+                $targetPeraturan = Peraturan::where('unique_id', $detected['standardId'])->first();
+
+                if (!$targetPeraturan && !empty($detected['nomor']) && !empty($detected['tahun'])) {
+                    $targetJenisId = $importService->getJenisId($detected['standardId']);
+                    $targetPeraturan = $importService->findTargetPeraturan($detected['standardId'], $detected['nomor'], $detected['tahun'], $targetJenisId);
+                }
+
+                if (!$targetPeraturan) {
+                    $targetJenisId = $importService->getJenisId($detected['standardId']);
+                    $targetPeraturan = Peraturan::create([
+                        'unique_id'          => $detected['standardId'],
+                        'judul'              => $detected['namaLengkap'] ?: ('Menunggu import dokumen: ' . $detected['standardId']),
+                        'tahun'              => $detected['tahun'] ?? null,
+                        'nomor'              => $detected['nomor'] ?? null,
+                        'jenis_peraturan_id' => $targetJenisId,
+                        'status_id'          => 1,
+                    ]);
+                }
+
+                // Catat relasi dokumen 'mengubah'
+                $relTypeMengubah = \App\Models\RelationType::firstOrCreate(['nama_relasi' => 'mengubah']);
+                \App\Models\LawRelation::firstOrCreate([
+                    'from_peraturan_id' => $peraturanId,
+                    'to_peraturan_id'   => $targetPeraturan->id,
+                    'relation_type_id'  => $relTypeMengubah->id,
+                ]);
+            }
+
+            $nomorUrutPerubahan = 1;
             foreach ($pasalData['pasalList'] as $subPasalData) {
-                $this->savePasalNode($peraturanId, $strukturId, $subPasalData, $pasal->id, $urutanPasal);
+                $subPasal = $this->savePasalNode($peraturanId, $strukturId, $subPasalData, $pasal->id, $urutanPasal);
+
+                if ($targetPeraturan && $subPasal) {
+                    $perubahanType = \App\Models\PerubahanType::firstOrCreate(['nama_perubahan' => 'diubah']);
+                    \App\Models\PasalPerubahan::updateOrCreate(
+                        [
+                            'pasal_romawi_id'     => $pasal->id,
+                            'target_peraturan_id' => $targetPeraturan->id,
+                            'target_nomor_pasal'  => $subPasal->nomor_pasal,
+                        ],
+                        [
+                            'perubahan_type_id'   => $perubahanType->id,
+                            'nomor_urut'          => $nomorUrutPerubahan++,
+                            'isi_perubahan'       => 'Diubah oleh peraturan ini',
+                        ]
+                    );
+                }
             }
         }
+
+        return $pasal;
     }
 
     private function detectTargetIndukPhp(?string $teks): ?array
     {
         if (!$teks) return null;
-
-        if (preg_match('/(?:ketentuan\s+dalam\s+|perubahan\s+atas\s+|mengubah\s+)?(Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah\s+Pengganti\s+Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah|Peraturan[-_\s]?Presiden|Peraturan[-_\s]?Menteri)\s+Nomor\s+(\d+)\s+Tahun\s+(\d{4})(?:\s+tentang\s+([^,.\n()]+))?/i', $teks, $m)) {
-            $rawJenis = $m[1];
-            $nomor = $m[2];
-            $tahun = $m[3];
-            $tentang = isset($m[4]) ? trim($m[4]) : '';
-
-            $jenisClean = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '_', $rawJenis)));
-            $prefix = 'UU';
-            if (str_contains($jenisClean, 'pengganti')) {
-                $prefix = 'PERPPU';
-            } else if (str_contains($jenisClean, 'pemerintah')) {
-                $prefix = 'PP';
-            } else if (str_contains($jenisClean, 'presiden')) {
-                $prefix = 'PERPRES';
-            } else if (str_contains($jenisClean, 'menteri')) {
-                $prefix = 'PERMEN';
-            }
-
-            $stdId = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '_', trim($rawJenis))) . "_no_{$nomor}_{$tahun}";
-            $labelSingkat = "{$prefix} {$nomor}/{$tahun}";
-            $namaLengkap = "{$rawJenis} Nomor {$nomor} Tahun {$tahun}" . ($tentang ? " tentang {$tentang}" : '');
-
-            return [
-                'standardId' => $stdId,
-                'labelSingkat' => $labelSingkat,
-                'namaLengkap' => $namaLengkap,
-            ];
-        }
-
-        return null;
+        return app(DocumentImportService::class)->detectTargetPeraturan($teks);
     }
 }

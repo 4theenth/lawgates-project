@@ -262,18 +262,20 @@ class DocumentImportService
             
             for ($i = 0; $i < count($chunks); $i++) {
                 if (isset($chunks[$i]['teks'])) {
+                    $currTipe = strtoupper($chunks[$i]['tipe'] ?? '');
                     if (preg_match($preambleRegex, $chunks[$i]['teks'], $matches)) {
                         $preamble = $matches[1];
-                        // Remove preamble from current chunk
-                        $chunks[$i]['teks'] = preg_replace($preambleRegex, '', $chunks[$i]['teks']);
-                        // Clean up trailing whitespaces/newlines after removal
-                        $chunks[$i]['teks'] = trim($chunks[$i]['teks']);
-                        
-                        // Append to the next PASAL chunk
-                        for ($j = $i + 1; $j < count($chunks); $j++) {
-                            if (strtoupper($chunks[$j]['tipe'] ?? '') === 'PASAL') {
-                                $chunks[$j]['teks'] = $preamble . "\n\n" . ($chunks[$j]['teks'] ?? '');
-                                break;
+                        $remaining = trim(preg_replace($preambleRegex, '', $chunks[$i]['teks']));
+                        // Hanya pindahkan jika chunk ini BUKAN pasal (misal teks pengantar terpisah), 
+                        // atau teksnya HANYA berisi kalimat pengantar tersebut tanpa isi pasal.
+                        if (($currTipe !== 'PASAL' && $currTipe !== 'PASAL_PERUBAHAN') || empty($remaining)) {
+                            $chunks[$i]['teks'] = $remaining;
+                            for ($j = $i + 1; $j < count($chunks); $j++) {
+                                $nextTipe = strtoupper($chunks[$j]['tipe'] ?? '');
+                                if ($nextTipe === 'PASAL' || $nextTipe === 'PASAL_PERUBAHAN') {
+                                    $chunks[$j]['teks'] = $preamble . "\n\n" . ($chunks[$j]['teks'] ?? '');
+                                    break;
+                                }
                             }
                         }
                     }
@@ -283,72 +285,24 @@ class DocumentImportService
             $maxPasalNum = 0;
             $inPenjelasan = false;
 
+            // In-memory indexing & state adaptif untuk mendeteksi pasal perubahan & hierarki
+            $pasalMapByLabel = [];              // [label => pasalId, nomorPasal => pasalId]
+            $activeContainer = null;            // ['id' => ..., 'label' => ..., 'nomor' => ..., 'num' => ..., 'target' => ...]
+            $childPasalsDetected = [];          // [['pasal' => $pasal, 'containerId' => ...]]
+            $targetPeraturanByContainerId = []; // [containerPasalId => $targetPeraturanModel]
+
             foreach ($chunks as $chunk) {
                 $tipe = strtoupper($chunk['tipe'] ?? '');
                 $bagianDokumen = strtoupper($chunk['bagian_dokumen'] ?? '');
 
-                // Heuristic: Deteksi otomatis jika kita masuk ke bagian penjelasan 
-                // dengan melihat apakah nomor pasal me-restart dari 1 setelah mencapai angka besar
-                if ($tipe === 'PASAL' || $tipe === 'PASAL_PERUBAHAN') {
-                    $pasalLabel = $chunk['label'] ?? ''; 
-                    if (preg_match('/Pasal\s+(\d+)/i', $pasalLabel, $matches)) {
-                        $currentPasalNum = (int)$matches[1];
-                        // Jika kita sudah melihat pasal yang cukup besar (misal > 5) 
-                        // lalu tiba-tiba melihat Pasal 1, 2, atau 3 lagi, berarti kita masuk PENJELASAN
-                        if ($maxPasalNum > 5 && $currentPasalNum < $maxPasalNum && $currentPasalNum <= 3) {
-                            $inPenjelasan = true;
-                        }
-                        if (!$inPenjelasan && $currentPasalNum > $maxPasalNum) {
-                            $maxPasalNum = $currentPasalNum;
-                        }
-                    }
-                }
-
-                // Penjelasan Pasal (berdasarkan flag dari OCR atau dari Heuristic)
-                if ($inPenjelasan || $bagianDokumen === 'PENJELASAN' || $tipe === 'PENJELASAN_PASAL') {
-                    if ($tipe === 'PASAL' || $tipe === 'PASAL_PERUBAHAN' || $tipe === 'PENJELASAN_PASAL') {
-                        $pasalTerkait = Pasal::where('peraturan_id', $peraturan->id)
-                                             ->where('nomor_pasal', $chunk['label'])
-                                             ->first();
-                        
-                        if ($pasalTerkait) {
-                            PenjelasanPasal::updateOrCreate(
-                                ['peraturan_id' => $peraturan->id, 'pasal_id' => $pasalTerkait->id],
-                                ['isi_penjelasan' => $chunk['teks'] ?? null]
-                            );
-                        }
-                    }
-                    continue; 
-                }
-
-                // Isi Pasal
-                if ($tipe === 'PASAL' || $tipe === 'PASAL_PERUBAHAN') {
-                    $strukturId = $currentStrukturIds['PARAGRAF'] 
-                                ?? $currentStrukturIds['BAGIAN'] 
-                                ?? $currentStrukturIds['BAB'] 
-                                ?? null;
-
-                    $parentPasalId = null;
-                    if (!empty($chunk['parent_pasal_perubahan'])) {
-                        $parentPasal = Pasal::where('peraturan_id', $peraturan->id)
-                                            ->where('nomor_pasal', $chunk['parent_pasal_perubahan'])
-                                            ->first();
-                        if ($parentPasal) {
-                            $parentPasalId = $parentPasal->id;
-                        }
+                // Struktur Dokumen (Bab, Bagian, Paragraf)
+                if (in_array($tipe, ['BAB', 'BAGIAN', 'PARAGRAF'])) {
+                    // Jika masuk Bab Ketentuan Penutup atau Ketentuan Peralihan, reset kontainer perubahan
+                    $chunkJudul = strtoupper($chunk['teks'] ?? ($chunk['label'] ?? ''));
+                    if (str_contains($chunkJudul, 'PENUTUP') || str_contains($chunkJudul, 'PERALIHAN')) {
+                        $activeContainer = null;
                     }
 
-                    Pasal::create([
-                        'peraturan_id'    => $peraturan->id,
-                        'struktur_id'     => $strukturId,
-                        'parent_pasal_id' => $parentPasalId,
-                        'nomor_pasal'     => $chunk['label'] ?? 'Tanpa Label', 
-                        'isi_pasal'       => $chunk['teks'] ?? null,           
-                        'urutan'          => $urutan++,                        
-                    ]);
-                } 
-                // Struktur Dokumen (Bab, Bagian, dst)
-                else {
                     $parentId = null;
                     if ($tipe === 'BAGIAN') $parentId = $currentStrukturIds['BAB'];
                     if ($tipe === 'PARAGRAF') $parentId = $currentStrukturIds['BAGIAN'] ?? $currentStrukturIds['BAB'];
@@ -366,9 +320,187 @@ class DocumentImportService
                         if ($tipe === 'BAB') {
                             $currentStrukturIds['BAGIAN'] = null;
                             $currentStrukturIds['PARAGRAF'] = null;
+                            $activeContainer = null;
+                            $pasalMapByLabel = [];
                         } elseif ($tipe === 'BAGIAN') {
                             $currentStrukturIds['PARAGRAF'] = null;
                         }
+                    }
+                    continue;
+                }
+
+                // Penjelasan Pasal eksplisit
+                if ($bagianDokumen === 'PENJELASAN' || $tipe === 'PENJELASAN_PASAL') {
+                    $pasalTerkait = Pasal::where('peraturan_id', $peraturan->id)
+                                         ->where('nomor_pasal', $chunk['label'] ?? '')
+                                         ->first();
+                    
+                    if ($pasalTerkait) {
+                        PenjelasanPasal::updateOrCreate(
+                            ['peraturan_id' => $peraturan->id, 'pasal_id' => $pasalTerkait->id],
+                            ['isi_penjelasan' => $chunk['teks'] ?? null]
+                        );
+                    }
+                    continue;
+                }
+
+                // Isi Pasal (PASAL atau PASAL_PERUBAHAN)
+                if ($tipe === 'PASAL' || $tipe === 'PASAL_PERUBAHAN') {
+                    $pasalLabel = $chunk['label'] ?? 'Tanpa Label';
+                    $nomorPasal = trim(str_ireplace('Pasal', '', $pasalLabel));
+                    $nomorPasal = $nomorPasal ?: $pasalLabel;
+                    $teksPasal = $chunk['teks'] ?? '';
+                    $parentRef = $chunk['parent_pasal_perubahan'] ?? null;
+                    $targetRef = $chunk['target_induk'] ?? null;
+
+                    // 1. Deteksi apakah ini merupakan Container Pasal Pengubah
+                    $isContainer = false;
+                    $detectedTarget = null;
+
+                    if ($tipe === 'PASAL_PERUBAHAN' && empty($parentRef)) {
+                        $isContainer = true;
+                    } elseif (!empty($targetRef) && empty($parentRef)) {
+                        $isContainer = true;
+                    } elseif (preg_match('/(?:beberapa\s+ketentuan\s+dalam|ketentuan\s+dalam\s+.*?\s+diubah\s+sebagai\s+berikut|(?:perubahan\s+atas|mengubah)\s+(?:undang|peraturan|perda))/iu', $teksPasal)) {
+                        $isContainer = true;
+                    }
+
+                    if ($isContainer) {
+                        $detectedTarget = $this->detectTargetPeraturan($teksPasal, $targetRef);
+                    }
+
+                    $parentPasalId = null;
+
+                    // 2. Jika bukan kontainer, tentukan parent_pasal_id (child pasal)
+                    if (!$isContainer) {
+                        if (!empty($parentRef)) {
+                            // Cek map memori terlebih dahulu (0ms query)
+                            $parentPasalId = $pasalMapByLabel[$parentRef] ?? null;
+                            if (!$parentPasalId) {
+                                $cleanParent = trim(str_ireplace('Pasal', '', $parentRef));
+                                $parentPasalId = $pasalMapByLabel[$cleanParent] ?? null;
+                            }
+                            if (!$parentPasalId) {
+                                $parentPasalId = Pasal::where('peraturan_id', $peraturan->id)
+                                    ->where(function ($q) use ($parentRef) {
+                                        $clean = trim(str_ireplace('Pasal', '', $parentRef));
+                                        $q->where('nomor_pasal', $parentRef)
+                                          ->orWhere('nomor_pasal', $clean)
+                                          ->orWhere('nomor_pasal', 'Pasal ' . $clean);
+                                    })
+                                    ->value('id');
+                            }
+                        } elseif ($activeContainer) {
+                            // Heuristik adaptif: periksa apakah nomor pasal merestart / lebih kecil dari kontainer
+                            $currNum = (int)preg_replace('/[^0-9]/', '', $nomorPasal);
+                            $isChild = false;
+
+                            if ($activeContainer['num'] > 0 && $currNum > 0 && $currNum < $activeContainer['num']) {
+                                $isChild = true;
+                            } elseif (preg_match('/^(?:angka|huruf)\s+/i', $pasalLabel)) {
+                                $isChild = true;
+                            } elseif (preg_match('/(?:diubah\s+sehingga\s+berbunyi|disisipkan|dihapus)/i', $teksPasal)) {
+                                $isChild = true;
+                            } elseif (preg_match('/^[IVXLCDM]+$/i', $activeContainer['nomor']) && $currNum > 0) {
+                                $isChild = true;
+                            }
+
+                            if ($isChild) {
+                                $parentPasalId = $activeContainer['id'];
+                            } else {
+                                $activeContainer = null;
+                            }
+                        }
+                    }
+
+                    // Heuristic penjelasan: hanya aktif jika bukan child pasal
+                    if (!$parentPasalId && empty($parentRef)) {
+                        if (preg_match('/Pasal\s+(\d+)/i', $pasalLabel, $matches)) {
+                            $currentPasalNum = (int)$matches[1];
+                            if ($maxPasalNum > 5 && $currentPasalNum < $maxPasalNum && $currentPasalNum <= 3) {
+                                $inPenjelasan = true;
+                            }
+                            if (!$inPenjelasan && $currentPasalNum > $maxPasalNum) {
+                                $maxPasalNum = $currentPasalNum;
+                            }
+                        }
+                    }
+
+                    if ($inPenjelasan) {
+                        $pasalTerkait = Pasal::where('peraturan_id', $peraturan->id)
+                                             ->where('nomor_pasal', $pasalLabel)
+                                             ->first();
+                        
+                        if ($pasalTerkait) {
+                            PenjelasanPasal::updateOrCreate(
+                                ['peraturan_id' => $peraturan->id, 'pasal_id' => $pasalTerkait->id],
+                                ['isi_penjelasan' => $teksPasal]
+                            );
+                        }
+                        continue;
+                    }
+
+                    $strukturId = $currentStrukturIds['PARAGRAF'] 
+                                ?? $currentStrukturIds['BAGIAN'] 
+                                ?? $currentStrukturIds['BAB'] 
+                                ?? null;
+
+                    $pasal = Pasal::create([
+                        'peraturan_id'    => $peraturan->id,
+                        'struktur_id'     => $strukturId,
+                        'parent_pasal_id' => $parentPasalId,
+                        'nomor_pasal'     => $pasalLabel, 
+                        'isi_pasal'       => $teksPasal,           
+                        'urutan'          => $urutan++,                        
+                    ]);
+
+                    // Indexing untuk child lookups
+                    $pasalMapByLabel[$pasalLabel] = $pasal->id;
+                    $pasalMapByLabel[$nomorPasal] = $pasal->id;
+                    $pasalMapByLabel['Pasal ' . $nomorPasal] = $pasal->id;
+
+                    if ($isContainer) {
+                        $cNum = (int)preg_replace('/[^0-9]/', '', $nomorPasal);
+                        $activeContainer = [
+                            'id'     => $pasal->id,
+                            'label'  => $pasalLabel,
+                            'nomor'  => $nomorPasal,
+                            'num'    => $cNum,
+                            'target' => $detectedTarget,
+                        ];
+
+                        if ($detectedTarget) {
+                            $targetNomor = $detectedTarget['nomor'] ?? null;
+                            $targetTahun = $detectedTarget['tahun'] ?? null;
+                            $targetJenisId = $this->getJenisId($detectedTarget['standardId']);
+                            $targetPeraturan = $this->findTargetPeraturan($detectedTarget['standardId'], $targetNomor, $targetTahun, $targetJenisId);
+
+                            if (!$targetPeraturan) {
+                                $targetPeraturan = Peraturan::create([
+                                    'unique_id'          => $detectedTarget['standardId'],
+                                    'judul'              => $detectedTarget['namaLengkap'] ?: ('Menunggu import dokumen: ' . $detectedTarget['standardId']),
+                                    'tahun'              => $targetTahun,
+                                    'nomor'              => $targetNomor,
+                                    'jenis_peraturan_id' => $targetJenisId,
+                                    'status_id'          => $status->id,
+                                ]);
+                            }
+
+                            $targetPeraturanByContainerId[$pasal->id] = $targetPeraturan;
+
+                            // Otomatis catat law_relation 'mengubah' jika belum ada
+                            $relTypeMengubah = RelationType::firstOrCreate(['nama_relasi' => 'mengubah']);
+                            LawRelation::firstOrCreate([
+                                'from_peraturan_id' => $peraturan->id,
+                                'to_peraturan_id'   => $targetPeraturan->id,
+                                'relation_type_id'  => $relTypeMengubah->id,
+                            ]);
+                        }
+                    } elseif ($parentPasalId) {
+                        $childPasalsDetected[] = [
+                            'pasal'       => $pasal,
+                            'containerId' => $parentPasalId,
+                        ];
                     }
                 }
             }
@@ -441,12 +573,14 @@ class DocumentImportService
                 }
 
                 // 5. DETAIL PERUBAHAN: Pasal Perubahan
+                $perubahanType = PerubahanType::firstOrCreate(['nama_perubahan' => 'diubah']);
+                $nomorUrut = 1;
+
                 if (!empty($data['relasi']['detail_perubahan'])) {
-                    $perubahanType = PerubahanType::firstOrCreate(['nama_perubahan' => 'diubah']); 
-                    
-                    $nomorUrut = 1;
                     foreach ($data['relasi']['detail_perubahan'] as $detail) {
-                        $targetUniqueId = $detail['peraturan_induk'];
+                        $targetUniqueId = $detail['peraturan_induk'] ?? null;
+                        if (!$targetUniqueId) continue;
+
                         $targetNomor = $this->ekstrakNomor($targetUniqueId, $targetUniqueId);
                         $targetTahun = $this->ekstrakTahun($targetUniqueId);
                         $targetJenisId = $this->getJenisId($targetUniqueId);
@@ -464,26 +598,72 @@ class DocumentImportService
                             ]);
                         }
 
-                        $pasalRomawi = Pasal::where('peraturan_id', $peraturan->id)
-                                            ->where('nomor_pasal', $detail['parent_pasal_perubahan'] ?? '')
-                                            ->first();
+                        // Cari container pasal pengubah untuk targetPeraturan ini
+                        $containerPasalId = null;
+                        foreach ($targetPeraturanByContainerId as $cId => $tModel) {
+                            if ($tModel->id === $targetPeraturan->id) {
+                                $containerPasalId = $cId;
+                                break;
+                            }
+                        }
 
-                        if ($pasalRomawi) {
+                        if (!$containerPasalId) {
+                            $parentHint = $detail['parent_pasal_perubahan'] ?? null;
+                            if ($parentHint && isset($pasalMapByLabel[$parentHint])) {
+                                $containerPasalId = $pasalMapByLabel[$parentHint];
+                            } else {
+                                $containerPasalId = Pasal::where('peraturan_id', $peraturan->id)
+                                    ->whereNull('parent_pasal_id')
+                                    ->where(function ($q) use ($targetUniqueId) {
+                                        $q->where('isi_pasal', 'like', '%' . $targetUniqueId . '%')
+                                          ->orWhere('isi_pasal', 'like', '%' . str_replace('-', ' ', $targetUniqueId) . '%');
+                                    })
+                                    ->value('id');
+                            }
+                        }
+
+                        if ($containerPasalId && !empty($detail['pasal_diubah']) && is_array($detail['pasal_diubah'])) {
                             foreach ($detail['pasal_diubah'] as $pasalDiubahLabel) {
                                 PasalPerubahan::updateOrCreate(
                                     [
-                                        'pasal_romawi_id'     => $pasalRomawi->id, 
+                                        'pasal_romawi_id'     => $containerPasalId, 
                                         'target_peraturan_id' => $targetPeraturan->id, 
                                         'target_nomor_pasal'  => $pasalDiubahLabel,
                                     ],
                                     [
                                         'perubahan_type_id'   => $perubahanType->id,
                                         'nomor_urut'          => $nomorUrut++,
-                                        'isi_perubahan'       => 'Menunggu pemetaan teks',
+                                        'isi_perubahan'       => 'Diubah oleh peraturan ini',
                                     ]
                                 );
                             }
                         }
+                    }
+                }
+            }
+
+            // 5.1 Autonomous Population: Jika ada child pasals yang terdeteksi terhubung ke container dengan targetPeraturan
+            // Tetap berjalan walaupun data['relasi'] kosong dari file input
+            if (!empty($childPasalsDetected)) {
+                $perubahanType = PerubahanType::firstOrCreate(['nama_perubahan' => 'diubah']);
+                $nomorUrut = 1;
+
+                foreach ($childPasalsDetected as $childInfo) {
+                    $cId = $childInfo['containerId'];
+                    if (isset($targetPeraturanByContainerId[$cId])) {
+                        $targetPeraturan = $targetPeraturanByContainerId[$cId];
+                        PasalPerubahan::updateOrCreate(
+                            [
+                                'pasal_romawi_id'     => $cId,
+                                'target_peraturan_id' => $targetPeraturan->id,
+                                'target_nomor_pasal'  => $childInfo['pasal']->nomor_pasal,
+                            ],
+                            [
+                                'perubahan_type_id'   => $perubahanType->id,
+                                'nomor_urut'          => $nomorUrut++,
+                                'isi_perubahan'       => 'Diubah oleh peraturan ini',
+                            ]
+                        );
                     }
                 }
             }
@@ -518,7 +698,7 @@ class DocumentImportService
         return null;
     }
 
-    private function ekstrakTahun($uniqueId)
+    public function ekstrakTahun($uniqueId)
     {
         if (empty($uniqueId)) return date('Y');
         $parts = explode('-', $uniqueId);
@@ -530,7 +710,7 @@ class DocumentImportService
         return '0000';
     }
 
-    private function ekstrakNomor($teks, $uniqueId = '')
+    public function ekstrakNomor($teks, $uniqueId = '')
     {
         if (preg_match('/(?:Nomor|No\.?)\s*(\d+)/i', $teks, $matches)) {
             return $matches[1];
@@ -544,7 +724,7 @@ class DocumentImportService
         return null;
     }
 
-    private function getJenisId($uniqueId)
+    public function getJenisId($uniqueId)
     {
         $uniqueLower = strtolower($uniqueId);
         $kode = 'Lainnya';
@@ -581,7 +761,7 @@ class DocumentImportService
         return $jenis->id;
     }
 
-    private function findTargetPeraturan(string $targetUniqueId, ?string $targetNomor, ?string $targetTahun, $targetJenisId)
+    public function findTargetPeraturan(string $targetUniqueId, ?string $targetNomor, ?string $targetTahun, $targetJenisId)
     {
         $targetPeraturan = Peraturan::where('unique_id', $targetUniqueId)->first();
 
@@ -609,5 +789,88 @@ class DocumentImportService
         }
 
         return $targetPeraturan;
+    }
+
+    /**
+     * Deteksi dan ekstrak informasi peraturan target dari teks pasal perubah atau atribut explicit
+     *
+     * @param string|null $teks
+     * @param string|null $explicitTarget
+     * @return array|null
+     */
+    public function detectTargetPeraturan(?string $teks, ?string $explicitTarget = null): ?array
+    {
+        if ($explicitTarget && trim($explicitTarget)) {
+            $cleanTarget = trim($explicitTarget);
+            // Format slug umum: undang-undang-26-2007, peraturan-pemerintah-2-2022, perda-3-2015
+            if (preg_match('/^([a-z0-9_-]+)-(\d+)-(\d{4})$/i', $cleanTarget, $m)) {
+                $typeSlug = strtolower(str_replace('_', '-', $m[1]));
+                $prefix = 'UU';
+                if (str_contains($typeSlug, 'daerah') || str_contains($typeSlug, 'perda')) $prefix = 'PERDA';
+                elseif (str_contains($typeSlug, 'pemerintah') || $typeSlug === 'pp') $prefix = 'PP';
+                elseif (str_contains($typeSlug, 'pengganti') || str_contains($typeSlug, 'perpu')) $prefix = 'PERPPU';
+                elseif (str_contains($typeSlug, 'presiden') || $typeSlug === 'perpres') $prefix = 'PERPRES';
+                elseif (str_contains($typeSlug, 'menteri') || str_contains($typeSlug, 'permen')) $prefix = 'PERMEN';
+
+                return [
+                    'standardId'   => $cleanTarget,
+                    'labelSingkat' => "{$prefix} {$m[2]}/{$m[3]}",
+                    'namaLengkap'  => str_replace('-', ' ', ucwords($cleanTarget)),
+                    'jenis'        => $m[1],
+                    'nomor'        => $m[2],
+                    'tahun'        => $m[3],
+                ];
+            }
+        }
+
+        if (!$teks) return null;
+
+        $pattern = '/(?:ketentuan\s+dalam\s+|perubahan\s+atas\s+|mengubah\s+)?(Peraturan[-_\s]?Daerah(?:\s+(?:Provinsi|Kabupaten|Kota)[^0-9\n,]+)?|Perda|Peraturan[-_\s]?Gubernur|Peraturan[-_\s]?Bupati|Peraturan[-_\s]?Wali[-_\s]?Kota|Pergub|Perbup|Perwali|Undang[-_\s]?Undang(?:\s+Republik\s+Indonesia)?|Peraturan[-_\s]?Pemerintah\s+Pengganti\s+Undang[-_\s]?Undang|Peraturan[-_\s]?Pemerintah|Peraturan[-_\s]?Presiden|Peraturan[-_\s]?Menteri[^0-9\n,]*|Instruksi[-_\s]?Presiden|Keputusan[-_\s]?Presiden)\s+Nomor\s+([A-Za-z0-9\/\.\-]+)\s+Tahun\s+(\d{4})(?:\s+tentang\s+([^,.\n()]+))?/iu';
+
+        if (preg_match($pattern, $teks, $m)) {
+            $rawJenis = trim($m[1]);
+            $nomor = trim($m[2]);
+            $tahun = trim($m[3]);
+            $tentang = isset($m[4]) ? trim($m[4]) : '';
+            $tentang = preg_replace('/\s+(?:diubah\s+sebagai\s+berikut|sebagaimana\s+telah\s+diubah).*$/i', '', $tentang);
+            $tentang = trim($tentang, " \t\n\r\0\x0B-:,.");
+
+            $lowerJenis = strtolower($rawJenis);
+            $prefix = 'UU';
+            $slugType = 'undang-undang';
+
+            if (str_contains($lowerJenis, 'pengganti') || str_contains($lowerJenis, 'perpu')) {
+                $prefix = 'PERPPU';
+                $slugType = 'perppu';
+            } elseif (str_contains($lowerJenis, 'daerah') || str_contains($lowerJenis, 'perda')) {
+                $prefix = 'PERDA';
+                $slugType = 'peraturan-daerah';
+            } elseif (str_contains($lowerJenis, 'pemerintah') || str_contains($lowerJenis, 'pp')) {
+                $prefix = 'PP';
+                $slugType = 'peraturan-pemerintah';
+            } elseif (str_contains($lowerJenis, 'presiden') || str_contains($lowerJenis, 'perpres')) {
+                $prefix = 'PERPRES';
+                $slugType = 'peraturan-presiden';
+            } elseif (str_contains($lowerJenis, 'menteri') || str_contains($lowerJenis, 'permen')) {
+                $prefix = 'PERMEN';
+                $slugType = 'peraturan-menteri';
+            }
+
+            $standardId = "{$slugType}-{$nomor}-{$tahun}";
+            $labelSingkat = "{$prefix} {$nomor}/{$tahun}";
+            $namaLengkap = "{$rawJenis} Nomor {$nomor} Tahun {$tahun}" . ($tentang ? " tentang {$tentang}" : '');
+
+            return [
+                'standardId'   => $standardId,
+                'labelSingkat' => $labelSingkat,
+                'namaLengkap'  => $namaLengkap,
+                'jenis'        => $rawJenis,
+                'nomor'        => $nomor,
+                'tahun'        => $tahun,
+                'tentang'      => $tentang,
+            ];
+        }
+
+        return null;
     }
 }
