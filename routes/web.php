@@ -52,15 +52,16 @@ Route::middleware('auth')->group(function () {
         return view('test-peraturan', compact('peraturan'));
     });
 
-    // Bookmark khusus akun user; admin dikembalikan ke beranda oleh middleware role.
-    // Halaman dan aksi hapusnya di sini karena keduanya berjalan lewat sesi web;
-    // endpoint API (routes/api.php) dipakai pemanggil berbasis token.
+    // Dashboard user. 'verified.or.admin' menjaga fitur akun dari email palsu
+    // dan spam pendaftaran massal; admin dikecualikan agar panel admin tidak
+    // bisa mengunci dirinya sendiri saat email_verified_at belum diset.
     //
-    // 'verified.or.admin' menjaga fitur akun dari email palsu/spam pendaftaran
-    // massal. Admin dikecualikan agar panel admin tidak bisa mengunci dirinya
-    // sendiri saat email_verified_at belum diset.
+    // Catatan merge: origin/dev membiarkan /dashboard tanpa gerbang verifikasi
+    // (dan memaksa email_verified_at terisi saat login). Gerbang dipertahankan
+    // karena itu inti TC27.
     Route::middleware('verified.or.admin')->group(function () {
         Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
+        Route::redirect('/ringkasan', '/dashboard')->name('user.ringkasan');
     });
 
     // Bookmark khusus akun user; admin dikembalikan ke beranda oleh middleware role.
@@ -69,6 +70,12 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['role:user', 'verified.or.admin'])->group(function () {
         Route::get('/bookmarks', [BookmarkPageController::class, 'index'])->name('user.bookmarks');
         Route::delete('/bookmarks/{bookmark}', [BookmarkPageController::class, 'destroy'])->name('user.bookmarks.destroy');
+        Route::post('/bookmarks/collections', [BookmarkPageController::class, 'storeCollection'])->name('user.bookmarks.collections.store');
+        Route::put('/bookmarks/collections/{collection}', [BookmarkPageController::class, 'updateCollection'])->name('user.bookmarks.collections.update');
+        Route::delete('/bookmarks/collections/{collection}', [BookmarkPageController::class, 'destroyCollection'])->name('user.bookmarks.collections.destroy');
+        Route::post('/bookmarks/{bookmark}/collections', [BookmarkPageController::class, 'syncCollections'])->name('user.bookmarks.collections.sync');
+        Route::post('/bookmarks/bulk-destroy', [BookmarkPageController::class, 'bulkDestroy'])->name('user.bookmarks.bulk_destroy');
+        Route::post('/bookmarks/bulk-collections', [BookmarkPageController::class, 'bulkSyncCollections'])->name('user.bookmarks.bulk_collections');
     });
 
     Route::get('/pencarian', function () {

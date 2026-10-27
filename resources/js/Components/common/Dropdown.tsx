@@ -25,9 +25,10 @@ const DropDownContext = createContext<DropdownContextType>({
 
 interface DropdownProps extends PropsWithChildren {
     closeOnScroll?: boolean;
+    className?: string;
 }
 
-const Dropdown = ({ children, closeOnScroll = true }: DropdownProps) => {
+const Dropdown = ({ children, closeOnScroll = true, className = '' }: DropdownProps) => {
     const [open, setOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -75,18 +76,18 @@ const Dropdown = ({ children, closeOnScroll = true }: DropdownProps) => {
 
     return (
         <DropDownContext.Provider value={{ open, setOpen, toggleOpen }}>
-            <div ref={containerRef} className="relative">
+            <div ref={containerRef} className={`relative ${className}`}>
                 {children}
             </div>
         </DropDownContext.Provider>
     );
 };
 
-const Trigger = ({ children }: PropsWithChildren) => {
+const Trigger = ({ children, className = '' }: PropsWithChildren<{ className?: string }>) => {
     const { toggleOpen } = useContext(DropDownContext);
 
     return (
-        <div onClick={toggleOpen} className="cursor-pointer">
+        <div onClick={toggleOpen} className={`cursor-pointer ${className}`}>
             {children}
         </div>
     );

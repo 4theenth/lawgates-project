@@ -221,6 +221,8 @@ class GoogleAuthController extends Controller
 
         // Akun Google lama yang belum punya email_verified_at ikut diverifikasi,
         // karena Google sendiri yang menjamin kepemilikan alamat tersebut.
+        // `markEmailAsVerified()` dipakai (bukan forceFill) karena itu API resmi
+        // kontrak MustVerifyEmail sekaligus memicu event Verified.
         if ($user && ! $user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
         }

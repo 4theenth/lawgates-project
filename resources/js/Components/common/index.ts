@@ -21,4 +21,12 @@ export { DocumentTableOfContents, default as DocumentTableOfContentsComponent } 
 export { Pagination, default as PaginationComponent } from './Pagination';
 export { StatusTabs, default as StatusTabsComponent } from './StatusTabs';
 export type { TabOption, StatusTabsProps } from './StatusTabs';
+export { PageHeader, default as PageHeaderComponent } from './PageHeader';
+export type { PageHeaderProps, PageHeaderAction } from './PageHeader';
+export { FilterSearchBar, default as FilterSearchBarComponent } from './FilterSearchBar';
+export type { FilterSearchBarProps, FilterOption } from './FilterSearchBar';
+export { DeleteConfirmModal, default as DeleteConfirmModalComponent } from './DeleteConfirmModal';
+export type { DeleteConfirmModalProps } from './DeleteConfirmModal';
+export { ActionMenu, ActionMenuPortal, default as ActionMenuComponent } from './ActionMenu';
+export type { ActionMenuItem, ActionMenuProps } from './ActionMenu';
 export { ScrollToTop } from './ScrollToTop';

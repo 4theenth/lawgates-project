@@ -1,6 +1,6 @@
 import React from 'react';
 import { Breadcrumb } from '@/Components/admin/Breadcrumb';
-import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
+import { PageHeader } from '@/Components/common/PageHeader';
 import { Send } from 'lucide-react';
 import { TEAM_PAGE_HEADER } from '@/constants/team';
 
@@ -23,8 +23,8 @@ export function TeamHeader({
       {/* 1. Breadcrumbs */}
       <Breadcrumb items={breadcrumbs} />
 
-      {/* 2. Page Title, Subtitle, & Action Button Menggunakan AdminPageHeader */}
-      <AdminPageHeader
+      {/* 2. Page Title, Subtitle, & Action Button Menggunakan PageHeader */}
+      <PageHeader
         title={TEAM_PAGE_HEADER.title}
         description={TEAM_PAGE_HEADER.description}
         className="mb-0"

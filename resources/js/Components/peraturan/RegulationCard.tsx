@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import {
   CheckCircle,
   XCircle,
@@ -91,7 +91,19 @@ export function RegulationCard({
 
   const statusStyle = getRegulationStatusStyle(statusName);
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Jangan lakukan navigasi card jika klik berasal dari button atau link di dalam card
+    if ((e.target as HTMLElement).closest('button, a')) {
+      return;
+    }
+    if (onClick) {
+      onClick(e);
+    } else {
+      router.visit(`/peraturan/${item.unique_id}`);
+    }
+  };
+
+  const handleLinkClick = (e: React.MouseEvent) => {
     if (onClick) {
       e.preventDefault();
       onClick(e);
@@ -99,9 +111,8 @@ export function RegulationCard({
   };
 
   return (
-    <Link
-      href={`/peraturan/${item.unique_id}`}
-      onClick={handleClick}
+    <div
+      onClick={handleCardClick}
       className={`group relative overflow-hidden bg-white border border-neu-100 rounded-[20px] p-5 sm:p-6 shadow-2xs hover:shadow-md hover:border-neu-200 transition-all duration-300 ease-out flex flex-col justify-between cursor-pointer ${className}`}
     >
       {/* ── Garis Aksen Sisi Kiri 10px sesuai Figma #1684:24739 (Glide-in halus tanpa menggeser layout) ── */}
@@ -127,9 +138,13 @@ export function RegulationCard({
         </div>
 
         {/* ── Judul Dokumen Peraturan ── */}
-        <h3 className="text-[14px] sm:text-[15px] font-medium text-neu-800 group-hover:text-pr-900 transition-colors line-clamp-3 leading-snug mb-5">
+        <Link
+          href={`/peraturan/${item.unique_id}`}
+          onClick={handleLinkClick}
+          className="block text-[14px] sm:text-[15px] font-medium text-neu-800 group-hover:text-pr-900 transition-colors line-clamp-3 leading-snug mb-5"
+        >
           {item.judul}
-        </h3>
+        </Link>
       </div>
 
       {/* ── Row Bawah: Tahun, Garis, Instansi, Simpan (Bookmark), dan Tombol Lihat Detail ── */}
@@ -149,13 +164,17 @@ export function RegulationCard({
           />
         </div>
 
-        {/* Tombol Lihat Detail (Hover ganti warna ketika tombol ini di-hover) */}
-        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-pr-50 hover:bg-pr-900 text-pr-900 hover:text-white rounded-[10px] text-xs font-medium transition-colors shrink-0">
+        {/* Tombol Lihat Detail (Tetap lembut #E7E8EC dan text-pr-900 sesuai Figma node #1684:24754) */}
+        <Link
+          href={`/peraturan/${item.unique_id}`}
+          onClick={handleLinkClick}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#E7E8EC] hover:bg-pr-900 text-pr-900 hover:text-white rounded-[10px] text-xs font-medium transition-colors shrink-0"
+        >
           <Eye className="w-4 h-4 stroke-[1.75]" />
           <span>Lihat Detail</span>
-        </span>
+        </Link>
       </div>
-    </Link>
+    </div>
   );
 }
 

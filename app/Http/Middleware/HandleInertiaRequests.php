@@ -45,6 +45,12 @@ class HandleInertiaRequests extends Middleware
                         false
                     )
                     : [],
+                'totalBookmarks' => fn () => $request->user()
+                    ? rescue(fn () => $request->user()->bookmarks()->count(), 0, false)
+                    : 0,
+                'totalCollections' => fn () => $request->user()
+                    ? rescue(fn () => $request->user()->bookmarkCollections()->count(), 0, false)
+                    : 0,
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

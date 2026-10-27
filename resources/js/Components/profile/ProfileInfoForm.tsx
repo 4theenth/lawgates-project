@@ -61,11 +61,9 @@ export function ProfileInfoForm({ user, className = '', onSuccess }: ProfileInfo
             placeholder="Masukkan nama lengkap"
             className={`w-full h-10 px-4 py-2.5 rounded-[10px] bg-white border ${
               errors.name
-                ? 'border-dan-900 focus:border-dan-900'
-                : 'border-neu-100 focus:border-pr-900'
-            } font-sans text-[12px] font-normal leading-[18px] text-neu-900 placeholder:text-neu-600 focus:outline-none focus:ring-1 ${
-              errors.name ? 'focus:ring-dan-900' : 'focus:ring-pr-900'
-            } transition-all`}
+                ? 'border-dan-900 focus:border-dan-900 focus:ring-dan-900'
+                : 'border-neu-100 hover:border-neu-200 focus:border-neu-300 focus:ring-pr-900/5'
+            } font-sans text-[12px] font-normal leading-[18px] text-neu-900 placeholder:text-neu-600 focus:outline-none focus:ring-2 transition-all`}
           />
           {errors.name && (
             <p className="text-[11px] text-dan-900 -mt-1">{errors.name}</p>
@@ -126,11 +124,9 @@ export function ProfileInfoForm({ user, className = '', onSuccess }: ProfileInfo
             placeholder="08123456789"
             className={`w-full h-10 px-4 py-2.5 rounded-[10px] bg-white border ${
               errors.phone
-                ? 'border-dan-900 focus:border-dan-900'
-                : 'border-neu-100 focus:border-pr-900'
-            } font-sans text-[12px] font-normal leading-[18px] text-neu-900 placeholder:text-neu-600 focus:outline-none focus:ring-1 ${
-              errors.phone ? 'focus:ring-dan-900' : 'focus:ring-pr-900'
-            } transition-all`}
+                ? 'border-dan-900 focus:border-dan-900 focus:ring-dan-900'
+                : 'border-neu-100 hover:border-neu-200 focus:border-neu-300 focus:ring-pr-900/5'
+            } font-sans text-[12px] font-normal leading-[18px] text-neu-900 placeholder:text-neu-600 focus:outline-none focus:ring-2 transition-all`}
           />
           {errors.phone && (
             <p className="text-[11px] text-dan-900 -mt-1">{errors.phone}</p>
