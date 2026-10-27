@@ -132,7 +132,7 @@ export function ProfileAvatarCard({
       />
 
       <div
-        className={`w-full md:w-[480px] lg:w-[500px] xl:w-[520px] min-h-[307px] bg-white border border-neu-50 rounded-[12px] p-5 lg:p-6 shadow-2xs shrink-0 flex flex-col justify-between ${className}`}
+        className={`w-full min-h-[250px] bg-white border border-neu-50 rounded-[12px] p-5 lg:p-6 shadow-2xs flex flex-col justify-between ${className}`}
       >
         {/* Bagian Atas: Avatar + User Info (Node #2406:41356) */}
         <div className="flex items-start gap-[16px] pb-[40px] border-b border-neu-50">
@@ -212,9 +212,9 @@ export function ProfileAvatarCard({
         </div>
 
         {/* Bagian Bawah: Box Info Terakhir Diperbarui & Verifikasi Email */}
-        <div className="pt-4 space-y-2">
+        <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Terakhir Diperbarui */}
-          <div className="h-10 px-3 rounded-[10px] bg-white border border-neu-50 flex items-center justify-between">
+          <div className="h-10 px-3.5 rounded-[10px] bg-white border border-neu-50 flex items-center justify-between">
             <div className="flex items-center gap-2.5 font-sans text-[12px] font-medium leading-[18px] text-neu-900">
               <Calendar className="w-[18px] h-[18px] text-sec-900 shrink-0 stroke-[1.5]" />
               <span>Terakhir Diperbarui</span>
@@ -225,15 +225,14 @@ export function ProfileAvatarCard({
           </div>
 
           {/* Verifikasi Email */}
-          <div className="h-10 px-3 rounded-[10px] bg-white border border-neu-50 flex items-center justify-between">
+          <div className="h-10 px-3.5 rounded-[10px] bg-white border border-neu-50 flex items-center justify-between">
             <div className="flex items-center gap-2.5 font-sans text-[12px] font-medium leading-[18px] text-neu-900">
               <Mail className="w-[18px] h-[18px] text-suc-900 shrink-0 stroke-[1.5]" />
               <span>Verifikasi Email</span>
             </div>
             <span
-              className={`font-sans text-[12px] font-medium leading-[18px] ${
-                isEmailVerified ? 'text-suc-900' : 'text-dan-900'
-              }`}
+              className={`font-sans text-[12px] font-medium leading-[18px] ${isEmailVerified ? 'text-suc-900' : 'text-dan-900'
+                }`}
             >
               {isEmailVerified ? 'Terverifikasi' : 'Belum Terverifikasi'}
             </span>
