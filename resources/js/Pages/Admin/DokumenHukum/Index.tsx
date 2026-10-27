@@ -12,7 +12,7 @@ import { DocumentModal } from '@/Components/admin/DocumentModal';
 import { EditStatusModal } from '@/Components/admin/EditStatusModal';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
 import { DuplicateConfirmModal } from '@/Components/admin/DuplicateConfirmModal';
-import { AdminPageHeader } from '@/Components/admin/AdminPageHeader';
+import { PageHeader } from '@/Components/common/PageHeader';
 import { StatCardsGroup } from '@/Components/admin/StatCard';
 import {
   CorrectionDetailView,
@@ -523,7 +523,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
       </div>
 
       {/* 2. Page Header & Action Button Menggunakan Komponen Reusable */}
-      <AdminPageHeader
+      <PageHeader
         title="Daftar Dokumen Hukum"
         description="Kelola daftar peraturan, putusan, dan impor dokumen hukum hasil OCR."
         action={{
