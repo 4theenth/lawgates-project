@@ -42,10 +42,10 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
 
   return (
     <div
-      className={`mt-1.5 mb-2 ${
+      className={`mt-1 mb-2 ${
         isLight
-          ? 'ml-6 pr-1 pl-3 border-l-2 border-gray-100'
-          : 'ml-7 pr-1 pl-2 border-l border-white/20'
+          ? 'ml-3 pl-2.5 border-l border-neu-100'
+          : 'ml-4 pl-2 border-l border-white/20'
       }`}
     >
       {/* Search Input */}
@@ -63,7 +63,7 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
           placeholder="Cari provinsi / kabupaten..."
           className={`w-full pl-8 pr-2.5 py-1.5 rounded-lg text-xs transition-all outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${
             isLight
-              ? 'bg-neutral-50/80 border border-neu-100 text-neu-800 placeholder:text-neu-400 focus:bg-white focus:border-neu-300 shadow-2xs'
+              ? 'bg-neutral-50/80 border border-neu-100 text-neu-800 placeholder:text-neu-400 focus:bg-white focus:border-neu-200 shadow-2xs'
               : 'bg-white/5 border border-white/10 text-white placeholder:text-neu-400 focus:border-white/20'
           }`}
         />
@@ -72,7 +72,7 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
       {/* Tag pills daerah yang dipilih */}
       {selectedLokasi.length > 0 && (
         <div
-          className={`flex flex-wrap gap-1.5 mb-2 p-1.5 rounded-lg max-h-16 overflow-y-auto custom-thin-scrollbar pr-1 ${
+          className={`flex flex-wrap gap-1.5 mb-2 p-1.5 rounded-lg max-h-16 overflow-y-auto no-scrollbar ${
             isLight ? 'bg-gray-50 border border-gray-200' : 'bg-white/5 border border-white/10'
           }`}
         >
@@ -105,7 +105,7 @@ export const FlatLocationPicker: React.FC<FlatLocationPickerProps> = ({
       )}
 
       {/* Flat List Daerah (Daerah terpilih di atas) */}
-      <div className="max-h-36 overflow-y-auto custom-thin-scrollbar pr-1 space-y-0.5">
+      <div className="max-h-36 overflow-y-auto no-scrollbar space-y-0.5">
         {sortedFlatLokasi.length === 0 ? (
           <div
             className={`text-center py-2.5 text-xs ${
