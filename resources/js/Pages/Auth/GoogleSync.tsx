@@ -15,7 +15,7 @@ export interface GoogleSyncProps {
 }
 
 export default function GoogleSync({
-    email = 'Mangadi@gmail.com',
+    email = '',
     accessToken,
     remember = true,
     isRegisterFlow = false,
@@ -74,11 +74,14 @@ export default function GoogleSync({
     };
 
     const handleCancel = () => {
-        if (isRegisterFlow) {
-            router.get(route('register'));
-        } else {
-            router.get(route('login'));
-        }
+        // Harus lewat server: state pending_link_* hidup di session, jadi
+        // navigasi biasa meninggalkannya dan memblokir login Google berikutnya.
+        setProcessing(true);
+        router.post(
+            route('auth.google.cancel'),
+            { is_register_flow: isRegisterFlow },
+            { onFinish: () => setProcessing(false) }
+        );
     };
 
     return (
@@ -153,10 +156,12 @@ export default function GoogleSync({
                 </div>
 
                 {/* Email Pill */}
-                <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-neu-100 text-neu-700 text-xs font-medium mb-4">
-                    <Icon name="at-sign" className="w-3.5 h-3.5 text-neu-500" />
-                    <span>{email}</span>
-                </div>
+                {email && (
+                    <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-neu-100 text-neu-700 text-xs font-medium mb-4">
+                        <Icon name="at-sign" className="w-3.5 h-3.5 text-neu-500" />
+                        <span>{email}</span>
+                    </div>
+                )}
 
                 {/* Title & Description */}
                 <h2 className="text-lg sm:text-xl font-bold text-neu-900 mb-2">

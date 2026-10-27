@@ -3,6 +3,8 @@ import { Button } from '@/Components/ui/button';
 import { Icon } from '@/Components/ui/icon';
 import { useAuthModal } from '@/hooks/useAuthModal';
 import { useFilterReferences } from '@/hooks/useFilterReferences';
+import { useRecentSearches } from '@/hooks/useRecentSearches';
+import { RecentSearchesDropdown } from '@/Components/common/RecentSearchesDropdown';
 import { FlatLocationPicker } from '@/Components/search/filters/FlatLocationPicker';
 
 interface SearchFilterBarProps {
@@ -106,9 +108,8 @@ function MultiSelectDropdown({
         )}
         <Icon
           name="chevron-down"
-          className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${
-            isOpen ? 'rotate-180 text-white' : ''
-          }`}
+          className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-white' : ''
+            }`}
         />
       </button>
 
@@ -121,9 +122,8 @@ function MultiSelectDropdown({
                 <button
                   type="button"
                   onClick={() => onToggleValue(item.value)}
-                  className={`w-full px-2.5 py-1.5 text-left text-[12px] flex items-center gap-2.5 rounded-[8px] transition-colors hover:bg-white/10 group cursor-pointer ${
-                    isChecked ? 'text-white' : 'text-neu-200 hover:text-white'
-                  }`}
+                  className={`w-full px-2.5 py-1.5 text-left text-[12px] flex items-center gap-2.5 rounded-[8px] transition-colors hover:bg-white/10 group cursor-pointer ${isChecked ? 'text-white' : 'text-neu-200 hover:text-white'
+                    }`}
                 >
                   <div className="w-4 h-4 flex items-center justify-center shrink-0">
                     {isChecked ? (
@@ -176,7 +176,7 @@ function SearchableMultiSelectDropdown({
     displayLabel = `${selectedValues.length} ${label}`;
   }
 
-  const filteredOptions = options.filter(o => 
+  const filteredOptions = options.filter(o =>
     o.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -194,9 +194,8 @@ function SearchableMultiSelectDropdown({
         <span className="truncate pr-1.5">{displayLabel}</span>
         <Icon
           name="chevron-down"
-          className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${
-            isOpen ? 'rotate-180 text-white' : ''
-          }`}
+          className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-white' : ''
+            }`}
         />
       </button>
 
@@ -215,7 +214,7 @@ function SearchableMultiSelectDropdown({
               />
             </div>
           </div>
-          
+
           <div className="max-h-48 overflow-y-auto no-scrollbar px-1">
             {filteredOptions.length === 0 ? (
               <div className="text-[11px] text-neu-400 text-center py-3">Tidak ditemukan</div>
@@ -230,9 +229,8 @@ function SearchableMultiSelectDropdown({
                       e.stopPropagation();
                       onToggleValue(item.value);
                     }}
-                    className={`w-full px-2 py-1.5 text-left text-[12px] flex items-center gap-2.5 rounded-[8px] transition-colors hover:bg-white/10 group cursor-pointer ${
-                      isChecked ? 'text-white' : 'text-neu-200 hover:text-white'
-                    }`}
+                    className={`w-full px-2 py-1.5 text-left text-[12px] flex items-center gap-2.5 rounded-[8px] transition-colors hover:bg-white/10 group cursor-pointer ${isChecked ? 'text-white' : 'text-neu-200 hover:text-white'
+                      }`}
                   >
                     <div className="w-4 h-4 flex items-center justify-center shrink-0">
                       {isChecked ? (
@@ -317,9 +315,8 @@ function YearRangeDropdown({
         <span className="truncate pr-1.5">{displayLabel}</span>
         <Icon
           name="chevron-down"
-          className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${
-            isOpen ? 'rotate-180 text-white' : ''
-          }`}
+          className={`w-3.5 h-3.5 text-neu-300 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-white' : ''
+            }`}
         />
       </button>
 
@@ -349,9 +346,8 @@ function YearRangeDropdown({
                 <span className="truncate">{tahunDari || 'Pilih'}</span>
                 <Icon
                   name="chevron-down"
-                  className={`w-3 h-3 text-neu-300 shrink-0 transition-transform duration-200 ${
-                    openSub.dari ? 'rotate-180 text-white' : ''
-                  }`}
+                  className={`w-3 h-3 text-neu-300 shrink-0 transition-transform duration-200 ${openSub.dari ? 'rotate-180 text-white' : ''
+                    }`}
                 />
               </button>
 
@@ -364,11 +360,10 @@ function YearRangeDropdown({
                         key={`dari-${yr}`}
                         type="button"
                         onClick={() => onChangeDari(yr)}
-                        className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer hover:bg-white/10 ${
-                          isSelected
+                        className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer hover:bg-white/10 ${isSelected
                             ? 'bg-white/10 text-white font-medium'
                             : 'text-neu-200 hover:text-white'
-                        }`}
+                          }`}
                       >
                         <span className="truncate">{yr}</span>
                         {isSelected && <Icon name="check" className="w-3.5 h-3.5 text-white stroke-[2.5] shrink-0" />}
@@ -389,9 +384,8 @@ function YearRangeDropdown({
                 <span className="truncate">{tahunSampai || 'Pilih'}</span>
                 <Icon
                   name="chevron-down"
-                  className={`w-3 h-3 text-neu-300 shrink-0 transition-transform duration-200 ${
-                    openSub.sampai ? 'rotate-180 text-white' : ''
-                  }`}
+                  className={`w-3 h-3 text-neu-300 shrink-0 transition-transform duration-200 ${openSub.sampai ? 'rotate-180 text-white' : ''
+                    }`}
                 />
               </button>
 
@@ -404,11 +398,10 @@ function YearRangeDropdown({
                         key={`sampai-${yr}`}
                         type="button"
                         onClick={() => onChangeSampai(yr)}
-                        className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer hover:bg-white/10 ${
-                          isSelected
+                        className={`w-full px-2 py-1 text-left text-[12px] transition-colors flex items-center justify-between cursor-pointer hover:bg-white/10 ${isSelected
                             ? 'bg-white/10 text-white font-medium'
                             : 'text-neu-200 hover:text-white'
-                        }`}
+                          }`}
                       >
                         <span className="truncate">{yr}</span>
                         {isSelected && <Icon name="check" className="w-3.5 h-3.5 text-white stroke-[2.5] shrink-0" />}
@@ -439,8 +432,10 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
     availableYears,
   } = useFilterReferences();
 
+  const { addSearch } = useRecentSearches();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [isRecentOpen, setIsRecentOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Multi-select state
@@ -454,7 +449,7 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
   const [tahunSampai, setTahunSampai] = useState('');
 
   const [activeDropdown, setActiveDropdown] = useState<'kategori' | 'tahun' | 'status' | 'lokasi' | 'subjek' | null>(null);
-  
+
   const filterContainerRef = useRef<HTMLDivElement>(null);
 
   // Tutup dropdown saat user mengklik di luar area filter
@@ -465,6 +460,7 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
         !filterContainerRef.current.contains(e.target as Node)
       ) {
         setActiveDropdown(null);
+        setIsRecentOpen(false);
       }
     };
 
@@ -474,10 +470,14 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
     };
   }, []);
 
-  const handleSearchSubmit = (e?: React.FormEvent) => {
+  const handleSearchSubmit = (e?: React.FormEvent, customQuery?: string) => {
     if (e) e.preventDefault();
 
-    const keyword = searchQuery.trim();
+    const keyword = (customQuery !== undefined ? customQuery : searchQuery).trim();
+    if (keyword) {
+      addSearch(keyword);
+    }
+    setIsRecentOpen(false);
 
     let formattedTahun = '';
     if (tahunDari && tahunSampai) {
@@ -589,9 +589,23 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
             <input
               type="text"
               value={searchQuery}
+              onFocus={() => {
+                if (!isSearchExpanded) {
+                  setIsRecentOpen(true);
+                }
+              }}
+              onClick={() => {
+                if (!isSearchExpanded) {
+                  setIsRecentOpen(true);
+                }
+              }}
               onChange={(e) => {
-                setSearchQuery(e.target.value);
+                const val = e.target.value;
+                setSearchQuery(val);
                 if (errorMsg) setErrorMsg('');
+                if (!val.trim() && !isSearchExpanded) {
+                  setIsRecentOpen(true);
+                }
               }}
               placeholder="Cari peraturan yang ada di Indonesia..."
               className="w-full min-w-0 bg-transparent text-white text-[14px] font-normal outline-none border-none placeholder:text-neu-300 focus:ring-0 leading-[20px]"
@@ -610,12 +624,12 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
             onClick={() => {
               setIsSearchExpanded((prev) => !prev);
               setActiveDropdown(null);
+              setIsRecentOpen(false);
             }}
-            className={`flex items-center justify-center gap-1 sm:gap-2 w-auto sm:w-[105px] h-[38px] sm:h-[40px] min-h-[36px] text-[12px] font-bold rounded-[12px] px-2.5 sm:px-5 transition-colors cursor-pointer shrink-0 ${
-              isSearchExpanded
+            className={`flex items-center justify-center gap-1 sm:gap-2 w-auto sm:w-[105px] h-[38px] sm:h-[40px] min-h-[36px] text-[12px] font-bold rounded-[12px] px-2.5 sm:px-5 transition-colors cursor-pointer shrink-0 ${isSearchExpanded
                 ? 'bg-sec-900 text-neu-900 hover:bg-sec-800'
                 : 'bg-neu-50 text-neu-900 hover:bg-white'
-            }`}
+              }`}
           >
             <Icon
               name="settings-2"
@@ -624,6 +638,19 @@ export function SearchFilterBar({ isScrolled, onSearch }: SearchFilterBarProps) 
             Filter
           </Button>
         </form>
+
+        {/* Dropdown Pencarian Terakhir (Sesuai Figma Node #3293:55995) */}
+        <RecentSearchesDropdown
+          isOpen={isRecentOpen}
+          onClose={() => setIsRecentOpen(false)}
+          onSelect={(query) => {
+            setSearchQuery(query);
+            handleSearchSubmit(undefined, query);
+          }}
+          variant="dark"
+          searchQuery={searchQuery}
+          className={isSearchExpanded ? 'top-[56px] sm:top-[60px]' : 'top-[calc(100%+8px)]'}
+        />
 
         {/* Filter Cepat Section */}
         {isSearchExpanded && (

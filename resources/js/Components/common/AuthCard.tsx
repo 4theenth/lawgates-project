@@ -36,7 +36,7 @@ export function AuthCard({
             )}
         >
             {/* Header */}
-            <div className="mb-6 sm:mb-8 text-center">
+            <div className="mb-4 sm:mb-5 text-center">
                 <h1 className="text-h4 font-bold leading-tight text-neu-900">
                     {title}
                 </h1>

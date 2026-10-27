@@ -136,9 +136,15 @@ export default function DetailKategori({
     }
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    applyFilters({ keyword: searchQuery, page: 1 });
+  const handleSearchSubmit = (e?: React.FormEvent, customKeyword?: string) => {
+    if (e) e.preventDefault();
+    const keywordToUse = customKeyword !== undefined ? customKeyword : searchQuery;
+    applyFilters({ keyword: keywordToUse, page: 1 });
+  };
+
+  const handleSelectRecent = (q: string) => {
+    setSearchQuery(q);
+    handleSearchSubmit(undefined, q);
   };
 
   const handleApplyFilter = () => {
@@ -267,6 +273,7 @@ export default function DetailKategori({
             onChange={handleSearchChange}
             onClear={handleClearSearch}
             onSubmit={handleSearchSubmit}
+            onSelectRecent={handleSelectRecent}
             placeholder={`Cari ${kategori.nama.toLowerCase()} yang ada di Indonesia...`}
           />
         </div>

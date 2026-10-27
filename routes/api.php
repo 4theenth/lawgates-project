@@ -9,6 +9,7 @@ use App\Models\JenisPeraturan; // Tambahan untuk referensi
 use App\Models\Status;         // Tambahan untuk referensi
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\BookmarkController;
+use App\Http\Controllers\Api\TimelineController;
 
 // =================================================================
 // Route Publik (Tanpa Token Auth)
@@ -19,11 +20,33 @@ Route::get('/regions', [\App\Http\Controllers\Api\RegionController::class, 'inde
 Route::get('/regions/statistics', [\App\Http\Controllers\Api\RegionController::class, 'statistics']);
 Route::get('/regions/{provinceSlug}/regencies', [\App\Http\Controllers\Api\RegionController::class, 'regenciesByProvince']);
 
+// Timeline regulasi publik — dipakai halaman /regulasi yang bisa dibuka tanpa
+// login, jadi sengaja berada di luar grup auth:sanctum bersama route /regions.
+Route::get('/timeline/events', [TimelineController::class, 'events'])->middleware('throttle:60,1');
+Route::get('/timeline/frequency', [TimelineController::class, 'frequency'])->middleware('throttle:60,1');
+
 
 // =================================================================
-// Route yang Membutuhkan Autentikasi (Token Sanctum)
+// Data akun sendiri — di luar gate verifikasi.
+//
+// Klien REST butuh satu endpoint untuk tahu siapa dirinya dan apakah
+// emailnya sudah terverifikasi; tanpa ini akun yang belum verifikasi
+// tidak punya cara apa pun untuk membaca statusnya sendiri.
 // =================================================================
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
+    return $request->user();
+});
+
+
+// =================================================================
+// Route yang Membutuhkan Autentikasi (Token Sanctum) + Verifikasi Email
+//
+// `verified.or.admin` menyamakan API dengan web: akun manual yang belum
+// memverifikasi email ditolak 403, admin/superadmin dilewatkan. Tanpa ini
+// POST /register di atas bisa dipakai membuat akun lalu langsung memakai
+// seluruh API tanpa pernah membuktikan kepemilikan emailnya.
+// =================================================================
+Route::middleware(['auth:sanctum', 'verified.or.admin'])->group(function () {
     // Categorized Regulation Statistics & Listing
     Route::get('/regulations/categories/stats', [PeraturanController::class, 'categoryStats']);
     Route::get('/regulations', [PeraturanController::class, 'index']);
@@ -38,11 +61,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Referensi & Kategori Hukum
     Route::get('/kategori-hukum/all', [\App\Http\Controllers\Api\KategoriHukumController::class, 'getAllKategori']);
     Route::get('/referensi-filter', [PeraturanController::class, 'referensiFilter']);
-
-    // Cek informasi pengguna sendiri
-    Route::get('/me', function (Request $request) {
-        return $request->user();
-    });
 
     // Bookmark & folder koleksi. Terbuka untuk user biasa; admin tidak memakainya
     // (tombol simpan disembunyikan di UI) sehingga route-nya tidak dimasukkan ke

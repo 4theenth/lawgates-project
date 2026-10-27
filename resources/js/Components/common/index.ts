@@ -30,4 +30,4 @@ export type { DeleteConfirmModalProps } from './DeleteConfirmModal';
 export { ActionMenu, ActionMenuPortal, default as ActionMenuComponent } from './ActionMenu';
 export type { ActionMenuItem, ActionMenuProps } from './ActionMenu';
 export { ScrollToTop } from './ScrollToTop';
-export { ExpiredResetLinkCard, default as ExpiredResetLinkCardComponent } from './ExpiredResetLinkCard';
+export { RecentSearchesDropdown, default as RecentSearchesDropdownComponent } from './RecentSearchesDropdown';

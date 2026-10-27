@@ -253,8 +253,8 @@ export function TimelineFilterToolbar({
 
   // Ekstrak tahun awal & akhir
   const parsedYears = periodLabel.split('-').map((s) => parseInt(s.trim(), 10));
-  const currentStartYear = propStartYear || parsedYears[0] || 2025;
-  const currentEndYear = propEndYear || parsedYears[1] || 2026;
+  const currentStartYear = propStartYear ?? parsedYears[0];
+  const currentEndYear = propEndYear ?? parsedYears[1];
 
   const defaultJenisList = [
     'Undang-Undang (UU)',
@@ -381,7 +381,7 @@ export function TimelineFilterToolbar({
     return `${selectedJenis.length} Jenis Peraturan`;
   }, [selectedJenis, isAllJenisSelected]);
 
-  // Handler Reset Filter: Mengembalikan ke default (2025-2026, Semua Jenis, Semua Subjek, Lokasi kosong)
+  // Handler Reset Filter: seluruh nilai filter dikembalikan lewat `onResetFilter`.
   const handleReset = () => {
     setSelectedJenis([]);
     setSelectedSubjek([]);
@@ -390,13 +390,12 @@ export function TimelineFilterToolbar({
 
     if (onResetFilter) {
       onResetFilter();
-    } else {
-      if (onYearsCompareChange) onYearsCompareChange(2025, 2026);
-      if (onPeriodChange) onPeriodChange('2025 - 2026');
-      if (onJenisChange) onJenisChange([]);
-      if (onSubjekChange) onSubjekChange([]);
-      if (onLokasiChange) onLokasiChange([]);
+      return;
     }
+
+    if (onJenisChange) onJenisChange([]);
+    if (onSubjekChange) onSubjekChange([]);
+    if (onLokasiChange) onLokasiChange([]);
   };
 
   return (

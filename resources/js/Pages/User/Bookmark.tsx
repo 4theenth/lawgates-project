@@ -505,20 +505,29 @@ export default function UserBookmark({
                   </>
                 )}
 
-                {/* Tombol Kelola (Selalu bertuliskan "Kelola", klik ke-2 kali balik ke awal) */}
+                {/* Tombol Kelola / Batal (Sesuai Figma node #3393:58127) */}
                 {bookmarks.data.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsManaging((prev) => !prev);
-                      if (isManaging) {
+                  isManaging ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsManaging(false);
                         setSelectedIds([]);
-                      }
-                    }}
-                    className="font-sans text-[13px] font-medium text-pr-900 hover:underline cursor-pointer select-none ml-1"
-                  >
-                    Kelola
-                  </button>
+                      }}
+                      className="font-sans text-[12px] sm:text-[13px] font-medium text-neu-500 hover:text-neu-800 hover:underline cursor-pointer select-none ml-1 transition-colors"
+                    >
+                      Batal
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsManaging(true)}
+                      className="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-[8px] bg-pr-900 hover:bg-pr-800 text-white font-sans text-[12px] font-medium transition-colors cursor-pointer shadow-2xs select-none"
+                    >
+                      <Pencil className="w-3 h-3 text-white shrink-0" />
+                      <span>Kelola</span>
+                    </button>
+                  )
                 )}
               </div>
             </div>
