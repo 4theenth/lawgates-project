@@ -584,6 +584,27 @@ path.leaflet-interactive {
   scrollbar-width: thin;
   scrollbar-color: var(--color-neu-300) transparent;
 }
+
+/* Scroll indicator horizontal yang lebih jelas untuk tabel lebar */
+.table-scroll-indicator::-webkit-scrollbar {
+  height: 8px !important;
+}
+.table-scroll-indicator::-webkit-scrollbar-track {
+  background: var(--color-neu-100) !important;
+  border-radius: 9999px !important;
+}
+.table-scroll-indicator::-webkit-scrollbar-thumb {
+  background: var(--color-neu-300) !important;
+  border-radius: 9999px !important;
+}
+.table-scroll-indicator::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neu-400) !important;
+}
+
+/* Bayangan pembatas kolom sticky kanan saat tabel masih bisa digeser */
+.sticky-aksi-shadow {
+  box-shadow: -8px 0 16px rgba(10, 28, 62, 0.14);
+}
 .custom-thin-scrollbar::-webkit-scrollbar,
 .thin-scrollbar::-webkit-scrollbar {
   width: 4px !important;
