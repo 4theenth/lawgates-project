@@ -15,8 +15,9 @@ class UserSeeder extends Seeder
             'email' => 'superadmin@lawgates.com',
             'password' => Hash::make('rahasia123'),
             'role' => 'superadmin',
-            'auth_provider' => 'manual', // Sudah diubah ke manual
-            'phone' => '08111111111'
+            'auth_provider' => 'manual',
+            'phone' => '08111111111',
+            'email_verified_at' => now(),
         ]);
 
         User::create([
@@ -24,8 +25,9 @@ class UserSeeder extends Seeder
             'email' => 'admin@lawgates.com',
             'password' => Hash::make('rahasia123'),
             'role' => 'admin',
-            'auth_provider' => 'manual', // Sudah diubah ke manual
-            'phone' => '08222222222'
+            'auth_provider' => 'manual',
+            'phone' => '08222222222',
+            'email_verified_at' => now(),
         ]);
 
         User::create([
@@ -33,8 +35,9 @@ class UserSeeder extends Seeder
             'email' => 'user@lawgates.com',
             'password' => Hash::make('rahasia123'),
             'role' => 'user',
-            'auth_provider' => 'manual', // Sudah diubah ke manual
-            'phone' => '08333333333'
+            'auth_provider' => 'manual',
+            'phone' => '08333333333',
+            'email_verified_at' => now(),
         ]);
     }
 }

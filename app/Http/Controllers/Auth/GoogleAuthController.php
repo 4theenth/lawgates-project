@@ -65,8 +65,15 @@ class GoogleAuthController extends Controller
         $accessToken = $request->access_token;
         $remember = $request->boolean('remember', true);
 
+        // Pastikan opsi verifikasi SSL menggunakan CA bundle lokal yang tersedia (mencegah cURL error 60 di Windows)
+        $caBundle = base_path('vendor/google/apiclient/src/Google/IO/cacerts.pem');
+        $httpOptions = [
+            'verify' => file_exists($caBundle) ? $caBundle : !app()->isLocal(),
+        ];
+
         // Fetch user info from Google
         $response = Http::withToken($accessToken)
+            ->withOptions($httpOptions)
             ->get('https://www.googleapis.com/oauth2/v3/userinfo');
 
         if ($response->failed()) {
@@ -81,7 +88,8 @@ class GoogleAuthController extends Controller
         // pihak ketiga mana pun bisa dipakai untuk masuk ke akun LawGates.
         $expectedAudience = config('services.google.client_id');
         if ($expectedAudience) {
-            $tokenInfo = Http::get('https://www.googleapis.com/oauth2/v3/tokeninfo', ['access_token' => $accessToken]);
+            $tokenInfo = Http::withOptions($httpOptions)
+                ->get('https://www.googleapis.com/oauth2/v3/tokeninfo', ['access_token' => $accessToken]);
 
             if ($tokenInfo->failed() || ($tokenInfo->json('aud') !== $expectedAudience)) {
                 return response()->json(['message' => 'Google token audience tidak cocok'], 401);
