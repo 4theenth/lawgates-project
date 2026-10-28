@@ -20,19 +20,16 @@ class ProfileController extends Controller
     public function edit(Request $request): Response
     {
         $user = $request->user();
-        if ($user && is_null($user->email_verified_at)) {
-            $user->forceFill(['email_verified_at' => now()])->save();
-        }
 
         if (in_array($user->role, ['admin', 'superadmin'])) {
             return Inertia::render('Admin/Profile', [
-                'mustVerifyEmail' => false,
+                'mustVerifyEmail' => $user instanceof MustVerifyEmail,
                 'status' => session('status'),
             ]);
         }
 
         return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => false,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
         ]);
     }
