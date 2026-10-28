@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { PublicLayout } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
+import { DocumentDigitizingStatus } from '@/Components/peraturan/DocumentDigitizingStatus';
 import { useToast } from '@/hooks/useToast';
-import { FileQuestion } from 'lucide-react';
 
 interface DokumenViewerProps {
   peraturan: any;
@@ -81,16 +81,16 @@ export default function DokumenViewer({ peraturan, pdfUrl, hasPdf }: DokumenView
             jenisPeraturan={peraturan.jenis_peraturan?.nama || 'UNDANG - UNDANG DASAR'}
             instansi={peraturan.instansi || peraturan.entitas || (peraturan.jenis_peraturan?.kode === 'PERDA' || (peraturan.jenis_peraturan?.nama || '').toLowerCase().includes('daerah') ? 'Pemerintah Daerah' : 'Pemerintah Pusat')}
             judul={peraturan.judul}
-            statusPeraturan={peraturan.status_peraturan?.nama_status || 'Berlaku'}
+            statusPeraturan={peraturan.status_peraturan?.nama_status || 'Sedang Didigitalisasi'}
             tanggalPenetapan={formatTanggal(peraturan.tanggal_penetapan)}
             tempatPenetapan={peraturan.tempat_penetapan || 'Jakarta'}
             onDownload={handleDownload}
-            downloadHref={`/peraturan/${peraturan.unique_id}/download`}
+            downloadHref={hasPdf && pdfUrl ? `/peraturan/${peraturan.unique_id}/download` : undefined}
             peraturanId={peraturan?.id || peraturan?.unique_id}
           />
 
-          {/* Layar PDF Viewer: Jika dokumen ada tampilkan PDF, jika belum ada tampilkan pesan belum tersedia */}
-          <div className="w-full mt-6 sm:mt-8 bg-[#525659] rounded-2xl sm:rounded-3xl shadow-md border border-gray-200 overflow-hidden relative h-[85vh] min-h-[750px] max-h-[1200px] flex items-center justify-center">
+          {/* Layar PDF Viewer: Jika dokumen ada tampilkan PDF, jika belum ada tampilkan komponen status digitalisasi */}
+          <div className={`w-full mt-6 sm:mt-8 rounded-2xl sm:rounded-3xl overflow-hidden relative flex items-center justify-center ${hasPdf && pdfUrl ? 'bg-[#525659] border border-gray-200 shadow-md h-[85vh] min-h-[750px] max-h-[1200px]' : 'bg-transparent'}`}>
             {hasPdf && pdfUrl ? (
               <div className="w-full h-full overflow-hidden relative">
                 <iframe
@@ -100,14 +100,20 @@ export default function DokumenViewer({ peraturan, pdfUrl, hasPdf }: DokumenView
                 />
               </div>
             ) : (
-              <div className="text-center p-8 max-w-md bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 m-4">
-                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200">
-                  <FileQuestion className="w-8 h-8 text-slate-500" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-2">Dokumen PDF saat ini belum tersedia</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">
-                  Berkas PDF untuk dokumen ini belum dapat ditampilkan. Silakan periksa bagian teks isi peraturan pada halaman detail.
-                </p>
+              <div className="w-full max-w-2xl py-4 sm:py-6">
+                <DocumentDigitizingStatus
+                  peraturan={peraturan}
+                  onBack={() => {
+                    if (typeof window !== 'undefined' && window.history.length > 1) {
+                      window.history.back();
+                    } else {
+                      router.visit(`/peraturan/${peraturan.unique_id}`);
+                    }
+                  }}
+                  onViewRelations={() => {
+                    router.visit(`/peraturan/${peraturan.unique_id}`);
+                  }}
+                />
               </div>
             )}
           </div>

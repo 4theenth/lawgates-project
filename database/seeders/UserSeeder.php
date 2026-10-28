@@ -10,34 +10,43 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        User::create([
-            'username' => 'superadmin',
-            'email' => 'superadmin@lawgates.com',
-            'password' => Hash::make('rahasia123'),
-            'role' => 'superadmin',
-            'auth_provider' => 'manual',
-            'phone' => '08111111111',
-            'email_verified_at' => now(),
-        ]);
+        $users = [
+            [
+                'username' => 'superadmin',
+                'email' => 'superadmin@lawgates.com',
+                'password' => Hash::make('rahasia123'),
+                'role' => 'superadmin',
+                'auth_provider' => 'manual',
+                'phone' => '08111111111',
+            ],
+            [
+                'username' => 'admin_sistem',
+                'email' => 'admin@lawgates.com',
+                'password' => Hash::make('rahasia123'),
+                'role' => 'admin',
+                'auth_provider' => 'manual',
+                'phone' => '08222222222',
+            ],
+            [
+                'username' => 'pengguna_biasa',
+                'email' => 'user@lawgates.com',
+                'password' => Hash::make('rahasia123'),
+                'role' => 'user',
+                'auth_provider' => 'manual',
+                'phone' => '08333333333',
+            ],
+        ];
 
-        User::create([
-            'username' => 'admin_sistem',
-            'email' => 'admin@lawgates.com',
-            'password' => Hash::make('rahasia123'),
-            'role' => 'admin',
-            'auth_provider' => 'manual',
-            'phone' => '08222222222',
-            'email_verified_at' => now(),
-        ]);
+        foreach ($users as $data) {
+            $user = User::updateOrCreate(
+                ['email' => $data['email']],
+                $data
+            );
 
-        User::create([
-            'username' => 'pengguna_biasa',
-            'email' => 'user@lawgates.com',
-            'password' => Hash::make('rahasia123'),
-            'role' => 'user',
-            'auth_provider' => 'manual',
-            'phone' => '08333333333',
-            'email_verified_at' => now(),
-        ]);
+            // Bypasses #[Fillable] dan memastikan status akun terverifikasi
+            if (!$user->hasVerifiedEmail()) {
+                $user->markEmailAsVerified();
+            }
+        }
     }
 }

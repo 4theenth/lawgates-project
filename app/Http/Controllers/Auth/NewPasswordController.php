@@ -22,9 +22,21 @@ class NewPasswordController extends Controller
      */
     public function create(Request $request): Response
     {
+        $token = (string) $request->route('token');
+        $email = (string) ($request->query('email') ?? $request->email ?? '');
+
+        $isExpiredOrInvalid = false;
+        if ($email && $token) {
+            $user = Password::broker()->getUser(['email' => $email]);
+            if (! $user || ! Password::broker()->tokenExists($user, $token)) {
+                $isExpiredOrInvalid = true;
+            }
+        }
+
         return Inertia::render('Auth/ResetPassword', [
-            'email' => $request->email,
-            'token' => $request->route('token'),
+            'email' => $email,
+            'token' => $token,
+            'isExpiredOrInvalid' => $isExpiredOrInvalid,
         ]);
     }
 
@@ -78,6 +90,7 @@ class NewPasswordController extends Controller
         if ($status === Password::INVALID_TOKEN) {
             throw ValidationException::withMessages([
                 'email' => ['Token reset kata sandi tidak valid atau sudah kedaluwarsa (berlaku maksimal 15 menit). Silakan ajukan permintaan baru.'],
+                'token' => ['invalid_or_expired'],
             ]);
         }
 
