@@ -14,6 +14,7 @@ import {
   INDONESIA_GEOJSON,
   INDONESIA_LAND_BORDERS,
   NEIGHBORING_COUNTRIES,
+  INDONESIA_BOUNDS,
   PROVINCES_DATA,
   PROVINCE_LAND_COORDINATES,
   normalizeProvinceKey,
@@ -56,6 +57,9 @@ function MapController({
         padding: [15, 15],
         animate: false,
       });
+      // Kunci zoom minimum agar pengguna tidak dapat memperkecil peta melebihi batas kepulauan Indonesia
+      const fitZoom = map.getZoom();
+      map.setMinZoom(Math.floor(fitZoom * 10) / 10);
     }
   }, [geoJsonBounds, map]);
 
@@ -65,10 +69,14 @@ function MapController({
     if (!container) return;
     const ro = new ResizeObserver(() => {
       map.invalidateSize();
+      if (geoJsonBounds) {
+        const boundsZoom = map.getBoundsZoom(geoJsonBounds, false, L.point(15, 15));
+        map.setMinZoom(Math.floor(boundsZoom * 10) / 10);
+      }
     });
     ro.observe(container);
     return () => ro.disconnect();
-  }, [map]);
+  }, [geoJsonBounds, map]);
 
   // Pantau drag murni (TIDAK menyertakan movestart agar animasi zoom tidak disangka drag)
   useEffect(() => {
@@ -565,7 +573,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
         <MapContainer
           center={[-2.5, 118]}
           zoom={4.8}
-          minZoom={3.8}
+          minZoom={isDesktop ? 4.5 : 3.5}
           maxZoom={12}
           zoomSnap={0.1}
           zoomDelta={0.5}
@@ -575,10 +583,7 @@ export function IndonesiaLegalMap({ variant = 'landing' }: IndonesiaLegalMapProp
           zoomControl={false}
           attributionControl={false}
           renderer={svgRenderer}
-          maxBounds={[
-            [24, 85],
-            [-20, 152],
-          ]}
+          maxBounds={INDONESIA_BOUNDS}
           maxBoundsViscosity={1.0}
           className="w-full h-full bg-[#71D4E9] z-0 focus:outline-none custom-leaflet-map"
         >
