@@ -204,7 +204,7 @@ export default function DetailPeraturan({
               tanggalPenetapan={tanggalPenetapan}
               tempatPenetapan={peraturan?.tempat_penetapan || 'Jakarta'}
               onCompare={canCompare ? () => router.visit(`/bandingkan?id=${peraturan?.unique_id}`) : undefined}
-              downloadHref={`/peraturan/${peraturan?.unique_id}/lihat`}
+              downloadHref={`/peraturan/${peraturan?.unique_id}/lihat?download=1`}
               peraturanId={peraturan?.id}
             />
           </div>
