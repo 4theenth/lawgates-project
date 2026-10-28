@@ -490,15 +490,26 @@ class DokumenHukumController extends Controller
 
     public function bulkDeleteDraft(Request $request)
     {
-        $request->validate([
-            'ids' => 'required|array',
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:draft_dokumen,id',
         ]);
 
-        DraftDokumen::whereIn('id', $request->ids)->delete();
+        $deleted = DB::transaction(
+            fn () => DraftDokumen::whereIn('id', $validated['ids'])->delete()
+        );
+
+        if ($deleted === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Draft tidak ditemukan atau sudah terhapus',
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Draft berhasil dihapus',
+            'message' => "{$deleted} draft berhasil dihapus",
+            'deleted' => $deleted,
         ]);
     }
 

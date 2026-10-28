@@ -601,6 +601,13 @@ path.leaflet-interactive {
   background: var(--color-neu-400) !important;
 }
 
+/* Tabel yang sekaligus memakai kelas scrollbar tipis tetap butuh track lebih
+   tebal agar arah geser terbaca. Spesifisitas dua kelas diperlukan karena
+   aturan .custom-thin-scrollbar di bawah menimpa height dengan !important. */
+.custom-thin-scrollbar.table-scroll-indicator::-webkit-scrollbar {
+  height: 8px !important;
+}
+
 /* Bayangan pembatas kolom sticky kanan saat tabel masih bisa digeser */
 .sticky-aksi-shadow {
   box-shadow: -8px 0 16px rgba(10, 28, 62, 0.14);

@@ -33,15 +33,31 @@ class ImportMinioDocuments extends Command
         }
 
         $disk = Storage::disk('minio');
-        $categories = $this->resolveCategories($disk);
 
-        if (empty($categories)) {
+        $available = collect($disk->directories('documents'))
+            ->map(fn ($path) => basename($path))
+            ->values()
+            ->all();
+
+        $categories = $this->resolveCategories($available);
+
+        if (empty($available)) {
             $this->error('Tidak ada kategori dokumen di MinIO.');
 
             return self::FAILURE;
         }
 
-        $files = $this->collectOcrFiles($disk, $categories);
+        // Salah ketik nama kategori harus gagal, bukan tampil seperti bucket kosong.
+        $unknown = array_diff($categories, $available);
+        if (! empty($unknown)) {
+            $this->error('Kategori tidak dikenal: '.implode(', ', $unknown));
+            $this->line('Kategori tersedia: '.implode(', ', $available));
+
+            return self::FAILURE;
+        }
+
+        $pdfFiles = [];
+        $files = $this->collectOcrFiles($disk, $categories, $pdfFiles);
 
         $limit = (int) $this->option('limit');
         if ($limit > 0 && $limit < count($files)) {
@@ -49,9 +65,9 @@ class ImportMinioDocuments extends Command
         }
 
         if (empty($files)) {
-            $this->warn('Tidak ada ocr.json yang ditemukan.');
+            $this->error('Tidak ada ocr.json pada kategori/folder yang diminta.');
 
-            return self::SUCCESS;
+            return self::FAILURE;
         }
 
         $this->info('Ditemukan '.count($files).' file OCR.');
@@ -109,7 +125,7 @@ class ImportMinioDocuments extends Command
                     'lokasi_daerah' => $data['metadata']['lokasi_daerah'] ?? $peraturan->lokasi_daerah,
                 ];
 
-                if ($disk->exists($pdfPath)) {
+                if (isset($pdfFiles[$pdfPath])) {
                     $updates['file_pdf_path'] = $pdfPath;
                 }
 
@@ -154,11 +170,23 @@ class ImportMinioDocuments extends Command
             $this->call('documents:cache');
         }
 
+        $imported = array_sum(array_column($stats, 'ok'));
+        $failed = array_sum(array_column($stats, 'fail'));
+
+        if ($failed > 0 && $imported === 0) {
+            $this->error('Tidak ada dokumen yang berhasil diimpor.');
+
+            return self::FAILURE;
+        }
+
         return self::SUCCESS;
     }
 
     private function seedMasterData(): void
     {
+        // Hanya master data referensi. Seeder akun (AdminSeeder/UserSeeder) sengaja
+        // tidak dipanggil: perintah import tidak boleh membuat akun dengan kata
+        // sandi bawaan repository.
         $seeders = [];
 
         if ($this->isTableEmpty('jenis_peraturan')) {
@@ -166,12 +194,6 @@ class ImportMinioDocuments extends Command
         }
         if ($this->isTableEmpty('status_peraturan')) {
             $seeders[] = 'StatusPeraturanSeeder';
-        }
-        if ($this->isTableEmpty('admins')) {
-            $seeders[] = 'AdminSeeder';
-        }
-        if ($this->isTableEmpty('users')) {
-            $seeders[] = 'UserSeeder';
         }
 
         foreach ($seeders as $seeder) {
@@ -187,21 +209,14 @@ class ImportMinioDocuments extends Command
         return Schema::hasTable($table) && DB::table($table)->count() === 0;
     }
 
-    private function resolveCategories($disk): array
+    private function resolveCategories(array $available): array
     {
         $selected = array_values(array_filter((array) $this->option('category')));
 
-        if (! empty($selected)) {
-            return $selected;
-        }
-
-        return collect($disk->directories('documents'))
-            ->map(fn ($path) => basename($path))
-            ->values()
-            ->all();
+        return $selected !== [] ? $selected : $available;
     }
 
-    private function collectOcrFiles($disk, array $categories): array
+    private function collectOcrFiles($disk, array $categories, array &$pdfFiles = []): array
     {
         $files = [];
         $folder = trim((string) $this->option('folder'), '/');
@@ -210,8 +225,13 @@ class ImportMinioDocuments extends Command
             $base = 'documents/'.$category.($folder !== '' ? '/'.$folder : '');
 
             foreach ($disk->allFiles($base) as $path) {
-                if (str_ends_with(strtolower($path), 'ocr.json')) {
+                $lowerPath = strtolower($path);
+
+                if (str_ends_with($lowerPath, 'ocr.json')) {
                     $files[] = $path;
+                } elseif (str_ends_with($lowerPath, 'document.pdf')) {
+                    // Simpan sekali saat listing supaya tidak perlu HEAD per dokumen.
+                    $pdfFiles[$path] = true;
                 }
             }
         }

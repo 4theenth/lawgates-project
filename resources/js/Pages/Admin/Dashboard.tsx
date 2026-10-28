@@ -34,7 +34,7 @@ export default function AdminDashboard({
 }: AdminDashboardProps) {
   // Muat ulang hanya data dashboard agar perubahan dari halaman lain
   // (tambah/ubah dokumen atau transaksi) langsung terlihat tanpa reload penuh.
-  usePoll(15000, {
+  usePoll(60000, {
     only: ['stats', 'subscriptionData', 'revenueTrend', 'recentDocuments', 'recentTransactions'],
   });
 
@@ -72,7 +72,10 @@ export default function AdminDashboard({
           value={formatRupiah(stats.totalPendapatan)}
           icon={<Banknote className="w-5 h-5 text-sec-900" />}
           trend={{
-            value: 'Belum ada data pembayaran',
+            value:
+              stats.totalPendapatan > 0
+                ? 'Pembayaran langganan bulan ini'
+                : 'Belum ada data pembayaran',
             direction: 'neutral',
           }}
         />

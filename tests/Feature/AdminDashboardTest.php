@@ -54,8 +54,10 @@ class AdminDashboardTest extends TestCase
         ]);
         $active->forceFill(['created_at' => now()])->save();
 
+        $freeUser = User::factory()->create(['role' => 'user']);
+
         $expired = Subscription::create([
-            'user_id' => $admin->id,
+            'user_id' => $freeUser->id,
             'plan' => 'tahunan',
             'status' => 'expired',
             'start_date' => now()->subYear(),
@@ -81,7 +83,7 @@ class AdminDashboardTest extends TestCase
             ->where('recentDocuments.0.category', 'Undang-Undang')
             ->has('recentTransactions', 2)
             ->where('recentTransactions.0.status', 'Berhasil')
-            ->where('recentTransactions.1.status', 'Gagal')
+            ->where('recentTransactions.1.status', 'Kedaluwarsa')
         );
     }
 

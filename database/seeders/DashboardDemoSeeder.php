@@ -16,6 +16,14 @@ class DashboardDemoSeeder extends Seeder
 {
     public function run(): void
     {
+        // Seeder ini membuat akun demo dengan kata sandi lemah, jadi hanya boleh
+        // jalan di lingkungan pengembangan/tes.
+        if (! app()->environment(['local', 'testing'])) {
+            $this->command?->warn('DashboardDemoSeeder dilewati: hanya untuk local/testing.');
+
+            return;
+        }
+
         $users = collect(range(1, 6))
             ->map(fn (int $index) => $this->demoUser($index));
 
