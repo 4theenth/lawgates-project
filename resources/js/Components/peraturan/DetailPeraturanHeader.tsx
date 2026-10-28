@@ -91,7 +91,7 @@ export function DetailPeraturanHeader({
             <button
               type="button"
               onClick={onCompare}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-pr-900 bg-white px-3 text-xs font-semibold text-pr-900 transition-all hover:bg-pr-50 sm:w-auto sm:gap-2.5 sm:px-6 sm:text-sm cursor-pointer"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-pr-900 bg-white px-3 text-xs font-semibold text-pr-900 transition-all hover:bg-pr-50 sm:w-auto sm:min-w-[125px] sm:px-4 sm:text-sm cursor-pointer"
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-pr-900 stroke-[2]" />
               <span>Bandingkan</span>

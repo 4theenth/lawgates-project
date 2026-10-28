@@ -1,6 +1,6 @@
 # Setup Redis
 
-Note: *Kalo lagi di local/dev pake database aja biar ngga ribet. Kalo mau tes redisnya bisa download dengan tutorial berikut ini. Lalu ini akan pasti digunakan ketika sudah masuk ke production.*
+Note: *Kalo lagi di local/dev pake database aja biar ngga ribet. Kalo mau tes redisnya bisa download dengan tutorial berikut ini. Lalu ini akan pasti digunakan ketika sudah masuk ke production. Dapat menggunakan predis jika ingin mudah dan portabel dalam berbagai device*
 
 ## 1. Cek prasyarat
 
