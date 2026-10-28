@@ -54,7 +54,8 @@ export default function DokumenViewer({ peraturan, pdfUrl, hasPdf }: DokumenView
             tanggalPenetapan={formatTanggal(peraturan.tanggal_penetapan)}
             tempatPenetapan={peraturan.tempat_penetapan || 'Jakarta'}
             onDownload={handleDownload}
-            downloadHref={hasPdf && pdfUrl ? `/peraturan/${peraturan.unique_id}/download` : undefined}
+downloadHref={hasPdf && pdfUrl ? `/peraturan/${peraturan.unique_id}/download` : undefined}
+            peraturanId={peraturan?.id}
           />
 
           {/* Layar PDF Viewer: Jika dokumen ada tampilkan PDF, jika belum ada tampilkan komponen status digitalisasi */}
