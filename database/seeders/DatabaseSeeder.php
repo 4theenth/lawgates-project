@@ -65,6 +65,7 @@ class DatabaseSeeder extends Seeder
             OcrPerpres16Tahun2023Seeder::class,
             OcrPerdaBali1Tahun2010Seeder::class,
             OcrBadung1Tahun2006Seeder::class,
+            DashboardDemoSeeder::class,
         ]);
     }
 }
