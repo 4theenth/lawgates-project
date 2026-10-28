@@ -42,6 +42,13 @@ export const INDONESIA_GEOJSON = rawGeoJson;
 export const INDONESIA_LAND_BORDERS = rawLandBorders;
 export const NEIGHBORING_COUNTRIES = rawNeighbors;
 
+// Koordinat batas geografis wilayah kepulauan Indonesia (South-West ke North-East)
+// Digunakan untuk opsi maxBounds pada Leaflet MapContainer agar navigasi peta terkunci di area Indonesia
+export const INDONESIA_BOUNDS: [[number, number], [number, number]] = [
+  [-12.0, 94.0], // Batas Barat Daya: Samudra Hindia di selatan Rote (NTT) & barat Sabang (Aceh)
+  [7.0, 142.0],  // Batas Timur Laut: Laut Sulawesi di utara Miangas & perbatasan timur Papua
+];
+
 // Koordinat daratan pasti (solid landmass) untuk setiap provinsi
 // Mencegah titik pin jatuh di perairan atau teluk laut (seperti Teluk Tomini pada Sulawesi Tengah)
 export const PROVINCE_LAND_COORDINATES: Record<string, [number, number]> = {

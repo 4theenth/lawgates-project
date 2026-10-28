@@ -3,7 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\ResetPasswordNotification as ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -70,4 +70,43 @@ class PasswordResetTest extends TestCase
             return true;
         });
     }
+
+    public function test_reset_password_screen_flags_invalid_or_expired_token(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->get('/reset-password/invalid-token-123?email=' . urlencode($user->email));
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Auth/ResetPassword')
+            ->where('isExpiredOrInvalid', true)
+        );
+    }
+
+    public function test_reset_password_fails_with_invalid_or_expired_token(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->post('/reset-password', [
+            'token' => 'invalid-token-123',
+            'email' => $user->email,
+            'password' => 'NewPassword123!',
+            'password_confirmation' => 'NewPassword123!',
+        ]);
+
+        $response->assertSessionHasErrors(['token', 'email']);
+    }
+
+    public function test_forgot_password_screen_prefills_email_from_query(): void
+    {
+        $response = $this->get('/forgot-password?email=test%40example.com');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Auth/ForgotPassword')
+            ->where('email', 'test@example.com')
+        );
+    }
 }
+
