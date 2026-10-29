@@ -54,37 +54,36 @@ function getRelevanceInfo(rawSimilarity: number): {
   label: string;
   badgeClass: string;
 } {
-  // Kalibrasi kemiripan kosinus (Qwen embedding rentang 0.20 - 0.70) ke persentase intuitif pengguna.
-  // Model cross-text vector AI pada pasal hukum berada pada rentang 0.45 - 0.65 untuk pasal yang langsung menjawab pertanyaan.
+  // Kalibrasi kemiripan kosinus Qwen (dimensi 3.152) ke persentase yang akurat:
+  // - Skor >= 0.62: Memuat jawaban langsung / pasal target eksak (94% - 98%)
+  // - Skor 0.55 - 0.61: Sangat relevan secara tematik (85% - 93%)
+  // - Skor 0.50 - 0.54: Cukup relevan / konteks pendukung (72% - 84%)
+  // - Skor < 0.50: Latar belakang / noise (tidak lolos threshold filter backend)
   let percent: number;
-  if (rawSimilarity >= 0.50) {
-    // Hasil sangat presisi / memuat jawaban langsung: 94% - 98%
-    const ratio = Math.min(1, (rawSimilarity - 0.50) / 0.18);
+  if (rawSimilarity >= 0.62) {
+    const ratio = Math.min(1, (rawSimilarity - 0.62) / 0.12);
     percent = Math.round(94 + ratio * 4);
-  } else if (rawSimilarity >= 0.38) {
-    // Sangat Relevan (86% - 93%)
-    const ratio = (rawSimilarity - 0.38) / 0.12;
-    percent = Math.round(86 + ratio * 7);
-  } else if (rawSimilarity >= 0.28) {
-    // Relevan (76% - 85%)
-    const ratio = (rawSimilarity - 0.28) / 0.10;
-    percent = Math.round(76 + ratio * 9);
+  } else if (rawSimilarity >= 0.55) {
+    const ratio = (rawSimilarity - 0.55) / 0.07;
+    percent = Math.round(85 + ratio * 8);
+  } else if (rawSimilarity >= 0.50) {
+    const ratio = (rawSimilarity - 0.50) / 0.05;
+    percent = Math.round(72 + ratio * 12);
   } else {
-    // Cukup Relevan (60% - 75%)
-    const ratio = Math.max(0, (rawSimilarity - 0.18) / 0.10);
-    percent = Math.round(60 + ratio * 15);
+    const ratio = Math.max(0, (rawSimilarity - 0.35) / 0.15);
+    percent = Math.round(55 + ratio * 16);
   }
 
-  percent = Math.min(99, Math.max(60, percent));
+  percent = Math.min(99, Math.max(50, percent));
 
-  if (percent >= 86) {
+  if (percent >= 85) {
     return {
       percent,
       label: 'Sangat Relevan',
       badgeClass: 'bg-emerald-50 text-emerald-800 border border-emerald-200/80',
     };
   }
-  if (percent >= 76) {
+  if (percent >= 72) {
     return {
       percent,
       label: 'Relevan',
@@ -137,6 +136,7 @@ function highlightMatches(text: string, query?: string, synonyms: string[] = [])
     'atas', 'dengan', 'aturan', 'pedoman', 'terkait', 'mengenai', 'soal', 'hal',
     'adalah', 'yaitu', 'sebagai', 'dalam', 'ini', 'itu', 'apakah', 'bagaimana',
     'apa', 'siapa', 'bisa', 'kah', 'ada', 'tidak', 'tentang', 'karena', 'kalau',
+    'peraturan', 'undang', 'undang-undang', 'uu', 'pasal', 'ayat', 'bab', 'angka', 'huruf',
   ]);
 
   const rawTokens = (query || '').toLowerCase().split(/[\s\-_,.]+/);

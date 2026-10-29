@@ -225,9 +225,16 @@ class SearchIntentService
 
         // KASUS 3: Pencarian Pintar AI (Semantic Search)
         // Pertanyaan konseptual, masalah hukum, atau subjek (contoh: "peraturan untuk mendirikan pt", "hukuman uang palsu", "hak buruh wanita")
-        $expandedSemantic = $query;
+        // Bersihkan kata awalan umum (stopword hukum) seperti "peraturan", "undang-undang", "aturan", "hukum tentang"
+        // agar pencarian vektor berfokus 100% pada substansi subjek (misal: "sawit internasional", bukan kata "peraturan")
+        $cleanTopic = preg_replace('/^\s*(?:peraturan|undang[\s\-]*undang|uu|aturan|hukum|ketentuan|pedoman|kebijakan)\s*(?:tentang|untuk|terkait|mengenai|soal|hal)?\s+/i', '', $query);
+        $cleanTopic = trim(preg_replace('/\s+/', ' ', (string) $cleanTopic));
+
+        $baseSemantic = (!empty($cleanTopic) && mb_strlen($cleanTopic) >= 3) ? $cleanTopic : $query;
+
+        $expandedSemantic = $baseSemantic;
         if (!empty($synonyms)) {
-            $missingSyns = array_filter($synonyms, fn($s) => !str_contains(mb_strtolower($query), mb_strtolower($s)));
+            $missingSyns = array_filter($synonyms, fn($s) => !str_contains(mb_strtolower($baseSemantic), mb_strtolower($s)));
             if (!empty($missingSyns)) {
                 $expandedSemantic .= ' ' . implode(' ', array_slice($missingSyns, 0, 3));
             }

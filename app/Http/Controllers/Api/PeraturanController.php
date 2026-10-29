@@ -206,14 +206,25 @@ class PeraturanController extends Controller
 
     public function show($unique_id)
     {
+        ini_set('memory_limit', '512M');
+
+        $pasalColumns = ['id', 'peraturan_id', 'struktur_id', 'nomor_pasal', 'isi_pasal', 'urutan', 'parent_pasal_id'];
+
         $peraturan = Peraturan::with([
             'jenisPeraturan', 
             'statusPeraturan',
             'strukturDokumen' => function($q) { 
                 $q->orderBy('id', 'asc'); 
             },
-            'pasal' => function($q) { 
-                $q->with(['penjelasan', 'children.penjelasan'])->orderBy('urutan', 'asc'); 
+            'pasal' => function($q) use ($pasalColumns) { 
+                $q->select($pasalColumns)
+                  ->with([
+                      'penjelasan',
+                      'children' => function($cq) use ($pasalColumns) {
+                          $cq->select($pasalColumns)->with('penjelasan');
+                      }
+                  ])
+                  ->orderBy('urutan', 'asc'); 
             },
             'lawRelations.toPeraturan' => function($q) {
                 $q->withCount([
@@ -372,14 +383,23 @@ class PeraturanController extends Controller
             $variations[] = 'peraturan-pemerintah-pengganti-undang-undang-' . substr($unique_id, 7);
         }
 
+        $pasalColumns = ['id', 'peraturan_id', 'struktur_id', 'nomor_pasal', 'isi_pasal', 'urutan', 'parent_pasal_id'];
+
         $found = Peraturan::with([
             'jenisPeraturan',
             'statusPeraturan',
             'strukturDokumen' => function ($q) {
                 $q->orderBy('id', 'asc');
             },
-            'pasal' => function ($q) {
-                $q->with(['penjelasan', 'children.penjelasan'])->orderBy('urutan', 'asc');
+            'pasal' => function ($q) use ($pasalColumns) {
+                $q->select($pasalColumns)
+                  ->with([
+                      'penjelasan',
+                      'children' => function ($cq) use ($pasalColumns) {
+                          $cq->select($pasalColumns)->with('penjelasan');
+                      }
+                  ])
+                  ->orderBy('urutan', 'asc');
             },
             'lawRelations.toPeraturan' => function ($q) {
                 $q->withCount([
@@ -431,8 +451,15 @@ class PeraturanController extends Controller
                 'strukturDokumen' => function ($q) {
                     $q->orderBy('id', 'asc');
                 },
-                'pasal' => function ($q) {
-                    $q->with(['penjelasan', 'children.penjelasan'])->orderBy('urutan', 'asc');
+                'pasal' => function ($q) use ($pasalColumns) {
+                    $q->select($pasalColumns)
+                      ->with([
+                          'penjelasan',
+                          'children' => function ($cq) use ($pasalColumns) {
+                              $cq->select($pasalColumns)->with('penjelasan');
+                          }
+                      ])
+                      ->orderBy('urutan', 'asc');
                 },
                 'lawRelations.toPeraturan' => function ($q) {
                     $q->withCount([

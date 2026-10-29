@@ -53,7 +53,14 @@ class ComparisonController extends Controller
             }
         }
         
-        $family = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'pasal', 'strukturDokumen'])
+        $pasalColumns = ['id', 'peraturan_id', 'struktur_id', 'nomor_pasal', 'isi_pasal', 'urutan', 'parent_pasal_id'];
+        
+        $family = Peraturan::with([
+            'jenisPeraturan', 
+            'statusPeraturan', 
+            'pasal' => fn($q) => $q->select($pasalColumns), 
+            'strukturDokumen'
+        ])
             ->whereIn('id', $visited)
             ->get();
         
@@ -119,11 +126,14 @@ class ComparisonController extends Controller
      */
     public function compare(Request $request)
     {
+        ini_set('memory_limit', '512M');
         $leftId = $request->query('left_id');
         $rightId = $request->query('right_id');
         
-        $leftDoc = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'strukturDokumen', 'pasal'])->where('unique_id', $leftId)->first();
-        $rightDoc = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'strukturDokumen', 'pasal'])->where('unique_id', $rightId)->first();
+        $pasalColumns = ['id', 'peraturan_id', 'struktur_id', 'nomor_pasal', 'isi_pasal', 'urutan', 'parent_pasal_id'];
+
+        $leftDoc = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'strukturDokumen', 'pasal' => fn($q) => $q->select($pasalColumns)])->where('unique_id', $leftId)->first();
+        $rightDoc = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'strukturDokumen', 'pasal' => fn($q) => $q->select($pasalColumns)])->where('unique_id', $rightId)->first();
         
         if (!$leftDoc || !$rightDoc) {
             return response()->json(['success' => false, 'message' => 'Salah satu atau kedua dokumen tidak ditemukan'], 404);

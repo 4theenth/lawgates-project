@@ -9,6 +9,34 @@ use Illuminate\Support\Facades\Log;
 
 class SemanticSearchService
 {
+    /**
+     * Daftar stopword umum, kata hubung, partikel tanya/slang, dan label yuridis
+     * yang tidak dijadikan patokan substantif dalam grounded term verification maupun highlight snippet.
+     */
+    protected array $stopwords = [
+        // Hubung & Preposisi
+        'dan', 'atau', 'yang', 'di', 'ke', 'dari', 'pada', 'untuk', 'oleh',
+        'atas', 'dengan', 'dalam', 'ini', 'itu', 'adalah', 'yaitu', 'sebagai',
+        'karena', 'kalau', 'jika', 'bila', 'tentang', 'mengenai', 'terkait', 'soal', 'hal',
+        'agar', 'supaya', 'bagi', 'antara', 'terhadap',
+
+        // Kata Tanya
+        'apa', 'apakah', 'bagaimana', 'gimana', 'mengapa', 'kenapa', 'kapan',
+        'siapa', 'dimana', 'kemana', 'darimana', 'berapa', 'bolehkah', 'bisakah',
+
+        // Partikel & Slang Percakapan
+        'sih', 'dong', 'nih', 'tuh', 'ya', 'kan', 'lah', 'pun', 'kok', 'deh',
+        'yuk', 'aja', 'saja', 'cuma', 'hanya', 'banget', 'bener', 'beneran',
+
+        // Kata Kerja / Pengisi Umum
+        'bikin', 'buat', 'cara', 'secara', 'ingin', 'mau', 'bisa', 'ada',
+        'tidak', 'bukan', 'sudah', 'belum', 'pernah', 'akan', 'tahu', 'tau',
+
+        // Label Dokumen Hukum
+        'peraturan', 'undang', 'uu', 'pasal', 'ayat', 'bab', 'hukum', 'aturan',
+        'ketentuan', 'pedoman', 'kebijakan', 'nomor', 'tahun',
+    ];
+
     public function __construct(
         protected QwenEmbeddingService $embeddingService
     ) {}
@@ -53,7 +81,7 @@ class SemanticSearchService
      * @param  array  $filters  Filter opsional (kategori_ids, tahun, status_ids)
      * @return Collection<int, array{pasal_id: int, nomor_pasal: string, cuplikan: string, highlight_snippet: string, similarity: float, secondary_pasal: array}>
      */
-    public function searchRelevantPasal(string $keyword, float $threshold = 0.30, int $limit = 50, array $filters = [], array $synonyms = []): Collection
+    public function searchRelevantPasal(string $keyword, float $threshold = 0.45, int $limit = 50, array $filters = [], array $synonyms = []): Collection
     {
         $trimmed = trim($keyword);
         if ($trimmed === '') {
@@ -68,7 +96,7 @@ class SemanticSearchService
         $version = static::getCacheVersion();
         $filterKey = !empty($filters) ? '_' . md5(json_encode($filters)) : '';
         $synKey = !empty($synonyms) ? '_' . md5(json_encode($synonyms)) : '';
-        $cacheKey = "sem_res_v6_{$version}_" . md5(mb_strtolower($trimmed) . '_' . $threshold . '_' . $limit) . $filterKey . $synKey;
+        $cacheKey = "sem_res_v7_{$version}_" . md5(mb_strtolower($trimmed) . '_' . $threshold . '_' . $limit) . $filterKey . $synKey;
 
         $cachedData = Cache::remember($cacheKey, now()->addHours(6), function () use ($trimmed, $threshold, $limit, $filters, $synonyms) {
             return $this->executeVectorSearch($trimmed, $threshold, $limit, $filters, $synonyms)->toArray();
@@ -79,13 +107,17 @@ class SemanticSearchService
 
     /**
      * Eksekusi pencarian vektor berkecepatan tinggi menggunakan native embedding_vec.
-     * Menggunakan pencarian vektor semantik murni di database tanpa pre-filter ILIKE kata harfiah
-     * agar sinonim dan padanan bahasa sehari-hari masyarakat awam terpilih dengan akurasi 100%.
+     * Menggunakan:
+     * 1. Asymmetric Query Instruction: memproyeksikan pertanyaan awam/percakapan langsung ke ruang retrieval dokumen hukum.
+     * 2. Grounded Term Verification: menyaring false positive pada kandidat skor menengah agar hanya pasal yang benar-benar
+     *    membahas substansi pertanyaan yang lolos ke hasil akhir.
      */
     protected function executeVectorSearch(string $trimmed, float $threshold, int $limit, array $filters = [], array $synonyms = []): Collection
     {
         try {
-            $queryVector = $this->embeddingService->generateEmbedding($trimmed);
+            // Instruksi asimetris Qwen untuk pencarian hukum (Jalur B)
+            $instructQuery = "Instruct: Temukan ketentuan hukum atau pasal perundang-undangan yang menjawab pertanyaan berikut\nQuery: {$trimmed}";
+            $queryVector = $this->embeddingService->generateEmbedding($instructQuery);
             if (! $queryVector) {
                 return collect();
             }
@@ -106,6 +138,7 @@ class SemanticSearchService
                         p.peraturan_id,
                         p.nomor_pasal,
                         p.isi_pasal,
+                        pr.judul as judul_peraturan,
                         dot_product(p.embedding_vec, ?::float8[]) as similarity
                     FROM pasal p
                     JOIN peraturan pr ON pr.id = p.peraturan_id
@@ -117,12 +150,81 @@ class SemanticSearchService
                 LIMIT ?
             ", $stageBindings);
 
+            // Ekstrak istilah substantif dari query pengguna dan padanan hukum (synonyms) untuk Grounded Term Verification
+            $cleanQuery = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', mb_strtolower($trimmed));
+            $rawTokens = array_filter(preg_split('/\s+/', $cleanQuery));
+            $significantTerms = array_values(array_filter($rawTokens, function ($w) {
+                return mb_strlen($w) >= 3 && ! in_array($w, $this->stopwords);
+            }));
+
+            foreach ($synonyms as $syn) {
+                $synClean = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', mb_strtolower($syn));
+                $synTokens = array_filter(preg_split('/\s+/', $synClean));
+                foreach ($synTokens as $sw) {
+                    if (mb_strlen($sw) >= 3 && ! in_array($sw, $this->stopwords)) {
+                        $significantTerms[] = $sw;
+                    }
+                }
+            }
+            $significantTerms = array_values(array_unique($significantTerms));
+
             $grouped = collect();
 
             foreach ($rawResults as $row) {
                 $peraturanId = (int) $row->peraturan_id;
                 $pasalId = (int) $row->pasal_id;
                 $sim = round((float) $row->similarity, 4);
+
+                // Grounded Term Verification (Multi-Tier):
+                // 1. Tier 1 (sim >= 0.60): Skor sangat tinggi / representasi semantik jawaban langsung. Lolos tanpa syarat.
+                // 2. Tier 2 (0.55 <= sim < 0.60): Relevan kuat, pastikan minimal 1 istilah substantif query atau sinonim hukum tercantum.
+                // 3. Tier 3 (threshold <= sim < 0.55): Zona ambang batas. Jika query memuat multi-istilah (>= 2), wajib mencocokkan
+                //    minimal 2 istilah atau >= 60% istilah agar kata umum (misal 'internasional') tidak meloloskan pasal yang sama sekali
+                //    tidak membahas subjek utama (misal 'sawit').
+                $isAccepted = false;
+                $termCount = count($significantTerms);
+
+                if ($sim >= 0.60) {
+                    $isAccepted = true;
+                } elseif ($sim >= 0.55) {
+                    if ($termCount > 0) {
+                        $haystack = mb_strtolower($row->isi_pasal . ' ' . $row->nomor_pasal . ' ' . ($row->judul_peraturan ?? ''));
+                        foreach ($significantTerms as $term) {
+                            if (mb_strpos($haystack, $term) !== false) {
+                                $isAccepted = true;
+                                break;
+                            }
+                        }
+                    } else {
+                        $isAccepted = true;
+                    }
+                } elseif ($sim >= $threshold) {
+                    if ($termCount > 0) {
+                        $haystack = mb_strtolower($row->isi_pasal . ' ' . $row->nomor_pasal . ' ' . ($row->judul_peraturan ?? ''));
+                        $matchedCount = 0;
+                        foreach ($significantTerms as $term) {
+                            if (mb_strpos($haystack, $term) !== false) {
+                                $matchedCount++;
+                            }
+                        }
+
+                        if ($termCount >= 2) {
+                            if ($matchedCount >= 2 || ($matchedCount / $termCount) >= 0.6) {
+                                $isAccepted = true;
+                            }
+                        } else {
+                            if ($matchedCount >= 1) {
+                                $isAccepted = true;
+                            }
+                        }
+                    } else {
+                        $isAccepted = true;
+                    }
+                }
+
+                if (! $isAccepted) {
+                    continue;
+                }
 
                 // Jika peraturan induk belum tercatat, jadikan pasal ini sebagai pasal utama
                 if (! $grouped->has($peraturanId)) {
@@ -234,20 +336,13 @@ class SemanticSearchService
             return $cleanText;
         }
 
-        $stopwords = [
-            'dan', 'atau', 'yang', 'di', 'ke', 'dari', 'pada', 'untuk', 'oleh',
-            'atas', 'dengan', 'aturan', 'pedoman', 'terkait', 'mengenai', 'soal', 'hal',
-            'adalah', 'yaitu', 'sebagai', 'dalam', 'ini', 'itu', 'apakah', 'bagaimana',
-            'apa', 'siapa', 'bisa', 'kah', 'ada', 'tidak', 'tentang', 'karena', 'kalau',
-        ];
-
         $rawTokens = preg_split('/[\s\-_,\.]+/', mb_strtolower($query));
         foreach ($synonyms as $syn) {
             $rawTokens = array_merge($rawTokens, preg_split('/[\s\-_,\.]+/', mb_strtolower($syn)));
         }
 
-        $tokens = array_values(array_unique(array_filter($rawTokens, function ($t) use ($stopwords) {
-            return mb_strlen($t) >= 3 && ! in_array($t, $stopwords);
+        $tokens = array_values(array_unique(array_filter($rawTokens, function ($t) {
+            return mb_strlen($t) >= 3 && ! in_array($t, $this->stopwords);
         })));
 
         // 1. Upayakan deteksi ayat terbaik jika teks pasal terbagi dalam ayat-ayat (contoh: "\n(1)", "(2)", atau baris baru)

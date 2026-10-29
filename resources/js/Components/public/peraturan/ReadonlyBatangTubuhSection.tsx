@@ -19,6 +19,7 @@ const STOPWORDS = new Set([
   'atas', 'dengan', 'adalah', 'yaitu', 'sebagai', 'dalam', 'ini', 'itu',
   'pasal', 'ayat', 'huruf', 'angka', 'ketentuan', 'sebagaimana', 'dimaksud',
   'paling', 'sedikit', 'banyak', 'kurang', 'lebih', 'tentang', 'terkait',
+  'peraturan', 'undang', 'undang-undang', 'uu', 'bab', 'pedoman', 'aturan',
 ]);
 
 function getSignificantWords(text: string): string[] {

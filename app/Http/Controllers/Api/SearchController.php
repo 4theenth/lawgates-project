@@ -49,10 +49,13 @@ class SearchController extends Controller
         if ($keyword !== '') {
             $synonyms = $intent['synonyms'] ?? [];
 
-            // Jika mode Semantic atau Hybrid, jalankan pencarian vektor AI dengan filter yang aktif
+            // Jika mode Semantic atau Hybrid, jalankan pencarian vektor AI dengan filter yang aktif.
+            // Menggunakan Jalur B (Asymmetric Instruction + Grounded Term Verification):
+            // Threshold diatur ke 0.45 dengan guard verifikasi istilah substantif pada teks pasal/judul peraturan,
+            // sehingga pertanyaan percakapan/awam terjawab akurat dan anomali/false-positive tereliminasi.
             if (($intent['mode'] === 'semantic' || $intent['mode'] === 'hybrid') && ($sort === 'relevansi' || $sort === '')) {
                 $semanticQueryText = $intent['semantic_query'] ?? $keyword;
-                $semanticMatches = $this->semanticService->searchRelevantPasal($semanticQueryText, 0.30, 50, $activeFilters, $synonyms);
+                $semanticMatches = $this->semanticService->searchRelevantPasal($semanticQueryText, 0.45, 50, $activeFilters, $synonyms);
             }
 
             $semanticIds = $semanticMatches->keys()->toArray();
