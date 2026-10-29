@@ -15,6 +15,7 @@ interface DetailPeraturanMobileDrawerProps {
   onNavigateToSection: (sectionId: string) => void;
   timelineData: ReadonlyTimelineItem[];
   onRelasiClick: () => void;
+  isPlaceholder?: boolean;
 }
 
 export function DetailPeraturanMobileDrawer({
@@ -28,6 +29,7 @@ export function DetailPeraturanMobileDrawer({
   onNavigateToSection,
   timelineData,
   onRelasiClick,
+  isPlaceholder = false,
 }: DetailPeraturanMobileDrawerProps) {
   const [mobileDrawer, setMobileDrawer] = useState<'toc' | 'relasi' | null>(null);
   const [isClosing, setIsClosing] = useState(false);
@@ -83,15 +85,17 @@ export function DetailPeraturanMobileDrawer({
   return (
     <>
       {/* Mobile Bottom Navigation Bar (Khusus Layar HP) */}
-      <div className="lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom)_+_1rem)] left-4 right-4 z-40 bg-slate-900/95 backdrop-blur-md text-white px-4 py-2.5 rounded-full shadow-xl flex items-center justify-between border border-slate-800">
-        <button
-          type="button"
-          onClick={() => handleOpen('toc')}
-          className="flex items-center gap-2 text-xs font-semibold text-slate-200 hover:text-white px-3 py-1.5 rounded-full hover:bg-slate-800 transition-colors cursor-pointer"
-        >
-          <Menu className="w-4 h-4 text-amber-400" />
-          <span>Daftar Isi</span>
-        </button>
+      <div className={`lg:hidden fixed bottom-[calc(env(safe-area-inset-bottom)_+_1rem)] left-4 right-4 z-40 bg-slate-900/95 backdrop-blur-md text-white px-4 py-2.5 rounded-full shadow-xl flex items-center ${isPlaceholder ? 'justify-center' : 'justify-between'} border border-slate-800`}>
+        {!isPlaceholder && (
+          <button
+            type="button"
+            onClick={() => handleOpen('toc')}
+            className="flex items-center gap-2 text-xs font-semibold text-slate-200 hover:text-white px-3 py-1.5 rounded-full hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <Menu className="w-4 h-4 text-amber-400" />
+            <span>Daftar Isi</span>
+          </button>
+        )}
 
         <button
           type="button"

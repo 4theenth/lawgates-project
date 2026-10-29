@@ -13,6 +13,17 @@ function notifyListeners() {
   listeners.forEach((listener) => listener());
 }
 
+let lastServerBookmarkKey = '';
+
+function syncServerBookmarkIds(serverBookmarkIds: (string | number)[]) {
+  const key = serverBookmarkIds.map(String).sort().join(',');
+  if (key !== lastServerBookmarkKey) {
+    lastServerBookmarkKey = key;
+    globalBookmarkSet.clear();
+    key.split(',').filter(Boolean).forEach((id) => globalBookmarkSet.add(id));
+  }
+}
+
 export function removeGlobalBookmark(id: string | number) {
   globalBookmarkSet.delete(String(id).trim());
   notifyListeners();
@@ -36,17 +47,11 @@ export function useBookmark(peraturanId?: string | number) {
   const idStr = peraturanId !== undefined && peraturanId !== null ? String(peraturanId).trim() : '';
 
   // Synchronize server-provided bookmark IDs from Inertia page props.
-  // Depend on a stable string key (bukan array literal) supaya effect tidak
-  // jalan tiap render, dan set lama dibersihkan lebih dulu supaya login akun
-  // lain di tab yang sama tidak mewarisi status akun sebelumnya.
+  // We sync synchronously so that initial render immediately has the correct isBookmarked value.
   const serverBookmarkIds: (string | number)[] = props.auth?.bookmarkIds || [];
   const serverBookmarkKey = serverBookmarkIds.map(String).sort().join(',');
 
-  useEffect(() => {
-    globalBookmarkSet.clear();
-    serverBookmarkKey.split(',').filter(Boolean).forEach((id) => globalBookmarkSet.add(id));
-    notifyListeners();
-  }, [serverBookmarkKey]);
+  syncServerBookmarkIds(serverBookmarkIds);
 
   // Subscribe to changes in globalBookmarkSet
   const [, setTick] = useState(0);
@@ -59,6 +64,12 @@ export function useBookmark(peraturanId?: string | number) {
       listeners.delete(handleChange);
     };
   }, []);
+
+  useEffect(() => {
+    globalBookmarkSet.clear();
+    serverBookmarkKey.split(',').filter(Boolean).forEach((id) => globalBookmarkSet.add(id));
+    notifyListeners();
+  }, [serverBookmarkKey]);
 
   const isBookmarked = Boolean(idStr && globalBookmarkSet.has(idStr));
 

@@ -232,14 +232,18 @@ class PeraturanController extends Controller
         ->first();
 
         if (!$peraturan) {
-            if (request()->is('api/*') || request()->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Data peraturan tidak ditemukan.'
-                ], 404);
-            }
+            $peraturan = $this->findOrSynthesizePlaceholder((string) $unique_id);
 
-            abort(404);
+            if (!$peraturan) {
+                if (request()->is('api/*') || request()->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Data peraturan tidak ditemukan.'
+                    ], 404);
+                }
+
+                abort(404);
+            }
         }
 
         // Jika request datang dari Inertia (Frontend React), render halaman DetailPeraturan
@@ -321,7 +325,15 @@ class PeraturanController extends Controller
         ->when(is_numeric($unique_id), function ($q) use ($unique_id) {
             $q->orWhere('id', (int) $unique_id);
         })
-        ->firstOrFail();
+        ->first();
+
+        if (!$peraturan) {
+            $peraturan = $this->findOrSynthesizePlaceholder((string) $unique_id);
+
+            if (!$peraturan) {
+                abort(404);
+            }
+        }
 
         // Cek ketersediaan dokumen: apakah sudah di cache atau ada di MinIO
         $localPath = DocumentStorageService::getCachedOrDownload($peraturan);
@@ -334,6 +346,157 @@ class PeraturanController extends Controller
             'pdfUrl'    => $pdfUrl,
             'hasPdf'    => $hasPdf,
         ]);
+    }
+
+    /**
+     * Cari alternatif record peraturan dari variasi slug atau buat instance placeholder sintetis
+     * agar dokumen relasi hukum yang belum memiliki pasal/selesai didigitalisasi tidak menimbulkan error teknis.
+     */
+    protected function findOrSynthesizePlaceholder(string $unique_id): ?Peraturan
+    {
+        // 1. Coba cari dengan variasi slug (misal: uu-11-2008 <-> undang-undang-11-2008)
+        $variations = [$unique_id];
+        if (Str::startsWith($unique_id, 'uu-')) {
+            $variations[] = 'undang-undang-' . substr($unique_id, 3);
+        } elseif (Str::startsWith($unique_id, 'undang-undang-')) {
+            $variations[] = 'uu-' . substr($unique_id, 14);
+        } elseif (Str::startsWith($unique_id, 'perpres-')) {
+            $variations[] = 'peraturan-presiden-' . substr($unique_id, 8);
+        } elseif (Str::startsWith($unique_id, 'pp-')) {
+            $variations[] = 'peraturan-pemerintah-' . substr($unique_id, 3);
+        } elseif (Str::startsWith($unique_id, 'permen-')) {
+            $variations[] = 'peraturan-menteri-' . substr($unique_id, 7);
+        } elseif (Str::startsWith($unique_id, 'perda-')) {
+            $variations[] = 'peraturan-daerah-' . substr($unique_id, 6);
+        } elseif (Str::startsWith($unique_id, 'perppu-')) {
+            $variations[] = 'peraturan-pemerintah-pengganti-undang-undang-' . substr($unique_id, 7);
+        }
+
+        $found = Peraturan::with([
+            'jenisPeraturan',
+            'statusPeraturan',
+            'strukturDokumen' => function ($q) {
+                $q->orderBy('id', 'asc');
+            },
+            'pasal' => function ($q) {
+                $q->with(['penjelasan', 'children.penjelasan'])->orderBy('urutan', 'asc');
+            },
+            'lawRelations.toPeraturan' => function ($q) {
+                $q->withCount([
+                    'pasal',
+                    'strukturDokumen as pembukaan_count' => function ($sq) {
+                        $sq->where('tipe_struktur', 'PEMBUKAAN');
+                    }
+                ]);
+            },
+            'lawRelations.relationType'
+        ])
+        ->whereIn('unique_id', $variations)
+        ->first();
+
+        if ($found) {
+            return $found;
+        }
+
+        // 2. Parse pola slug regulasi seperti {jenis}-{nomor}-{tahun}
+        if (preg_match('/^(uu|undang-undang|perpres|peraturan-presiden|pp|peraturan-pemerintah|permen|peraturan-menteri|perda|peraturan-daerah|perppu|peraturan-pemerintah-pengganti-undang-undang)-([0-9a-zA-Z\.\-]+)-(\d{4})$/i', $unique_id, $matches)) {
+            $prefix = strtolower($matches[1]);
+            $nomor = str_replace('-', '/', $matches[2]);
+            $tahun = (int) $matches[3];
+
+            $jenisNama = match ($prefix) {
+                'uu', 'undang-undang' => 'Undang-Undang',
+                'perpres', 'peraturan-presiden' => 'Peraturan Presiden',
+                'pp', 'peraturan-pemerintah' => 'Peraturan Pemerintah',
+                'permen', 'peraturan-menteri' => 'Peraturan Menteri',
+                'perda', 'peraturan-daerah' => 'Peraturan Daerah',
+                'perppu', 'peraturan-pemerintah-pengganti-undang-undang' => 'Peraturan Pemerintah Pengganti Undang-Undang',
+                default => 'Peraturan',
+            };
+
+            $jenisKode = match ($prefix) {
+                'uu', 'undang-undang' => 'UU',
+                'perpres', 'peraturan-presiden' => 'PERPRES',
+                'pp', 'peraturan-pemerintah' => 'PP',
+                'permen', 'peraturan-menteri' => 'PERMEN',
+                'perda', 'peraturan-daerah' => 'PERDA',
+                'perppu', 'peraturan-pemerintah-pengganti-undang-undang' => 'PERPPU',
+                default => 'REG',
+            };
+
+            // Coba cari di database berdasarkan nomor, tahun, dan jenis
+            $matchDb = Peraturan::with([
+                'jenisPeraturan',
+                'statusPeraturan',
+                'strukturDokumen' => function ($q) {
+                    $q->orderBy('id', 'asc');
+                },
+                'pasal' => function ($q) {
+                    $q->with(['penjelasan', 'children.penjelasan'])->orderBy('urutan', 'asc');
+                },
+                'lawRelations.toPeraturan' => function ($q) {
+                    $q->withCount([
+                        'pasal',
+                        'strukturDokumen as pembukaan_count' => function ($sq) {
+                            $sq->where('tipe_struktur', 'PEMBUKAAN');
+                        }
+                    ]);
+                },
+                'lawRelations.relationType'
+            ])
+            ->where('tahun', $tahun)
+            ->where(function ($q) use ($nomor) {
+                $q->where('nomor', $nomor)->orWhere('nomor', ltrim($nomor, '0'));
+            })
+            ->whereHas('jenisPeraturan', function ($q) use ($jenisNama, $jenisKode) {
+                $q->where('nama', 'like', "%{$jenisNama}%")->orWhere('kode', $jenisKode);
+            })
+            ->first();
+
+            if ($matchDb) {
+                return $matchDb;
+            }
+
+            // Jika belum ada di tabel peraturan, buat model sintetis placeholder
+            $judul = "{$jenisNama} Nomor {$nomor} Tahun {$tahun}";
+            if ($unique_id === 'uu-11-2008' || $unique_id === 'undang-undang-11-2008') {
+                $judul .= " tentang Informasi dan Transaksi Elektronik";
+            }
+
+            $synthetic = new Peraturan();
+            $synthetic->id = 0;
+            $synthetic->unique_id = $unique_id;
+            $synthetic->nomor = (string) $nomor;
+            $synthetic->tahun = $tahun;
+            $synthetic->judul = $judul;
+            $synthetic->instansi = 'Pemerintah Pusat';
+            $synthetic->tempat_penetapan = 'Jakarta';
+
+            $jenisModel = new \App\Models\JenisPeraturan([
+                'id' => 1,
+                'kode' => $jenisKode,
+                'nama' => $jenisNama,
+            ]);
+            $statusModel = new \App\Models\Status([
+                'id' => 1,
+                'nama_status' => 'Sedang Didigitalisasi',
+            ]);
+
+            $synthetic->setRelation('jenisPeraturan', $jenisModel);
+            $synthetic->setRelation('statusPeraturan', $statusModel);
+            $synthetic->setRelation('strukturDokumen', collect());
+            $synthetic->setRelation('pasal', collect());
+            $synthetic->setRelation('lawRelations', collect());
+
+            $synthetic->is_available = false;
+            $synthetic->has_pembukaan = false;
+            $synthetic->has_pasal = false;
+            $synthetic->is_placeholder = true;
+
+            return $synthetic;
+        }
+
+        return null;
     }
 
     // Fungsi baru untuk mengambil data filter secara dinamis

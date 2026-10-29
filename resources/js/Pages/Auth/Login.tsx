@@ -146,7 +146,7 @@ export default function Login({ status, canResetPassword = true, redirect }: Log
                                 Maaf, email atau kata sandi tidak dikenal
                             </p>
                             <p className="text-neu-600 mt-0.5 text-xs">
-                                cobak lagi atau{' '}
+                                Coba lagi atau{' '}
                                 <Link
                                     href={route('register')}
                                     className="font-semibold text-neu-900 underline hover:text-dan-700"

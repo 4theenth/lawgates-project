@@ -1,22 +1,35 @@
 import React, { FormEventHandler } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
-import { AuthCard, FormInput } from '@/Components/common';
+import { AuthCard, FormInput, ExpiredResetLinkCard } from '@/Components/common';
 import { Icon } from '@/Components/ui/icon';
+
+export interface ResetPasswordProps {
+    token: string;
+    email: string;
+    isExpiredOrInvalid?: boolean;
+}
 
 export default function ResetPassword({
     token,
     email,
-}: {
-    token: string;
-    email: string;
-}) {
+    isExpiredOrInvalid = false,
+}: ResetPasswordProps) {
     const { data, setData, post, processing, errors, reset, setError, clearErrors } = useForm({
         token: token,
         email: email,
         password: '',
         password_confirmation: '',
     });
+
+    const isTokenExpired =
+        isExpiredOrInvalid ||
+        (errors as any).token === 'invalid_or_expired' ||
+        (errors.email
+            ? errors.email.toLowerCase().includes('kedaluwarsa') ||
+              errors.email.toLowerCase().includes('tidak valid') ||
+              errors.email.toLowerCase().includes('expired')
+            : false);
 
     const hasCapital = /[A-Z]/.test(data.password);
     const hasMinLength = data.password.length >= 8;
@@ -92,6 +105,15 @@ export default function ResetPassword({
             onFinish: () => reset('password', 'password_confirmation'),
         });
     };
+
+    if (isTokenExpired) {
+        return (
+            <GuestLayout>
+                <Head title="Tautan Reset Password Kedaluwarsa" />
+                <ExpiredResetLinkCard email={data.email || email} />
+            </GuestLayout>
+        );
+    }
 
     return (
         <GuestLayout>

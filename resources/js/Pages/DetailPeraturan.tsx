@@ -10,6 +10,8 @@ import { ReadonlyTimelineSection } from '@/Components/public/peraturan/ReadonlyT
 import RegulationGraph from '@/Components/peraturan/RegulationGraph';
 import { FloatingGraphPreview } from '@/Components/peraturan/FloatingGraphPreview';
 import { DetailPeraturanMobileDrawer } from '@/Components/peraturan/DetailPeraturanMobileDrawer';
+import { DocumentDigitizingStatus } from '@/Components/peraturan/DocumentDigitizingStatus';
+import { useToast } from '@/hooks/useToast';
 import { useRegulationDocumentTree } from '@/hooks/useRegulationDocumentTree';
 import { useRegulationTimeline } from '@/hooks/useRegulationTimeline';
 
@@ -30,7 +32,24 @@ export default function DetailPeraturan({
 }: {
   peraturan: any;
 }) {
+  const { toast } = useToast();
   const [isDaftarIsiOpen, setIsDaftarIsiOpen] = useState(true);
+
+  // Deteksi apakah record peraturan merupakan dokumen placeholder (has_pasal === false atau status draft)
+  const isDraft = useMemo(() => {
+    const statusName = (peraturan?.status_peraturan?.nama_status || peraturan?.status || '').toLowerCase();
+    return statusName.includes('draft');
+  }, [peraturan]);
+
+  const isPlaceholder = useMemo(() => {
+    if (!peraturan) return false;
+    const hasPasal = peraturan.has_pasal ?? (Array.isArray(peraturan.pasal) && peraturan.pasal.length > 0);
+    const hasStruktur = Array.isArray(peraturan.struktur_dokumen) && peraturan.struktur_dokumen.length > 0;
+    const isMenungguImport = Boolean(peraturan.judul && peraturan.judul.toLowerCase().includes('menunggu import'));
+    const isExplicitPlaceholder = Boolean(peraturan.is_placeholder);
+
+    return !hasPasal || isDraft || isMenungguImport || isExplicitPlaceholder || (!hasStruktur && !hasPasal);
+  }, [peraturan, isDraft]);
   const [highlightedPasalId, setHighlightedPasalId] = useState<string | null>(null);
   const [relevantSnippet, setRelevantSnippet] = useState<string | null>(null);
 
@@ -341,11 +360,11 @@ export default function DetailPeraturan({
               jenisPeraturan={peraturan?.jenis_peraturan?.nama || 'UNDANG - UNDANG DASAR'}
               instansi={peraturan?.instansi || peraturan?.entitas || (peraturan?.jenis_peraturan?.kode === 'PERDA' || (peraturan?.jenis_peraturan?.nama || '').toLowerCase().includes('daerah') ? 'Pemerintah Daerah' : 'Pemerintah Pusat')}
               judul={peraturan?.judul}
-              statusPeraturan={peraturan?.status_peraturan?.nama_status || 'Berlaku'}
+              statusPeraturan={isPlaceholder ? (peraturan?.status_peraturan?.nama_status || (isDraft ? 'Draft' : 'Sedang Didigitalisasi')) : (peraturan?.status_peraturan?.nama_status || 'Berlaku')}
               tanggalPenetapan={tanggalPenetapan}
               tempatPenetapan={peraturan?.tempat_penetapan || 'Jakarta'}
               onCompare={canCompare ? () => router.visit(`/bandingkan?id=${peraturan?.unique_id}`) : undefined}
-              downloadHref={`/peraturan/${peraturan?.unique_id}/lihat`}
+              downloadHref={`/peraturan/${peraturan?.unique_id}/lihat?download=1`}
               peraturanId={peraturan?.id}
             />
           </div>
@@ -356,44 +375,46 @@ export default function DetailPeraturan({
           {!showGraph ? (
             <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5 w-full min-w-0">
 
-              {/* Kolom Kiri: Daftar Isi (Sticky) */}
-              {isDaftarIsiOpen ? (
-                <div className="hidden lg:flex w-full lg:w-[258px] shrink-0 lg:sticky lg:top-28 lg:h-[calc(100vh-135px)] flex-col transition-all duration-300">
-                  <ReadonlyTableOfContents
-                    className="flex-1 min-h-0"
-                    onHeaderClick={() => setIsDaftarIsiOpen(false)}
-                  pembukaanJudul="Pembukaan"
-                  pembukaanData={pembukaanData}
-                  babList={babsState}
-                  activeSectionId={activeSectionId}
-                  onSearchChange={setSearchQuery}
-                  onNavigateToStruktur={handleNavigateToStruktur}
-                  onNavigateToPasal={handleNavigateToPasal}
-                  onNavigateToPembukaan={() => {
-                    setIsPembukaanOpen(true);
-                    scrollToElement('section-pembukaan');
-                  }}
-                  onNavigateToSection={(sectionId) => {
-                    if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
-                    else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
-                    else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
-                    else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
+              {/* Kolom Kiri: Daftar Isi (Sticky) - Hanya jika dokumen memiliki pasal */}
+              {!isPlaceholder && (
+                isDaftarIsiOpen ? (
+                  <div className="hidden lg:flex w-full lg:w-[258px] shrink-0 lg:sticky lg:top-28 lg:h-[calc(100vh-135px)] flex-col transition-all duration-300">
+                    <ReadonlyTableOfContents
+                      className="flex-1 min-h-0"
+                      onHeaderClick={() => setIsDaftarIsiOpen(false)}
+                      pembukaanJudul="Pembukaan"
+                      pembukaanData={pembukaanData}
+                      babList={babsState}
+                      activeSectionId={activeSectionId}
+                      onSearchChange={setSearchQuery}
+                      onNavigateToStruktur={handleNavigateToStruktur}
+                      onNavigateToPasal={handleNavigateToPasal}
+                      onNavigateToPembukaan={() => {
+                        setIsPembukaanOpen(true);
+                        scrollToElement('section-pembukaan');
+                      }}
+                      onNavigateToSection={(sectionId) => {
+                        if (sectionId === 'section-menimbang') setIsMenimbangOpen(true);
+                        else if (sectionId === 'section-mengingat') setIsMengingatOpen(true);
+                        else if (sectionId === 'section-memutuskan') setIsMemutuskanOpen(true);
+                        else if (sectionId === 'section-menetapkan') setIsMenetapkanOpen(true);
 
-                    setIsPembukaanOpen(true);
-                    scrollToElement(sectionId);
-                  }}
-                />
-              </div>
-              ) : (
-                <div className="hidden lg:flex shrink-0 lg:sticky lg:top-28 lg:h-[calc(100vh-135px)] flex-col items-center">
-                  <button 
-                    onClick={() => setIsDaftarIsiOpen(true)}
-                    className="bg-white rounded-[20px] border border-neu-50 p-[14px_18px] shadow-2xs hover:bg-neu-50 transition-colors cursor-pointer"
-                    title="Buka Daftar Isi"
-                  >
-                    <AlignLeft className="w-[18px] h-[18px] text-neu-800" />
-                  </button>
-                </div>
+                        setIsPembukaanOpen(true);
+                        scrollToElement(sectionId);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="hidden lg:flex shrink-0 lg:sticky lg:top-28 lg:h-[calc(100vh-135px)] flex-col items-center">
+                    <button
+                      onClick={() => setIsDaftarIsiOpen(true)}
+                      className="bg-white rounded-[20px] border border-neu-50 p-[14px_18px] shadow-2xs hover:bg-neu-50 transition-colors cursor-pointer"
+                      title="Buka Daftar Isi"
+                    >
+                      <AlignLeft className="w-[18px] h-[18px] text-neu-800" />
+                    </button>
+                  </div>
+                )
               )}
 
               {/* Kolom Tengah: Isi Peraturan (Mengikuti scroll window) */}
@@ -401,55 +422,71 @@ export default function DetailPeraturan({
                 id="scrollable-content"
                 className="flex-1 min-w-0 w-full space-y-4 pb-6 transition-all duration-300"
               >
-                {/* Banner Penjelasan jika Peraturan Masih Menunggu Impor */}
-                {peraturan?.judul && (peraturan.judul.toLowerCase().includes('menunggu import') || (peraturan.judul.toLowerCase().includes('menunggu') && !peraturan?.has_pasal)) && (
-                  <div className="p-4 bg-amber-50/90 border-l-4 border-amber-600 rounded-xl border border-amber-200/90 shadow-2xs flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                    <div className="space-y-1 text-amber-950">
-                      <h4 className="text-[13px] font-bold">Dokumen Dalam Antrean Impor</h4>
-                      <p className="text-[12px] leading-relaxed text-amber-900">
-                        Dokumen ini terdeteksi dalam database relasi hukum karena dirujuk oleh peraturan lain, namun naskah lengkapnya belum diunggah oleh Administrator. Naskah lengkap akan otomatis tampil setelah proses pengunggahan selesai.
-                      </p>
-                    </div>
-                  </div>
+                {isPlaceholder ? (
+                  <DocumentDigitizingStatus
+                    peraturan={peraturan}
+                    onBack={() => {
+                      if (typeof window !== 'undefined' && window.history.length > 1) {
+                        window.history.back();
+                      } else {
+                        router.visit('/pencarian');
+                      }
+                    }}
+                    onViewRelations={openGraph}
+                  />
+                ) : (
+                  <>
+                    {/* Banner Penjelasan jika Peraturan Masih Menunggu Impor */}
+                    {peraturan?.judul && (peraturan.judul.toLowerCase().includes('menunggu import') || (peraturan.judul.toLowerCase().includes('menunggu') && !peraturan?.has_pasal)) && (
+                      <div className="p-4 bg-amber-50/90 border-l-4 border-amber-600 rounded-xl border border-amber-200/90 shadow-2xs flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="space-y-1 text-amber-950">
+                          <h4 className="text-[13px] font-bold">Dokumen Dalam Antrean Impor</h4>
+                          <p className="text-[12px] leading-relaxed text-amber-900">
+                            Dokumen ini terdeteksi dalam database relasi hukum karena dirujuk oleh peraturan lain, namun naskah lengkapnya belum diunggah oleh Administrator. Naskah lengkap akan otomatis tampil setelah proses pengunggahan selesai.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Status Legal Warning Banner jika Peraturan Tidak Berlaku / Dicabut */}
+                    {(peraturan?.status_peraturan?.nama_status === 'Tidak Berlaku' || (peraturan?.status_peraturan?.nama_status || '').toLowerCase().includes('tidak')) && (
+                      <div className="p-4 bg-dan-50/50 border-l-4 border-dan-900 rounded-xl flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-dan-900 shrink-0 mt-0.5" />
+                        <div className="space-y-1 text-neu-900">
+                          <h4 className="text-[12px] font-semibold">Catatan Status Hukum: Peraturan Ini Tidak Berlaku</h4>
+                          <p className="text-[12px] leading-relaxed text-dan-900">
+                            Dokumen peraturan ini telah dicabut atau dinyatakan tidak berlaku secara hukum. Silakan periksa bagian <span className="font-semibold">Status & Relasi</span> pada panel kanan untuk melihat peraturan pengubah / pengganti terbaru.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <ReadonlyPembukaanSection
+                      pembukaan={pembukaanData}
+                      isOpenPembukaan={isPembukaanOpen}
+                      isOpenMenimbang={isMenimbangOpen}
+                      isOpenMengingat={isMengingatOpen}
+                      isOpenMemutuskan={isMemutuskanOpen}
+                      isOpenMenetapkan={isMenetapkanOpen}
+                      onTogglePembukaan={() => setIsPembukaanOpen(!isPembukaanOpen)}
+                      onToggleMenimbang={() => setIsMenimbangOpen(!isMenimbangOpen)}
+                      onToggleMengingat={() => setIsMengingatOpen(!isMengingatOpen)}
+                      onToggleMemutuskan={() => setIsMemutuskanOpen(!isMemutuskanOpen)}
+                      onToggleMenetapkan={() => setIsMenetapkanOpen(!isMenetapkanOpen)}
+                    />
+
+                    <ReadonlyBatangTubuhSection
+                      babList={babsState}
+                      onToggleBab={handleToggleBab}
+                      onTogglePasal={handleTogglePasal}
+                      searchQuery={searchQuery}
+                      activeSectionId={activeSectionId}
+                      highlightedPasalId={highlightedPasalId}
+                      relevantSnippet={relevantSnippet}
+                    />
+                  </>
                 )}
-
-                {/* Status Legal Warning Banner jika Peraturan Tidak Berlaku / Dicabut */}
-                {(peraturan?.status_peraturan?.nama_status === 'Tidak Berlaku' || (peraturan?.status_peraturan?.nama_status || '').toLowerCase().includes('tidak')) && (
-                  <div className="p-4 bg-dan-50/50 border-l-4 border-dan-900 rounded-xl flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-dan-900 shrink-0 mt-0.5" />
-                    <div className="space-y-1 text-neu-900">
-                      <h4 className="text-[12px] font-semibold">Catatan Status Hukum: Peraturan Ini Tidak Berlaku</h4>
-                      <p className="text-[12px] leading-relaxed text-dan-900">
-                        Dokumen peraturan ini telah dicabut atau dinyatakan tidak berlaku secara hukum. Silakan periksa bagian <span className="font-semibold">Status & Relasi</span> pada panel kanan untuk melihat peraturan pengubah / pengganti terbaru.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <ReadonlyPembukaanSection
-                  pembukaan={pembukaanData}
-                  isOpenPembukaan={isPembukaanOpen}
-                  isOpenMenimbang={isMenimbangOpen}
-                  isOpenMengingat={isMengingatOpen}
-                  isOpenMemutuskan={isMemutuskanOpen}
-                  isOpenMenetapkan={isMenetapkanOpen}
-                  onTogglePembukaan={() => setIsPembukaanOpen(!isPembukaanOpen)}
-                  onToggleMenimbang={() => setIsMenimbangOpen(!isMenimbangOpen)}
-                  onToggleMengingat={() => setIsMengingatOpen(!isMengingatOpen)}
-                  onToggleMemutuskan={() => setIsMemutuskanOpen(!isMemutuskanOpen)}
-                  onToggleMenetapkan={() => setIsMenetapkanOpen(!isMenetapkanOpen)}
-                />
-
-                <ReadonlyBatangTubuhSection
-                  babList={babsState}
-                  onToggleBab={handleToggleBab}
-                  onTogglePasal={handleTogglePasal}
-                  searchQuery={searchQuery}
-                  activeSectionId={activeSectionId}
-                  highlightedPasalId={highlightedPasalId}
-                  relevantSnippet={relevantSnippet}
-                />
               </div>
 
               {/* Kolom Kanan: Riwayat Perubahan & Metadata dengan Tombol RELASI */}
@@ -531,6 +568,7 @@ export default function DetailPeraturan({
           }}
           timelineData={timelineData}
           onRelasiClick={handleRelasi}
+          isPlaceholder={isPlaceholder}
         />
       )}
     </PublicLayout>
