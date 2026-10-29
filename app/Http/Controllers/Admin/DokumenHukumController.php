@@ -102,10 +102,12 @@ class DokumenHukumController extends Controller
                       ->orderBy('peraturan.updated_at', 'desc');
             } else if ($request->sortColumn === 'author') {
                 $query->leftJoin('users as creator', 'peraturan.created_by', '=', 'creator.id')
-                      ->leftJoin('users as updater', 'peraturan.updated_by', '=', 'updater.id')
-                      ->orderByRaw("COALESCE(updater.username, creator.username, 'Sistem') {$direction}")
+                      ->orderByRaw("COALESCE(creator.username, 'Sistem') {$direction}")
                       ->orderBy('peraturan.updated_at', 'desc')
                       ->select('peraturan.*');
+            } else if ($request->sortColumn === 'updated_at') {
+                $query->orderBy('peraturan.updated_at', $direction)
+                      ->orderBy('peraturan.id', $direction);
             } else {
                 $query->orderBy($request->sortColumn, $direction);
             }
@@ -118,7 +120,10 @@ class DokumenHukumController extends Controller
         $paginator = $query->paginate($pageSize)->withQueryString();
 
         // Format data to match React component expectations
-        $formattedData = $paginator->getCollection()->map(function ($item) {
+        $displayTimezone = config('app.display_timezone', 'Asia/Jakarta');
+        $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+
+        $formattedData = $paginator->getCollection()->map(function ($item) use ($displayTimezone, $disk) {
             $namaStatus = strtolower($item->statusPeraturan ? $item->statusPeraturan->nama_status : '');
             $status = 'berlaku';
             if (str_contains($namaStatus, 'draft')) {
@@ -126,6 +131,38 @@ class DokumenHukumController extends Controller
             } else if (str_contains($namaStatus, 'tidak berlaku')) {
                 $status = 'tidak_berlaku';
             }
+
+            // Tampilkan waktu pembaruan dalam zona waktu lokal admin (WIB).
+            $updatedAt = $item->updated_at?->copy()->timezone($displayTimezone);
+
+            $author = $item->creator ? $item->creator->username : 'Sistem';
+            $editor = $item->updater ? $item->updater->username : $author;
+
+            // Selalu periksa ketersediaan berkas PDF nyata saat data dipanggil di list ini
+            $hasPdf = \Illuminate\Support\Facades\Cache::remember("peraturan_has_pdf_{$item->id}", 60, function () use ($item, $disk) {
+                if (\App\Services\DocumentStorageService::hasLocalCache($item->unique_id, $item->file_pdf_path)) {
+                    return true;
+                }
+
+                if (!empty($item->file_pdf_path)) {
+                    try {
+                        $exists = $disk->exists($item->file_pdf_path);
+                        if (!$exists) {
+                            $item->update(['file_pdf_path' => null]);
+                        }
+                        return $exists;
+                    } catch (\Throwable $e) {
+                        return false;
+                    }
+                }
+
+                try {
+                    $resolved = \App\Services\DocumentStorageService::resolveValidMinioPath($item);
+                    return !empty($resolved);
+                } catch (\Throwable $e) {
+                    return false;
+                }
+            });
 
             return [
                 'id' => (string) $item->unique_id, // unique_id used for URL and deletion
@@ -138,11 +175,14 @@ class DokumenHukumController extends Controller
                 'instansi' => $item->instansi,
                 'status' => $status,
                 'tgl_ditetapkan' => $item->tanggal_penetapan ? $item->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-',
-                'author' => $item->updater ? $item->updater->username : ($item->creator ? $item->creator->username : 'Sistem'),
+                'author' => $author,
+                'editor' => $editor,
+                // Full tanggal disertai jam dalam format Indonesia dan WIB
+                'updated_at_label' => $updatedAt
+                    ? $updatedAt->locale('id')->isoFormat('D MMMM YYYY, HH:mm') . ' WIB'
+                    : '-',
                 'real_status' => $item->statusPeraturan ? $item->statusPeraturan->nama_status : '-',
-                // file_pdf_path adalah sumber kebenaran; url_pdf hanya metadata
-                // sumber dan tidak menjamin berkas PDF benar-benar tersimpan.
-                'has_pdf' => !empty($item->file_pdf_path),
+                'has_pdf' => (bool) $hasPdf,
             ];
         });
 
@@ -461,6 +501,12 @@ class DokumenHukumController extends Controller
                         $parsed = is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData'];
                         $peraturan = $importService->import($parsed);
                         
+                        $creatorId = $draft->user_id ?: \Illuminate\Support\Facades\Auth::id();
+                        if ($creatorId && !$peraturan->created_by) {
+                            $peraturan->created_by = $creatorId;
+                            $peraturan->save();
+                        }
+
                         if (isset($fileData['correctionData'])) {
                             $correctionData = is_string($fileData['correctionData']) ? json_decode($fileData['correctionData'], true) : $fileData['correctionData'];
                             $this->performUpdate($peraturan, $correctionData, true);
@@ -549,6 +595,12 @@ class DokumenHukumController extends Controller
                 if (isset($fileData['parsedData'])) {
                     $parsed = is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData'];
                     $peraturan = $importService->import($parsed);
+
+                    $user = \Illuminate\Support\Facades\Auth::user();
+                    if ($user && in_array($user->role, ['admin', 'superadmin'], true) && !$peraturan->created_by) {
+                        $peraturan->created_by = $user->id;
+                        $peraturan->save();
+                    }
                     
                     if (isset($fileData['correctionData'])) {
                         $correctionData = is_string($fileData['correctionData']) ? json_decode($fileData['correctionData'], true) : $fileData['correctionData'];
@@ -894,13 +946,20 @@ class DokumenHukumController extends Controller
     private function performUpdate(Peraturan $peraturan, array $data, bool $isImport = false)
     {
         // 1. Update Peraturan Utama
-        $userId = \Illuminate\Support\Facades\Auth::id();
-        $isAdminUser = $userId && \App\Models\Admin::where('id', $userId)->exists();
-        if (!$peraturan->created_by && $isAdminUser) {
-            $peraturan->created_by = $userId;
+        // Admin panel memakai guard web dengan model User, jadi sumber identitas
+        // editor adalah user yang sedang login (bukan tabel admins).
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $isAdminUser = $user && in_array($user->role, ['admin', 'superadmin'], true);
+
+        // created_by HANYA boleh diinisialisasi saat import dokumen baru ($isImport = true).
+        // Jangan pernah mengubah created_by saat sekadar mengedit data peraturan!
+        if ($isImport && !$peraturan->created_by && $isAdminUser) {
+            $peraturan->created_by = $user->id;
         }
-        if ($isAdminUser) {
-            $peraturan->updated_by = $userId;
+
+        // updated_by hanya dicatat saat dilakukan pengeditan manual oleh admin
+        if ($isAdminUser && !$isImport) {
+            $peraturan->updated_by = $user->id;
         }
 
         if (isset($data['judul'])) {
@@ -1432,6 +1491,10 @@ class DokumenHukumController extends Controller
             // Karena DocumentImportService melakukan hardcode path 'documents/...',
             // kita override berdasarkan lokasi folder sebenarnya di MinIO
             if ($peraturan) {
+                $user = \Illuminate\Support\Facades\Auth::user();
+                if ($user && in_array($user->role, ['admin', 'superadmin'], true) && !$peraturan->created_by) {
+                    $peraturan->created_by = $user->id;
+                }
                 $peraturan->update([
                     'file_pdf_path' => $folderPath . '/document.pdf'
                 ]);
