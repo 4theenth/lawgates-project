@@ -286,9 +286,74 @@ class DokumenHukumController extends Controller
         set_time_limit(300);
 
         try {
+            // A. Mode Stepwise Batch: Memproses sekumpulan pasal_id tertentu dari UI Progress Bar
+            if ($request->has('pasal_ids')) {
+                $pasalIds = (array) $request->input('pasal_ids', []);
+                if (empty($pasalIds)) {
+                    return response()->json(['success' => true, 'processed_count' => 0, 'failed_count' => 0]);
+                }
+
+                ini_set('memory_limit', '512M');
+                set_time_limit(120);
+                \Illuminate\Support\Facades\DB::disableQueryLog();
+
+                $chunk = Pasal::with('peraturan:id,judul')
+                    ->whereIn('id', $pasalIds)
+                    ->get(['id', 'peraturan_id', 'nomor_pasal', 'isi_pasal']);
+
+                $textsToEmbed = [];
+                $pasalMap = [];
+
+                foreach ($chunk as $pasal) {
+                    $peraturanJudul = $pasal->peraturan?->judul ?? 'Peraturan';
+                    $nomorPasal = $pasal->nomor_pasal ?? 'Pasal';
+                    $isiPasal = trim((string) $pasal->isi_pasal);
+                    $textsToEmbed[$pasal->id] = "{$peraturanJudul} - {$nomorPasal}: {$isiPasal}";
+                    $pasalMap[$pasal->id] = $pasal;
+                }
+
+                $processedCount = 0;
+                $failedCount = 0;
+
+                try {
+                    $embeddings = $embeddingService->batchGenerateEmbeddings($textsToEmbed);
+                    foreach ($embeddings as $pasalId => $vector) {
+                        if (is_array($vector) && !empty($vector)) {
+                            $targetPasal = $pasalMap[$pasalId] ?? null;
+                            if ($targetPasal) {
+                                $targetPasal->embedding = $vector;
+                                $targetPasal->saveQuietly();
+                                $processedCount++;
+                            }
+                        } else {
+                            $failedCount++;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::error("Error saat batchGenerateEmbeddings step di DokumenHukumController: " . $e->getMessage());
+                    $failedCount += count($pasalIds);
+                }
+
+                unset($chunk, $textsToEmbed, $pasalMap, $embeddings);
+                gc_collect_cycles();
+
+                return response()->json([
+                    'success' => true,
+                    'processed_count' => $processedCount,
+                    'failed_count' => $failedCount,
+                ]);
+            }
+
+            // B. Mode Bersihkan Cache Semantik saat seluruh batch selesai
+            if ($request->boolean('clear_cache')) {
+                SemanticSearchService::clearCache();
+                return response()->json(['success' => true]);
+            }
+
             $ids = $request->input('ids', []);
             $allPending = filter_var($request->input('all_pending', false), FILTER_VALIDATE_BOOLEAN);
             $force = filter_var($request->input('force', false), FILTER_VALIDATE_BOOLEAN);
+            $initOnly = filter_var($request->input('init_only', false), FILTER_VALIDATE_BOOLEAN);
 
             // 1. Tentukan query peraturan target
             $peraturanQuery = Peraturan::query()
@@ -330,6 +395,7 @@ class DokumenHukumController extends Controller
             if ($peraturans->isEmpty()) {
                 return response()->json([
                     'success' => true,
+                    'total_pasal' => 0,
                     'processed_count' => 0,
                     'message' => 'Semua dokumen yang dipilih sudah memiliki embedding (dilewatkan).',
                 ]);
@@ -337,15 +403,34 @@ class DokumenHukumController extends Controller
 
             $peraturanIds = $peraturans->pluck('id')->toArray();
 
-            // 2. Ambil pasal-pasal target
-            $pasalQuery = Pasal::with('peraturan')->whereIn('peraturan_id', $peraturanIds);
+            // 2. Ambil pasal-pasal target (hanya ambil ID untuk menghemat penggunaan RAM)
+            ini_set('memory_limit', '512M');
+            set_time_limit(300);
+            \Illuminate\Support\Facades\DB::disableQueryLog();
+
+            $pasalQuery = Pasal::whereIn('peraturan_id', $peraturanIds);
             if (!$force) {
                 $pasalQuery->whereNull('embedding');
             }
 
-            $pasals = $pasalQuery->get();
+            $pasalIds = $pasalQuery->pluck('id')->all();
 
-            if ($pasals->isEmpty()) {
+            // C. Mode Inisialisasi: Mengembalikan daftar target ID ke frontend untuk Progress Bar real-time
+            if ($initOnly) {
+                return response()->json([
+                    'success' => true,
+                    'is_init' => true,
+                    'total_documents' => $peraturans->count(),
+                    'total_pasal' => count($pasalIds),
+                    'pasal_ids' => $pasalIds,
+                    'batch_size' => 20,
+                    'message' => empty($pasalIds)
+                        ? 'Seluruh pasal pada dokumen ini sudah memiliki vektor embedding.'
+                        : 'Siap memproses embedding AI.',
+                ]);
+            }
+
+            if (empty($pasalIds)) {
                 return response()->json([
                     'success' => true,
                     'processed_count' => 0,
@@ -358,7 +443,11 @@ class DokumenHukumController extends Controller
             $processedCount = 0;
             $failedCount = 0;
 
-            foreach ($pasals->chunk($chunkSize) as $chunk) {
+            foreach (array_chunk($pasalIds, $chunkSize) as $idChunk) {
+                $chunk = Pasal::with('peraturan:id,judul')
+                    ->whereIn('id', $idChunk)
+                    ->get(['id', 'peraturan_id', 'nomor_pasal', 'isi_pasal']);
+
                 $textsToEmbed = [];
                 $pasalMap = [];
 
@@ -390,8 +479,12 @@ class DokumenHukumController extends Controller
                     }
                 } catch (\Throwable $e) {
                     \Log::error("Error saat batchGenerateEmbeddings di DokumenHukumController: " . $e->getMessage());
-                    $failedCount += count($chunk);
+                    $failedCount += count($idChunk);
                 }
+
+                // Bebaskan RAM seketika untuk mencegah PHP OOM (Out of Memory)
+                unset($chunk, $textsToEmbed, $pasalMap, $embeddings);
+                gc_collect_cycles();
             }
 
             // Bersihkan cache pencarian semantik agar vektor baru langsung aktif

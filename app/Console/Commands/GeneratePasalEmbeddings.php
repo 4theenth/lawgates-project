@@ -32,6 +32,10 @@ class GeneratePasalEmbeddings extends Command
      */
     public function handle(QwenEmbeddingService $embeddingService): int
     {
+        ini_set('memory_limit', '1024M');
+        set_time_limit(0);
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+
         $this->info('Memulai proses embedding data pasal menggunakan model Qwen...');
 
         // Cek konektivitas API terlebih dahulu
@@ -45,17 +49,18 @@ class GeneratePasalEmbeddings extends Command
 
         $this->info("Koneksi API valid! Dimensi vektor terdeteksi: {$test['dimension']}");
 
-        $query = Pasal::with('peraturan');
+        $idQuery = Pasal::query();
 
         if (! $this->option('force')) {
-            $query->whereNull('embedding');
+            $idQuery->whereNull('embedding');
         }
 
         if ($limit = (int) $this->option('limit')) {
-            $query->limit($limit);
+            $idQuery->limit($limit);
         }
 
-        $total = $query->count();
+        $pasalIds = $idQuery->pluck('id')->all();
+        $total = count($pasalIds);
 
         if ($total === 0) {
             $this->info('Semua pasal sudah memiliki embedding! Gunakan opsi --force jika ingin men-generate ulang.');
@@ -75,9 +80,12 @@ class GeneratePasalEmbeddings extends Command
         $successCount = 0;
         $failedCount = 0;
 
-        $pasals = $query->get();
+        foreach (array_chunk($pasalIds, $chunkSize) as $idChunk) {
+            // Ambil hanya data untuk chunk saat ini dengan kolom yang esensial agar RAM tetap rendah (<25MB)
+            $chunk = Pasal::with('peraturan:id,judul')
+                ->whereIn('id', $idChunk)
+                ->get(['id', 'peraturan_id', 'nomor_pasal', 'isi_pasal']);
 
-        foreach ($pasals->chunk($chunkSize) as $chunk) {
             $textsToEmbed = [];
             $pasalMap = [];
 
@@ -118,9 +126,13 @@ class GeneratePasalEmbeddings extends Command
                 }
             } catch (\Throwable $e) {
                 $this->error("\nError pada batch: ".$e->getMessage());
-                $failedCount += count($chunk);
-                $bar->advance(count($chunk));
+                $failedCount += count($idChunk);
+                $bar->advance(count($idChunk));
             }
+
+            // Bersihkan variabel dan panggil garbage collector untuk membebaskan RAM seketika
+            unset($chunk, $textsToEmbed, $pasalMap, $embeddings);
+            gc_collect_cycles();
 
             if ($delay > 0 && $processedCount < $total) {
                 sleep($delay);

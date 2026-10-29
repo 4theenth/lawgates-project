@@ -21,6 +21,8 @@ import {
 } from '@/Components/admin/import/CorrectionDetailView';
 import { DraftNameModal } from '@/Components/admin/DraftNameModal';
 import { DuplicateConfirmModal } from '@/Components/admin/DuplicateConfirmModal';
+import { EmbeddingProgressModal } from '@/Components/admin/EmbeddingProgressModal';
+import { useEmbeddingProgress } from '@/hooks/useEmbeddingProgress';
 import { Plus, CircleCheckBig, FileBox, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
@@ -118,33 +120,22 @@ export default function DokumenHukumCreate() {
   const [isDraftModalOpen, setIsDraftModalOpen] = useState(false);
   const [isDraftSaving, setIsDraftSaving] = useState(false);
   const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
-  const [isEmbeddingNew, setIsEmbeddingNew] = useState(false);
+  // Hook embedding dengan live progress bar modal
+  const {
+    modalState: embeddingModal,
+    startEmbedding,
+    cancelEmbedding,
+    closeModal: closeEmbeddingModal,
+  } = useEmbeddingProgress(() => {
+    router.visit('/admin/dokumen-hukum');
+  });
+  const isEmbeddingNew = embeddingModal.isProcessing;
 
-  const handleEmbedPublishedData = async () => {
-    try {
-      setIsEmbeddingNew(true);
-      toast.info('Memulai pembuatan vektor embedding AI...');
-      const csrfToken = (document.head.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
-      const response = await fetch('/admin/dokumen-hukum/embed', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-CSRF-TOKEN': csrfToken,
-        },
-        body: JSON.stringify({ all_pending: true }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Gagal memproses embedding');
-      }
-      toast.success(data.message || 'Berhasil membuat embedding AI!');
-      router.visit('/admin/dokumen-hukum');
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal generate embedding');
-    } finally {
-      setIsEmbeddingNew(false);
-    }
+  const handleEmbedPublishedData = () => {
+    startEmbedding({
+      all_pending: true,
+      customTitle: 'Embed Dokumen Baru Dipublikasikan',
+    });
   };
   const [editingDraftName, setEditingDraftName] = useState<string>('');
   const [inlineError, setInlineError] = useState<string | null>(null);
@@ -1079,6 +1070,21 @@ export default function DokumenHukumCreate() {
         message={duplicateModal.message}
         documentTitle={duplicateModal.documentTitle}
         existingId={duplicateModal.existingId}
+      />
+
+      {/* Modal Live Progress Bar Embedding AI */}
+      <EmbeddingProgressModal
+        show={embeddingModal.show}
+        onClose={closeEmbeddingModal}
+        title={embeddingModal.title}
+        totalPasal={embeddingModal.totalPasal}
+        processedPasal={embeddingModal.processedPasal}
+        statusMessage={embeddingModal.statusMessage}
+        isProcessing={embeddingModal.isProcessing}
+        isCompleted={embeddingModal.isCompleted}
+        isError={embeddingModal.isError}
+        errorMessage={embeddingModal.errorMessage}
+        onCancel={cancelEmbedding}
       />
     </AdminLayout>
   );

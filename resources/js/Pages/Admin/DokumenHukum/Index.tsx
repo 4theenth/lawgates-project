@@ -13,6 +13,8 @@ import { EditStatusModal } from '@/Components/admin/EditStatusModal';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
 import { DuplicateConfirmModal } from '@/Components/admin/DuplicateConfirmModal';
 import { StatCardsGroup } from '@/Components/admin/StatCard';
+import { EmbeddingProgressModal } from '@/Components/admin/EmbeddingProgressModal';
+import { useEmbeddingProgress } from '@/hooks/useEmbeddingProgress';
 import {
   CorrectionDetailView,
   LegalDocumentCorrectionData,
@@ -44,7 +46,18 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedDraftIds, setSelectedDraftIds] = useState<string[]>([]);
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
-  const [isEmbeddingLoading, setIsEmbeddingLoading] = useState(false);
+
+  // Hook embedding dengan live progress bar modal
+  const {
+    modalState: embeddingModal,
+    startEmbedding,
+    cancelEmbedding,
+    closeModal: closeEmbeddingModal,
+  } = useEmbeddingProgress(() => {
+    setSelectedDocIds([]);
+    fetchData();
+  });
+  const isEmbeddingLoading = embeddingModal.isProcessing;
 
   // Sorting states
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(filters?.sortColumn || null);
@@ -426,7 +439,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
   };
 
   // Handler embedding AI (Single dari tabel aksi, Batch checkbox, atau All Pending)
-  const handleEmbed = async ({
+  const handleEmbed = ({
     ids,
     all_pending = false,
     force = false,
@@ -435,44 +448,16 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
     all_pending?: boolean;
     force?: boolean;
   }) => {
-    try {
-      setIsEmbeddingLoading(true);
-      toast.info(
-        all_pending
-          ? 'Sedang memproses embedding untuk seluruh dokumen yang belum ter-embed...'
-          : `Sedang memproses embedding untuk ${ids?.length || 1} dokumen hukum...`
-      );
-
-      const csrfToken = (document.head.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
-      const response = await fetch('/admin/dokumen-hukum/embed', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-CSRF-TOKEN': csrfToken,
-        },
-        body: JSON.stringify({
-          ids,
-          all_pending,
-          force,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Gagal memproses embedding');
-      }
-
-      toast.success(result.message || 'Embedding AI berhasil diproses!');
-      setSelectedDocIds([]);
-      fetchData();
-    } catch (error: any) {
-      console.error('Embedding error:', error);
-      toast.error(error.message || 'Terjadi kesalahan saat memproses embedding AI');
-    } finally {
-      setIsEmbeddingLoading(false);
-    }
+    startEmbedding({
+      ids,
+      all_pending,
+      force,
+      customTitle: all_pending
+        ? 'Embed Seluruh Regulasi Belum Ter-embed'
+        : ids && ids.length > 1
+        ? `Embed AI (${ids.length} Dokumen)`
+        : 'Embed AI Dokumen Hukum',
+    });
   };
 
   // Gunakan data dari backend Inertia Props sesuai tab aktif
@@ -891,6 +876,21 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
         message={duplicateModal.message}
         documentTitle={duplicateModal.documentTitle}
         existingId={duplicateModal.existingId}
+      />
+
+      {/* Modal Live Progress Bar Embedding AI (Real-time Feedback) */}
+      <EmbeddingProgressModal
+        show={embeddingModal.show}
+        onClose={closeEmbeddingModal}
+        title={embeddingModal.title}
+        totalPasal={embeddingModal.totalPasal}
+        processedPasal={embeddingModal.processedPasal}
+        statusMessage={embeddingModal.statusMessage}
+        isProcessing={embeddingModal.isProcessing}
+        isCompleted={embeddingModal.isCompleted}
+        isError={embeddingModal.isError}
+        errorMessage={embeddingModal.errorMessage}
+        onCancel={cancelEmbedding}
       />
     </AdminLayout>
   );
