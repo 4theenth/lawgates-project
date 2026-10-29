@@ -41,4 +41,12 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
     ],
 
+    'qwen' => [
+        'base_url' => env('QWEN_BASE_URL', 'https://api.mindrouter.ai/v1'),
+        'api_key' => env('QWEN_API_KEY'),
+        'embedding_model' => env('QWEN_EMBEDDING_MODEL', 'mindrouter/qwen3-embedding-8b'),
+        'dimensions' => env('QWEN_EMBEDDING_DIMENSIONS') ? (int) env('QWEN_EMBEDDING_DIMENSIONS') : null,
+        'timeout' => (int) env('QWEN_TIMEOUT', 60),
+    ],
+
 ];

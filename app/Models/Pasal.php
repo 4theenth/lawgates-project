@@ -10,6 +10,52 @@ class Pasal extends Model
     protected $guarded = [];
     public $timestamps = false;
 
+    protected static function booted(): void
+    {
+        static::saved(function () {
+            \App\Services\SemanticSearchService::clearCache();
+        });
+
+        static::deleted(function () {
+            \App\Services\SemanticSearchService::clearCache();
+        });
+    }
+
+    protected $casts = [
+        'embedding' => 'array',
+    ];
+
+    protected $hidden = [
+        'embedding',
+        'embedding_vec',
+    ];
+
+    /**
+     * Mutator agar kolom embedding (JSON) dan embedding_vec (float8[]) selalu sinkron otomatis.
+     */
+    public function setEmbeddingAttribute($value)
+    {
+        $supportsVec = \Illuminate\Support\Facades\DB::getDriverName() === 'pgsql';
+
+        if (is_array($value)) {
+            $this->attributes['embedding'] = json_encode($value);
+            if ($supportsVec) {
+                $this->attributes['embedding_vec'] = '{' . implode(',', $value) . '}';
+            }
+        } elseif (is_string($value)) {
+            $this->attributes['embedding'] = $value;
+            $decoded = json_decode($value, true);
+            if (is_array($decoded) && $supportsVec) {
+                $this->attributes['embedding_vec'] = '{' . implode(',', $decoded) . '}';
+            }
+        } else {
+            $this->attributes['embedding'] = null;
+            if ($supportsVec) {
+                $this->attributes['embedding_vec'] = null;
+            }
+        }
+    }
+
     // Tambahan relasi balik ke tabel peraturan
     public function peraturan()
     {

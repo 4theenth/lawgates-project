@@ -17,10 +17,12 @@ class Peraturan extends Model
     {
         static::saved(function () {
             \App\Http\Controllers\Api\RegionController::clearCache();
+            \App\Services\SemanticSearchService::clearCache();
         });
 
         static::deleted(function () {
             \App\Http\Controllers\Api\RegionController::clearCache();
+            \App\Services\SemanticSearchService::clearCache();
         });
 
         // Skema bookmark bersifat polimorfik, jadi tidak bisa memakai foreign key
@@ -54,6 +56,10 @@ class Peraturan extends Model
         'tingkat',
         'nama_daerah',
         'provinsi_induk',
+    ];
+
+    protected $hidden = [
+        'embedding',
     ];
 
     protected $fillable = [

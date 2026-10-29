@@ -12,14 +12,13 @@ import { DocumentModal } from '@/Components/admin/DocumentModal';
 import { EditStatusModal } from '@/Components/admin/EditStatusModal';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
 import { DuplicateConfirmModal } from '@/Components/admin/DuplicateConfirmModal';
-import { PageHeader } from '@/Components/common/PageHeader';
 import { StatCardsGroup } from '@/Components/admin/StatCard';
 import {
   CorrectionDetailView,
   LegalDocumentCorrectionData,
   formatStandardId,
 } from '@/Components/admin/import/CorrectionDetailView';
-import { Plus, Search, X, Files, CheckCircle2, XCircle, FilePenLine, AlertCircle } from 'lucide-react';
+import { Plus, Search, X, Files, CheckCircle2, XCircle, FilePenLine, AlertCircle, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
 export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, referensi }: any) {
@@ -44,6 +43,8 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
   
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedDraftIds, setSelectedDraftIds] = useState<string[]>([]);
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [isEmbeddingLoading, setIsEmbeddingLoading] = useState(false);
 
   // Sorting states
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(filters?.sortColumn || null);
@@ -277,32 +278,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
     fetchData({ pageSize: size, page: 1 });
   };
 
-  // Helper konversi tanggal bahasa Indonesia ke timestamp
-  const _parseIndonesianDate = (dateStr: string): number => {
-    if (!dateStr) return 0;
-    const indoMonths: Record<string, number> = {
-      januari: 0,
-      februari: 1,
-      maret: 2,
-      april: 3,
-      mei: 4,
-      juni: 5,
-      juli: 6,
-      agustus: 7,
-      september: 8,
-      oktober: 9,
-      november: 10,
-      desember: 11,
-    };
-    const parts = dateStr.trim().split(/\s+/);
-    if (parts.length >= 3) {
-      const day = parseInt(parts[0], 10) || 1;
-      const month = indoMonths[parts[1].toLowerCase()] ?? 0;
-      const year = parseInt(parts[2], 10) || 1970;
-      return new Date(year, month, day).getTime();
-    }
-    return new Date(dateStr).getTime() || 0;
-  };
+
 
   const handleOpenEditStatus = (doc: DokumenHukumItem) => {
     setEditingStatusDoc(doc);
@@ -433,12 +409,77 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
     }
   };
 
+  // Handler multi-select dokumen hukum
+  const handleToggleSelectDoc = (id: string) => {
+    setSelectedDocIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllDocs = () => {
+    const currentItems: DokumenHukumItem[] = peraturans?.data || [];
+    if (selectedDocIds.length === currentItems.length && currentItems.length > 0) {
+      setSelectedDocIds([]);
+    } else {
+      setSelectedDocIds(currentItems.map((item) => item.id));
+    }
+  };
+
+  // Handler embedding AI (Single dari tabel aksi, Batch checkbox, atau All Pending)
+  const handleEmbed = async ({
+    ids,
+    all_pending = false,
+    force = false,
+  }: {
+    ids?: string[];
+    all_pending?: boolean;
+    force?: boolean;
+  }) => {
+    try {
+      setIsEmbeddingLoading(true);
+      toast.info(
+        all_pending
+          ? 'Sedang memproses embedding untuk seluruh dokumen yang belum ter-embed...'
+          : `Sedang memproses embedding untuk ${ids?.length || 1} dokumen hukum...`
+      );
+
+      const csrfToken = (document.head.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+      const response = await fetch('/admin/dokumen-hukum/embed', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+        },
+        body: JSON.stringify({
+          ids,
+          all_pending,
+          force,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Gagal memproses embedding');
+      }
+
+      toast.success(result.message || 'Embedding AI berhasil diproses!');
+      setSelectedDocIds([]);
+      fetchData();
+    } catch (error: any) {
+      console.error('Embedding error:', error);
+      toast.error(error.message || 'Terjadi kesalahan saat memproses embedding AI');
+    } finally {
+      setIsEmbeddingLoading(false);
+    }
+  };
+
   // Gunakan data dari backend Inertia Props sesuai tab aktif
   const isDraftTab = activeTab === 'draft';
   const activePaginator = isDraftTab ? drafts : peraturans;
   const paginatedDocuments = peraturans?.data || [];
   const paginatedDrafts = drafts?.data || [];
-  const _totalItems = activePaginator?.total || 0;
   const totalPages = activePaginator?.last_page || 1;
   const hasData = isDraftTab ? paginatedDrafts.length > 0 : paginatedDocuments.length > 0;
 
@@ -523,14 +564,46 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
       </div>
 
       {/* 2. Page Header & Action Button Menggunakan Komponen Reusable */}
-      <PageHeader
-        title="Daftar Dokumen Hukum"
-        description="Kelola daftar peraturan, putusan, dan impor dokumen hukum hasil OCR."
-        action={{
-          label: 'Tambah Hukum',
-          href: '/admin/dokumen-hukum/tambah',
-        }}
-      />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="font-sans font-semibold tracking-tight text-neu-900 text-[20px] leading-[26px]">
+            Daftar Dokumen Hukum
+          </h1>
+          <p className="font-sans text-[13px] sm:text-[14px] font-normal leading-[20px] text-neu-500 mt-1">
+            Kelola daftar peraturan, putusan, dan impor dokumen hukum hasil OCR.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          {/* Tombol Opsi Embed Semua yang Belum (Data yang sudah akan dilewatkan) */}
+          <button
+            type="button"
+            onClick={() => handleEmbed({ all_pending: true })}
+            disabled={isEmbeddingLoading || (stats?.unembedded_count ?? 0) === 0}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-[10px] text-xs font-semibold transition-all shadow-2xs ${
+              (stats?.unembedded_count ?? 0) > 0
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-300 cursor-pointer active:scale-[0.98]'
+                : 'bg-neu-100 border border-neu-200 text-neu-500 cursor-not-allowed opacity-80'
+            }`}
+            title="Proses embedding AI untuk seluruh peraturan yang belum memiliki vektor embedding (data yang sudah akan dilewatkan)"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>
+              {(stats?.unembedded_count ?? 0) > 0
+                ? `Embed Semua yang Belum (${stats.unembedded_count})`
+                : 'Semua Dokumen Ter-embed'}
+            </span>
+          </button>
+
+          <Link
+            href="/admin/dokumen-hukum/tambah"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tambah Hukum</span>
+          </Link>
+        </div>
+      </div>
 
       {/* 2.5 Kotak-kotak Ringkasan Statistik Dokumen (StatCards Sesuai Desain Figma #2291:38182) */}
       <div className="mb-6">
@@ -543,7 +616,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
               icon: <Files className="w-5 h-5" />,
               note: (stats?.total_dokumen ?? 0) === 0 ? 'Belum ada hukum yang ditambahkan' : undefined,
               trend: (stats?.total_dokumen ?? 0) > 0 ? {
-                value: `↗ +${stats?.penambahan_baru ?? 12} penambahan baru`,
+                value: `↗ +${stats?.penambahan_baru ?? 0} penambahan baru`,
                 isPositive: true,
               } : undefined,
             },
@@ -591,7 +664,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
               value={searchQuery}
               onChange={handleSearchChange}
               placeholder="Cari kategori, judul..."
-              className="w-full pl-8.5 pr-8 py-1.5 text-[12px] rounded-[10px] border border-neu-50 bg-white placeholder-neu-400 text-neu-900 focus:outline-none focus:border-pr-900 focus:ring-1 focus:ring-pr-900 transition-all shadow-2xs"
+              className="w-full pl-8.5 pr-8 py-1.5 text-[12px] rounded-[10px] border border-neu-50 bg-white placeholder-neu-400 text-neu-900 focus:outline-none focus:border-neu-300 focus:ring-2 focus:ring-pr-900/5 transition-all shadow-2xs"
             />
             {searchQuery && (
               <button
@@ -734,6 +807,11 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
             onEdit={handleEditClick}
             onToggleStatus={handleOpenEditStatus}
             onDelete={(doc) => setDeletingDoc(doc)}
+            onEmbed={(doc) => handleEmbed({ ids: [doc.id] })}
+            isEmbeddingLoading={isEmbeddingLoading}
+            selectedIds={selectedDocIds}
+            onToggleSelect={handleToggleSelectDoc}
+            onSelectAll={handleSelectAllDocs}
             isDetailLoading={isDetailLoading}
           />
         ) : (
@@ -752,6 +830,32 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
       />
+
+      {/* Floating Batch Action Bar untuk Dokumen Terpilih */}
+      {selectedDocIds.length > 0 && !isDraftTab && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-pr-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-4 border border-pr-700 animate-in slide-in-from-bottom duration-200">
+          <span className="text-sm font-medium text-neu-100">
+            {selectedDocIds.length} dokumen dipilih
+          </span>
+          <div className="h-4 w-px bg-pr-700" />
+          <button
+            type="button"
+            onClick={() => handleEmbed({ ids: selectedDocIds })}
+            disabled={isEmbeddingLoading}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all shadow-sm cursor-pointer disabled:opacity-50 active:scale-95"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{isEmbeddingLoading ? 'Memproses...' : `Embed AI Terpilih (${selectedDocIds.length})`}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedDocIds([])}
+            className="text-xs text-neu-300 hover:text-white transition-colors cursor-pointer"
+          >
+            Batal
+          </button>
+        </div>
+      )}
 
       {/* ── MODAL OVERLAYS (Nimpa In-Place tanpa reload / pindah halaman) ── */}
       {/* Modal Tambah Dokumen */}

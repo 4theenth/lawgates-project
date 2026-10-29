@@ -15,12 +15,26 @@ use App\Models\PenjelasanPasal;
 use App\Models\LawRelation;
 use App\Models\DraftDokumen;
 use Illuminate\Support\Facades\DB;
+use App\Services\QwenEmbeddingService;
+use App\Services\SemanticSearchService;
 
 class DokumenHukumController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'creator', 'updater']);
+        // Hanya ambil dokumen peraturan sah yang memiliki isi (pasal) dan bukan placeholder "Menunggu import"
+        $query = Peraturan::with(['jenisPeraturan', 'statusPeraturan', 'creator', 'updater'])
+            ->where(function ($q) {
+                $q->whereNull('peraturan.judul')
+                  ->orWhereRaw('LOWER(peraturan.judul) NOT LIKE ?', ['%menunggu import%']);
+            })
+            ->has('pasal')
+            ->withCount([
+                'pasal as total_pasal',
+                'pasal as embedded_pasal' => function ($q) {
+                    $q->whereNotNull('embedding');
+                }
+            ]);
 
         // Filter: Status (Berlaku / Tidak Berlaku / Draft)
         if ($request->filled('status') && $request->status !== 'all') {
@@ -73,7 +87,8 @@ class DokumenHukumController extends Controller
             if ($request->sortColumn === 'kategori') {
                 $query->leftJoin('jenis_peraturan', 'peraturan.jenis_peraturan_id', '=', 'jenis_peraturan.id')
                       ->orderBy('jenis_peraturan.nama', $direction)
-                      ->orderBy('peraturan.updated_at', 'desc')
+                      ->orderBy('peraturan.created_at', 'desc')
+                      ->orderBy('peraturan.id', 'desc')
                       ->select('peraturan.*');
             } else if ($request->sortColumn === 'status') {
                 $query->leftJoin('status_peraturan', 'peraturan.status_id', '=', 'status_peraturan.id');
@@ -92,26 +107,30 @@ class DokumenHukumController extends Controller
                         ELSE 3
                     END ASC");
                 }
-                $query->orderBy('peraturan.updated_at', 'desc')
+                $query->orderBy('peraturan.created_at', 'desc')
+                      ->orderBy('peraturan.id', 'desc')
                       ->select('peraturan.*');
             } else if ($request->sortColumn === 'tgl_ditetapkan') {
                 $query->orderByRaw("tanggal_penetapan {$direction} NULLS LAST")
-                      ->orderBy('peraturan.updated_at', 'desc');
+                      ->orderBy('peraturan.created_at', 'desc')
+                      ->orderBy('peraturan.id', 'desc');
             } else if ($request->sortColumn === 'judul') {
                 $query->orderByRaw("judul {$direction} NULLS LAST")
-                      ->orderBy('peraturan.updated_at', 'desc');
+                      ->orderBy('peraturan.created_at', 'desc')
+                      ->orderBy('peraturan.id', 'desc');
             } else if ($request->sortColumn === 'author') {
                 $query->leftJoin('users as creator', 'peraturan.created_by', '=', 'creator.id')
                       ->leftJoin('users as updater', 'peraturan.updated_by', '=', 'updater.id')
                       ->orderByRaw("COALESCE(updater.username, creator.username, 'Sistem') {$direction}")
-                      ->orderBy('peraturan.updated_at', 'desc')
+                      ->orderBy('peraturan.created_at', 'desc')
+                      ->orderBy('peraturan.id', 'desc')
                       ->select('peraturan.*');
             } else {
                 $query->orderBy($request->sortColumn, $direction);
             }
         } else {
-            // Default sort: sesuai terakhir pembaruan
-            $query->orderBy('peraturan.updated_at', 'desc')->orderBy('peraturan.id', 'desc');
+            // Default sort: data yang baru di-upload/publish otomatis berada di paling atas
+            $query->orderBy('peraturan.created_at', 'desc')->orderBy('peraturan.id', 'desc');
         }
 
         $pageSize = max(1, min(100, (int) $request->input('pageSize', 10)));
@@ -127,8 +146,13 @@ class DokumenHukumController extends Controller
                 $status = 'tidak_berlaku';
             }
 
+            $totalPasal = (int) ($item->total_pasal ?? 0);
+            $embeddedPasal = (int) ($item->embedded_pasal ?? 0);
+            $isEmbedded = ($totalPasal > 0 && $embeddedPasal >= $totalPasal);
+
             return [
                 'id' => (string) $item->unique_id, // unique_id used for URL and deletion
+                'raw_id' => $item->id,
                 'kategori' => $item->jenisPeraturan ? $item->jenisPeraturan->nama : '-',
                 'lokasi_daerah' => $item->lokasi_daerah,
                 'subjek' => $item->subjek,
@@ -137,25 +161,34 @@ class DokumenHukumController extends Controller
                 'tgl_ditetapkan' => $item->tanggal_penetapan ? $item->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-',
                 'author' => $item->updater ? $item->updater->username : ($item->creator ? $item->creator->username : 'Sistem'),
                 'real_status' => $item->statusPeraturan ? $item->statusPeraturan->nama_status : '-',
+                'is_embedded' => $isEmbedded,
+                'total_pasal' => $totalPasal,
+                'embedded_pasal' => $embeddedPasal,
             ];
         });
 
         $paginator->setCollection($formattedData);
 
-        // Fetch References for filters (Categories)
-        $categories = JenisPeraturan::whereIn('id', Peraturan::select('jenis_peraturan_id')->distinct())
+        // Basis query peraturan real untuk referensi filter dan statistik
+        $realPeraturanBase = Peraturan::where(function ($q) {
+            $q->whereNull('judul')
+              ->orWhereRaw('LOWER(judul) NOT LIKE ?', ['%menunggu import%']);
+        })->has('pasal');
+
+        // Fetch References for filters (Categories) dari dokumen real
+        $categories = JenisPeraturan::whereIn('id', (clone $realPeraturanBase)->select('jenis_peraturan_id')->distinct())
             ->pluck('nama')
             ->unique()
             ->values();
 
-        $lokasiDaerah = Peraturan::select('lokasi_daerah')
+        $lokasiDaerah = (clone $realPeraturanBase)->select('lokasi_daerah')
             ->whereNotNull('lokasi_daerah')
             ->where('lokasi_daerah', '!=', '')
             ->distinct()
             ->pluck('lokasi_daerah')
             ->values();
 
-        $rawSubjek = Peraturan::select('subjek')
+        $rawSubjek = (clone $realPeraturanBase)->select('subjek')
             ->whereNotNull('subjek')
             ->where('subjek', '!=', '')
             ->distinct()
@@ -210,18 +243,21 @@ class DokumenHukumController extends Controller
             $draftsPaginator->setCollection($formattedDrafts);
         }
 
-        // Statistik ringkasan dokumen hukum untuk StatCards
+        // Statistik ringkasan dokumen hukum untuk StatCards berdasarkan data real yang memiliki pasal
         $stats = [
-            'total_dokumen' => Peraturan::count(),
-            'total_berlaku' => Peraturan::whereHas('statusPeraturan', function ($q) {
+            'total_dokumen' => (clone $realPeraturanBase)->count(),
+            'total_berlaku' => (clone $realPeraturanBase)->whereHas('statusPeraturan', function ($q) {
                 $q->where('nama_status', 'not ilike', '%tidak berlaku%')
                   ->where('nama_status', 'not ilike', '%belum berlaku%');
             })->count(),
-            'total_tidak_berlaku' => Peraturan::whereHas('statusPeraturan', function ($q) {
+            'total_tidak_berlaku' => (clone $realPeraturanBase)->whereHas('statusPeraturan', function ($q) {
                 $q->where('nama_status', 'ilike', '%tidak berlaku%');
             })->count(),
             'total_draft' => DraftDokumen::where('status', 'draft')->count(),
-            'penambahan_baru' => 12,
+            'penambahan_baru' => (clone $realPeraturanBase)->where('created_at', '>=', now()->subDays(30))->count(),
+            'unembedded_count' => (clone $realPeraturanBase)->whereHas('pasal', function ($q) {
+                $q->whereNull('embedding');
+            })->count(),
         ];
 
         return Inertia::render('Admin/DokumenHukum/Index', [
@@ -235,6 +271,153 @@ class DokumenHukumController extends Controller
                 'subjek' => $subjekList
             ]
         ]);
+    }
+
+    /**
+     * Memproses embedding AI untuk data pasal pada dokumen hukum.
+     * Mendukung:
+     * 1. Single regulation (dari menu Aksi baris tabel)
+     * 2. Batch regulations (dari opsi checkbox dokumen terpilih)
+     * 3. Embed all pending (seluruh dokumen hukum yang belum ter-embed, data yang sudah akan dilewatkan)
+     */
+    public function embedRegulations(Request $request, QwenEmbeddingService $embeddingService)
+    {
+        // Tingkatkan time limit eksekusi untuk proses AI embedding
+        set_time_limit(300);
+
+        try {
+            $ids = $request->input('ids', []);
+            $allPending = filter_var($request->input('all_pending', false), FILTER_VALIDATE_BOOLEAN);
+            $force = filter_var($request->input('force', false), FILTER_VALIDATE_BOOLEAN);
+
+            // 1. Tentukan query peraturan target
+            $peraturanQuery = Peraturan::query()
+                ->where(function ($q) {
+                    $q->whereNull('judul')
+                      ->orWhereRaw('LOWER(judul) NOT LIKE ?', ['%menunggu import%']);
+                })
+                ->has('pasal');
+
+            if ($allPending) {
+                // Hanya proses dokumen yang memiliki setidaknya satu pasal tanpa embedding
+                $peraturanQuery->whereHas('pasal', function ($q) {
+                    $q->whereNull('embedding');
+                });
+            } elseif (!empty($ids)) {
+                $ids = is_array($ids) ? $ids : [$ids];
+                $numericIds = array_values(array_filter($ids, fn($id) => is_numeric($id)));
+                $stringIds = array_values(array_filter($ids, fn($id) => !is_numeric($id) && is_string($id)));
+
+                $peraturanQuery->where(function ($q) use ($numericIds, $stringIds) {
+                    if (!empty($numericIds) && !empty($stringIds)) {
+                        $q->whereIn('id', $numericIds)
+                          ->orWhereIn('unique_id', $stringIds);
+                    } elseif (!empty($numericIds)) {
+                        $q->whereIn('id', $numericIds);
+                    } else {
+                        $q->whereIn('unique_id', $stringIds);
+                    }
+                });
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak ada dokumen hukum yang dipilih untuk embedding.',
+                ], 422);
+            }
+
+            $peraturans = $peraturanQuery->get();
+
+            if ($peraturans->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'processed_count' => 0,
+                    'message' => 'Semua dokumen yang dipilih sudah memiliki embedding (dilewatkan).',
+                ]);
+            }
+
+            $peraturanIds = $peraturans->pluck('id')->toArray();
+
+            // 2. Ambil pasal-pasal target
+            $pasalQuery = Pasal::with('peraturan')->whereIn('peraturan_id', $peraturanIds);
+            if (!$force) {
+                $pasalQuery->whereNull('embedding');
+            }
+
+            $pasals = $pasalQuery->get();
+
+            if ($pasals->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'processed_count' => 0,
+                    'message' => 'Seluruh pasal pada dokumen ini sudah memiliki vektor embedding.',
+                ]);
+            }
+
+            // 3. Proses embedding dalam chunk batch
+            $chunkSize = 20;
+            $processedCount = 0;
+            $failedCount = 0;
+
+            foreach ($pasals->chunk($chunkSize) as $chunk) {
+                $textsToEmbed = [];
+                $pasalMap = [];
+
+                foreach ($chunk as $pasal) {
+                    $peraturanJudul = $pasal->peraturan?->judul ?? 'Peraturan';
+                    $nomorPasal = $pasal->nomor_pasal ?? 'Pasal';
+                    $isiPasal = trim((string) $pasal->isi_pasal);
+
+                    // Contextual embedding: sertakan judul peraturan agar model AI memahami konteks hukum
+                    $contextualText = "{$peraturanJudul} - {$nomorPasal}: {$isiPasal}";
+                    $textsToEmbed[$pasal->id] = $contextualText;
+                    $pasalMap[$pasal->id] = $pasal;
+                }
+
+                try {
+                    $embeddings = $embeddingService->batchGenerateEmbeddings($textsToEmbed);
+
+                    foreach ($embeddings as $pasalId => $vector) {
+                        if (is_array($vector) && !empty($vector)) {
+                            $targetPasal = $pasalMap[$pasalId] ?? null;
+                            if ($targetPasal) {
+                                $targetPasal->embedding = $vector;
+                                $targetPasal->saveQuietly();
+                                $processedCount++;
+                            }
+                        } else {
+                            $failedCount++;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::error("Error saat batchGenerateEmbeddings di DokumenHukumController: " . $e->getMessage());
+                    $failedCount += count($chunk);
+                }
+            }
+
+            // Bersihkan cache pencarian semantik agar vektor baru langsung aktif
+            SemanticSearchService::clearCache();
+
+            $docCount = $peraturans->count();
+            $message = "Berhasil memproses embedding AI untuk {$processedCount} pasal dari {$docCount} dokumen.";
+            if ($failedCount > 0) {
+                $message .= " ({$failedCount} pasal gagal diproses).";
+            }
+
+            return response()->json([
+                'success' => true,
+                'processed_count' => $processedCount,
+                'failed_count' => $failedCount,
+                'total_documents' => $docCount,
+                'message' => $message,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Error in embedRegulations: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memproses embedding: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function storeDraft(Request $request)

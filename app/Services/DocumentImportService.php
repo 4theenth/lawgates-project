@@ -669,6 +669,7 @@ class DocumentImportService
             }
 
             DB::commit();
+            \App\Services\SemanticSearchService::clearCache();
             return $peraturan;
 
         } catch (\Exception $e) {

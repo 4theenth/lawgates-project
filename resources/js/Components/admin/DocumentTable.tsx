@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, Pencil, CircleChevronDown, Trash2 } from 'lucide-react';
+import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, Pencil, CircleChevronDown, Trash2, Sparkles } from 'lucide-react';
 import { StatusBadge } from '@/Components/common';
 import {
   Table,
@@ -13,6 +13,7 @@ import {
 
 export interface DokumenHukumItem {
   id: string;
+  raw_id?: number;
   kategori: string;
   judul: string;
   subjek?: string | null;
@@ -20,6 +21,9 @@ export interface DokumenHukumItem {
   tgl_ditetapkan: string;
   author?: string;
   real_status?: string;
+  is_embedded?: boolean;
+  total_pasal?: number;
+  embedded_pasal?: number;
 }
 
 export type SortColumn = 'kategori' | 'judul' | 'status' | 'tgl_ditetapkan' | 'author';
@@ -30,10 +34,15 @@ interface DocumentTableProps {
   onEdit?: (doc: DokumenHukumItem) => void;
   onToggleStatus?: (doc: DokumenHukumItem) => void;
   onDelete?: (doc: DokumenHukumItem) => void;
+  onEmbed?: (doc: DokumenHukumItem) => void;
+  isEmbeddingLoading?: boolean;
   sortColumn?: SortColumn | null;
   sortDirection?: SortDirection;
   onSort?: (column: SortColumn) => void;
   isDetailLoading?: boolean;
+  selectedIds?: string[];
+  onToggleSelect?: (id: string) => void;
+  onSelectAll?: () => void;
 }
 
 export function DocumentTable({
@@ -41,10 +50,15 @@ export function DocumentTable({
   onEdit,
   onToggleStatus,
   onDelete,
+  onEmbed,
+  isEmbeddingLoading = false,
   sortColumn = null,
   sortDirection = 'asc',
   onSort,
   isDetailLoading = false,
+  selectedIds = [],
+  onToggleSelect,
+  onSelectAll,
 }: DocumentTableProps) {
   // State id dokumen yang menu aksinya sedang terbuka dengan koordinat trigger
   const [actionMenuState, setActionMenuState] = useState<{
@@ -95,25 +109,38 @@ export function DocumentTable({
     };
   }, [actionMenuState]);
 
+  const isAllSelected = documents.length > 0 && selectedIds.length === documents.length;
+
   return (
     <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-hidden transition-all duration-200 relative">
       <div className="w-full overflow-x-auto custom-thin-scrollbar">
         <Table className="w-full min-w-[1150px] table-fixed text-left border-collapse">
-          {/* Colgroup untuk mengunci proporsi kolom (Kategori, Judul, Subjek, Status, Tgl Ditetapkan, Author [permintaan PM], Aksi) */}
+          {/* Colgroup untuk mengunci proporsi kolom (Checkbox, Kategori, Judul, Subjek, Status, Tgl Ditetapkan, Author, Aksi) */}
           <colgroup>
+            <col className="w-[4%] min-w-[42px]" />
             <col className="w-[14%] min-w-[130px]" />
             <col className="w-[24%] min-w-[250px]" />
-            <col className="w-[16%] min-w-[180px]" />
+            <col className="w-[15%] min-w-[160px]" />
             <col className="w-[12%] min-w-[120px]" />
-            <col className="w-[13%] min-w-[120px]" />
-            <col className="w-[13%] min-w-[120px]" />
+            <col className="w-[12%] min-w-[110px]" />
+            <col className="w-[11%] min-w-[110px]" />
             <col className="w-[8%] min-w-[70px]" />
           </colgroup>
 
         {/* Table Header (Sesuai spesifikasi admin Figma: bg-neu-50, border-b border-neu-200) */}
         <TableHeader className="bg-neu-50">
           <TableRow className="border-b border-neu-200">
-            <TableHead className="py-3 px-5 whitespace-nowrap rounded-tl-xl">
+            {/* Checkbox Pilih Semua */}
+            <TableHead className="py-3 px-3 text-center whitespace-nowrap rounded-tl-xl w-[42px]">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                onChange={() => onSelectAll?.()}
+                className="w-4 h-4 rounded border-neu-300 text-pr-900 focus:ring-pr-900/10 cursor-pointer accent-pr-900"
+                title="Pilih semua di halaman ini"
+              />
+            </TableHead>
+            <TableHead className="py-3 px-5 whitespace-nowrap">
               <div
                 onClick={() => onSort?.('kategori')}
                 className="group inline-flex items-center gap-1.5 cursor-pointer text-neu-700"
@@ -188,18 +215,43 @@ export function DocumentTable({
             return (
               <TableRow
                 key={doc.id}
-                className="hover:bg-neu-50/50 transition-colors border-b border-neu-100 last:border-0"
+                className={`hover:bg-neu-50/50 transition-colors border-b border-neu-100 last:border-0 ${
+                  selectedIds?.includes(doc.id) ? 'bg-pr-50/20' : ''
+                }`}
               >
+                {/* Checkbox Baris */}
+                <TableCell className="py-3.5 px-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(selectedIds?.includes(doc.id))}
+                    onChange={() => onToggleSelect?.(doc.id)}
+                    className="w-4 h-4 rounded border-neu-300 text-pr-900 focus:ring-pr-900/10 cursor-pointer accent-pr-900"
+                    title={`Pilih ${doc.judul}`}
+                  />
+                </TableCell>
+
                 {/* Kategori */}
                 <TableCell className="py-3.5 px-5 font-normal text-neu-700 truncate" title={doc.kategori}>
                   {doc.kategori}
                 </TableCell>
 
-                {/* Judul */}
+                {/* Judul & Status Embedding */}
                 <TableCell className="py-3.5 px-5 font-normal text-neu-900 truncate">
-                  <span className="truncate block" title={doc.judul}>
-                    {doc.judul}
-                  </span>
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="truncate block flex-1" title={doc.judul}>
+                      {doc.judul}
+                    </span>
+                    {doc.is_embedded ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 shrink-0" title="Vektor AI Siap">
+                        <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                        <span>AI Ready</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60 shrink-0" title="Belum memiliki vektor AI">
+                        <span>Belum Embed</span>
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
 
                 {/* Subjek */}
@@ -266,7 +318,7 @@ export function DocumentTable({
               right: `${actionMenuState.right}px`,
               zIndex: 9999,
             }}
-            className="w-[138px] bg-white rounded-[10px] shadow-[0px_1px_6.4px_0px_rgba(0,0,0,0.11)] border border-[#E9E9E9] py-[5px] px-[12px] text-left animate-in fade-in zoom-in-95 duration-100 flex flex-col"
+            className="w-[144px] bg-white rounded-[10px] shadow-[0px_1px_6.4px_0px_rgba(0,0,0,0.11)] border border-[#E9E9E9] py-[5px] px-[12px] text-left animate-in fade-in zoom-in-95 duration-100 flex flex-col"
           >
             {/* Header: Aksi (Body Small/Medium, 12px, #000000) */}
             <div className="py-[3px] text-[12px] font-medium text-black leading-[18px]">
@@ -302,6 +354,21 @@ export function DocumentTable({
             >
               <CircleChevronDown className="w-[14px] h-[14px] text-[#373737] shrink-0" />
               <span>Edit Status</span>
+            </button>
+
+            {/* Embed AI (Sesuai masukan admin: opsi embedding langsung di baris aksi) */}
+            <button
+              type="button"
+              onClick={() => {
+                const target = actionMenuState.doc;
+                setActionMenuState(null);
+                onEmbed?.(target);
+              }}
+              disabled={isEmbeddingLoading}
+              className="w-full flex items-center gap-[8px] py-[3px] text-[12px] font-normal text-[#373737] hover:text-black transition-colors cursor-pointer text-left leading-[18px] disabled:opacity-50"
+            >
+              <Sparkles className="w-[14px] h-[14px] text-emerald-600 shrink-0" />
+              <span>{actionMenuState.doc.is_embedded ? 'Embed Ulang AI' : 'Embed AI'}</span>
             </button>
 
             {/* Garis Pemisah (Neutral / 50: #E9E9E9) */}
