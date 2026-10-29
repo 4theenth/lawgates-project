@@ -140,7 +140,9 @@ class DokumenHukumController extends Controller
                 'tgl_ditetapkan' => $item->tanggal_penetapan ? $item->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-',
                 'author' => $item->updater ? $item->updater->username : ($item->creator ? $item->creator->username : 'Sistem'),
                 'real_status' => $item->statusPeraturan ? $item->statusPeraturan->nama_status : '-',
-                'has_pdf' => !empty($item->file_pdf_path) || !empty($item->url_pdf),
+                // file_pdf_path adalah sumber kebenaran; url_pdf hanya metadata
+                // sumber dan tidak menjamin berkas PDF benar-benar tersimpan.
+                'has_pdf' => !empty($item->file_pdf_path),
             ];
         });
 

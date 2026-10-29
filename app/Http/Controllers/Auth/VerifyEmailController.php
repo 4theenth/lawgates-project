@@ -3,32 +3,50 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Auth\Events\Verified;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class VerifyEmailController extends Controller
 {
     /**
-     * Mark the authenticated user's email address as verified.
+     * Tandai email pemilik tautan bertanda tangan sebagai terverifikasi.
      *
-     * Setelah verifikasi, pengguna langsung dilempar ke beranda — bukan ke
-     * dashboard — supaya alurnya sama dengan halaman pemberitahuan verifikasi
-     * (`EmailVerificationPromptController`) yang juga mengarah ke `home`.
+     * User id + hash diambil dari URL, bukan dari sesi, karena akun yang belum
+     * terverifikasi memang tidak punya sesi login. Keabsahan tautan dijamin
+     * middleware `signed` + pencocokan hash email.
+     *
+     * Setelah verifikasi berhasil, pemilik tautan langsung dibuatkan sesi
+     * login. Tautan bertanda tangan hanya dikirim ke email pemilik akun, jadi
+     * membukanya sudah membuktikan kepemilikan email dan password tidak perlu
+     * diketik ulang.
      */
-    public function __invoke(EmailVerificationRequest $request): RedirectResponse
+    public function __invoke(Request $request, int $id, string $hash): RedirectResponse
     {
-        // `intended()` dipakai supaya tujuan yang disimpan sebelum pendaftaran
-        // (mis. /pencarian?keyword=...) tidak hilang setelah verifikasi selesai.
-        // Tanpa ini pengguna selalu mendarat di beranda.
-        if ($request->user()->hasVerifiedEmail()) {
-            return redirect()->intended(route('home'));
+        $user = User::find($id);
+
+        abort_unless(
+            $user && hash_equals((string) $hash, sha1($user->getEmailForVerification())),
+            403,
+            'Tautan verifikasi tidak valid.'
+        );
+
+        if (! $user->hasVerifiedEmail()) {
+            if ($user->markEmailAsVerified()) {
+                event(new Verified($user));
+            }
         }
 
-        if ($request->user()->markEmailAsVerified()) {
-            event(new Verified($request->user()));
+        // Belum login, atau masih login sebagai akun lain: ganti sesi ke akun
+        // pemilik tautan. `regenerate()` mencegah session fixation.
+        if (Auth::id() !== $user->id) {
+            Auth::login($user);
+            $request->session()->regenerate();
         }
 
-        return redirect()->intended(route('home'));
+        return redirect()->intended(route('home'))
+            ->with('success', 'Email berhasil diverifikasi. Anda sudah masuk ke akun Anda.');
     }
 }
