@@ -180,3 +180,20 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
+/*
+|--------------------------------------------------------------------------
+| Fallback 404
+|--------------------------------------------------------------------------
+| URL tak dikenal sebelumnya tidak melewati middleware `web`, sehingga sesi
+| tidak pernah dimulai dan halaman 404 selalu menampilkan tombol "Masuk"
+| walau pengguna sudah login. Fallback ini membuat 404 dirender dari route
+| biasa (sesi + auth aktif) agar state navbar sama dengan halaman lain.
+*/
+Route::fallback(function (\Illuminate\Http\Request $request) {
+    if ($request->is('api/*') || $request->expectsJson()) {
+        return response()->json(['message' => 'Not Found.'], 404);
+    }
+
+    abort(404);
+});
