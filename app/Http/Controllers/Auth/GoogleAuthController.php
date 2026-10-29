@@ -65,11 +65,14 @@ class GoogleAuthController extends Controller
         $accessToken = $request->access_token;
         $remember = $request->boolean('remember', true);
 
-        // Pastikan opsi verifikasi SSL menggunakan CA bundle lokal yang tersedia (mencegah cURL error 60 di Windows)
+        // Di lingkungan lokal (khususnya Windows tanpa konfigurasi cafile di php.ini),
+        // gunakan CA bundle lokal dari vendor jika tersedia untuk mencegah cURL error 60.
+        // Di production (Linux), biarkan kosong agar cURL memakai CA store sistem operasi yang selalu ter-update.
         $caBundle = base_path('vendor/google/apiclient/src/Google/IO/cacerts.pem');
-        $httpOptions = [
-            'verify' => file_exists($caBundle) ? $caBundle : !app()->isLocal(),
-        ];
+        $httpOptions = [];
+        if (app()->isLocal() && file_exists($caBundle)) {
+            $httpOptions['verify'] = $caBundle;
+        }
 
         // Fetch user info from Google
         $response = Http::withToken($accessToken)
