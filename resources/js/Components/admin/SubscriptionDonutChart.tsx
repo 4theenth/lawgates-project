@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-interface SubscriptionData {
+export interface SubscriptionData {
   premiumCount: number;
   freeCount: number;
   totalUsers: number;
@@ -25,8 +25,8 @@ export function SubscriptionDonutChart({
   const [activeSegment, setActiveSegment] = useState<'premium' | 'free' | null>(null);
 
   const { premiumCount, freeCount, totalUsers } = data;
-  const premiumPct = Math.round((premiumCount / totalUsers) * 100);
-  const freePct = 100 - premiumPct;
+  const premiumPct = totalUsers > 0 ? Math.round((premiumCount / totalUsers) * 100) : 0;
+  const freePct = totalUsers > 0 ? 100 - premiumPct : 0;
 
   // Dimensi SVG
   const cx = 110;
@@ -134,43 +134,51 @@ export function SubscriptionDonutChart({
             className="w-full h-full overflow-visible select-none drop-shadow-2xs"
             onMouseLeave={() => setActiveSegment(null)}
           >
-            {/* Slice 1: Pengguna Gratis (70% - Gold) */}
-            <path
-              d={pathFree}
-              fill="var(--color-sec-900)"
-              className="cursor-pointer transition-all duration-300 ease-out"
-              opacity={isPremiumActive ? 0.35 : 1}
-              onMouseEnter={() => setActiveSegment('free')}
-            />
+            {freeCount > 0 && (
+              <>
+                {/* Slice 1: Pengguna Gratis (Gold) */}
+                <path
+                  d={pathFree}
+                  fill="var(--color-sec-900)"
+                  className="cursor-pointer transition-all duration-300 ease-out"
+                  opacity={isPremiumActive ? 0.35 : 1}
+                  onMouseEnter={() => setActiveSegment('free')}
+                />
 
-            {/* Slice 2: Pengguna Premium (30% - Navy) */}
-            <path
-              d={pathPremium}
-              fill="var(--color-pr-900)"
-              className="cursor-pointer transition-all duration-300 ease-out"
-              opacity={isFreeActive ? 0.35 : 1}
-              onMouseEnter={() => setActiveSegment('premium')}
-            />
+                {/* Label persentase di atas busur gratis */}
+                <text
+                  x={midFree.x}
+                  y={midFree.y + 4}
+                  textAnchor="middle"
+                  className="text-[12px] font-medium fill-white pointer-events-none select-none"
+                >
+                  {freePct}%
+                </text>
+              </>
+            )}
 
-            {/* Label 70% di atas busur gratis */}
-            <text
-              x={midFree.x}
-              y={midFree.y + 4}
-              textAnchor="middle"
-              className="text-[12px] font-medium fill-white pointer-events-none select-none"
-            >
-              {freePct}%
-            </text>
+            {premiumCount > 0 && (
+              <>
+                {/* Slice 2: Pengguna Premium (Navy) */}
+                <path
+                  d={pathPremium}
+                  fill="var(--color-pr-900)"
+                  className="cursor-pointer transition-all duration-300 ease-out"
+                  opacity={isFreeActive ? 0.35 : 1}
+                  onMouseEnter={() => setActiveSegment('premium')}
+                />
 
-            {/* Label 30% di atas busur premium */}
-            <text
-              x={midPremium.x}
-              y={midPremium.y + 4}
-              textAnchor="middle"
-              className="text-[12px] font-medium fill-white pointer-events-none select-none"
-            >
-              {premiumPct}%
-            </text>
+                {/* Label persentase di atas busur premium */}
+                <text
+                  x={midPremium.x}
+                  y={midPremium.y + 4}
+                  textAnchor="middle"
+                  className="text-[12px] font-medium fill-white pointer-events-none select-none"
+                >
+                  {premiumPct}%
+                </text>
+              </>
+            )}
           </svg>
 
           {/* Teks Tengah Donut */}

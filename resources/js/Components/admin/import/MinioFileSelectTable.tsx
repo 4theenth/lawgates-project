@@ -19,6 +19,17 @@ export interface MinioFileItem {
   sizeKb: number;
 }
 
+function formatFileSize(sizeKb: number): string {
+  if (!Number.isFinite(sizeKb) || sizeKb <= 0) return '0 KB';
+
+  if (sizeKb >= 1024) {
+    const sizeMb = sizeKb / 1024;
+    return `${sizeMb % 1 === 0 ? sizeMb.toFixed(0) : sizeMb.toFixed(1)} MB`;
+  }
+
+  return `${Math.max(1, Math.round(sizeKb))} KB`;
+}
+
 // Data dummy berkas OCR sesuai permintaan: variasi berkas perubahan Undang-Undang Dasar
 const DEFAULT_SAMPLE_FILES: MinioFileItem[] = [
   { id: 'f-1', name: 'Perubahan_Pertama_UUD_1945.json', title: 'Perubahan Pertama Undang Undang Dasar Tahun 1945', sizeKb: 1983 },
@@ -374,7 +385,7 @@ export function MinioFileSelectTable({
                     onClick={() => handleToggleSelect(file.id)}
                     className="py-3.5 px-6 font-normal text-neu-800 text-[12px] text-left cursor-pointer w-[180px]"
                   >
-                    {file.sizeKb}KB
+                    {formatFileSize(file.sizeKb)}
                   </TableCell>
                 </TableRow>
               );

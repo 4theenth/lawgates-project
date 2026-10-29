@@ -9,6 +9,7 @@ import { DocumentTable, DokumenHukumItem, SortColumn, SortDirection } from '@/Co
 import { DraftTable } from '@/Components/admin/DraftTable';
 import { FilterPopover } from '@/Components/admin/FilterPopover';
 import { DocumentModal } from '@/Components/admin/DocumentModal';
+import { DocumentPreviewModal } from '@/Components/admin/DocumentPreviewModal';
 import { EditStatusModal } from '@/Components/admin/EditStatusModal';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
 import { DuplicateConfirmModal } from '@/Components/admin/DuplicateConfirmModal';
@@ -130,6 +131,10 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [editingStatusDoc, setEditingStatusDoc] = useState<DokumenHukumItem | null>(null);
   const [deletingDoc, setDeletingDoc] = useState<DokumenHukumItem | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<DokumenHukumItem | null>(null);
+  // Draf yang menunggu konfirmasi hapus (kosong = modal tertutup)
+  const [deletingDraftIds, setDeletingDraftIds] = useState<string[]>([]);
+  const [isDeletingDraft, setIsDeletingDraft] = useState(false);
 
   // State untuk modal konfirmasi duplikasi (status 409 Conflict)
   const [duplicateModal, setDuplicateModal] = useState<{
@@ -405,9 +410,10 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
     }
   };
 
-  // Handler delete draft (tunggal atau massal)
-  const handleDeleteDraft = async (ids: string[]) => {
-    if (ids.length === 0) return;
+  // Handler delete draft (tunggal atau massal). Mengembalikan status berhasil
+  // agar dialog konfirmasi tetap terbuka bila penghapusan gagal dan user bisa mengulang.
+  const handleDeleteDraft = async (ids: string[]): Promise<boolean> => {
+    if (ids.length === 0) return false;
     try {
       const csrfToken = (document.head.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
       const response = await fetch('/admin/dokumen-hukum/draft/bulk-delete', {
@@ -427,9 +433,11 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
       toast.delete('Data berhasil dihapus');
       setSelectedDraftIds([]);
       fetchData();
+      return true;
     } catch (error: any) {
       console.error(error);
       toast.error('Data gagal dihapus');
+      return false;
     }
   };
 
@@ -626,7 +634,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
               </button>
               <button
                 type="button"
-                onClick={() => handleDeleteDraft(selectedDraftIds)}
+                onClick={() => setDeletingDraftIds(selectedDraftIds)}
                 disabled={selectedDraftIds.length <= 1}
                 className={`px-5 py-1.5 rounded-[8px] text-[13px] font-medium transition-all ${
                   selectedDraftIds.length > 1
@@ -717,7 +725,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
               onSort={handleSort as any}
               onEdit={(draft) => router.visit(`/admin/dokumen-hukum/tambah?draft_id=${draft.id}`)}
               onPublish={(draft) => handlePublishDraft([draft.id])}
-              onDelete={(draft) => handleDeleteDraft([draft.id])}
+              onDelete={(draft) => setDeletingDraftIds([draft.id])}
             />
           ) : (
             <EmptyState
@@ -731,6 +739,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={handleSort}
+            onPreview={(doc) => setPreviewDoc(doc)}
             onEdit={handleEditClick}
             onToggleStatus={handleOpenEditStatus}
             onDelete={(doc) => setDeletingDoc(doc)}
@@ -762,6 +771,13 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
         categories={ALL_CATEGORIES}
       />
 
+      {/* Modal Tinjauan Ringkas Dokumen (Read-only, tanpa reload) */}
+      <DocumentPreviewModal
+        show={Boolean(previewDoc)}
+        documentData={previewDoc}
+        onClose={() => setPreviewDoc(null)}
+      />
+
 
       {/* Modal Ubah Status Hukum (Sesuai Gambar dengan backdrop rgba(55,55,55,0.60)) */}
       <EditStatusModal
@@ -777,6 +793,25 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
         documentData={deletingDoc}
         onClose={() => setDeletingDoc(null)}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* Modal Konfirmasi Hapus Draf (tunggal / massal) */}
+      <DeleteConfirmModal
+        show={deletingDraftIds.length > 0}
+        title={`Hapus ${deletingDraftIds.length} Draf?`}
+        description={`${deletingDraftIds.length} draf yang dipilih akan dihapus permanen dan tidak dapat dipulihkan.`}
+        isLoading={isDeletingDraft}
+        onClose={() => setDeletingDraftIds([])}
+        onConfirm={async () => {
+          setIsDeletingDraft(true);
+          try {
+            if (await handleDeleteDraft(deletingDraftIds)) {
+              setDeletingDraftIds([]);
+            }
+          } finally {
+            setIsDeletingDraft(false);
+          }
+        }}
       />
 
       {/* Modal Konfirmasi Duplikasi jika terdeteksi Status 409 Conflict (AC 3) */}

@@ -3,37 +3,26 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Bookmark\AssignBookmarkCollectionsRequest;
+use App\Http\Requests\Bookmark\BookmarkCollectionRequest;
+use App\Http\Requests\Bookmark\ToggleBookmarkRequest;
 use App\Models\Bookmark;
 use App\Models\BookmarkCollection;
-use App\Models\Peraturan;
-use Illuminate\Database\UniqueConstraintViolationException;
+use App\Services\BookmarkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Bookmark dan folder (koleksi) milik user yang sedang login.
  *
- * Semua operasi tunduk pada `auth:sanctum` di routes/api.php. Kepemilikan
- * diperiksa eksplisit per baris (bukan hanya lewat middleware), supaya user
- * tidak bisa menyentuh folder atau bookmark milik user lain.
+ * Semua operasi tunduk pada `auth:sanctum` di routes/api.php. Aturan bisnis
+ * dipusatkan di BookmarkService; controller ini hanya menangani HTTP,
+ * otorisasi, dan bentuk respons.
  */
 class BookmarkController extends Controller
 {
-    /**
-     * Tipe entitas yang boleh di-bookmark, dipetakan dari alias API ke morph
-     * alias. Hanya yang terdaftar di sini diterima, sehingga user tidak bisa
-     * menyisipkan tipe sembarangan ke kolom bookmarkable_type.
-     *
-     * Isinya harus sejalan dengan morphMap di AppServiceProvider: tipe yang
-     * lolos validasi tapi belum terdaftar di sana akan tersimpan sebagai baris
-     * yatim, lalu melempar "Class \"<alias>\" not found" saat dibaca.
-     * Tambahkan di kedua tempat sekaligus, atau tidak sama sekali.
-     */
-    private const ALLOWED_TYPES = [
-        'peraturan' => 'peraturan',
-    ];
+    public function __construct(private readonly BookmarkService $bookmarks) {}
 
     // ─────────────────────────────────────────────
     // Daftar bookmark
@@ -86,63 +75,19 @@ class BookmarkController extends Controller
 
     /**
      * Tandai / lepas tanda simpan untuk satu entitas.
-     *
-     * Idempoten terhadap tombol yang tertekan cepat dua kali: melepas selalu
-     * boleh (walau peraturannya sudah di-soft-delete), dan bila dua request
-     * menyimpan hampir bersamaan, benturan unique index diperlakukan sebagai
-     * "sudah tersimpan" alih-alih 500.
      */
-    public function toggle(Request $request): JsonResponse
+    public function toggle(ToggleBookmarkRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'type' => ['required', 'string', Rule::in(array_keys(self::ALLOWED_TYPES))],
-            // Harus angka: kolom bookmarkable_id bertipe bigint, dan id non-angka
-            // (mis. unique_id/slug) akan mencapai query sebagai string lalu
-            // memicu SQLSTATE 22P02 -> 500 lengkap dengan stack trace.
-            'id' => ['required', 'integer', 'min:1'],
-        ]);
-
-        $type = self::ALLOWED_TYPES[$validated['type']];
-        $targetId = $validated['id'];
-        $user = $request->user();
-
-        $existing = $user->bookmarks()->forMorph($type, $targetId)->first();
-
-        // Melepas bookmark tidak butuh entitasnya masih ada. Peraturan yang
-        // di-soft-delete tetap harus bisa dilepas, jadi validasi target
-        // sengaja diletakkan setelah cabang ini.
-        if ($existing) {
-            $existing->delete();
-
-            return response()->json([
-                'success' => true,
-                'bookmarked' => false,
-                'type' => $validated['type'],
-                'target_id' => $targetId,
-            ]);
-        }
-
-        // Hanya saat membuat bookmark baru entitasnya wajib ada.
-        $this->resolveTarget($type, $targetId);
-
-        try {
-            $bookmark = $user->bookmarks()->create([
-                'bookmarkable_type' => $type,
-                'bookmarkable_id' => $targetId,
-            ]);
-        } catch (UniqueConstraintViolationException) {
-            // Balapan: request lain menyimpan entitas yang sama lebih dulu.
-            // Kondisi akhir tetap "tersimpan", jadi kembalikan sukses.
-            $bookmark = $user->bookmarks()->forMorph($type, $targetId)->firstOrFail();
-        }
+        $result = $this->bookmarks->toggle(
+            $request->user(),
+            $request->validated('type'),
+            (int) $request->validated('id'),
+        );
 
         return response()->json([
             'success' => true,
-            'bookmarked' => true,
-            'type' => $validated['type'],
-            'target_id' => $targetId,
-            'bookmark_id' => $bookmark->id,
-        ], 201);
+            ...$result,
+        ], $result['bookmarked'] ? 201 : 200);
     }
 
     /**
@@ -152,36 +97,21 @@ class BookmarkController extends Controller
      * dikirim. Daftar kosong berarti mengeluarkannya dari semua folder
      * (bookmark tetap ada).
      */
-    public function assignCollections(Request $request): JsonResponse
+    public function assignCollections(AssignBookmarkCollectionsRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'bookmark_id' => ['required', 'integer'],
-            'collection_ids' => ['present', 'array'],
-            'collection_ids.*' => ['integer'],
-        ]);
+        $bookmark = $request->user()
+            ->bookmarks()
+            ->findOrFail($request->validated('bookmark_id'));
 
-        $user = $request->user();
-
-        $bookmark = $user->bookmarks()->findOrFail($validated['bookmark_id']);
-
-        // Hanya folder milik user sendiri, supaya tidak bisa menautkan ke folder
-        // orang lain lewat id yang ditebak.
-        $collectionIds = BookmarkCollection::where('user_id', $user->id)
-            ->whereIn('id', $validated['collection_ids'])
-            ->pluck('id');
-
-        if ($collectionIds->count() !== count(array_unique($validated['collection_ids']))) {
-            abort(422, 'Ada folder yang tidak ditemukan.');
-        }
-
-        DB::transaction(function () use ($bookmark, $collectionIds) {
-            $bookmark->collections()->sync($collectionIds);
-        });
+        $result = $this->bookmarks->assignCollections(
+            $request->user(),
+            $bookmark,
+            $request->validated('collection_ids'),
+        );
 
         return response()->json([
             'success' => true,
-            'bookmark_id' => $bookmark->id,
-            'collection_ids' => $collectionIds->values(),
+            ...$result,
         ]);
     }
 
@@ -191,11 +121,7 @@ class BookmarkController extends Controller
 
     public function collections(Request $request): JsonResponse
     {
-        $collections = $request->user()
-            ->bookmarkCollections()
-            ->withCount('bookmarks')
-            ->orderBy('name')
-            ->get()
+        $collections = $this->bookmarks->collectionsForUser($request->user())
             ->map(fn (BookmarkCollection $collection) => [
                 'id' => $collection->id,
                 'name' => $collection->name,
@@ -210,31 +136,12 @@ class BookmarkController extends Controller
         ]);
     }
 
-    public function storeCollection(Request $request): JsonResponse
+    public function storeCollection(BookmarkCollectionRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'description' => ['nullable', 'string', 'max:500'],
-        ]);
-
-        $user = $request->user();
-
-        // Nama folder unik per user; pesannya jelas, bukan error constraint DB.
-        $exists = $user->bookmarkCollections()
-            ->whereRaw('LOWER(name) = ?', [mb_strtolower($validated['name'])])
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Nama folder sudah dipakai.',
-            ], 422);
-        }
-
-        $collection = $user->bookmarkCollections()->create([
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-        ]);
+        $collection = $this->bookmarks->createCollection(
+            $request->user(),
+            $request->validated(),
+        );
 
         return response()->json([
             'success' => true,
@@ -247,33 +154,17 @@ class BookmarkController extends Controller
         ], 201);
     }
 
-    public function updateCollection(Request $request, BookmarkCollection $collection): JsonResponse
-    {
-        $this->authorizeCollection($request, $collection);
+    public function updateCollection(
+        BookmarkCollectionRequest $request,
+        BookmarkCollection $collection
+    ): JsonResponse {
+        Gate::authorize('update', $collection);
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'description' => ['nullable', 'string', 'max:500'],
-        ]);
-
-        $user = $request->user();
-
-        $exists = $user->bookmarkCollections()
-            ->where('id', '!=', $collection->id)
-            ->whereRaw('LOWER(name) = ?', [mb_strtolower($validated['name'])])
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Nama folder sudah dipakai.',
-            ], 422);
-        }
-
-        $collection->update([
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-        ]);
+        $collection = $this->bookmarks->updateCollection(
+            $request->user(),
+            $collection,
+            $request->validated(),
+        );
 
         return response()->json([
             'success' => true,
@@ -289,48 +180,17 @@ class BookmarkController extends Controller
      * Hapus folder.
      *
      * Hanya baris pivot yang ikut terhapus; bookmark-nya tetap tersimpan
-     * (dan kembali terhitung sebagai "Tanpa Folder"). Ini AC #4 USER-02 dan
-     * dijamin oleh struktur tabel, bukan oleh kode di sini.
+     * (dan kembali terhitung sebagai "Tanpa Folder").
      */
-    public function destroyCollection(Request $request, BookmarkCollection $collection): JsonResponse
+    public function destroyCollection(BookmarkCollection $collection): JsonResponse
     {
-        $this->authorizeCollection($request, $collection);
+        Gate::authorize('delete', $collection);
 
-        $collection->delete();
+        $this->bookmarks->deleteCollection($collection);
 
         return response()->json([
             'success' => true,
             'message' => 'Folder dihapus. Bookmark di dalamnya tetap tersimpan.',
         ]);
-    }
-
-    // ─────────────────────────────────────────────
-    // Pembantu
-    // ─────────────────────────────────────────────
-
-    /**
-     * Pastikan folder ini milik user yang sedang login.
-     */
-    private function authorizeCollection(Request $request, BookmarkCollection $collection): void
-    {
-        if ($collection->user_id !== $request->user()->id) {
-            abort(403, 'Folder ini bukan milik Anda.');
-        }
-    }
-
-    /**
-     * Pastikan entitas yang mau di-bookmark ada.
-     */
-    private function resolveTarget(string $type, int|string $id): void
-    {
-        $model = match ($type) {
-            'peraturan' => Peraturan::class,
-            // 'putusan' => CourtDecision::class,
-            default => null,
-        };
-
-        if ($model === null || ! $model::whereKey($id)->exists()) {
-            abort(404, 'Data yang ingin disimpan tidak ditemukan.');
-        }
     }
 }

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\JenisPeraturan;
+use App\Models\Pasal;
 use App\Models\Peraturan;
 use App\Models\Status;
 use App\Models\User;
@@ -21,6 +22,20 @@ class CategorizedRegulationApiTest extends TestCase
         Cache::forget('regulations_category_stats');
     }
 
+    /**
+     * API publik hanya menyajikan peraturan yang sudah punya isi (pasal).
+     * Tanpa pasal, baris uji tidak akan pernah muncul di respons.
+     */
+    private function addPasal(Peraturan $peraturan): void
+    {
+        Pasal::create([
+            'peraturan_id' => $peraturan->id,
+            'nomor_pasal' => '1',
+            'isi_pasal' => 'Isi pasal uji.',
+            'urutan' => 1,
+        ]);
+    }
+
     public function test_category_stats_api_returns_cached_aggregated_totals(): void
     {
         $user = User::factory()->create();
@@ -30,32 +45,32 @@ class CategorizedRegulationApiTest extends TestCase
         $pp = JenisPeraturan::create(['kode' => 'PP', 'nama' => 'Peraturan Pemerintah']);
         $status = Status::create(['nama_status' => 'Berlaku']);
 
-        Peraturan::create([
+        $this->addPasal(Peraturan::create([
             'judul' => 'UU Nomor 1 Tahun 2026',
             'nomor' => '1',
             'tahun' => 2026,
             'jenis_peraturan_id' => $uu->id,
             'status_id' => $status->id,
             'unique_id' => 'uu-1-2026',
-        ]);
+        ]));
 
-        Peraturan::create([
+        $this->addPasal(Peraturan::create([
             'judul' => 'UU Nomor 2 Tahun 2026',
             'nomor' => '2',
             'tahun' => 2026,
             'jenis_peraturan_id' => $uu->id,
             'status_id' => $status->id,
             'unique_id' => 'uu-2-2026',
-        ]);
+        ]));
 
-        Peraturan::create([
+        $this->addPasal(Peraturan::create([
             'judul' => 'PP Nomor 5 Tahun 2026',
             'nomor' => '5',
             'tahun' => 2026,
             'jenis_peraturan_id' => $pp->id,
             'status_id' => $status->id,
             'unique_id' => 'pp-5-2026',
-        ]);
+        ]));
 
         $response = $this->getJson('/api/regulations/categories/stats');
 
@@ -89,7 +104,7 @@ class CategorizedRegulationApiTest extends TestCase
         $status = Status::create(['nama_status' => 'Berlaku']);
 
         for ($i = 1; $i <= 15; $i++) {
-            Peraturan::create([
+            $this->addPasal(Peraturan::create([
                 'judul' => "Peraturan Cipta Kerja {$i}",
                 'nomor' => (string) $i,
                 'tahun' => 2020 + ($i % 5),
@@ -97,7 +112,7 @@ class CategorizedRegulationApiTest extends TestCase
                 'status_id' => $status->id,
                 'instansi' => 'Kementerian Hukum',
                 'unique_id' => "reg-{$i}-2026",
-            ]);
+            ]));
         }
 
         // Test with category, search, limit, and page params

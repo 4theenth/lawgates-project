@@ -8,7 +8,6 @@ use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
@@ -98,11 +97,12 @@ class RegisteredUserController extends Controller
             session()->put('url.intended', $redirect);
         }
 
-        Auth::login($user);
-
-        // Akun manual wajib membuktikan kepemilikan email. Arahkan langsung ke
-        // halaman pemberitahuan verifikasi, bukan ke halaman tujuan semula.
-        return redirect()->route('verification.notice');
+        // Sengaja TIDAK login otomatis: akun manual baru boleh masuk setelah
+        // email terbukti milik pendaftar. Pengguna dikembalikan ke halaman
+        // login dengan pesan + tombol kirim ulang tautan verifikasi.
+        return redirect()->route('login')
+            ->with('status', 'Akun berhasil dibuat. Tautan verifikasi sudah dikirim ke '.$user->email.'. Verifikasi email Anda sebelum masuk.')
+            ->with('verification_email', $user->email);
     }
 
     /**

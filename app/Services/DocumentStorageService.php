@@ -150,13 +150,92 @@ class DocumentStorageService
     }
 
     /**
+     * Daftar path PDF yang benar-benar tersedia di MinIO.
+     *
+     * Sengaja tidak di-cache: dipakai oleh command sinkronisasi, bukan pada
+     * request admin. Listing bucket bisa lambat sehingga tidak cocok dipanggil
+     * per request.
+     *
+     * @return array<string, int> Map path => ukuran berkas (byte)
+     */
+    public static function listAvailablePdfPaths(): array
+    {
+        $paths = [];
+
+        // ListObjectsV2 sudah membawa ukuran berkas, jadi tidak perlu
+        // HEAD request tambahan per objek.
+        foreach (Storage::disk('minio')->getDriver()->listContents('documents', true) as $object) {
+            if (!$object->isFile()) {
+                continue;
+            }
+
+            $path = ltrim($object->path(), '/');
+            $size = (int) ($object->fileSize() ?? 0);
+
+            if ($size <= 1024 || !str_ends_with(strtolower($path), '.pdf')) {
+                continue;
+            }
+
+            $paths[$path] = $size;
+        }
+
+        return $paths;
+    }
+
+    /**
+     * Cari path PDF yang tersedia untuk peraturan berdasarkan daftar objek
+     * MinIO yang sudah dimuat sebelumnya.
+     *
+     * @param array<string, int> $availablePaths Hasil listAvailablePdfPaths()
+     */
+    public static function findAvailablePath(Peraturan $peraturan, array $availablePaths): ?string
+    {
+        if ($peraturan->file_pdf_path
+            && !self::isMismatchedCategoryPath($peraturan, $peraturan->file_pdf_path)
+            && isset($availablePaths[$peraturan->file_pdf_path])) {
+            return $peraturan->file_pdf_path;
+        }
+
+        foreach (self::getCandidatePaths($peraturan) as $candidate) {
+            if (isset($availablePaths[$candidate])) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Cek apakah path tersimpan menunjuk folder kategori yang salah
+     * (mis. perda yang tersimpan di folder /uu/).
+     */
+    protected static function isMismatchedCategoryPath(Peraturan $peraturan, string $path): bool
+    {
+        $kodeJenis = $peraturan->jenisPeraturan ? trim($peraturan->jenisPeraturan->kode) : '';
+        $namaJenis = $peraturan->jenisPeraturan ? trim($peraturan->jenisPeraturan->nama) : '';
+        $keyLower = strtolower($kodeJenis ?: $namaJenis ?: 'uu');
+        $pathLower = strtolower($path);
+
+        if (!str_contains($keyLower, 'uu') && !str_contains(strtolower($namaJenis), 'undang-undang')) {
+            // Hanya segmen folder kategori yang diperiksa. Judul folder dokumen
+            // lain bisa saja memuat frasa "undang-undang" secara sah.
+            return str_contains($pathLower, '/uu/')
+                || str_starts_with($pathLower, 'uu/')
+                || str_contains($pathLower, '/undang-undang/')
+                || str_starts_with($pathLower, 'undang-undang/');
+        }
+
+        return false;
+    }
+
+    /**
      * Cari path valid di MinIO
      */
     public static function resolveValidMinioPath(Peraturan $peraturan): ?string
     {
         $disk = Storage::disk('minio');
 
-        $isPdfFile = function ($path) use ($disk) {
+        $exists = function ($path) use ($disk) {
             try {
                 return $disk->exists($path);
             } catch (\Throwable $e) {
@@ -164,27 +243,37 @@ class DocumentStorageService
             }
         };
 
+        // 1. Cek path yang tersimpan di DB, kecuali menunjuk folder kategori lain
+        if ($peraturan->file_pdf_path
+            && !self::isMismatchedCategoryPath($peraturan, $peraturan->file_pdf_path)
+            && $exists($peraturan->file_pdf_path)) {
+            return $peraturan->file_pdf_path;
+        }
+
+        // 2. Cek kandidat path berdasarkan kategori, nomor/tahun, dan unique_id
+        foreach (self::getCandidatePaths($peraturan) as $candidate) {
+            if ($exists($candidate)) {
+                $peraturan->update(['file_pdf_path' => $candidate]);
+                self::clearLocalCache($peraturan->unique_id);
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Bangun daftar kandidat path PDF di MinIO untuk suatu peraturan.
+     *
+     * @return array<int, string>
+     */
+    protected static function getCandidatePaths(Peraturan $peraturan): array
+    {
         $kodeJenis = $peraturan->jenisPeraturan ? trim($peraturan->jenisPeraturan->kode) : '';
         $namaJenis = $peraturan->jenisPeraturan ? trim($peraturan->jenisPeraturan->nama) : '';
 
         // Normalize category key
         $keyLower = strtolower($kodeJenis ?: $namaJenis ?: 'uu');
-
-        // 1. Cek path yang tersimpan di DB
-        if ($peraturan->file_pdf_path) {
-            $pathLower = strtolower($peraturan->file_pdf_path);
-            $isMismatch = false;
-
-            if (!str_contains($keyLower, 'uu') && !str_contains(strtolower($namaJenis), 'undang-undang')) {
-                if (str_contains($pathLower, '/uu/') || str_contains($pathLower, 'undang-undang')) {
-                    $isMismatch = true;
-                }
-            }
-
-            if (!$isMismatch && $isPdfFile($peraturan->file_pdf_path)) {
-                return $peraturan->file_pdf_path;
-            }
-        }
 
         // Mapping kategori ke folder MinIO dan slug jenis lengkap
         $categoryMap = [
@@ -202,12 +291,21 @@ class DocumentStorageService
             'permen'  => ['folders' => ['permen', 'peraturan-menteri'], 'long_slugs' => ['peraturan-menteri', 'permen']],
         ];
 
-        // Cari konfigurasi yang sesuai
-        $matched = null;
-        foreach ($categoryMap as $catKey => $config) {
-            if (str_contains($keyLower, $catKey) || str_contains(strtolower($namaJenis), $catKey)) {
-                $matched = $config;
-                break;
+        // Cari konfigurasi yang sesuai. Cocokkan kode/nama secara persis lebih
+        // dulu agar kode pendek seperti "P" (perda) tidak menyerobot "PP",
+        // "PERPRES", atau "PERMEN".
+        $namaLower = strtolower($namaJenis);
+        $matched = $categoryMap[$keyLower] ?? $categoryMap[$namaLower] ?? null;
+
+        if (!$matched) {
+            foreach ($categoryMap as $catKey => $config) {
+                if ($catKey === 'p') {
+                    continue;
+                }
+                if (str_contains($keyLower, $catKey) || str_contains($namaLower, $catKey)) {
+                    $matched = $config;
+                    break;
+                }
             }
         }
         if (!$matched) {
@@ -299,17 +397,6 @@ class DocumentStorageService
         }
 
         // Filter dan deduplikasi
-        $candidatePaths = array_values(array_unique(array_filter($candidatePaths)));
-
-        // Cek secara efisien via HEAD request
-        foreach ($candidatePaths as $candidate) {
-            if ($isPdfFile($candidate)) {
-                $peraturan->update(['file_pdf_path' => $candidate]);
-                self::clearLocalCache($peraturan->unique_id);
-                return $candidate;
-            }
-        }
-
-        return null;
+        return array_values(array_unique(array_filter($candidatePaths)));
     }
 }

@@ -178,6 +178,13 @@ export function RecentTransactionsTable({
 
             {/* Body */}
             <tbody>
+              {paginatedData.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="py-8 px-3 text-center text-[12px] text-neu-500">
+                    Belum ada transaksi.
+                  </td>
+                </tr>
+              )}
               {paginatedData.map((item) => (
                 <tr
                   key={item.id}

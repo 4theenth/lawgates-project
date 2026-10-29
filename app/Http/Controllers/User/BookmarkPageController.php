@@ -3,23 +3,31 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Bookmark\BookmarkCollectionRequest;
+use App\Http\Requests\Bookmark\BulkAssignBookmarkCollectionsRequest;
+use App\Http\Requests\Bookmark\BulkDestroyBookmarksRequest;
+use App\Http\Requests\Bookmark\SyncBookmarkCollectionsRequest;
 use App\Models\Bookmark;
 use App\Models\BookmarkCollection;
 use App\Models\JenisPeraturan;
+use App\Services\BookmarkService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Validation\Rule;
 
 /**
  * Controller Halaman Bookmark User (Inertia).
  *
  * Mengelola daftar bookmark, filter jenis & sorting, serta pengelompokan
- * ke dalam folder koleksi.
+ * ke dalam folder koleksi. Aturan tulis dipusatkan di BookmarkService agar
+ * sama dengan endpoint API.
  */
 class BookmarkPageController extends Controller
 {
+    public function __construct(private readonly BookmarkService $bookmarks) {}
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -29,15 +37,13 @@ class BookmarkPageController extends Controller
         $lokasiFilter = $request->input('lokasi_daerah', $request->input('lokasi'));
         $sort = $request->input('sort', 'terbaru');
         $perPage = (int) $request->input('per_page', 6);
-        if (!in_array($perPage, [6, 12, 24, 48])) {
+        if (! in_array($perPage, [6, 12, 24, 48])) {
             $perPage = 6;
         }
 
         // Ambil daftar folder koleksi milik user beserta hitungan bookmark di tiap folder
-        $collections = $user->bookmarkCollections()
-            ->withCount('bookmarks')
-            ->orderBy('name')
-            ->get()
+        $collections = $this->bookmarks
+            ->collectionsForUser($user)
             ->map(function (BookmarkCollection $col) {
                 return [
                     'id' => $col->id,
@@ -58,7 +64,7 @@ class BookmarkPageController extends Controller
             ->with(['bookmarkable.jenisPeraturan', 'bookmarkable.statusPeraturan', 'collections']);
 
         // Filter berdasarkan folder koleksi yang dipilih
-        if ($collectionId !== 'all' && !empty($collectionId)) {
+        if ($collectionId !== 'all' && ! empty($collectionId)) {
             $query->whereHas('collections', function ($q) use ($collectionId) {
                 $q->where('bookmark_collections.id', $collectionId);
             });
@@ -71,10 +77,10 @@ class BookmarkPageController extends Controller
         // integer sehingga `tahun ilike ?` ditolak PostgreSQL dengan
         // "operator does not exist: integer ~~* unknown". whereLike menangani
         // cast kolom dan memilih operator sesuai driver.
-        if (!empty($search)) {
+        if (! empty($search)) {
             $query->whereHasMorph('bookmarkable', ['peraturan'], function ($q) use ($search) {
                 $q->where(function ($w) use ($search) {
-                    $kata = '%' . $search . '%';
+                    $kata = '%'.$search.'%';
                     $w->whereLike('judul', $kata)
                         ->orWhereLike('nomor', $kata)
                         ->orWhereLike('tahun', $kata)
@@ -88,11 +94,11 @@ class BookmarkPageController extends Controller
         }
 
         // Filter berdasarkan Jenis Peraturan (mendukung multi-select array / comma-separated)
-        if ($jenisFilter !== 'all' && !empty($jenisFilter)) {
+        if ($jenisFilter !== 'all' && ! empty($jenisFilter)) {
             $jenisArray = is_array($jenisFilter) ? $jenisFilter : explode(',', (string) $jenisFilter);
-            $jenisArray = array_values(array_filter($jenisArray, fn ($j) => $j !== 'all' && !empty(trim((string) $j))));
+            $jenisArray = array_values(array_filter($jenisArray, fn ($j) => $j !== 'all' && ! empty(trim((string) $j))));
 
-            if (!empty($jenisArray)) {
+            if (! empty($jenisArray)) {
                 $query->whereHasMorph('bookmarkable', ['peraturan'], function ($q) use ($jenisArray) {
                     $q->whereHas('jenisPeraturan', function ($jq) use ($jenisArray) {
                         $jq->where(function ($subQ) use ($jenisArray) {
@@ -100,8 +106,8 @@ class BookmarkPageController extends Controller
                                 if (is_numeric($j)) {
                                     $subQ->orWhere('id', (int) $j);
                                 } else {
-                                    $subQ->orWhereLike('nama', '%' . $j . '%')
-                                        ->orWhereLike('kode', '%' . $j . '%');
+                                    $subQ->orWhereLike('nama', '%'.$j.'%')
+                                        ->orWhereLike('kode', '%'.$j.'%');
                                 }
                             }
                         });
@@ -111,20 +117,20 @@ class BookmarkPageController extends Controller
         }
 
         // Filter berdasarkan Lokasi Daerah (khusus Peraturan Daerah)
-        if (!empty($lokasiFilter)) {
+        if (! empty($lokasiFilter)) {
             $lokasiList = is_array($lokasiFilter) ? $lokasiFilter : explode(',', (string) $lokasiFilter);
-            $lokasiList = array_values(array_filter($lokasiList, fn ($l) => !empty(trim((string) $l))));
+            $lokasiList = array_values(array_filter($lokasiList, fn ($l) => ! empty(trim((string) $l))));
 
-            if (!empty($lokasiList)) {
+            if (! empty($lokasiList)) {
                 $query->whereHasMorph('bookmarkable', ['peraturan'], function ($q) use ($lokasiList) {
                     $q->where(function ($subQ) use ($lokasiList) {
                         foreach ($lokasiList as $item) {
                             $trimmed = trim($item);
                             $clean = preg_replace('/^(pemerintah\s+provinsi|pemerintah\s+kabupaten|pemerintah\s+kota|pemerintah\s+daerah|kabupaten|kota)\s+/i', '', $trimmed);
-                            $subQ->orWhereLike('lokasi_daerah', '%' . $trimmed . '%')
-                                ->orWhereLike('lokasi_daerah', '%' . $clean . '%')
-                                ->orWhereLike('tempat_penetapan', '%' . $clean . '%')
-                                ->orWhereLike('instansi', '%' . $clean . '%');
+                            $subQ->orWhereLike('lokasi_daerah', '%'.$trimmed.'%')
+                                ->orWhereLike('lokasi_daerah', '%'.$clean.'%')
+                                ->orWhereLike('tempat_penetapan', '%'.$clean.'%')
+                                ->orWhereLike('instansi', '%'.$clean.'%');
                         }
                     });
                 });
@@ -164,7 +170,7 @@ class BookmarkPageController extends Controller
                     'jenis' => $peraturan?->jenisPeraturan?->nama ?? 'Peraturan',
                     'status' => $peraturan?->statusPeraturan?->nama_status ?? 'Berlaku',
                     'bookmarked_at' => $bookmark->created_at?->diffForHumans() ?? 'Baru saja',
-                    'collections' => $bookmark->collections->map(fn($col) => [
+                    'collections' => $bookmark->collections->map(fn ($col) => [
                         'id' => $col->id,
                         'name' => $col->name,
                     ]),
@@ -198,24 +204,9 @@ class BookmarkPageController extends Controller
     /**
      * Buat folder koleksi baru milik user.
      */
-    public function storeCollection(Request $request): RedirectResponse
+    public function storeCollection(BookmarkCollectionRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('bookmark_collections', 'name')->where('user_id', $request->user()->id),
-            ],
-        ], [
-            'name.unique' => 'Folder dengan nama tersebut sudah ada. Silakan gunakan nama lain.',
-            'name.required' => 'Nama folder tidak boleh kosong.',
-            'name.max' => 'Nama folder maksimal 50 karakter.',
-        ]);
-
-        $request->user()->bookmarkCollections()->create([
-            'name' => $validated['name'],
-        ]);
+        $this->bookmarks->createCollection($request->user(), $request->validated());
 
         return redirect()->back()->with('success', 'Folder koleksi berhasil dibuat.');
     }
@@ -223,28 +214,13 @@ class BookmarkPageController extends Controller
     /**
      * Ubah nama folder koleksi.
      */
-    public function updateCollection(Request $request, BookmarkCollection $collection): RedirectResponse
-    {
-        abort_unless($collection->user_id === $request->user()->id, 403);
+    public function updateCollection(
+        BookmarkCollectionRequest $request,
+        BookmarkCollection $collection
+    ): RedirectResponse {
+        Gate::authorize('update', $collection);
 
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('bookmark_collections', 'name')
-                    ->where('user_id', $request->user()->id)
-                    ->ignore($collection->id),
-            ],
-        ], [
-            'name.unique' => 'Folder dengan nama tersebut sudah ada. Silakan gunakan nama lain.',
-            'name.required' => 'Nama folder tidak boleh kosong.',
-            'name.max' => 'Nama folder maksimal 50 karakter.',
-        ]);
-
-        $collection->update([
-            'name' => $validated['name'],
-        ]);
+        $this->bookmarks->updateCollection($request->user(), $collection, $request->validated());
 
         return redirect()->back()->with('success', 'Nama folder koleksi berhasil diperbarui.');
     }
@@ -252,13 +228,12 @@ class BookmarkPageController extends Controller
     /**
      * Hapus folder koleksi (bookmark di dalamnya tidak terhapus).
      */
-    public function destroyCollection(Request $request, BookmarkCollection $collection): RedirectResponse
+    public function destroyCollection(BookmarkCollection $collection): RedirectResponse
     {
-        abort_unless($collection->user_id === $request->user()->id, 403);
+        Gate::authorize('delete', $collection);
 
         $name = $collection->name;
-        $collection->bookmarks()->detach();
-        $collection->delete();
+        $this->bookmarks->deleteCollection($collection);
 
         return redirect()->back()->with('success', "Folder \"{$name}\" berhasil dihapus.");
     }
@@ -266,22 +241,17 @@ class BookmarkPageController extends Controller
     /**
      * Sinkronisasi folder koleksi untuk satu bookmark.
      */
-    public function syncCollections(Request $request, Bookmark $bookmark): RedirectResponse
-    {
+    public function syncCollections(
+        SyncBookmarkCollectionsRequest $request,
+        Bookmark $bookmark
+    ): RedirectResponse {
         abort_unless($bookmark->user_id === $request->user()->id, 403);
 
-        $validated = $request->validate([
-            'collection_ids' => ['array'],
-            'collection_ids.*' => ['exists:bookmark_collections,id'],
-        ]);
-
-        // Pastikan hanya folder milik user yang di-sync
-        $userCollectionIds = $request->user()
-            ->bookmarkCollections()
-            ->whereIn('id', $validated['collection_ids'] ?? [])
-            ->pluck('id');
-
-        $bookmark->collections()->sync($userCollectionIds);
+        $this->bookmarks->assignCollections(
+            $request->user(),
+            $bookmark,
+            $request->validated('collection_ids'),
+        );
 
         return redirect()->back()->with('success', 'Koleksi bookmark berhasil diperbarui.');
     }
@@ -293,8 +263,7 @@ class BookmarkPageController extends Controller
     {
         abort_unless($bookmark->user_id === $request->user()->id, 404);
 
-        $bookmark->collections()->detach();
-        $bookmark->delete();
+        $this->bookmarks->deleteBookmark($bookmark);
 
         return redirect()->back()->with('success', 'Peraturan dihapus dari bookmark.');
     }
@@ -302,24 +271,12 @@ class BookmarkPageController extends Controller
     /**
      * Lepas banyak bookmark sekaligus dari daftar simpanan user.
      */
-    public function bulkDestroy(Request $request): RedirectResponse
+    public function bulkDestroy(BulkDestroyBookmarksRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'bookmark_ids' => ['required', 'array', 'min:1'],
-            'bookmark_ids.*' => ['integer'],
-        ]);
-
-        $bookmarks = Bookmark::query()
-            ->where('user_id', $request->user()->id)
-            ->whereIn('id', $validated['bookmark_ids'])
-            ->get();
-
-        $count = $bookmarks->count();
-
-        foreach ($bookmarks as $bm) {
-            $bm->collections()->detach();
-            $bm->delete();
-        }
+        $count = $this->bookmarks->bulkDelete(
+            $request->user(),
+            $request->validated('bookmark_ids'),
+        );
 
         return redirect()->back()->with('success', "{$count} peraturan berhasil dihapus dari bookmark.");
     }
@@ -327,34 +284,17 @@ class BookmarkPageController extends Controller
     /**
      * Masukkan banyak bookmark sekaligus ke koleksi.
      */
-    public function bulkSyncCollections(Request $request): RedirectResponse
+    public function bulkSyncCollections(BulkAssignBookmarkCollectionsRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'bookmark_ids' => ['required', 'array', 'min:1'],
-            'bookmark_ids.*' => ['integer'],
-            'collection_ids' => ['required', 'array', 'min:1'],
-            'collection_ids.*' => ['exists:bookmark_collections,id'],
-        ]);
+        $result = $this->bookmarks->bulkAssignCollections(
+            $request->user(),
+            $request->validated('bookmark_ids'),
+            $request->validated('collection_ids'),
+        );
 
-        $user = $request->user();
-        $userCollectionIds = $user->bookmarkCollections()
-            ->whereIn('id', $validated['collection_ids'])
-            ->pluck('id')
-            ->all();
-
-        $bookmarks = Bookmark::query()
-            ->where('user_id', $user->id)
-            ->whereIn('id', $validated['bookmark_ids'])
-            ->get();
-
-        foreach ($bookmarks as $bm) {
-            $bm->collections()->syncWithoutDetaching($userCollectionIds);
-        }
-
-        $countPeraturan = $bookmarks->count();
-        $countKoleksi = count($userCollectionIds);
-
-        return redirect()->back()->with('success', "{$countPeraturan} peraturan dimasukkan ke {$countKoleksi} koleksi.");
+        return redirect()->back()->with(
+            'success',
+            "{$result['bookmarks_count']} peraturan dimasukkan ke {$result['collections_count']} koleksi."
+        );
     }
 }
-

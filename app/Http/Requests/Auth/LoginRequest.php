@@ -56,7 +56,10 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        // Kredensial diperiksa dulu TANPA membuat sesi login. Sesi baru dibuat
+        // setelah email dipastikan terverifikasi, supaya akun yang belum
+        // verifikasi benar-benar tidak bisa masuk.
+        if (! Auth::validate($this->only('email', 'password'))) {
             RateLimiter::hit($this->throttleKey(), 900);
 
             throw ValidationException::withMessages([
@@ -64,6 +67,19 @@ class LoginRequest extends FormRequest
                 'email' => 'Email atau kata sandi tidak sesuai.',
             ]);
         }
+
+        $user = Auth::getLastAttempted();
+
+        // Admin/superadmin dikecualikan agar panel admin tidak terkunci oleh
+        // akun yang dibuat sebelum email_verified_at diset.
+        if ($user && ! in_array($user->role, ['admin', 'superadmin'], true) && ! $user->hasVerifiedEmail()) {
+            throw ValidationException::withMessages([
+                'auth' => 'unverified_email',
+                'email' => 'Email '.$user->email.' belum diverifikasi. Buka tautan verifikasi yang kami kirim, lalu masuk kembali.',
+            ]);
+        }
+
+        Auth::login($user, $this->boolean('remember'));
 
         RateLimiter::clear($this->throttleKey());
     }

@@ -2,10 +2,18 @@
 
 namespace App\Services;
 
+use App\Models\Regency;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class RegulationLevelDetector
 {
+    /**
+     * Cache pasangan nama daerah => nama provinsi yang dibaca dari database.
+     *
+     * @var array<string, string>|null
+     */
+    protected static ?array $regencyProvinceCache = null;
     /**
      * Pemetaan nama kabupaten/kota ke nama provinsi resminya
      */
@@ -232,7 +240,9 @@ class RegulationLevelDetector
             $namaDaerah = ucwords(trim($namaDaerah));
             $cleanKey = strtolower($namaDaerah);
 
-            $provinsi = self::$regencyToProvinceMap[$cleanKey] ?? self::findProvinceFromText($judul . ' ' . $raw);
+            $provinsi = self::$regencyToProvinceMap[$cleanKey]
+                ?? self::provinceFromDatabase($namaDaerah)
+                ?? self::findProvinceFromText($judul . ' ' . $raw);
 
             return [
                 'tingkat' => 'Kabupaten',
@@ -253,7 +263,9 @@ class RegulationLevelDetector
             $namaDaerah = ucwords(trim($namaDaerah));
             $cleanKey = strtolower($namaDaerah);
 
-            $provinsi = self::$regencyToProvinceMap[$cleanKey] ?? self::findProvinceFromText($judul . ' ' . $raw);
+            $provinsi = self::$regencyToProvinceMap[$cleanKey]
+                ?? self::provinceFromDatabase($namaDaerah)
+                ?? self::findProvinceFromText($judul . ' ' . $raw);
 
             return [
                 'tingkat' => 'Kota',
@@ -398,7 +410,46 @@ class RegulationLevelDetector
             }
         }
 
-        return $result;
+        // Peta statis di atas hanya memuat sebagian daerah. Lengkapi dari tabel
+        // master wilayah supaya kabupaten/kota di luar peta tetap terpetakan.
+        foreach (self::regencyRowsFromDatabase() as $nama => $prov) {
+            if (strtolower($prov) === $pNameLower) {
+                $result[] = $nama;
+            }
+        }
+
+        return array_values(array_unique($result));
+    }
+
+    /**
+     * Nama provinsi untuk sebuah kabupaten/kota, dibaca dari tabel master
+     * wilayah. Mengembalikan null bila tabel belum tersedia atau nama tidak ada.
+     */
+    protected static function provinceFromDatabase(string $regencyName): ?string
+    {
+        return self::regencyRowsFromDatabase()[strtolower(trim($regencyName))] ?? null;
+    }
+
+    /**
+     * Cache pasangan "nama daerah" => "nama provinsi" dari database.
+     *
+     * @return array<string, string>
+     */
+    protected static function regencyRowsFromDatabase(): array
+    {
+        if (self::$regencyProvinceCache !== null) {
+            return self::$regencyProvinceCache;
+        }
+
+        if (! Schema::hasTable('regencies') || ! Schema::hasTable('provinces')) {
+            return self::$regencyProvinceCache = [];
+        }
+
+        return self::$regencyProvinceCache = Regency::query()
+            ->join('provinces', 'regencies.province_id', '=', 'provinces.id')
+            ->get(['regencies.nama as regency', 'provinces.nama as province'])
+            ->mapWithKeys(fn ($row) => [strtolower(trim($row->regency)) => $row->province])
+            ->all();
     }
 
     /**
@@ -406,6 +457,6 @@ class RegulationLevelDetector
      */
     public static function clearCache(): void
     {
-        // Placeholder for clearing any static or application cache for level detection
+        self::$regencyProvinceCache = null;
     }
 }
