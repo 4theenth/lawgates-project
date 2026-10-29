@@ -223,8 +223,7 @@ export default function DetailPeraturan({
               tanggalPenetapan={tanggalPenetapan}
               tempatPenetapan={peraturan?.tempat_penetapan || 'Jakarta'}
               onCompare={canCompare ? () => router.visit(`/bandingkan?id=${peraturan?.unique_id}`) : undefined}
-              onDownload={isPlaceholder ? () => { toast.error('Dokumen naskah PDF sedang dalam proses digitalisasi dan belum dapat diunduh.'); } : undefined}
-              downloadHref={isPlaceholder ? undefined : `/peraturan/${peraturan?.unique_id}/lihat`}
+              downloadHref={`/peraturan/${peraturan?.unique_id}/lihat?download=1`}
               peraturanId={peraturan?.id}
             />
           </div>

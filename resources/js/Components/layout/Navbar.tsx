@@ -17,7 +17,7 @@ function NavPillButton({ href, label }: NavPillButtonProps) {
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 bg-pr-900 hover:bg-pr-800 border border-pr-800 text-white px-4 py-2 rounded-[12px] text-xs font-normal tracking-wider transition-all shadow-sm"
+      className="flex items-center gap-2 bg-pr-900 hover:bg-pr-800 border border-pr-800 text-white px-3.5 py-1.5 rounded-[10px] text-xs font-normal tracking-wider transition-all shadow-sm"
     >
       <span>{label}</span>
       <LogIn className="w-3.5 h-3.5 text-white" />
@@ -59,9 +59,8 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
   };
 
   const isHome = currentPath === '/' || currentPath === '';
-  const isPill = isScrolled;
-  const isLightPage = !isHome;
-  const theme = isLightPage || isPill ? NAVBAR_THEME.scrolled : NAVBAR_THEME.default;
+  const isScrolledOrLight = isScrolled || !isHome;
+  const theme = isScrolledOrLight ? NAVBAR_THEME.scrolled : NAVBAR_THEME.default;
 
   /**
    * Menu bertanda `requiresAuth` rutenya dilindungi middleware `auth`.
@@ -86,31 +85,25 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 w-full z-50 h-[74px] flex items-center justify-center transition-all duration-200 ease-out ${
-          !isScrolled && isLightPage
-            ? 'bg-white border-b border-gray-100/90 shadow-2xs pointer-events-auto'
-            : 'bg-transparent border-transparent shadow-none pointer-events-none'
+        className={`fixed top-0 left-0 w-full z-50 h-[64px] flex items-center justify-center transition-all duration-500 ease-in-out pointer-events-auto ${
+          isScrolledOrLight
+            ? 'bg-white'
+            : 'bg-transparent'
           }`}
       >
-        {/* Floating pill container (transitions width, height, glass background, border, shadow) */}
-        <div
-          className={`relative flex items-center justify-between mx-auto rounded-full transition-all duration-200 ease-out pointer-events-auto ${
-            isPill
-              ? 'h-[59px] w-[calc(100%-24px)] sm:w-[calc(100%-32px)] max-w-[1120px] bg-white/90 sm:bg-white/80 backdrop-blur-[16px] border border-white/60 shadow-[0px_2px_10px_-2px_rgba(0,0,0,0.05)] px-4 sm:px-6 lg:px-8'
-              : 'h-[74px] w-full max-w-[1202px] px-4 sm:px-6 xl:px-0 bg-transparent border-transparent shadow-none'
-            }`}
-        >
-          {/* Brand Logo - slides inward toward the center menu when container narrows */}
-          <Link href="/" className="flex items-center gap-2 z-10 transition-transform duration-200 ease-out">
+        {/* Container sejajar dengan grid konten aplikasi */}
+        <div className="relative flex items-center justify-between mx-auto h-[64px] w-full max-w-[1202px] px-4 sm:px-6 xl:px-0">
+          {/* Brand Logo */}
+          <Link href="/" className="flex items-center gap-2 z-10">
             <ApplicationLogo
-              className={`h-[26px] w-auto transition-colors duration-150 ease-out ${
-                !isPill && isHome ? 'text-white' : 'text-pr-900'
+              className={`h-[24px] sm:h-[26px] w-auto transition-colors duration-500 ease-in-out ${
+                !isScrolled && isHome ? 'text-white' : 'text-pr-900'
               }`}
             />
           </Link>
 
           {/* Desktop Auth Section (DASHBOARD button for Admin, Profile Dropdown for User, LOGIN for Guest) */}
-          <div className="hidden md:flex items-center gap-3 z-10 transition-transform duration-200 ease-out">
+          <div className="hidden md:flex items-center gap-3 z-10">
             {isAdmin ? (
               // Khusus Admin & Superadmin: Hanya tombol DASHBOARD (avatar dihilangkan)
               <NavPillButton href={route('admin.dashboard')} label="DASHBOARD" />
@@ -210,7 +203,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                 onClick={item.disabled ? (e) => e.preventDefault() : undefined}
                 target={item.disabled ? undefined : "_blank"}
                 rel="noopener noreferrer"
-                className={`transition-colors duration-150 ease-out relative py-1 ${NAVBAR_THEME.fontSize} ${theme.inactiveItem}`}
+                className={`transition-colors duration-300 ease-in-out relative py-1 ${NAVBAR_THEME.fontSize} ${theme.inactiveItem}`}
               >
                 {item.title}
               </a>
@@ -219,7 +212,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                 key={item.id}
                 href={item.disabled ? '#' : item.path}
                 onClick={(e) => guardNavigation(e, item)}
-                className={`transition-colors duration-150 ease-out relative py-1 ${NAVBAR_THEME.fontSize} ${active
+                className={`transition-colors duration-300 ease-in-out relative py-1 ${NAVBAR_THEME.fontSize} ${active
                   ? theme.activeItem
                   : theme.inactiveItem
                   }`}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { PublicLayout } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
@@ -24,14 +24,45 @@ const formatTanggal = (dateString?: string) => {
 
 export default function DokumenViewer({ peraturan, pdfUrl, hasPdf }: DokumenViewerProps) {
   const { toast } = useToast();
+  const hasAutoDownloaded = useRef(false);
 
-  const handleDownload = () => {
+  const triggerDownload = useCallback((showError = false) => {
     if (!hasPdf || !pdfUrl) {
-      toast.error('Dokumen naskah PDF sedang dalam proses digitalisasi dan belum dapat diunduh');
+      if (showError) {
+        toast.error('Dokumen PDF saat ini belum tersedia');
+      }
       return;
     }
-    window.location.href = `/peraturan/${peraturan.unique_id}/download`;
+    const link = document.createElement('a');
+    link.href = `/peraturan/${peraturan.unique_id}/download`;
+    link.setAttribute('download', '');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [hasPdf, pdfUrl, peraturan?.unique_id, toast]);
+
+  const handleDownload = () => {
+    triggerDownload(true);
   };
+
+  // Unduh otomatis sekali ketika pengguna datang dari tombol "Download Dokumen" pada detail peraturan
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shouldDownload = params.get('download') === '1' || params.has('download');
+
+    if (shouldDownload && hasPdf && !hasAutoDownloaded.current) {
+      hasAutoDownloaded.current = true;
+      // Delay kecil agar viewer PDF dapat merender iframe terlebih dahulu secara mulus
+      const timer = setTimeout(() => {
+        triggerDownload(false);
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [hasPdf, triggerDownload]);
 
   return (
     <PublicLayout>
@@ -54,8 +85,8 @@ export default function DokumenViewer({ peraturan, pdfUrl, hasPdf }: DokumenView
             tanggalPenetapan={formatTanggal(peraturan.tanggal_penetapan)}
             tempatPenetapan={peraturan.tempat_penetapan || 'Jakarta'}
             onDownload={handleDownload}
-downloadHref={hasPdf && pdfUrl ? `/peraturan/${peraturan.unique_id}/download` : undefined}
-            peraturanId={peraturan?.id}
+            downloadHref={hasPdf && pdfUrl ? `/peraturan/${peraturan.unique_id}/download` : undefined}
+            peraturanId={peraturan?.id || peraturan?.unique_id}
           />
 
           {/* Layar PDF Viewer: Jika dokumen ada tampilkan PDF, jika belum ada tampilkan komponen status digitalisasi */}

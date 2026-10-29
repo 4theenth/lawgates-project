@@ -20,6 +20,53 @@ export interface DetailPeraturanHeaderProps {
   onBookmarkToggle?: (isBookmarked: boolean) => void;
 }
 
+interface HeaderActionButtonProps {
+  variant?: 'outline-neutral' | 'outline-primary' | 'solid-primary';
+  onClick?: () => void;
+  href?: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  title?: string;
+  className?: string;
+}
+
+function HeaderActionButton({
+  variant = 'outline-neutral',
+  onClick,
+  href,
+  icon,
+  children,
+  title,
+  className = '',
+}: HeaderActionButtonProps) {
+  const variantClasses = {
+    'outline-neutral':
+      'border-neu-200 bg-white text-neu-700 hover:bg-neu-50 hover:text-neu-900',
+    'outline-primary':
+      'border-pr-900 bg-white text-pr-900 hover:bg-pr-50',
+    'solid-primary':
+      'border-pr-900 bg-pr-900 text-white hover:bg-pr-800 hover:border-pr-800',
+  }[variant];
+
+  const commonClasses = `inline-flex h-10 items-center justify-center gap-2 rounded-full border px-4 sm:px-5 text-xs sm:text-sm font-semibold leading-none whitespace-nowrap transition-all duration-150 cursor-pointer select-none ${variantClasses} ${className}`;
+
+  if (href) {
+    return (
+      <Link href={href} title={title} className={commonClasses}>
+        {icon}
+        <span>{children}</span>
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onClick} title={title} className={commonClasses}>
+      {icon}
+      <span>{children}</span>
+    </button>
+  );
+}
+
 export function DetailPeraturanHeader({
   breadcrumbItems = [
     { label: 'Beranda', href: '/' },
@@ -74,48 +121,54 @@ export function DetailPeraturanHeader({
         </h1>
 
         {/* Action Buttons Row: Salin Link, Bandingkan, Download Dokumen */}
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-2.5 lg:shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 lg:shrink-0">
           {/* Tombol Salin Link */}
-          <button
-            type="button"
+          <HeaderActionButton
+            variant="outline-neutral"
             onClick={handleCopyLink}
             title="Salin Tautan Halaman Ini"
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-neu-200 bg-white px-3 text-xs font-semibold text-neu-700 transition-all hover:bg-neu-50 sm:w-auto sm:min-w-[125px] sm:px-4 sm:text-sm cursor-pointer"
+            icon={
+              isLinkCopied ? (
+                <Check className="w-4 h-4 text-suc-900 stroke-[2] shrink-0" />
+              ) : (
+                <Copy className="w-4 h-4 text-neu-500 stroke-[2] shrink-0" />
+              )
+            }
           >
-            {isLinkCopied ? <Check className="w-3.5 h-3.5 text-suc-900" /> : <Copy className="w-3.5 h-3.5 text-neu-500" />}
-            <span>{isLinkCopied ? 'Link Tersalin!' : 'Salin Link'}</span>
-          </button>
+            {isLinkCopied ? 'Link Tersalin!' : 'Salin Link'}
+          </HeaderActionButton>
 
           {/* Tombol Bandingkan */}
           {onCompare && (
-            <button
-              type="button"
+            <HeaderActionButton
+              variant="outline-primary"
               onClick={onCompare}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-pr-900 bg-white px-3 text-xs font-semibold text-pr-900 transition-all hover:bg-pr-50 sm:w-auto sm:min-w-[125px] sm:px-4 sm:text-sm cursor-pointer"
+              title="Bandingkan Peraturan"
+              icon={<ArrowRightLeft className="w-4 h-4 text-pr-900 stroke-[2] shrink-0" />}
             >
-              <ArrowRightLeft className="w-3.5 h-3.5 text-pr-900 stroke-[2]" />
-              <span>Bandingkan</span>
-            </button>
+              Bandingkan
+            </HeaderActionButton>
           )}
 
           {/* Tombol Download Dokumen (Membuka viewer dokumen atau mengunduh langsung) */}
           {onDownload ? (
-            <button
-              type="button"
+            <HeaderActionButton
+              variant="solid-primary"
               onClick={onDownload}
-              className="col-span-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-pr-900 px-3 text-xs font-semibold text-white transition-all hover:bg-pr-800 sm:col-auto sm:w-auto sm:gap-2.5 sm:px-6 sm:text-sm cursor-pointer"
+              title="Unduh Dokumen Peraturan"
+              icon={<Download className="w-4 h-4 text-white stroke-[2] shrink-0" />}
             >
-              <Download className="w-4 h-4 text-white stroke-[2]" />
-              <span>Download Dokumen</span>
-            </button>
+              Download Dokumen
+            </HeaderActionButton>
           ) : downloadHref ? (
-            <Link
+            <HeaderActionButton
+              variant="solid-primary"
               href={downloadHref}
-              className="col-span-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-pr-900 px-3 text-xs font-semibold text-white transition-all hover:bg-pr-800 sm:col-auto sm:w-auto sm:gap-2.5 sm:px-6 sm:text-sm cursor-pointer"
+              title="Unduh Dokumen Peraturan"
+              icon={<Download className="w-4 h-4 text-white stroke-[2] shrink-0" />}
             >
-              <Download className="w-4 h-4 text-white stroke-[2]" />
-              <span>Download Dokumen</span>
-            </Link>
+              Download Dokumen
+            </HeaderActionButton>
           ) : null}
         </div>
       </div>
