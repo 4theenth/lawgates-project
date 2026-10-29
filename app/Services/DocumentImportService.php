@@ -19,6 +19,24 @@ use App\Models\SubjekPeraturan;
 class DocumentImportService
 {
     /**
+     * Cache referensi master selama satu proses import berjalan. Tanpa cache,
+     * setiap dokumen mengulang firstOrCreate untuk data yang sama.
+     */
+    private array $jenisCache = [];
+
+    private array $statusCache = [];
+
+    private array $relationTypeCache = [];
+
+    private array $perubahanTypeCache = [];
+
+    private array $subjekCache = [];
+
+    private array $jenisIdCache = [];
+
+    private array $targetPeraturanCache = [];
+
+    /**
      * Import JSON OCR komprehensif ke PostgreSQL
      *
      * @param array $data
@@ -41,65 +59,21 @@ class DocumentImportService
                 ?? 'Undang-Undang';
 
             $tipePeraturan = trim($rawTipe);
-            $upperTipe = strtoupper($tipePeraturan);
 
-            // Alias map untuk normalisasi jenis peraturan populer
-            $aliasMap = [
-                'PERDA' => 'Peraturan Daerah',
-                'P' => 'Peraturan Daerah',
-                'PERPRES' => 'Peraturan Presiden',
-                'PERMEN' => 'Peraturan Menteri',
-                'PP' => 'Peraturan Pemerintah',
-                'PERPPU' => 'Peraturan Pemerintah Pengganti Undang-Undang',
-                'PERPU' => 'Peraturan Pemerintah Pengganti Undang-Undang',
-                'UU' => 'Undang-Undang',
-                'UUD' => 'Undang-Undang Dasar',
-                'KEPPRES' => 'Keputusan Presiden',
-                'STAATSBLAD' => 'Staatsblad',
-                'TAP MPR' => 'Ketetapan MPR',
-                'TAP MPRS' => 'Ketetapan MPRS',
-            ];
+            // Resolusi terpusat agar tidak membuat jenis duplikat (mis. UUDrt vs UU_DRT)
+            $jenisKey = strtolower($tipePeraturan);
+            $jenis = $this->jenisCache[$jenisKey] ??= (
+                JenisPeraturan::resolveByRawString($tipePeraturan)
+                ?? JenisPeraturan::firstOrCreate(
+                    ['kode' => 'LAINNYA'],
+                    ['nama' => 'Lainnya']
+                )
+            );
 
-            $namaTarget = $aliasMap[$upperTipe] ?? $tipePeraturan;
-
-            $jenis = JenisPeraturan::whereRaw('LOWER(nama) = ?', [strtolower($namaTarget)])
-                ->orWhereRaw('LOWER(nama) = ?', [strtolower($tipePeraturan)])
-                ->orWhereRaw('LOWER(kode) = ?', [strtolower($upperTipe)])
-                ->orWhereRaw('LOWER(kode) = ?', [strtolower($tipePeraturan)])
-                ->first();
-
-            if (!$jenis) {
-                // Tentukan kode dasar (jika singkatan/nama pendek, gunakan full uppercase-nya)
-                if (strlen($upperTipe) <= 10 && preg_match('/^[A-Z0-9_-]+$/', $upperTipe)) {
-                    $baseKode = $upperTipe;
-                } else {
-                    $words = preg_split('/[\s\-]+/', $tipePeraturan);
-                    $initials = '';
-                    foreach ($words as $w) {
-                        if (!empty($w)) {
-                            $initials .= strtoupper(substr($w, 0, 1));
-                        }
-                    }
-                    $baseKode = substr($initials, 0, 10) ?: 'KAT';
-                }
-
-                // Pastikan kode benar-benar unik di tabel jenis_peraturan
-                $kode = $baseKode;
-                $counter = 1;
-                while (JenisPeraturan::where('kode', $kode)->exists()) {
-                    $suffix = (string) $counter;
-                    $kode = substr($baseKode, 0, 10 - strlen($suffix)) . $suffix;
-                    $counter++;
-                }
-
-                $jenis = JenisPeraturan::create([
-                    'kode' => $kode,
-                    'nama' => $namaTarget,
-                ]);
-            }
-
-            $statusNama = $metadata['status'] ?? $metadata['status_peraturan'] ?? 'berlaku';
-            $status = Status::firstOrCreate(
+            $statusNama = ucwords(strtolower(trim((string) (
+                $metadata['status'] ?? $metadata['status_peraturan'] ?? 'berlaku'
+            ))));
+            $status = $this->statusCache[$statusNama] ??= Status::firstOrCreate(
                 ['nama_status' => $statusNama]
             );
 
@@ -119,24 +93,54 @@ class DocumentImportService
             $tahun = $metadata['tahun'] ?? $this->ekstrakTahun($idDokumen);
             $nomor = $this->ekstrakNomor($judul, $idDokumen);
             
-            // Cari peraturan yang ada berdasarkan unique_id ATAU standard_id (termasuk yang soft-delete)
-            $queryPeraturan = Peraturan::withTrashed()->where(function($q) use ($idDokumen, $standardId) {
-                $q->where('unique_id', $idDokumen);
-                if ($standardId && $standardId !== $idDokumen) {
-                    $q->orWhere('unique_id', $standardId);
+            $instansi = $metadata['pemrakarsa'] ?? null;
+
+            // 1. Cocokkan berdasarkan unique_id / standard_id (termasuk yang soft-delete)
+            $peraturan = Peraturan::withTrashed()
+                ->where(function ($q) use ($idDokumen, $standardId) {
+                    $q->where('unique_id', $idDokumen);
+                    if ($standardId && $standardId !== $idDokumen) {
+                        $q->orWhere('unique_id', $standardId);
+                    }
+                })
+                ->first();
+
+            // 2. Fallback: jenis + nomor + tahun (+ instansi agar Perda lintas daerah tidak tertukar)
+            if (!$peraturan && !empty($nomor) && !empty($tahun)) {
+                $queryPeraturan = Peraturan::withTrashed()
+                    ->where('jenis_peraturan_id', $jenis->id)
+                    ->where('nomor', $nomor)
+                    ->where('tahun', $tahun);
+
+                // Peraturan daerah (Perda/Perbup/Perwali/Pergub dan variasinya)
+                // selalu terikat satu wilayah, jadi instansi tidak boleh diabaikan
+                // saat mencocokkan. Nomor yang sama lazim dipakai banyak daerah.
+                $isRegional = $this->isRegionalJenis($jenis);
+
+                if ($instansi) {
+                    $peraturan = (clone $queryPeraturan)->where('instansi', $instansi)->first();
+
+                    // Dokumen nasional tetap boleh cocok tanpa instansi; daerah tidak.
+                    if (!$peraturan && !$isRegional) {
+                        $peraturan = (clone $queryPeraturan)->first();
+                    }
+                } else {
+                    $peraturan = (clone $queryPeraturan)->whereNull('instansi')->first();
+
+                    if (!$peraturan && !$isRegional) {
+                        $peraturan = (clone $queryPeraturan)->first();
+                    }
                 }
-            });
 
-            // Hanya cocokkan kombinasi nomor dan tahun JIKA nomor tidak kosong
-            if (!empty($nomor) && !empty($tahun)) {
-                $queryPeraturan->orWhere(function($query) use ($jenis, $nomor, $tahun) {
-                    $query->where('jenis_peraturan_id', $jenis->id)
-                          ->where('nomor', $nomor)
-                          ->where('tahun', $tahun);
-                });
+                // Daerah boleh menempel ke baris placeholder yang memang belum
+                // punya instansi, asal judulnya masih placeholder.
+                if (!$peraturan && $isRegional) {
+                    $peraturan = (clone $queryPeraturan)
+                        ->whereNull('instansi')
+                        ->whereRaw('LOWER(judul) LIKE ?', ['menunggu import%'])
+                        ->first();
+                }
             }
-
-            $peraturan = $queryPeraturan->first();
 
             // Fallback: Jika tidak ditemukan by unique_id/nomor, cek apakah ada placeholder dengan judul yang cocok
             if (!$peraturan) {
@@ -201,8 +205,9 @@ class DocumentImportService
             // Sync master subjek_peraturan jika field subjek tersedia
             $subjekNama = $metadata['subjek'] ?? null;
             if ($subjekNama) {
-                SubjekPeraturan::firstOrCreate(
-                    ['nama' => trim($subjekNama)],
+                $subjekKey = trim($subjekNama);
+                $this->subjekCache[$subjekKey] ??= SubjekPeraturan::firstOrCreate(
+                    ['nama' => $subjekKey],
                     ['is_active' => true]
                 );
             }
@@ -218,9 +223,9 @@ class DocumentImportService
                 'tanggal_penetapan'    => $this->formatTanggal($metadata['tanggal_penetapan'] ?? null),
                 'tanggal_pengundangan' => $this->formatTanggal($metadata['tanggal_pengundangan'] ?? null),
                 'tanggal_berlaku'      => $this->formatTanggal($metadata['tanggal_berlaku'] ?? null),
-                'instansi'             => $metadata['pemrakarsa'] ?? null,
+                'instansi'             => $instansi,
                 'lokasi_daerah'        => $lokasiDaerah,
-                'url_pdf'              => $metadata['sumber_dokumen'] ?? null,
+                'url_pdf'              => $metadata['sumber_dokumen'] ?? $peraturan?->url_pdf,
                 'subjek'               => $subjekNama,
                 'file_pdf_path'        => $pdfPath,
             ];
@@ -238,7 +243,15 @@ class DocumentImportService
             Pasal::where('peraturan_id', $peraturan->id)->delete();
             StrukturDokumen::where('peraturan_id', $peraturan->id)->delete();
             PenjelasanPasal::where('peraturan_id', $peraturan->id)->delete();
-            
+
+            // Baris anak dikumpulkan dulu lalu di-insert sekali per dokumen.
+            // updateOrCreate per baris membuat ribuan SELECT + INSERT/UPDATE.
+            $penjelasanRows = [];
+            $pasalPerubahanRows = [];
+            $lawRelationRows = [];
+            $pasalLookupLoaded = false;
+
+
             $currentStrukturIds = [
                 'BAB'      => null,
                 'BAGIAN'   => null,
@@ -287,6 +300,9 @@ class DocumentImportService
 
             // In-memory indexing & state adaptif untuk mendeteksi pasal perubahan & hierarki
             $pasalMapByLabel = [];              // [label => pasalId, nomorPasal => pasalId]
+            // Tidak di-reset saat ganti BAB: dipakai untuk mencari pasal yang
+            // dijelaskan pada bagian PENJELASAN tanpa query berulang.
+            $pasalIdsByLabel = [];
             $activeContainer = null;            // ['id' => ..., 'label' => ..., 'nomor' => ..., 'num' => ..., 'target' => ...]
             $childPasalsDetected = [];          // [['pasal' => $pasal, 'containerId' => ...]]
             $targetPeraturanByContainerId = []; // [containerPasalId => $targetPeraturanModel]
@@ -331,15 +347,21 @@ class DocumentImportService
 
                 // Penjelasan Pasal eksplisit
                 if ($bagianDokumen === 'PENJELASAN' || $tipe === 'PENJELASAN_PASAL') {
-                    $pasalTerkait = Pasal::where('peraturan_id', $peraturan->id)
-                                         ->where('nomor_pasal', $chunk['label'] ?? '')
-                                         ->first();
-                    
-                    if ($pasalTerkait) {
-                        PenjelasanPasal::updateOrCreate(
-                            ['peraturan_id' => $peraturan->id, 'pasal_id' => $pasalTerkait->id],
-                            ['isi_penjelasan' => $chunk['teks'] ?? null]
-                        );
+                    $pasalTerkaitId = $this->resolvePasalId(
+                        $pasalIdsByLabel,
+                        (string) ($chunk['label'] ?? ''),
+                        $peraturan->id,
+                        $pasalLookupLoaded
+                    );
+
+                    if ($pasalTerkaitId) {
+                        $penjelasanRows[$pasalTerkaitId] = [
+                            'peraturan_id' => $peraturan->id,
+                            'pasal_id' => $pasalTerkaitId,
+                            'isi_penjelasan' => (string) ($chunk['teks'] ?? ''),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
                     }
                     continue;
                 }
@@ -427,15 +449,21 @@ class DocumentImportService
                     }
 
                     if ($inPenjelasan) {
-                        $pasalTerkait = Pasal::where('peraturan_id', $peraturan->id)
-                                             ->where('nomor_pasal', $pasalLabel)
-                                             ->first();
-                        
-                        if ($pasalTerkait) {
-                            PenjelasanPasal::updateOrCreate(
-                                ['peraturan_id' => $peraturan->id, 'pasal_id' => $pasalTerkait->id],
-                                ['isi_penjelasan' => $teksPasal]
-                            );
+                        $pasalTerkaitId = $this->resolvePasalId(
+                            $pasalIdsByLabel,
+                            $pasalLabel,
+                            $peraturan->id,
+                            $pasalLookupLoaded
+                        );
+
+                        if ($pasalTerkaitId) {
+                            $penjelasanRows[$pasalTerkaitId] = [
+                                'peraturan_id' => $peraturan->id,
+                                'pasal_id' => $pasalTerkaitId,
+                                'isi_penjelasan' => $teksPasal,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ];
                         }
                         continue;
                     }
@@ -458,6 +486,10 @@ class DocumentImportService
                     $pasalMapByLabel[$pasalLabel] = $pasal->id;
                     $pasalMapByLabel[$nomorPasal] = $pasal->id;
                     $pasalMapByLabel['Pasal ' . $nomorPasal] = $pasal->id;
+
+                    $pasalIdsByLabel[$pasalLabel] = $pasal->id;
+                    $pasalIdsByLabel[$nomorPasal] = $pasal->id;
+                    $pasalIdsByLabel['Pasal ' . $nomorPasal] = $pasal->id;
 
                     if ($isContainer) {
                         $cNum = (int)preg_replace('/[^0-9]/', '', $nomorPasal);
@@ -489,12 +521,12 @@ class DocumentImportService
                             $targetPeraturanByContainerId[$pasal->id] = $targetPeraturan;
 
                             // Otomatis catat law_relation 'mengubah' jika belum ada
-                            $relTypeMengubah = RelationType::firstOrCreate(['nama_relasi' => 'mengubah']);
-                            LawRelation::firstOrCreate([
-                                'from_peraturan_id' => $peraturan->id,
-                                'to_peraturan_id'   => $targetPeraturan->id,
-                                'relation_type_id'  => $relTypeMengubah->id,
-                            ]);
+                            $this->queueRelation(
+                                $lawRelationRows,
+                                $peraturan->id,
+                                $targetPeraturan->id,
+                                $this->relationTypeId('mengubah')
+                            );
                         }
                     } elseif ($parentPasalId) {
                         $childPasalsDetected[] = [
@@ -511,8 +543,8 @@ class DocumentImportService
                 
                 foreach ($tipeRelasiArray as $relTypeStr) {
                     if (!empty($data['relasi'][$relTypeStr])) {
-                        $relType = RelationType::firstOrCreate(['nama_relasi' => $relTypeStr]);
-                        
+                        $relTypeId = $this->relationTypeId($relTypeStr);
+
                         foreach ($data['relasi'][$relTypeStr] as $targetUniqueId) {
                             $targetNomor = $this->ekstrakNomor($targetUniqueId, $targetUniqueId);
                             $targetTahun = $this->ekstrakTahun($targetUniqueId);
@@ -531,18 +563,19 @@ class DocumentImportService
                                 ]);
                             }
                             
-                            LawRelation::updateOrCreate([
-                                'from_peraturan_id' => $peraturan->id, 
-                                'to_peraturan_id'   => $targetPeraturan->id,
-                                'relation_type_id'  => $relType->id
-                            ]);
+                            $this->queueRelation(
+                                $lawRelationRows,
+                                $peraturan->id,
+                                $targetPeraturan->id,
+                                $relTypeId
+                            );
                         }
                     }
                 }
 
                 // Relasi Khusus: Mengingat
                 if (!empty($data['relasi']['mengingat'])) {
-                    $relTypeMengingat = RelationType::firstOrCreate(['nama_relasi' => 'mengingat']);
+                    $relTypeMengingatId = $this->relationTypeId('mengingat');
                     foreach ($data['relasi']['mengingat'] as $ingat) {
                         $targetUniqueId = $ingat['standard_id'];
                         $targetNomor = $this->ekstrakNomor($targetUniqueId, $targetUniqueId);
@@ -564,16 +597,17 @@ class DocumentImportService
                             ]);
                         }
                         
-                        LawRelation::updateOrCreate([
-                            'from_peraturan_id' => $peraturan->id,
-                            'to_peraturan_id'   => $targetPeraturan->id,
-                            'relation_type_id'  => $relTypeMengingat->id,
-                        ]);
+                        $this->queueRelation(
+                            $lawRelationRows,
+                            $peraturan->id,
+                            $targetPeraturan->id,
+                            $relTypeMengingatId
+                        );
                     }
                 }
 
                 // 5. DETAIL PERUBAHAN: Pasal Perubahan
-                $perubahanType = PerubahanType::firstOrCreate(['nama_perubahan' => 'diubah']);
+                $perubahanTypeId = $this->perubahanTypeId();
                 $nomorUrut = 1;
 
                 if (!empty($data['relasi']['detail_perubahan'])) {
@@ -624,18 +658,16 @@ class DocumentImportService
 
                         if ($containerPasalId && !empty($detail['pasal_diubah']) && is_array($detail['pasal_diubah'])) {
                             foreach ($detail['pasal_diubah'] as $pasalDiubahLabel) {
-                                PasalPerubahan::updateOrCreate(
-                                    [
-                                        'pasal_romawi_id'     => $containerPasalId, 
-                                        'target_peraturan_id' => $targetPeraturan->id, 
-                                        'target_nomor_pasal'  => $pasalDiubahLabel,
-                                    ],
-                                    [
-                                        'perubahan_type_id'   => $perubahanType->id,
-                                        'nomor_urut'          => $nomorUrut++,
-                                        'isi_perubahan'       => 'Diubah oleh peraturan ini',
-                                    ]
-                                );
+                                $rowKey = $containerPasalId.'|'.$targetPeraturan->id.'|'.$pasalDiubahLabel;
+
+                                $pasalPerubahanRows[$rowKey] = [
+                                    'pasal_romawi_id' => $containerPasalId,
+                                    'target_peraturan_id' => $targetPeraturan->id,
+                                    'target_nomor_pasal' => $pasalDiubahLabel,
+                                    'perubahan_type_id' => $perubahanTypeId,
+                                    'nomor_urut' => $nomorUrut++,
+                                    'isi_perubahan' => 'Diubah oleh peraturan ini',
+                                ];
                             }
                         }
                     }
@@ -645,41 +677,140 @@ class DocumentImportService
             // 5.1 Autonomous Population: Jika ada child pasals yang terdeteksi terhubung ke container dengan targetPeraturan
             // Tetap berjalan walaupun data['relasi'] kosong dari file input
             if (!empty($childPasalsDetected)) {
-                $perubahanType = PerubahanType::firstOrCreate(['nama_perubahan' => 'diubah']);
+                $perubahanTypeId = $this->perubahanTypeId();
                 $nomorUrut = 1;
 
                 foreach ($childPasalsDetected as $childInfo) {
                     $cId = $childInfo['containerId'];
                     if (isset($targetPeraturanByContainerId[$cId])) {
                         $targetPeraturan = $targetPeraturanByContainerId[$cId];
-                        PasalPerubahan::updateOrCreate(
-                            [
-                                'pasal_romawi_id'     => $cId,
-                                'target_peraturan_id' => $targetPeraturan->id,
-                                'target_nomor_pasal'  => $childInfo['pasal']->nomor_pasal,
-                            ],
-                            [
-                                'perubahan_type_id'   => $perubahanType->id,
-                                'nomor_urut'          => $nomorUrut++,
-                                'isi_perubahan'       => 'Diubah oleh peraturan ini',
-                            ]
-                        );
+                        $targetNomorPasal = $childInfo['pasal']->nomor_pasal;
+                        $rowKey = $cId.'|'.$targetPeraturan->id.'|'.$targetNomorPasal;
+
+                        $pasalPerubahanRows[$rowKey] = [
+                            'pasal_romawi_id' => $cId,
+                            'target_peraturan_id' => $targetPeraturan->id,
+                            'target_nomor_pasal' => $targetNomorPasal,
+                            'perubahan_type_id' => $perubahanTypeId,
+                            'nomor_urut' => $nomorUrut++,
+                            'isi_perubahan' => 'Diubah oleh peraturan ini',
+                        ];
                     }
                 }
+            }
+
+            if (!empty($penjelasanRows)) {
+                PenjelasanPasal::insert(array_values($penjelasanRows));
+            }
+
+            if (!empty($pasalPerubahanRows)) {
+                PasalPerubahan::insert(array_values($pasalPerubahanRows));
+            }
+
+            if (!empty($lawRelationRows)) {
+                LawRelation::upsert(
+                    array_values($lawRelationRows),
+                    ['from_peraturan_id', 'to_peraturan_id', 'relation_type_id'],
+                    ['deleted_at']
+                );
             }
 
             DB::commit();
             \App\Services\SemanticSearchService::clearCache();
             return $peraturan;
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             $msg = $e->getMessage();
             if (!str_starts_with($msg, 'Gagal mengimpor:')) {
                 $msg = "Gagal mengimpor: " . $msg;
             }
-            throw new \Exception($msg);
+            // Bungkus ulang sebagai RuntimeException supaya TypeError/Error tetap
+            // terlaporkan sebagai kegagalan impor, bukan mematikan proses batch.
+            throw new \RuntimeException($msg, 0, $e);
         }
+    }
+
+    private function queueRelation(array &$rows, int $fromId, int $toId, int $relationTypeId): void
+    {
+        $rows[$fromId.'|'.$toId.'|'.$relationTypeId] = [
+            'from_peraturan_id' => $fromId,
+            'to_peraturan_id' => $toId,
+            'relation_type_id' => $relationTypeId,
+            'deleted_at' => null,
+        ];
+    }
+
+    /**
+     * Cari id pasal berdasarkan label. Map in-memory dipakai lebih dulu supaya
+     * bagian penjelasan tidak melakukan satu query untuk setiap pasal.
+     */
+    private function resolvePasalId(
+        array &$pasalIdsByLabel,
+        string $label,
+        int $peraturanId,
+        bool &$lookupLoaded
+    ): ?int {
+        if (! $lookupLoaded) {
+            // Satu query untuk seluruh pasal dokumen ini, bukan satu query per
+            // baris penjelasan.
+            foreach (Pasal::where('peraturan_id', $peraturanId)->get(['id', 'nomor_pasal']) as $pasal) {
+                $pasalIdsByLabel[$pasal->nomor_pasal] ??= $pasal->id;
+            }
+
+            $lookupLoaded = true;
+        }
+
+        $cleanLabel = trim(str_ireplace('Pasal', '', $label));
+
+        $id = $pasalIdsByLabel[$label]
+            ?? $pasalIdsByLabel[$cleanLabel]
+            ?? $pasalIdsByLabel['Pasal '.$cleanLabel]
+            ?? null;
+
+        return $id ? (int) $id : null;
+    }
+
+    private function relationTypeId(string $namaRelasi): int
+    {
+        return $this->relationTypeCache[$namaRelasi] ??= RelationType::firstOrCreate(
+            ['nama_relasi' => $namaRelasi]
+        )->id;
+    }
+
+    private function perubahanTypeId(): int
+    {
+        return $this->perubahanTypeCache['diubah'] ??= PerubahanType::firstOrCreate(
+            ['nama_perubahan' => 'diubah']
+        )->id;
+    }
+
+    /**
+     * Apakah jenis peraturan ini terikat wilayah tertentu.
+     *
+     * Kode untuk peraturan daerah tidak seragam: metadata OCR bisa menghasilkan
+     * PERDA, PERBUP, PB, PWK, PG, bahkan nama panjang seperti "Peraturan Bupati".
+     * Semua variasi itu harus diperlakukan sama agar pencocokan lintas daerah
+     * tidak pernah mengabaikan instansi.
+     */
+    private function isRegionalJenis(JenisPeraturan $jenis): bool
+    {
+        $kode = strtoupper(trim((string) $jenis->kode));
+        $nama = strtolower(trim((string) $jenis->nama));
+
+        $kodeRegional = ['PERDA', 'PERBUP', 'PERWAKO', 'PERWALI', 'PERGUB', 'PB', 'PW', 'PWK', 'PG', 'PERDAPROV'];
+
+        if (in_array($kode, $kodeRegional, true)) {
+            return true;
+        }
+
+        foreach (['daerah', 'bupati', 'wali kota', 'walikota', 'gubernur', 'provinsi', 'kabupaten'] as $kataKunci) {
+            if (str_contains($nama, $kataKunci)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function formatTanggal($tanggal)
@@ -752,18 +883,28 @@ class DocumentImportService
             $kode = 'STAATSBLAD';
         }
 
-        $jenis = \App\Models\JenisPeraturan::whereRaw('LOWER(kode) = ?', [strtolower($kode)])
-            ->orWhereRaw('LOWER(nama) = ?', [strtolower($kode)])
+        $cacheKey = strtolower($kode);
+        if (isset($this->jenisIdCache[$cacheKey])) {
+            return $this->jenisIdCache[$cacheKey];
+        }
+
+        $jenis = JenisPeraturan::whereRaw('LOWER(kode) = ?', [$cacheKey])
+            ->orWhereRaw('LOWER(nama) = ?', [$cacheKey])
             ->first();
 
         if (!$jenis) {
-            $jenis = \App\Models\JenisPeraturan::create(['kode' => $kode, 'nama' => $kode]);
+            $jenis = JenisPeraturan::create(['kode' => $kode, 'nama' => $kode]);
         }
-        return $jenis->id;
+
+        return $this->jenisIdCache[$cacheKey] = $jenis->id;
     }
 
     public function findTargetPeraturan(string $targetUniqueId, ?string $targetNomor, ?string $targetTahun, $targetJenisId)
     {
+        if (isset($this->targetPeraturanCache[$targetUniqueId])) {
+            return $this->targetPeraturanCache[$targetUniqueId];
+        }
+
         $targetPeraturan = Peraturan::where('unique_id', $targetUniqueId)->first();
 
         if (!$targetPeraturan && !empty($targetNomor) && !empty($targetTahun)) {
@@ -787,6 +928,10 @@ class DocumentImportService
                     ->orWhereRaw('LOWER(judul) LIKE ?', ['%undang-undang dasar negara republik indonesia tahun 1945%'])
                     ->first();
             }
+        }
+
+        if ($targetPeraturan) {
+            $this->targetPeraturanCache[$targetUniqueId] = $targetPeraturan;
         }
 
         return $targetPeraturan;

@@ -154,6 +154,69 @@ class BookmarkApiTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_nama_folder_tidak_boleh_kembar_tanpa_membedakan_huruf_besar_kecil(): void
+    {
+        $user = $this->user();
+        $this->folder($user, 'Hukum Pajak');
+
+        $this->actingAs($user)
+            ->postJson('/api/bookmark-collections', ['name' => 'hukum pajak'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('name');
+    }
+
+    public function test_deskripsi_folder_sampai_500_karakter_diterima(): void
+    {
+        $user = $this->user();
+        $description = str_repeat('a', 500);
+
+        $this->actingAs($user)
+            ->postJson('/api/bookmark-collections', [
+                'name' => 'Folder Deskripsi',
+                'description' => $description,
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('bookmark_collections', [
+            'user_id' => $user->id,
+            'name' => 'Folder Deskripsi',
+            'description' => $description,
+        ]);
+    }
+
+    public function test_nama_folder_lebih_dari_50_karakter_ditolak(): void
+    {
+        $this->actingAs($this->user())
+            ->postJson('/api/bookmark-collections', ['name' => str_repeat('a', 51)])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('name');
+    }
+
+    public function test_bookmark_tidak_bisa_dimasukkan_ke_folder_orang_lain(): void
+    {
+        $user = $this->user();
+        $lain = $this->user();
+        $folderLain = $this->folder($lain, 'Folder Orang Lain');
+        $peraturan = $this->peraturan();
+
+        $this->actingAs($user)->postJson('/api/bookmarks/toggle', [
+            'type' => 'peraturan',
+            'id' => $peraturan->id,
+        ]);
+
+        $bookmark = Bookmark::where('user_id', $user->id)->firstOrFail();
+
+        $this->actingAs($user)
+            ->putJson('/api/bookmarks/assign-collections', [
+                'bookmark_id' => $bookmark->id,
+                'collection_ids' => [$folderLain->id],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('collection_ids');
+
+        $this->assertDatabaseCount('bookmark_collection_items', 0);
+    }
+
     public function test_user_tidak_bisa_menyentuh_folder_orang_lain(): void
     {
         $user = $this->user();

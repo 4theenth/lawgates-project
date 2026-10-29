@@ -10,18 +10,38 @@ export interface LoginProps {
     status?: string;
     canResetPassword?: boolean;
     redirect?: string;
+    verificationEmail?: string;
 }
 
-export default function Login({ status, canResetPassword = true, redirect }: LoginProps) {
+export default function Login({ status, canResetPassword = true, redirect, verificationEmail }: LoginProps) {
     const rawRedirect = redirect || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null);
     const redirectUrl = rawRedirect && rawRedirect !== '/' ? rawRedirect : null;
     const { data, setData, post, processing, errors, reset, setError, clearErrors } = useForm({
-        email: '',
+        email: verificationEmail || '',
         password: '',
         remember: false as boolean,
         redirect: redirectUrl || '',
     });
     const { toast } = useToast();
+    const [resending, setResending] = React.useState(false);
+
+    // Akun ada & password benar, tetapi email belum diverifikasi: sesi login
+    // tidak dibuat server, jadi yang ditawarkan hanya kirim ulang tautan.
+    const isUnverified = (errors as any).auth === 'unverified_email';
+
+    const resendVerification = () => {
+        if (!data.email || resending) return;
+        setResending(true);
+        router.post(
+            route('verification.send'),
+            { email: data.email },
+            {
+                preserveScroll: true,
+                onSuccess: () => toast.success('Tautan verifikasi baru sudah dikirim.'),
+                onFinish: () => setResending(false),
+            },
+        );
+    };
 
     const validateEmail = (val: string) => {
         const trimmed = val.trim();
@@ -104,11 +124,11 @@ export default function Login({ status, canResetPassword = true, redirect }: Log
                 : false));
 
     const emailInlineError =
-        isInvalidCredentials || isRateLimited ? undefined : errors.email;
+        isInvalidCredentials || isRateLimited || isUnverified ? undefined : errors.email;
     const passwordInlineError =
-        isInvalidCredentials || isRateLimited ? undefined : errors.password;
+        isInvalidCredentials || isRateLimited || isUnverified ? undefined : errors.password;
 
-    const emailHasError = Boolean(emailInlineError || isInvalidCredentials || isRateLimited);
+    const emailHasError = Boolean(emailInlineError || isInvalidCredentials || isRateLimited || isUnverified);
     const passwordHasError = Boolean(passwordInlineError || isInvalidCredentials || isRateLimited);
 
     return (
@@ -134,6 +154,29 @@ export default function Login({ status, canResetPassword = true, redirect }: Log
                 {status && (
                     <div className="mb-4 rounded-xl bg-suc-50 p-3 text-xs sm:text-sm font-medium text-suc-800 border border-suc-200">
                         {status}
+                    </div>
+                )}
+
+                {/* Banner: Email belum diverifikasi */}
+                {isUnverified && (
+                    <div className="mb-4 rounded-xl bg-sec-50 p-3.5 border border-sec-200 flex items-start gap-3">
+                        <Icon name="mail" className="h-5 w-5 text-sec-700 shrink-0 mt-0.5" />
+                        <div className="text-xs sm:text-sm">
+                            <p className="font-semibold text-neu-900 leading-tight">
+                                Email Anda belum diverifikasi
+                            </p>
+                            <p className="text-neu-600 mt-0.5 text-xs">
+                                Buka tautan verifikasi di <strong>{data.email}</strong> (cek juga folder Spam/Promosi), lalu masuk kembali.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={resendVerification}
+                                disabled={resending}
+                                className="mt-2 font-semibold text-neu-900 underline hover:text-sec-700 disabled:opacity-60"
+                            >
+                                {resending ? 'Mengirim...' : 'Kirim ulang email verifikasi'}
+                            </button>
+                        </div>
                     </div>
                 )}
 

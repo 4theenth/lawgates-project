@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\User;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,19 +21,16 @@ class ProfileController extends Controller
     public function edit(Request $request): Response
     {
         $user = $request->user();
-        if ($user && is_null($user->email_verified_at)) {
-            $user->forceFill(['email_verified_at' => now()])->save();
-        }
 
         if (in_array($user->role, ['admin', 'superadmin'])) {
             return Inertia::render('Admin/Profile', [
-                'mustVerifyEmail' => false,
+                'mustVerifyEmail' => $user instanceof MustVerifyEmail,
                 'status' => session('status'),
             ]);
         }
 
         return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => false,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
         ]);
     }
@@ -56,7 +54,7 @@ class ProfileController extends Controller
 
         $user->save();
 
-        return Redirect::back()->with('success', 'Profile berhasil diperbarui.');
+        return $this->backToProfile($user)->with('success', 'Profile berhasil diperbarui.');
     }
 
     /**
@@ -85,7 +83,7 @@ class ProfileController extends Controller
         $user->avatar = $path;
         $user->save();
 
-        return Redirect::back()->with('success', 'Foto profil berhasil diperbarui.');
+        return $this->backToProfile($user)->with('success', 'Foto profil berhasil diperbarui.');
     }
 
     /**
@@ -103,7 +101,22 @@ class ProfileController extends Controller
         $user->avatar = null;
         $user->save();
 
-        return Redirect::back()->with('success', 'Foto profil berhasil dihapus.');
+        return $this->backToProfile($user)->with('success', 'Foto profil berhasil dihapus.');
+    }
+
+    /**
+     * Kembali ke halaman profil yang sesuai peran pengguna.
+     *
+     * `back()` tanpa referer berakhir di "/" sehingga pengguna mendarat di
+     * beranda, bukan di halaman profil yang baru diubah.
+     */
+    private function backToProfile(User $user): RedirectResponse
+    {
+        $fallback = in_array($user->role, ['admin', 'superadmin'], true)
+            ? route('admin.profile')
+            : route('profile.edit');
+
+        return redirect()->back(302, [], $fallback);
     }
 
     /**

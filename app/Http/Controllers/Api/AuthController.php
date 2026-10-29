@@ -57,13 +57,24 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // 6. Apabila login berhasil, bersihkan counter rate limiter
+        // 6. Email wajib terverifikasi sebelum token diberikan. Akun manual
+        // yang belum verifikasi tidak boleh punya sesi/token sama sekali.
+        if (! in_array($user->role, ['admin', 'superadmin'], true) && ! $user->hasVerifiedEmail()) {
+            RateLimiter::clear($throttleKey);
+
+            return response()->json([
+                'message' => 'Email belum diverifikasi. Buka tautan verifikasi yang dikirim ke email Anda.',
+                'email_verified' => false,
+            ], 403);
+        }
+
+        // 7. Apabila login berhasil, bersihkan counter rate limiter
         RateLimiter::clear($throttleKey);
 
-        // 7. Buat token Sanctum
+        // 8. Buat token Sanctum
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        // 8. Kembalikan respons beserta data user & role
+        // 9. Kembalikan respons beserta data user & role
         return response()->json([
             'message' => 'Login berhasil',
             'access_token' => $token,
@@ -97,14 +108,14 @@ class AuthController extends Controller
             'role'          => 'user'    // Default pendaftar baru adalah 'user' biasa
         ]);
 
-        // 3. (Opsional) Langsung buatkan token agar user otomatis login setelah daftar
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // 3. Kirim tautan verifikasi. Token sengaja TIDAK dibuat: klien baru
+        // boleh login setelah email_verified_at terisi.
+        $user->sendEmailVerificationNotification();
 
         return response()->json([
-            'message'      => 'Registrasi berhasil',
-            'access_token' => $token,
-            'token_type'   => 'Bearer',
-            'user'         => [
+            'message'        => 'Registrasi berhasil. Verifikasi email Anda sebelum login.',
+            'email_verified' => false,
+            'user'           => [
                 'id'       => $user->id,
                 'username' => $user->username,
                 'email'    => $user->email,

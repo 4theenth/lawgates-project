@@ -157,10 +157,16 @@ class DokumenHukumController extends Controller
                 'lokasi_daerah' => $item->lokasi_daerah,
                 'subjek' => $item->subjek,
                 'judul' => $item->judul,
+                'nomor' => $item->nomor,
+                'tahun' => $item->tahun,
+                'instansi' => $item->instansi,
                 'status' => $status,
                 'tgl_ditetapkan' => $item->tanggal_penetapan ? $item->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-',
                 'author' => $item->updater ? $item->updater->username : ($item->creator ? $item->creator->username : 'Sistem'),
                 'real_status' => $item->statusPeraturan ? $item->statusPeraturan->nama_status : '-',
+                // file_pdf_path adalah sumber kebenaran; url_pdf hanya metadata
+                // sumber dan tidak menjamin berkas PDF benar-benar tersimpan.
+                'has_pdf' => !empty($item->file_pdf_path),
                 'is_embedded' => $isEmbedded,
                 'total_pasal' => $totalPasal,
                 'embedded_pasal' => $embeddedPasal,
@@ -762,15 +768,26 @@ class DokumenHukumController extends Controller
 
     public function bulkDeleteDraft(Request $request)
     {
-        $request->validate([
-            'ids' => 'required|array',
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:draft_dokumen,id',
         ]);
 
-        DraftDokumen::whereIn('id', $request->ids)->delete();
+        $deleted = DB::transaction(
+            fn () => DraftDokumen::whereIn('id', $validated['ids'])->delete()
+        );
+
+        if ($deleted === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Draft tidak ditemukan atau sudah terhapus',
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Draft berhasil dihapus',
+            'message' => "{$deleted} draft berhasil dihapus",
+            'deleted' => $deleted,
         ]);
     }
 
@@ -1390,7 +1407,17 @@ class DokumenHukumController extends Controller
 
         try {
             $disk = \Illuminate\Support\Facades\Storage::disk('minio');
-            $allFiles = $disk->allFiles('documents');
+
+            // ListObjectsV2 sudah menyertakan ukuran objek, sehingga tidak perlu
+            // HEAD request per berkas (yang membuat scan sangat lambat/timeout).
+            $fileSizes = [];
+            foreach ($disk->getDriver()->listContents('documents', true) as $object) {
+                if (!$object->isFile()) {
+                    continue;
+                }
+                $fileSizes[ltrim($object->path(), '/')] = (int) ($object->fileSize() ?? 0);
+            }
+            $allFiles = array_keys($fileSizes);
             
             $pendingImports = [];
             $categoriesMap = [];
@@ -1455,11 +1482,13 @@ class DokumenHukumController extends Controller
                     $titleFormatted = str_replace(['_', '-'], ' ', $folderName);
                     $titleFormatted = ucwords($titleFormatted);
 
+                    $fileSizeBytes = $fileSizes[$file] ?? 0;
+
                     $minioFileItems[] = [
                         'id' => md5($file),
                         'name' => $fileName,
                         'title' => $titleFormatted,
-                        'sizeKb' => 1500,
+                        'sizeKb' => max(1, (int) ceil($fileSizeBytes / 1024)),
                         'category' => $kategori,
                         'subfolder' => $subfolderRaw,
                         'subfolder_label' => $subfolderLabel,

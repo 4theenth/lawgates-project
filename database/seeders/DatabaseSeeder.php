@@ -65,6 +65,9 @@ class DatabaseSeeder extends Seeder
             OcrPerpres16Tahun2023Seeder::class,
             OcrPerdaBali1Tahun2010Seeder::class,
             OcrBadung1Tahun2006Seeder::class,
+            // DashboardDemoSeeder sengaja TIDAK dipanggil di sini: ia membuat akun
+            // demo dengan kata sandi lemah. Jalankan manual bila memang butuh:
+            // php artisan db:seed --class=DashboardDemoSeeder
         ]);
     }
 }

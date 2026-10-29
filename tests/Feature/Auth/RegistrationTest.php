@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -27,8 +28,11 @@ class RegistrationTest extends TestCase
             'terms' => true,
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect('/verify-email');
+        // Akun manual baru TIDAK langsung masuk: harus verifikasi email dulu.
+        $this->assertGuest();
+        $response->assertRedirect('/login');
+        $response->assertSessionHas('status');
+        $this->assertNull(User::where('email', 'test@example.com')->first()->email_verified_at);
     }
 
     public function test_manually_registered_user_starts_unverified(): void
@@ -42,7 +46,7 @@ class RegistrationTest extends TestCase
             'terms' => true,
         ]);
 
-        $this->assertNull(auth()->user()->email_verified_at);
+        $this->assertNull(User::where('email', 'test@example.com')->first()->email_verified_at);
     }
 
     public function test_registration_requires_terms_acceptance(): void

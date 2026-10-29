@@ -60,18 +60,30 @@ class RegionMasterTest extends TestCase
         $this->assertContains('Banyuasin', $names);
     }
 
-    public function test_statistics_api_includes_real_regencies_list(): void
+    public function test_statistics_api_includes_province_aggregates(): void
     {
         $res = $this->getJson('/api/regions/statistics');
         $res->assertStatus(200);
         $res->assertJsonPath('success', true);
 
-        $sumsel = $res->json('data.sumatera-selatan');
+        $data = $res->json('data');
+        $this->assertCount(38, $data);
+
+        $sumsel = $data['sumatera-selatan'] ?? null;
         $this->assertNotNull($sumsel);
-        $this->assertEquals(13, $sumsel['kabupatenCount']);
-        $this->assertEquals(4, $sumsel['kotaCount']);
-        $this->assertEquals(17, $sumsel['totalCount']);
-        $this->assertCount(17, $sumsel['regencies']);
+
+        // Kontrak panel peta: hitungan per provinsi plus cuplikan perda.
+        $this->assertSame('sumatera-selatan', $sumsel['id']);
+        $this->assertSame(strtoupper('Sumatera Selatan'), $sumsel['name']);
+        $this->assertArrayHasKey('total', $sumsel);
+        $this->assertArrayHasKey('berlaku', $sumsel);
+        $this->assertArrayHasKey('tidakBerlaku', $sumsel);
+        $this->assertIsArray($sumsel['regencyCounts']);
+        $this->assertIsArray($sumsel['samplePerdaList']);
+        $this->assertSame(
+            $sumsel['total'],
+            $sumsel['berlaku'] + $sumsel['tidakBerlaku']
+        );
     }
 
     public function test_detector_maps_regencies_to_correct_province(): void

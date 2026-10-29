@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, Pencil, CircleChevronDown, Trash2, Sparkles } from 'lucide-react';
+import { MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, Pencil, CircleChevronDown, Trash2, Eye, FileText, Sparkles } from 'lucide-react';
 import { StatusBadge } from '@/Components/common';
 import {
   Table,
@@ -16,11 +16,15 @@ export interface DokumenHukumItem {
   raw_id?: number;
   kategori: string;
   judul: string;
+  nomor?: string | null;
+  tahun?: number | null;
+  instansi?: string | null;
   subjek?: string | null;
   status: 'berlaku' | 'tidak_berlaku' | 'draft';
   tgl_ditetapkan: string;
   author?: string;
   real_status?: string;
+  has_pdf?: boolean;
   is_embedded?: boolean;
   total_pasal?: number;
   embedded_pasal?: number;
@@ -31,6 +35,7 @@ export type SortDirection = 'asc' | 'desc';
 
 interface DocumentTableProps {
   documents: DokumenHukumItem[];
+  onPreview?: (doc: DokumenHukumItem) => void;
   onEdit?: (doc: DokumenHukumItem) => void;
   onToggleStatus?: (doc: DokumenHukumItem) => void;
   onDelete?: (doc: DokumenHukumItem) => void;
@@ -47,6 +52,7 @@ interface DocumentTableProps {
 
 export function DocumentTable({
   documents,
+  onPreview,
   onEdit,
   onToggleStatus,
   onDelete,
@@ -69,6 +75,42 @@ export function DocumentTable({
   } | null>(null);
 
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Indikator arah geser tabel: bayangan tepi kiri & kanan hanya muncul saat masih ada kolom tersembunyi
+  const [scrollShadows, setScrollShadows] = useState({
+    left: false,
+    right: false,
+  });
+
+  const updateScrollShadows = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const maxScrollLeft = el.scrollWidth - el.clientWidth;
+    setScrollShadows({
+      left: el.scrollLeft > 2,
+      right: maxScrollLeft - el.scrollLeft > 2,
+    });
+  }, []);
+
+  useEffect(() => {
+    updateScrollShadows();
+
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    el.addEventListener('scroll', updateScrollShadows, { passive: true });
+    window.addEventListener('resize', updateScrollShadows);
+    const observer = new ResizeObserver(updateScrollShadows);
+    observer.observe(el);
+
+    return () => {
+      el.removeEventListener('scroll', updateScrollShadows);
+      window.removeEventListener('resize', updateScrollShadows);
+      observer.disconnect();
+    };
+  }, [updateScrollShadows, documents.length]);
 
   // Helper render sort icon
   const renderSortIcon = (column: SortColumn) => {
@@ -113,19 +155,22 @@ export function DocumentTable({
 
   return (
     <div className="w-full bg-white rounded-xl border border-neu-200 shadow-2xs overflow-hidden transition-all duration-200 relative">
-      <div className="w-full overflow-x-auto custom-thin-scrollbar">
-        <Table className="w-full min-w-[1150px] table-fixed text-left border-collapse">
-          {/* Colgroup untuk mengunci proporsi kolom (Checkbox, Kategori, Judul, Subjek, Status, Tgl Ditetapkan, Author, Aksi) */}
-          <colgroup>
-            <col className="w-[4%] min-w-[42px]" />
-            <col className="w-[14%] min-w-[130px]" />
-            <col className="w-[24%] min-w-[250px]" />
-            <col className="w-[15%] min-w-[160px]" />
-            <col className="w-[12%] min-w-[120px]" />
-            <col className="w-[12%] min-w-[110px]" />
-            <col className="w-[11%] min-w-[110px]" />
-            <col className="w-[8%] min-w-[70px]" />
-          </colgroup>
+      <Table
+        containerRef={scrollContainerRef}
+        containerClassName="custom-thin-scrollbar table-scroll-indicator"
+        className="w-full min-w-[1150px] table-fixed text-left border-collapse"
+      >
+        {/* Colgroup untuk mengunci proporsi kolom (Checkbox, Kategori, Judul, Subjek, Status, Tgl Ditetapkan, Author, Aksi) */}
+        <colgroup>
+          <col className="w-[4%] min-w-[42px]" />
+          <col className="w-[14%] min-w-[130px]" />
+          <col className="w-[24%] min-w-[250px]" />
+          <col className="w-[15%] min-w-[160px]" />
+          <col className="w-[12%] min-w-[120px]" />
+          <col className="w-[12%] min-w-[110px]" />
+          <col className="w-[11%] min-w-[110px]" />
+          <col className="w-[8%] min-w-[70px]" />
+        </colgroup>
 
         {/* Table Header (Sesuai spesifikasi admin Figma: bg-neu-50, border-b border-neu-200) */}
         <TableHeader className="bg-neu-50">
@@ -201,8 +246,15 @@ export function DocumentTable({
                 </div>
               </div>
             </TableHead>
-            <TableHead className="py-3 px-5 text-right whitespace-nowrap rounded-tr-xl sticky right-0 bg-neu-50 z-10 border-l border-neu-200 shadow-[-4px_0_12px_rgba(0,0,0,0.03)]">
+            <TableHead className={`py-3 px-5 text-right whitespace-nowrap rounded-tr-xl sticky right-0 bg-neu-50 z-10 ${scrollShadows.right ? 'sticky-aksi-shadow' : ''
+              }`}>
               <span>Aksi</span>
+              {scrollShadows.right && (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-y-0 left-0 w-px bg-neu-300"
+                />
+              )}
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -215,9 +267,8 @@ export function DocumentTable({
             return (
               <TableRow
                 key={doc.id}
-                className={`hover:bg-neu-50/50 transition-colors border-b border-neu-100 last:border-0 ${
-                  selectedIds?.includes(doc.id) ? 'bg-pr-50/20' : ''
-                }`}
+                className={`hover:bg-neu-50/50 transition-colors border-b border-neu-100 last:border-0 ${selectedIds?.includes(doc.id) ? 'bg-pr-50/20' : ''
+                  }`}
               >
                 {/* Checkbox Baris */}
                 <TableCell className="py-3.5 px-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
@@ -237,10 +288,22 @@ export function DocumentTable({
 
                 {/* Judul & Status Embedding */}
                 <TableCell className="py-3.5 px-5 font-normal text-neu-900 truncate">
-                  <div className="flex items-center gap-2 truncate">
-                    <span className="truncate block flex-1" title={doc.judul}>
-                      {doc.judul}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={`inline-flex items-center justify-center w-5 h-5 rounded-md shrink-0 ${doc.has_pdf
+                          ? 'bg-suc-50 text-suc-900'
+                          : 'bg-neu-100 text-neu-400'
+                        }`}
+                      title={doc.has_pdf ? 'PDF Tersedia' : 'PDF Belum Diunggah'}
+                      aria-label={doc.has_pdf ? 'PDF Tersedia' : 'PDF Belum Diunggah'}
+                    >
+                      <FileText className="w-3 h-3 shrink-0" />
                     </span>
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="truncate block flex-1" title={doc.judul}>
+                        {doc.judul}
+                      </span>
+                    </div>
                     {doc.is_embedded ? (
                       <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 shrink-0" title="Vektor AI Siap">
                         <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
@@ -276,8 +339,30 @@ export function DocumentTable({
                   {authorName}
                 </TableCell>
 
-                {/* Aksi Button (Tiga Titik) */}
-                <TableCell className="py-3.5 px-5 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-[#F8FAFC] z-10 border-l border-neu-100 shadow-[-4px_0_12px_rgba(0,0,0,0.03)] transition-colors">
+                {/* Aksi: Tinjauan Ringkas + Menu Tiga Titik */}
+                <TableCell className={`py-3.5 px-5 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-[#F8FAFC] z-10 transition-colors ${scrollShadows.right ? 'sticky-aksi-shadow' : ''
+                  }`}>
+                  {scrollShadows.right && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-y-0 left-0 w-px bg-neu-300"
+                    />
+                  )}
+                  {onPreview && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActionMenuState(null);
+                        onPreview(doc);
+                      }}
+                      className="w-8 h-8 inline-flex items-center justify-center rounded-lg hover:bg-neu-100 text-neu-600 transition-colors cursor-pointer"
+                      title="Tinjauan ringkas dokumen"
+                      aria-label={`Tinjauan ringkas dokumen ${doc.judul}`}
+                    >
+                      <Eye className="w-4 h-4 shrink-0" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => {
@@ -305,7 +390,13 @@ export function DocumentTable({
           })}
         </TableBody>
       </Table>
-      </div>
+
+      {/* Indikator tepi kiri: muncul saat tabel digeser ke kanan */}
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-y-0 left-0 w-6 z-20 bg-gradient-to-r from-pr-900/10 to-transparent transition-opacity duration-200 ${scrollShadows.left ? 'opacity-100' : 'opacity-0'
+          }`}
+      />
 
       {/* Render Dropdown Aksi Menggunakan Portal ke document.body (Sesuai Desain Figma Node #2258:43749) */}
       {actionMenuState &&
