@@ -438,13 +438,13 @@ class DokumenHukumController extends Controller
                 });
             }
         } elseif ($judul) {
-            $query->whereRaw('LOWER(judul) LIKE ?', ['%' . strtolower($judul) . '%']);
+            $query->whereRaw('LOWER(judul) = ?', [strtolower(trim($judul))]);
         } elseif ($filename) {
             $cleanName = pathinfo($filename, PATHINFO_FILENAME);
             $cleanNameWithSpaces = str_replace('_', ' ', $cleanName);
             $query->where(function($q) use ($cleanName, $cleanNameWithSpaces) {
                 $q->where('unique_id', $cleanName)
-                  ->orWhereRaw('LOWER(judul) LIKE ?', ['%' . strtolower($cleanNameWithSpaces) . '%']);
+                  ->orWhereRaw('LOWER(judul) = ?', [strtolower(trim($cleanNameWithSpaces))]);
             });
         }
 
@@ -469,15 +469,33 @@ class DokumenHukumController extends Controller
                 $draftQuery->where('files_data', 'like', '%' . $nomor . '%')
                            ->where('files_data', 'like', '%' . $tahun . '%');
             }
-            $draft = $draftQuery->first();
-            if ($draft) {
-                return response()->json([
-                    'exists' => true,
-                    'conflict' => true,
-                    'source' => 'draft',
-                    'draft_name' => $draft->nama_draft,
-                    'message' => "Dokumen sudah terdaftar di draft '{$draft->nama_draft}'."
-                ], 409);
+            $drafts = $draftQuery->get();
+            foreach ($drafts as $draft) {
+                $filesData = $draft->files_data ?: [];
+                foreach ($filesData as $f) {
+                    if ($filename && ($f['name'] ?? '') === $filename) {
+                        return response()->json([
+                            'exists' => true,
+                            'conflict' => true,
+                            'source' => 'draft',
+                            'draft_name' => $draft->nama_draft,
+                            'message' => "Dokumen sudah terdaftar di draft '{$draft->nama_draft}'."
+                        ], 409);
+                    }
+                    if ($nomor && $tahun) {
+                        $dNomor = $f['nomor'] ?? ($f['correctionData']['nomorPeraturan'] ?? ($f['parsedData']['metadata']['nomor'] ?? null));
+                        $dTahun = $f['tahun'] ?? ($f['correctionData']['tahun'] ?? ($f['parsedData']['metadata']['tahun'] ?? null));
+                        if ($dNomor && $dTahun && (string)$dNomor === (string)$nomor && (string)$dTahun === (string)$tahun) {
+                            return response()->json([
+                                'exists' => true,
+                                'conflict' => true,
+                                'source' => 'draft',
+                                'draft_name' => $draft->nama_draft,
+                                'message' => "Dokumen dengan Nomor {$nomor} Tahun {$tahun} sudah terdaftar di draft '{$draft->nama_draft}'."
+                            ], 409);
+                        }
+                    }
+                }
             }
         }
 
@@ -579,21 +597,113 @@ class DokumenHukumController extends Controller
 
     public function importOcr(Request $request, DocumentImportService $importService)
     {
-        $request->validate([
-            'files' => 'required|array',
-        ]);
+        $files = $this->normalizeImportFiles($request);
 
+        if (empty($files)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Berkas atau data dokumen wajib diunggah.',
+                'errors' => ['files' => ['Berkas atau data dokumen wajib diunggah.']]
+            ], 422);
+        }
+
+        // 1. Pre-validation: Periksa duplikasi ke seluruh berkas sebelum melakukan perubahan data ke database
+        if (!$request->boolean('allow_overwrite')) {
+            foreach ($files as $index => $fileData) {
+                if (!isset($fileData['parsedData'])) {
+                    continue;
+                }
+
+                $parsed = is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData'];
+                if (!is_array($parsed)) {
+                    continue;
+                }
+
+                $meta = $parsed['metadata'] ?? $parsed;
+                $correction = isset($fileData['correctionData'])
+                    ? (is_string($fileData['correctionData']) ? json_decode($fileData['correctionData'], true) : $fileData['correctionData'])
+                    : [];
+                if (!is_array($correction)) {
+                    $correction = [];
+                }
+
+                $nomor = $fileData['nomor'] ?? ($correction['nomorPeraturan'] ?? ($meta['nomor'] ?? null));
+                $tahun = $fileData['tahun'] ?? ($correction['tahun'] ?? ($meta['tahun'] ?? null));
+                $judul = $fileData['title'] ?? ($correction['judul'] ?? ($meta['judul'] ?? null));
+                $uniqueId = $fileData['unique_id'] ?? ($meta['id_dokumen'] ?? ($meta['standard_id'] ?? null));
+                $kategori = $fileData['category'] ?? ($meta['tipe_peraturan'] ?? ($meta['kategori'] ?? null));
+                $instansi = $correction['instansi'] ?? ($meta['pemrakarsa'] ?? ($meta['instansi'] ?? null));
+
+                $duplicate = null;
+
+                if ($uniqueId) {
+                    $duplicate = Peraturan::where('unique_id', $uniqueId)
+                        ->whereHas('statusPeraturan', fn($q) => $q->whereRaw('LOWER(nama_status) NOT LIKE ?', ['%draft%']))
+                        ->first();
+                }
+
+                if (!$duplicate && !empty($nomor) && !empty($tahun)) {
+                    $qNomor = Peraturan::where('nomor', $nomor)
+                        ->where('tahun', $tahun)
+                        ->whereHas('statusPeraturan', fn($q) => $q->whereRaw('LOWER(nama_status) NOT LIKE ?', ['%draft%']));
+
+                    if ($kategori) {
+                        $qNomor->whereHas('jenisPeraturan', function($q) use ($kategori) {
+                            $q->whereRaw('LOWER(nama) = ?', [strtolower(trim($kategori))])
+                              ->orWhereRaw('LOWER(kode) = ?', [strtolower(trim($kategori))]);
+                        });
+                    }
+
+                    $isRegional = $kategori && (
+                        in_array(strtoupper(trim($kategori)), ['PERDA', 'PERBUP', 'PERWAKO', 'PERWALI', 'PERGUB', 'PB', 'PW', 'PWK', 'PG', 'PERDAPROV'], true)
+                        || str_contains(strtolower($kategori), 'daerah')
+                        || str_contains(strtolower($kategori), 'bupati')
+                        || str_contains(strtolower($kategori), 'wali')
+                        || str_contains(strtolower($kategori), 'gubernur')
+                    );
+
+                    if ($isRegional) {
+                        if ($instansi) {
+                            $qNomor->where('instansi', trim($instansi));
+                            $duplicate = $qNomor->first();
+                        }
+                    } else {
+                        $duplicate = $qNomor->first();
+                    }
+                }
+
+                if (!$duplicate && !empty($judul)) {
+                    $duplicate = Peraturan::whereRaw('LOWER(judul) = ?', [strtolower(trim($judul))])
+                        ->whereHas('statusPeraturan', fn($q) => $q->whereRaw('LOWER(nama_status) NOT LIKE ?', ['%draft%']))
+                        ->first();
+                }
+
+                if ($duplicate && !str_contains(strtolower($duplicate->judul), 'menunggu import')) {
+                    return response()->json([
+                        'success' => false,
+                        'conflict' => true,
+                        'message' => "Dokumen '{$duplicate->judul}' sudah ada di database sistem (Duplikasi terdeteksi).",
+                        'existing_id' => $duplicate->unique_id,
+                        'existing_title' => $duplicate->judul,
+                        'errors' => ["Dokumen '{$duplicate->judul}' sudah terdaftar di database."]
+                    ], 409);
+                }
+            }
+        }
+
+        // 2. Eksekusi import berkas
         $successCount = 0;
         $errors = [];
 
-        $duplicateFound = false;
-        $duplicateMessage = '';
-        $duplicateTitle = null;
-
-        foreach ($request->input('files') as $index => $fileData) {
+        foreach ($files as $index => $fileData) {
             try {
                 if (isset($fileData['parsedData'])) {
                     $parsed = is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData'];
+                    if (!is_array($parsed)) {
+                        $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
+                        continue;
+                    }
+
                     $peraturan = $importService->import($parsed);
 
                     $user = \Illuminate\Support\Facades\Auth::user();
@@ -604,14 +714,20 @@ class DokumenHukumController extends Controller
                     
                     if (isset($fileData['correctionData'])) {
                         $correctionData = is_string($fileData['correctionData']) ? json_decode($fileData['correctionData'], true) : $fileData['correctionData'];
-                        $this->performUpdate($peraturan, $correctionData, true);
-
+                        if (is_array($correctionData)) {
+                            $this->performUpdate($peraturan, $correctionData, true);
+                        }
                     }
 
                     // Cek jika ada file PDF yang disertakan
+                    $pdfFile = null;
                     if ($request->hasFile("files.{$index}.rawFile")) {
                         $pdfFile = $request->file("files.{$index}.rawFile");
-                        // Pastikan file yang diunggah benar-benar PDF sebelum disimpan
+                    } elseif (isset($fileData['rawFile']) && $fileData['rawFile'] instanceof \Illuminate\Http\UploadedFile) {
+                        $pdfFile = $fileData['rawFile'];
+                    }
+
+                    if ($pdfFile instanceof \Illuminate\Http\UploadedFile) {
                         $mime = $pdfFile->getMimeType();
                         $ext = strtolower($pdfFile->getClientOriginalExtension());
                         if (str_contains($mime, 'pdf') || $ext === 'pdf') {
@@ -624,39 +740,82 @@ class DokumenHukumController extends Controller
 
                     $successCount++;
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 \Log::error("Import OCR Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-                if (str_contains(strtolower($e->getMessage()), 'sudah ada')) {
-                    $duplicateFound = true;
-                    $duplicateMessage = $e->getMessage();
-                    $parsed = isset($fileData['parsedData']) 
-                        ? (is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData']) 
-                        : null;
-                    $duplicateTitle = $fileData['title'] ?? ($parsed['metadata']['judul'] ?? ($parsed['judul'] ?? null));
-                    $errors[] = $e->getMessage();
-                } else {
-                    $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
-                }
+                $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
             }
         }
 
         if (count($errors) > 0) {
-            $status = $duplicateFound ? 409 : 400;
             return response()->json([
                 'success' => false,
-                'conflict' => $duplicateFound,
-                'message' => $duplicateFound 
-                    ? ($duplicateMessage ?: 'Dokumen sudah ada di database (Duplikasi terdeteksi).')
-                    : ("Berhasil mengimpor {$successCount} dokumen. Gagal: " . count($errors)),
-                'existing_title' => $duplicateTitle,
+                'conflict' => false,
+                'message' => "Berhasil mengimpor {$successCount} dokumen. Gagal: " . count($errors),
                 'errors' => $errors
-            ], $status);
+            ], 400);
         }
 
         return response()->json([
             'success' => true,
             'message' => "Berhasil mengimpor {$successCount} dokumen."
         ]);
+    }
+
+    /**
+     * Menormalisasi input data import dari berbagai kemungkinan bentuk request:
+     * 1. FormData / JSON dengan key 'files' (array of items)
+     * 2. Berkas fisik JSON yang diunggah via multipart/form-data
+     * 3. Objek JSON regulasi mentah langsung
+     */
+    private function normalizeImportFiles(Request $request): array
+    {
+        // 1. Jika dikirim via FormData/JSON dengan key 'files' berupa array
+        if ($request->has('files') && is_array($request->input('files'))) {
+            $files = $request->input('files');
+            return array_map(function ($item, $idx) {
+                if (is_array($item) && !isset($item['parsedData']) && (isset($item['metadata']) || isset($item['judul']) || isset($item['chunks']))) {
+                    $item['name'] = $item['name'] ?? "dokumen_{$idx}.json";
+                    $item['parsedData'] = $item;
+                }
+                return $item;
+            }, $files, array_keys($files));
+        }
+
+        // 2. Jika dikirim berkas fisik tunggal atau ganda (multipart/form-data)
+        if ($request->hasFile('file') || $request->hasFile('files')) {
+            $uploaded = $request->file('files') ?? [$request->file('file')];
+            if (!is_array($uploaded)) {
+                $uploaded = [$uploaded];
+            }
+            $result = [];
+            foreach ($uploaded as $f) {
+                if ($f instanceof \Illuminate\Http\UploadedFile) {
+                    $content = json_decode($f->get(), true);
+                    if ($content) {
+                        $result[] = [
+                            'name' => $f->getClientOriginalName(),
+                            'parsedData' => $content,
+                        ];
+                    }
+                }
+            }
+            if (!empty($result)) {
+                return $result;
+            }
+        }
+
+        // 3. Jika dikirim JSON mentah langsung (tanpa wrapper 'files')
+        $all = $request->all();
+        if (isset($all['metadata']) || isset($all['chunks']) || isset($all['judul'])) {
+            return [
+                [
+                    'name' => 'dokumen.json',
+                    'parsedData' => $all,
+                ]
+            ];
+        }
+
+        return [];
     }
 
     public function getDetailForEdit($unique_id)
