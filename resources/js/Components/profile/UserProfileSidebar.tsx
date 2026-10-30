@@ -7,7 +7,6 @@ import {
   Bookmark,
   PencilLine,
   History,
-  Settings,
 } from 'lucide-react';
 import profileAvatar from '@/assets/profile-avatar.webp';
 
@@ -83,14 +82,6 @@ export function UserProfileSidebar({
       icon: History,
       badge: null,
       disabled: true, // Dinonaktifkan sementara (tidak bisa diklik)
-    },
-    {
-      key: 'pengaturan' as const,
-      label: 'Pengaturan Akun',
-      href: route('profile.edit'),
-      icon: Settings,
-      badge: null,
-      disabled: false,
     },
   ];
 

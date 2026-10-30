@@ -145,7 +145,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors text-left cursor-pointer"
                     >
                       <User className="w-3.5 h-3.5 text-neu-500" />
-                      <span>Pengaturan Profil</span>
+                      <span>Profile</span>
                     </Dropdown.Link>
 
                     <Dropdown.Link
