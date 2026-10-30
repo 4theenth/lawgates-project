@@ -88,7 +88,7 @@ export function AdminHeader({
               <div className="py-1">
                 {[
                   {
-                    label: 'Profile Saya',
+                    label: 'Profil Saya',
                     icon: User,
                     href: route('profile.edit'),
                   },
