@@ -115,6 +115,21 @@ class JenisPeraturan extends Model
 
         // 3. Evaluasi kata kunci spesifik
         foreach ($canonicalMap as $item) {
+            // Cocokkan dulu lewat KODE baku-nya. Payload OCR umumnya mengirim
+            // singkatan kode (mis. 'UU', 'PERDA', 'PP'), sedangkan daftar
+            // keywords di bawah hanya memuat nama panjang. Tanpa pencocokan
+            // kode ini, 'UU' gagal dikenali saat tabel referensi masih kosong.
+            if ($rawLower === strtolower($item['kode'])) {
+                return self::whereRaw('LOWER(kode) = ?', [strtolower($item['kode'])])
+                    ->orWhereRaw('LOWER(nama) = ?', [strtolower($item['nama'])])
+                    ->first()
+                    ?? self::create([
+                        'kode' => $item['kode'],
+                        'nama' => $item['nama'],
+                        'deskripsi' => $item['deskripsi'],
+                    ]);
+            }
+
             foreach ($item['keywords'] as $kw) {
                 if ($rawLower === $kw || str_contains($rawLower, $kw)) {
                     $match = self::where('kode', $item['kode'])
@@ -143,20 +158,12 @@ class JenisPeraturan extends Model
             ]);
         }
 
-        // 4. Fallback otomatis untuk tipe kustom baru lainnya (pastikan kode minimal memadai)
-        $words = preg_split('/[\s\-]+/', $rawTrimmed);
-        $initials = '';
-        foreach ($words as $w) {
-            if (!empty($w)) {
-                $initials .= strtoupper(substr($w, 0, 1));
-            }
-        }
-        
-        $kode = (strlen($initials) >= 2) ? substr($initials, 0, 10) : strtoupper(substr($rawTrimmed, 0, 10));
-
-        return self::firstOrCreate(
-            ['kode' => $kode],
-            ['nama' => $rawTrimmed]
-        );
+        // 4. Tidak ada pencocokan: kembalikan null.
+        // JANGAN membuat baris baru di sini. Tipe peraturan yang tidak dikenal
+        // hampir selalu berarti typo OCR atau payload rusak, dan membuat baris
+        // otomatis akan mengisi tabel referensi dengan kategori hantu yang
+        // tidak pernah bisa dipakai filter. Pemanggil bertanggung jawab
+        // menolak atau memetakan ke kategori yang benar.
+        return null;
     }
 }

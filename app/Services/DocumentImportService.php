@@ -62,13 +62,20 @@ class DocumentImportService
 
             // Resolusi terpusat agar tidak membuat jenis duplikat (mis. UUDrt vs UU_DRT)
             $jenisKey = strtolower($tipePeraturan);
-            $jenis = $this->jenisCache[$jenisKey] ??= (
-                JenisPeraturan::resolveByRawString($tipePeraturan)
-                ?? JenisPeraturan::firstOrCreate(
-                    ['kode' => 'LAINNYA'],
-                    ['nama' => 'Lainnya']
-                )
-            );
+            $jenis = $this->jenisCache[$jenisKey] ??= JenisPeraturan::resolveByRawString($tipePeraturan);
+
+            // Tipe peraturan yang tidak dikenali TIDAK boleh dibiarkan lolos.
+            // Sebelumnya resolveByRawString() membuat baris baru dengan kode
+            // hasil inisial (mis. "TipeYangTidakAdaSamaSekali" -> "TYTASS"),
+            // sehingga satu typo OCR menciptakan kategori hantu permanen di
+            // tabel referensi. Lebih baik ditolak supaya admin memperbaiki
+            // JSON-nya daripada mencemari master data.
+            if (!$jenis) {
+                throw new \InvalidArgumentException(
+                    "Tipe peraturan '{$tipePeraturan}' tidak dikenali. " .
+                    "Gunakan salah satu tipe baku (mis. Undang-Undang, Peraturan Pemerintah, Peraturan Daerah)."
+                );
+            }
 
             $statusNama = ucwords(strtolower(trim((string) (
                 $metadata['status'] ?? $metadata['status_peraturan'] ?? 'berlaku'

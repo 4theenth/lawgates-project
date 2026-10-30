@@ -412,6 +412,37 @@ class DokumenHukumController extends Controller
         return response()->json(['exists' => false]);
     }
 
+    public function searchPeraturan(Request $request)
+    {
+        $q = trim((string) ($request->input('q') ?? $request->input('search') ?? ''));
+        if (strlen($q) < 2) {
+            return response()->json(['data' => []]);
+        }
+
+        $likeOp = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
+        $peraturans = Peraturan::query()
+            ->where(function ($sub) use ($q, $likeOp) {
+                $sub->where('unique_id', $likeOp, "%{$q}%")
+                    ->orWhere('judul', $likeOp, "%{$q}%")
+                    ->orWhere('nomor', $likeOp, "%{$q}%");
+            })
+            ->whereRaw("LOWER(COALESCE(judul, '')) NOT LIKE '%menunggu import%'")
+            ->orderBy('updated_at', 'desc')
+            ->limit(15)
+            ->get(['id', 'unique_id', 'judul', 'nomor', 'tahun']);
+
+        return response()->json([
+            'data' => $peraturans->map(fn ($p) => [
+                'id' => $p->id,
+                'unique_id' => $p->unique_id,
+                'judul' => $p->judul,
+                'nomor' => $p->nomor,
+                'tahun' => $p->tahun,
+            ]),
+        ]);
+    }
+
     public function checkDuplicate(Request $request)
     {
         $filename = $request->query('filename');
@@ -607,6 +638,34 @@ class DokumenHukumController extends Controller
             ], 422);
         }
 
+        // 0. Tolak duplikat di dalam batch yang sama.
+        // Pre-validation di bawah hanya membandingkan terhadap isi database,
+        // sehingga dua berkas kembar dalam satu kiriman sama-sama lolos,
+        // dokumen kedua menimpa yang pertama, dan respons tetap melaporkan
+        // "Berhasil mengimpor 2 dokumen" padahal hanya 1 baris tersimpan.
+        $seenInBatch = [];
+        foreach ($files as $index => $fileData) {
+            $batchKey = $this->batchIdentityKey($fileData);
+
+            if ($batchKey === null) {
+                continue;
+            }
+
+            if (isset($seenInBatch[$batchKey])) {
+                $firstLine = $seenInBatch[$batchKey] + 1;
+                $thisLine = $index + 1;
+
+                return response()->json([
+                    'success' => false,
+                    'conflict' => true,
+                    'message' => "Berkas pada baris {$thisLine} adalah duplikat dari baris {$firstLine} dalam unggahan yang sama. Hapus salah satunya lalu coba lagi.",
+                    'errors' => ["Duplikat di dalam batch: baris {$thisLine} sama dengan baris {$firstLine}."]
+                ], 409);
+            }
+
+            $seenInBatch[$batchKey] = is_int($index) ? $index : count($seenInBatch);
+        }
+
         // 1. Pre-validation: Periksa duplikasi ke seluruh berkas sebelum melakukan perubahan data ke database
         if (!$request->boolean('allow_overwrite')) {
             foreach ($files as $index => $fileData) {
@@ -695,12 +754,17 @@ class DokumenHukumController extends Controller
         $successCount = 0;
         $errors = [];
 
-        foreach ($files as $index => $fileData) {
+        foreach (array_values($files) as $position => $fileData) {
+            // Nomor baris untuk pesan ke pengguna harus dari posisi numerik.
+            // Pada jalur unggah berkas, kunci array berasal dari nama key
+            // ('file'), sehingga ($index + 1) menghasilkan 1 terus atau 0.
+            $lineNumber = $position + 1;
+
             try {
                 if (isset($fileData['parsedData'])) {
                     $parsed = is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData'];
                     if (!is_array($parsed)) {
-                        $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
+                        $errors[] = 'Gagal memproses file pada baris ' . $lineNumber . '. Format data tidak sesuai.';
                         continue;
                     }
 
@@ -719,10 +783,12 @@ class DokumenHukumController extends Controller
                         }
                     }
 
-                    // Cek jika ada file PDF yang disertakan
+                    // Cek jika ada file PDF yang disertakan.
+                    // Laravel mengindeks field bersarang berdasarkan posisi
+                    // numerik (files.0.rawFile), bukan kunci asli array.
                     $pdfFile = null;
-                    if ($request->hasFile("files.{$index}.rawFile")) {
-                        $pdfFile = $request->file("files.{$index}.rawFile");
+                    if ($request->hasFile("files.{$position}.rawFile")) {
+                        $pdfFile = $request->file("files.{$position}.rawFile");
                     } elseif (isset($fileData['rawFile']) && $fileData['rawFile'] instanceof \Illuminate\Http\UploadedFile) {
                         $pdfFile = $fileData['rawFile'];
                     }
@@ -742,7 +808,7 @@ class DokumenHukumController extends Controller
                 }
             } catch (\Throwable $e) {
                 \Log::error("Import OCR Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-                $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
+                $errors[] = 'Gagal memproses file pada baris ' . $lineNumber . '. ' . $this->describeImportFailure($e);
             }
         }
 
@@ -759,6 +825,135 @@ class DokumenHukumController extends Controller
             'success' => true,
             'message' => "Berhasil mengimpor {$successCount} dokumen."
         ]);
+    }
+
+    /**
+     * Menyusun pesan kegagalan import yang berguna bagi admin.
+     *
+     * Sebelumnya SEMUA kegagalan dilaporkan sebagai "Format data tidak sesuai",
+     * sehingga typo tipe peraturan atau data referensi hilang tidak bisa
+     * dibedakan dari JSON yang rusak.
+     */
+    private function describeImportFailure(\Throwable $e): string
+    {
+        // Validasi yang kita lempar sendiri (mis. tipe peraturan tak dikenal)
+        // aman ditampilkan apa adanya karena tidak membocorkan detail internal.
+        // DocumentImportService membungkus ulang semua error sebagai
+        // RuntimeException, jadi rantai cause harus ditelusuri.
+        for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+            if ($cause instanceof \InvalidArgumentException) {
+                return $cause->getMessage();
+            }
+        }
+
+        // Pelanggaran unique constraint = dokumen sudah ada.
+        for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+            if ($cause instanceof \Illuminate\Database\UniqueConstraintViolationException) {
+                return 'Dokumen sudah terdaftar (melanggar aturan unik jenis/nomor/tahun).';
+            }
+        }
+
+        return 'Format data tidak sesuai.';
+    }
+
+    /**
+     * Membersihkan path objek MinIO yang berasal dari input pengguna.
+     *
+     * Mengembalikan null bila path mengandung indikasi traversal atau
+     * karakter yang tidak masuk akal untuk nama objek di bucket.
+     */
+    private function sanitizeStoragePath(?string $path): ?string
+    {
+        if ($path === null) {
+            return null;
+        }
+
+        $path = trim($path);
+
+        if ($path === '') {
+            return null;
+        }
+
+        // Backslash dinormalkan agar "..\..\x" tidak lolos di Windows.
+        $path = str_replace('\\', '/', $path);
+
+        // Tolak karakter kontrol dan null byte.
+        if (preg_match('/[\x00-\x1F]/', $path)) {
+            return null;
+        }
+
+        // Tolak segmen '..' (traversal) di posisi mana pun.
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '..') {
+                return null;
+            }
+        }
+
+        // Tolak skema/protokol (mis. file://, php://) yang bisa disalahgunakan.
+        if (preg_match('#^[a-zA-Z][a-zA-Z0-9+.-]*://#', $path)) {
+            return null;
+        }
+
+        return ltrim($path, '/');
+    }
+
+    /**
+     * Kunci identitas dokumen dalam satu batch.
+     *
+     * Dipakai hanya untuk mendeteksi dua berkas yang menunjuk dokumen yang
+     * sama di dalam satu unggahan (hal yang tidak terlihat oleh pengecekan
+     * terhadap database). Prioritas: unique_id, lalu nomor+tahun (+instansi
+     * untuk peraturan daerah), lalu judul.
+     *
+     * @return string|null Null bila dokumen tidak punya identitas yang cukup.
+     */
+    private function batchIdentityKey(array $fileData): ?string
+    {
+        $parsed = $fileData['parsedData'] ?? null;
+
+        if (is_string($parsed)) {
+            $parsed = json_decode($parsed, true);
+        }
+
+        if (!is_array($parsed)) {
+            return null;
+        }
+
+        $meta = $parsed['metadata'] ?? $parsed;
+
+        $correction = $fileData['correctionData'] ?? [];
+        if (is_string($correction)) {
+            $correction = json_decode($correction, true);
+        }
+        if (!is_array($correction)) {
+            $correction = [];
+        }
+
+        $uniqueId = $fileData['unique_id']
+            ?? ($meta['id_dokumen'] ?? ($meta['standard_id'] ?? ($meta['unique_id'] ?? null)));
+
+        if (!empty($uniqueId)) {
+            return 'id:' . strtolower(trim((string) $uniqueId));
+        }
+
+        $nomor = $fileData['nomor'] ?? ($correction['nomorPeraturan'] ?? ($meta['nomor'] ?? null));
+        $tahun = $fileData['tahun'] ?? ($correction['tahun'] ?? ($meta['tahun'] ?? null));
+
+        if (!empty($nomor) && !empty($tahun)) {
+            $instansi = $correction['instansi'] ?? ($meta['pemrakarsa'] ?? ($meta['instansi'] ?? null));
+
+            return 'nomor:' . strtolower(trim((string) $nomor))
+                . '|' . strtolower(trim((string) $tahun))
+                . '|' . strtolower(trim((string) ($instansi ?? '')));
+        }
+
+        $judul = $fileData['title'] ?? ($correction['judul'] ?? ($meta['judul'] ?? null));
+
+        if (!empty($judul)) {
+            return 'judul:' . strtolower(trim((string) $judul));
+        }
+
+        return null;
     }
 
     /**
@@ -1327,20 +1522,81 @@ class DokumenHukumController extends Controller
             }
         }
 
-        // 4. Update Riwayat Perubahan (LawRelation)
+        // 4. Update & Sinkronisasi Riwayat Perubahan (LawRelation)
             $riwayatPerubahan = $data['riwayatPerubahan'] ?? [];
+            $processedRelationIds = [];
+
             foreach ($riwayatPerubahan as $riwayatData) {
+                // Lewati dokumen aktif (isCurrent)
+                if (!empty($riwayatData['isCurrent'])) {
+                    continue;
+                }
+
+                $kode = trim($riwayatData['kode'] ?? '');
+                if (!$kode) {
+                    continue;
+                }
+
+                $targetPeraturan = Peraturan::where('unique_id', $kode)->first();
+                if (!$targetPeraturan) {
+                    // Buat placeholder target peraturan jika belum ada di database
+                    $targetPeraturan = Peraturan::create([
+                        'unique_id' => $kode,
+                        'judul' => 'Menunggu import dokumen: ' . $kode,
+                        'tahun' => (int) (preg_match('/(\d{4})$/', $kode, $m) ? $m[1] : date('Y')),
+                        'nomor' => preg_match('/No[_\s]?(\d+)/i', $kode, $m) ? $m[1] : '0',
+                    ]);
+                }
+
+                // Tentukan nama relasi dari keteranganBadge atau default 'mengubah'
+                $relName = strtolower(
+                    $riwayatData['keteranganBadge']['label'] ??
+                    $riwayatData['keteranganBadge']['variant'] ??
+                    $riwayatData['keterangan'] ??
+                    'mengubah'
+                );
+
+                if (str_contains($relName, 'mencabut')) {
+                    $canonicalRel = 'mencabut';
+                } elseif (str_contains($relName, 'dicabut')) {
+                    $canonicalRel = 'dicabut_oleh';
+                } elseif (str_contains($relName, 'diubah')) {
+                    $canonicalRel = 'diubah_oleh';
+                } else {
+                    $canonicalRel = 'mengubah';
+                }
+
+                $relationType = \App\Models\RelationType::firstOrCreate(['nama_relasi' => $canonicalRel]);
+
                 if (isset($riwayatData['id']) && is_numeric($riwayatData['id'])) {
                     $relation = LawRelation::find($riwayatData['id']);
                     if ($relation) {
-                        $kode = $riwayatData['kode'] ?? '';
-                        $targetPeraturan = Peraturan::where('unique_id', $kode)->first();
-                        if ($targetPeraturan) {
-                            $relation->to_peraturan_id = $targetPeraturan->id;
-                            $relation->save();
-                        }
+                        $relation->to_peraturan_id = $targetPeraturan->id;
+                        $relation->relation_type_id = $relationType->id;
+                        $relation->save();
+                        $processedRelationIds[] = $relation->id;
+                        continue;
                     }
                 }
+
+                // Jika baru atau ID tidak ditemukan, buat LawRelation baru
+                $newRel = LawRelation::updateOrCreate(
+                    [
+                        'from_peraturan_id' => $peraturan->id,
+                        'to_peraturan_id' => $targetPeraturan->id,
+                    ],
+                    [
+                        'relation_type_id' => $relationType->id,
+                    ]
+                );
+                $processedRelationIds[] = $newRel->id;
+            }
+
+            // Hapus relasi lama yang telah dibuang oleh admin
+            if (!empty($processedRelationIds)) {
+                LawRelation::where('from_peraturan_id', $peraturan->id)
+                    ->whereNotIn('id', $processedRelationIds)
+                    ->delete();
             }
     }
     public function scanMinio()
@@ -1694,9 +1950,25 @@ class DokumenHukumController extends Controller
             ], 400);
         }
 
+        // Cegah path traversal: nilai ini berasal dari URL/query string dan
+        // diteruskan langsung ke disk MinIO. Tanpa guard, "../" bisa dipakai
+        // keluar dari folder documents/ dan membaca objek lain di bucket.
+        $cleanPath = $this->sanitizeStoragePath($targetFile);
+
+        if ($cleanPath === null) {
+            \Log::warning('MinIO Get File Content: path tidak valid ditolak', [
+                'user_id' => $request->user()?->id,
+                'path' => $targetFile,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Path berkas tidak valid.'
+            ], 422);
+        }
+
         try {
             $disk = \Illuminate\Support\Facades\Storage::disk('minio');
-            $cleanPath = ltrim($targetFile, '/');
 
             if ($disk->exists($cleanPath)) {
                 $content = $disk->get($cleanPath);
