@@ -14,6 +14,7 @@ use App\Models\Pasal;
 use App\Models\PenjelasanPasal;
 use App\Models\LawRelation;
 use App\Models\DraftDokumen;
+use App\Models\PeraturanOverwriteLog;
 use Illuminate\Support\Facades\DB;
 
 class DokumenHukumController extends Controller
@@ -768,7 +769,19 @@ class DokumenHukumController extends Controller
                         continue;
                     }
 
+                    // Snapshot kondisi lama SEBELUM import menimpa pasal/struktur,
+                    // supaya penimpaan bisa diaudit dan dikembalikan.
+                    $preOverwrite = $this->capturePreOverwriteState($parsed);
+
                     $peraturan = $importService->import($parsed);
+
+                    if ($preOverwrite) {
+                        // Catat juga user yang melakukan penimpaan, bukan hanya pembuat awal.
+                        $peraturan->updated_by = $request->user()?->id;
+                        $peraturan->save();
+
+                        $this->logOverwrite($preOverwrite, $peraturan, $request);
+                    }
 
                     $user = \Illuminate\Support\Facades\Auth::user();
                     if ($user && in_array($user->role, ['admin', 'superadmin'], true) && !$peraturan->created_by) {
@@ -825,6 +838,86 @@ class DokumenHukumController extends Controller
             'success' => true,
             'message' => "Berhasil mengimpor {$successCount} dokumen."
         ]);
+    }
+
+    /**
+     * Mengambil kondisi dokumen sebelum ditimpa untuk keperluan audit.
+     *
+     * Dipanggil SEBELUM importService->import() karena method tersebut
+     * menghapus dan menimpa data pasal/struktur lama.
+     */
+    private function capturePreOverwriteState(array $parsed): ?array
+    {
+        $meta = $parsed['metadata'] ?? $parsed;
+
+        $uniqueId = $meta['id_dokumen']
+            ?? ($meta['standard_id'] ?? ($meta['unique_id'] ?? null));
+
+        $judul = $meta['judul'] ?? ($parsed['judul'] ?? null);
+
+        $peraturan = null;
+
+        if ($uniqueId) {
+            $peraturan = Peraturan::withTrashed()->where('unique_id', $uniqueId)->first();
+        }
+
+        if (!$peraturan && $judul) {
+            $peraturan = Peraturan::withTrashed()
+                ->whereRaw('LOWER(judul) = ?', [strtolower(trim((string) $judul))])
+                ->first();
+        }
+
+        if (!$peraturan) {
+            return null;
+        }
+
+        $snapshot = [];
+
+        foreach (PeraturanOverwriteLog::snapshotColumns() as $column) {
+            $snapshot[$column] = $peraturan->getAttribute($column);
+        }
+
+        return [
+            'peraturan_id' => $peraturan->id,
+            'unique_id' => $peraturan->unique_id,
+            'snapshot' => $snapshot,
+            'chunks_before' => Pasal::where('peraturan_id', $peraturan->id)->count(),
+        ];
+    }
+
+    /**
+     * Mencatat penimpaan dokumen beserta selisihnya.
+     */
+    private function logOverwrite(array $before, Peraturan $after, Request $request): void
+    {
+        $afterState = [];
+
+        foreach (PeraturanOverwriteLog::snapshotColumns() as $column) {
+            $afterState[$column] = $after->getAttribute($column);
+        }
+
+        $diff = PeraturanOverwriteLog::diffFields($before['snapshot'], $afterState);
+
+        $chunksAfter = Pasal::where('peraturan_id', $after->id)->count();
+
+        PeraturanOverwriteLog::create([
+            'peraturan_id' => $before['peraturan_id'],
+            'unique_id' => $before['unique_id'],
+            'user_id' => $request->user()?->id,
+            'source' => $request->boolean('from_api') ? 'api' : 'ui',
+            'snapshot' => $before['snapshot'],
+            'changes' => $diff,
+            'chunks_before' => $before['chunks_before'],
+            'chunks_after' => $chunksAfter,
+        ]);
+
+        if (!empty($diff['dropped_fields'])) {
+            \Log::warning('Import menimpa dokumen dan mengosongkan field', [
+                'unique_id' => $before['unique_id'],
+                'dropped_fields' => $diff['dropped_fields'],
+                'user_id' => $request->user()?->id,
+            ]);
+        }
     }
 
     /**
