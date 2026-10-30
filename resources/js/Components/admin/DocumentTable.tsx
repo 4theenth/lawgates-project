@@ -182,9 +182,14 @@ export function DocumentTable({
             <TableHead className="py-3 px-5 whitespace-nowrap">
               <div
                 onClick={() => onSort?.('judul')}
-                className="group inline-flex items-center gap-1.5 cursor-pointer text-neu-700"
+                className="group inline-flex items-center gap-1.5 cursor-pointer select-none text-neu-700"
               >
                 <span className={sortColumn === 'judul' ? 'text-pr-900 font-semibold' : ''}>Judul</span>
+                {sortColumn === 'judul' && (
+                  <span className="text-[10px] font-bold text-pr-900 leading-none tracking-tight">
+                    {sortDirection === 'asc' ? 'A-Z' : 'Z-A'}
+                  </span>
+                )}
                 <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
                   {renderSortIcon('judul')}
                 </div>
