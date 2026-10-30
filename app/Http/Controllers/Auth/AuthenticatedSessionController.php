@@ -36,6 +36,9 @@ class AuthenticatedSessionController extends Controller
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
             'redirect' => $redirect ?? $intended,
+            // Diisi setelah registrasi supaya field email langsung terisi dan
+            // tombol "kirim ulang verifikasi" tidak butuh input ulang.
+            'verificationEmail' => session('verification_email'),
         ]);
     }
 

@@ -6,8 +6,9 @@ import { Info, Mail } from 'lucide-react';
 import type { PageProps } from '@/types';
 
 export default function VerifyEmail({ status }: { status?: string }) {
-    const { post, processing } = useForm({});
     const { auth } = usePage<PageProps>().props;
+    // Endpoint kirim ulang sekarang publik, jadi email dikirim eksplisit.
+    const { post, processing } = useForm({ email: auth.user?.email ?? '' });
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();

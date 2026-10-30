@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -28,6 +29,52 @@ class AuthenticationTest extends TestCase
 
         $this->assertAuthenticated();
         $response->assertRedirect('/');
+    }
+
+    public function test_unverified_user_cannot_log_in(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $response = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertGuest();
+        $response->assertSessionHasErrors(['email' => 'Email '.$user->email.' belum diverifikasi. Buka tautan verifikasi yang kami kirim, lalu masuk kembali.']);
+        $response->assertSessionHasErrors(['auth' => 'unverified_email']);
+    }
+
+    public function test_verification_link_works_without_login(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $url = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email)]
+        );
+
+        // Klik tautan verifikasi = langsung masuk ke akun, tanpa login ulang.
+        $this->get($url)->assertRedirect(route('home'));
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+        $this->assertAuthenticatedAs($user->fresh());
+    }
+
+    public function test_verified_user_can_log_in_after_verifying(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $url = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email)]
+        );
+        $this->get($url);
+
+        $this->post('/login', ['email' => $user->email, 'password' => 'password']);
+
+        $this->assertAuthenticatedAs($user->fresh());
     }
 
     public function test_admin_redirects_to_admin_dashboard_on_login(): void

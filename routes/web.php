@@ -114,6 +114,7 @@ Route::middleware('auth')->group(function () {
 | Admin Routes
 |--------------------------------------------------------------------------
 */
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DokumenHukumController;
 use App\Http\Controllers\Admin\KategoriHukumController;
 use App\Http\Controllers\Admin\SubjekPeraturanController;
@@ -126,9 +127,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
         return redirect()->route('admin.dashboard');
     });
 
-    Route::get('/dashboard', function () {
-        return Inertia::render('Admin/Dashboard');
-    })->name('admin.dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
 
     Route::redirect('/categories', '/admin/kategori-hukum');
     Route::get('/kategori-hukum', [KategoriHukumController::class, 'index'])->name('admin.kategori-hukum');

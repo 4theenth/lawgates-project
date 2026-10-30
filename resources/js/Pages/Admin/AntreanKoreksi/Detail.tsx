@@ -10,7 +10,7 @@ import {
   AuditTrailItem,
 } from '@/Components/admin/CorrectionAuditTimeline';
 import { KoreksiActionModal } from '@/Components/admin/KoreksiActionModal';
-import { DocumentPreviewModal } from '@/Components/admin/DocumentPreviewModal';
+import { CorrectionDocumentPdfModal } from '@/Components/admin/CorrectionDocumentPdfModal';
 import { CorrectionStatusBanner } from '@/Components/admin/CorrectionStatusBanner';
 import { X, Check } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
@@ -221,7 +221,7 @@ export default function Detail({ koreksi }: DetailProps) {
       />
 
       {/* ── 5. Pratinjau Dokumen Modal (POV Verifikasi Admin) ── */}
-      <DocumentPreviewModal
+      <CorrectionDocumentPdfModal
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         document={koreksi.document}

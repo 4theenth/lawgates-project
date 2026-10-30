@@ -62,20 +62,22 @@ export function RevenueTrendChart({
   const paddingX = 14;
   const paddingY = 12;
 
-  const maxVal = 100000000;
-  const yAxisTicks = [
-    { label: '100.000.000', value: 100000000 },
-    { label: '10.000.000', value: 10000000 },
-    { label: '5.000.000', value: 5000000 },
-    { label: '1.000.000', value: 1000000 },
-    { label: '0', value: 0 },
-  ];
+  const peak = Math.max(
+    0,
+    ...data.flatMap((item) => [item.bulanIni, item.bulanLalu])
+  );
+  // Skala Y mengikuti data riil, dibulatkan ke juta terdekat.
+  const maxVal = Math.max(1_000_000, Math.ceil(peak / 1_000_000) * 1_000_000);
+  const yAxisTicks = [1, 0.75, 0.5, 0.25, 0].map((ratio) => ({
+    value: maxVal * ratio,
+    label: Math.round(maxVal * ratio).toLocaleString('id-ID'),
+  }));
 
   // Fungsi helper kalkulasi posisi koordinat X dan Y
   const getX = (index: number) => {
     const totalPoints = data.length;
     const availableWidth = svgWidth - paddingX * 2;
-    return paddingX + (index / (totalPoints - 1)) * availableWidth;
+    return paddingX + (index / Math.max(1, totalPoints - 1)) * availableWidth;
   };
 
   const getY = (val: number) => {
@@ -119,6 +121,26 @@ export function RevenueTrendChart({
   const areaPathBulanIni = `${linePathBulanIni} L ${getX(data.length - 1)} ${svgHeight - paddingY} L ${getX(0)} ${svgHeight - paddingY} Z`;
 
   const hoveredItem = hoveredIndex !== null ? data[hoveredIndex] : null;
+
+  if (data.length === 0) {
+    return (
+      <div
+        className={`bg-white rounded-xl border border-neu-50 p-4 sm:p-5 flex flex-col justify-between shadow-2xs ${className}`}
+      >
+        <div className="pb-3 sm:pb-4 border-b border-neu-50/60">
+          <h3 className="text-[16px] font-medium leading-[24px] text-neu-900 tracking-tight">
+            Tren Pendapatan Bulanan
+          </h3>
+        </div>
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-[14px] font-medium text-neu-700">Belum ada data pembayaran</p>
+          <p className="text-[12px] text-neu-500 mt-1">
+            Grafik akan terisi otomatis setelah ada transaksi langganan.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

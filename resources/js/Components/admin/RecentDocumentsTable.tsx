@@ -40,9 +40,9 @@ export function RecentDocumentsTable({
   const [sortColumn, setSortColumn] = useState<'title' | 'category' | 'status' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  // State pagination (4 baris per halaman, menghasilkan 3 halaman untuk 12 dummy data)
+  // State pagination (5 baris per halaman agar seluruh dokumen terbaru tampil sekaligus)
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 4;
+  const pageSize = 5;
 
   const handleSort = (column: 'title' | 'category' | 'status') => {
     if (sortColumn === column) {
@@ -170,6 +170,13 @@ export function RecentDocumentsTable({
 
             {/* Body */}
             <tbody>
+              {paginatedData.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="py-8 px-3 text-center text-[12px] text-neu-500">
+                    Belum ada dokumen.
+                  </td>
+                </tr>
+              )}
               {paginatedData.map((item) => (
                 <tr
                   key={item.id}

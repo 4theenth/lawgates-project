@@ -1,85 +1,109 @@
 import React from 'react';
-import { X, ExternalLink, Download } from 'lucide-react';
+import Modal from '@/Components/common/Modal';
+import { StatusBadge } from '@/Components/common';
+import { X } from 'lucide-react';
+import { DokumenHukumItem } from './DocumentTable';
 
-export interface DocumentPreviewModalProps {
-  isOpen: boolean;
+interface DocumentPreviewModalProps {
+  show: boolean;
+  documentData?: DokumenHukumItem | null;
   onClose: () => void;
-  document: {
-    id?: number | string;
-    title: string;
-    category?: string;
-    chapter?: string;
-    article?: string;
-    url?: string;
-    pdf_url?: string | null;
-    pdfUrl?: string | null;
-  };
 }
 
-export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
-  isOpen,
+/**
+ * Tinjauan ringkas dokumen hukum (read-only).
+ *
+ * Sengaja tidak memakai `DocumentModal`: komponen itu adalah form tambah/edit
+ * admin dengan state dan `onSave`. Mencampur mode baca ke sana akan membuat
+ * satu komponen memegang dua tanggung jawab.
+ *
+ * Data diambil langsung dari baris tabel (sudah dikirim `DokumenHukumController::index`),
+ * jadi tidak ada request tambahan saat modal dibuka.
+ */
+export function DocumentPreviewModal({
+  show,
+  documentData,
   onClose,
-  document,
-}) => {
-  if (!isOpen) return null;
+}: DocumentPreviewModalProps) {
+  if (!documentData) return null;
 
-  // URL berkas PDF murni untuk iframe
-  const rawPdfUrl =
-    document.pdf_url ||
-    document.pdfUrl ||
-    '/peraturan/undang-undang-11-2020/download?inline=1';
+  const details: Array<{ label: string; value: string }> = [
+    { label: 'Jenis Peraturan', value: documentData.kategori || '-' },
+    { label: 'Nomor', value: documentData.nomor || '-' },
+    { label: 'Tahun', value: documentData.tahun ? String(documentData.tahun) : '-' },
+    { label: 'Instansi', value: documentData.instansi || '-' },
+    { label: 'Subjek', value: documentData.subjek || '-' },
+    { label: 'Tanggal Ditetapkan', value: documentData.tgl_ditetapkan || '-' },
+  ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="w-full max-w-[900px] h-[90vh] bg-white rounded-[16px] shadow-2xl flex flex-col overflow-hidden border border-neu-100 animate-in zoom-in-95 duration-150">
-        {/* Header Bersih & Minimalis */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-neu-100 bg-white shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0 pr-4">
-            <span className="text-[14px] font-medium text-neu-900 truncate">
-              {document.title}
-            </span>
-            {document.article && (
-              <span className="px-2 py-0.5 rounded-[6px] bg-pr-50 text-pr-900 text-[11px] font-medium shrink-0">
-                {document.article}
-              </span>
-            )}
+    <Modal
+      show={show}
+      onClose={onClose}
+      maxWidth="lg"
+      backdropStyle={{ backgroundColor: 'rgba(55, 55, 55, 0.60)' }}
+      panelClassName="overflow-visible rounded-[16px] bg-white border border-neu-100 shadow-2xl"
+    >
+      <div className="p-6 bg-white rounded-[16px] text-left">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="font-sans text-[18px] font-semibold text-neu-900 leading-tight">
+              Tinjauan Ringkas
+            </h2>
+            <p className="font-sans text-[14px] font-normal text-neu-600 mt-1 line-clamp-3">
+              {documentData.judul}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Tombol Unduh / Buka Tab Baru */}
-            <a
-              href={rawPdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 text-neu-500 hover:text-neu-800 hover:bg-neutral-100 rounded-[8px] transition-colors"
-              title="Buka dokumen di tab baru"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </a>
-
-            {/* Tombol Tutup Silang */}
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 text-neu-500 hover:text-neu-800 hover:bg-neutral-100 rounded-[8px] transition-colors cursor-pointer"
-              title="Tutup Pratinjau"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Tutup tinjauan ringkas"
+            className="shrink-0 w-8 h-8 inline-flex items-center justify-center rounded-lg text-neu-500 hover:bg-neu-50 hover:text-neu-900 transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* View File Asli Bersih (PDF Lembaran Negara) */}
-        <div className="flex-1 w-full h-full bg-[#525659] relative">
-          <iframe
-            src={`${rawPdfUrl}#toolbar=1&navpanes=0`}
-            title={`Naskah Dokumen - ${document.title}`}
-            className="w-full h-full border-0"
-          />
+        {/* Status */}
+        <div className="mt-5 flex items-center gap-2.5">
+          <span className="font-sans text-[12px] font-medium text-neu-500">
+            Status Hukum
+          </span>
+          <StatusBadge status={documentData.status} />
+        </div>
+
+        {/* Rincian */}
+        <dl className="mt-4 border-t border-neu-100">
+          {details.map(({ label, value }) => (
+            <div
+              key={label}
+              className="flex items-start justify-between gap-6 py-2.5 border-b border-neu-100 last:border-b-0"
+            >
+              <dt className="font-sans text-[12px] font-normal text-neu-500 shrink-0">
+                {label}
+              </dt>
+              <dd className="font-sans text-[13px] font-medium text-neu-900 text-right break-words">
+                {value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        {/* Aksi */}
+        <div className="flex items-center justify-end mt-6">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-[13px] font-medium text-neu-700 hover:bg-gray-50 rounded-[10px] border border-neu-200 transition-colors cursor-pointer"
+          >
+            Tutup
+          </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
-};
+}
 
 export default DocumentPreviewModal;
