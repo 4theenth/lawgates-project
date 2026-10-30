@@ -284,6 +284,34 @@ class DokumenHukumController extends Controller
         ]);
     }
 
+    /**
+     * Halaman edit dokumen hukum dengan URL permanen.
+     *
+     * Memakai slug `unique_id` sehingga refresh maupun bookmark tetap membuka
+     * layar koreksi, tidak dilempar kembali ke daftar dokumen.
+     */
+    public function edit($unique_id)
+    {
+        $peraturan = Peraturan::with(['jenisPeraturan'])->where('unique_id', $unique_id)->firstOrFail();
+
+        $detail = $this->buildDetailCorrectionData($peraturan);
+
+        return Inertia::render('Admin/DokumenHukum/Edit', [
+            'uniqueId' => (string) $peraturan->unique_id,
+            'correctionData' => $detail,
+            'dokumen' => [
+                'id' => (string) $peraturan->unique_id,
+                'judul' => $peraturan->judul,
+                'kategori' => $peraturan->jenisPeraturan ? $peraturan->jenisPeraturan->nama : '-',
+                'tgl_ditetapkan' => $peraturan->tanggal_penetapan
+                    ? $peraturan->tanggal_penetapan->isoFormat('D MMMM YYYY')
+                    : null,
+                'status' => $peraturan->statusPeraturan ? $peraturan->statusPeraturan->nama_status : null,
+                'instansi' => $peraturan->instansi,
+            ],
+        ]);
+    }
+
     public function storeDraft(Request $request)
     {
         $request->validate([
@@ -331,7 +359,7 @@ class DokumenHukumController extends Controller
                     return response()->json([
                         'success' => false,
                         'conflict' => true,
-                        'message' => "Peraturan dengan judul \"{$fileTitle}\" sudah ada di database sistem (Duplikasi terdeteksi).",
+                        'message' => "Dokumen berjudul '{$fileTitle}' sudah ada di database sistem (Duplikasi terdeteksi).",
                         'existing_id' => $duplicatePeraturan->unique_id,
                         'existing_title' => $duplicatePeraturan->judul
                     ], 409);
@@ -742,10 +770,10 @@ class DokumenHukumController extends Controller
                     return response()->json([
                         'success' => false,
                         'conflict' => true,
-                        'message' => "Dokumen '{$duplicate->judul}' sudah ada di database sistem (Duplikasi terdeteksi).",
+                        'message' => "Dokumen berjudul '{$duplicate->judul}' sudah ada di database sistem (Duplikasi terdeteksi).",
                         'existing_id' => $duplicate->unique_id,
                         'existing_title' => $duplicate->judul,
-                        'errors' => ["Dokumen '{$duplicate->judul}' sudah terdaftar di database."]
+                        'errors' => ["Dokumen berjudul '{$duplicate->judul}' sudah terdaftar di database."]
                     ], 409);
                 }
             }
@@ -1112,6 +1140,16 @@ class DokumenHukumController extends Controller
             ->with(['jenisPeraturan'])
             ->firstOrFail();
 
+        return response()->json($this->buildDetailCorrectionData($peraturan));
+    }
+
+    /**
+     * Menyusun struktur data koreksi (pembukaan, batang tubuh, relasi, metadata)
+     * untuk satu peraturan. Dipakai bersama oleh endpoint JSON detail-edit dan
+     * halaman edit dengan URL permanen.
+     */
+    protected function buildDetailCorrectionData(Peraturan $peraturan): array
+    {
         // Ambil pembukaan (Struktur: PEMBUKAAN)
         $pembukaan = StrukturDokumen::where('peraturan_id', $peraturan->id)
             ->where('tipe_struktur', 'PEMBUKAAN')
@@ -1326,7 +1364,7 @@ class DokumenHukumController extends Controller
             ];
         }
 
-        return response()->json([
+        return [
             'standarId' => $peraturan->unique_id,
             'judul' => $peraturan->judul,
             'pembukaan' => [
@@ -1342,7 +1380,7 @@ class DokumenHukumController extends Controller
                 'tanggalDitetapkan' => $peraturan->tanggal_penetapan ? $peraturan->tanggal_penetapan->format('Y-m-d') : '',
                 'tempatPenetapan' => $peraturan->tempat_penetapan ?? '',
             ]
-        ]);
+        ];
     }
 
     public function update(Request $request, $unique_id)

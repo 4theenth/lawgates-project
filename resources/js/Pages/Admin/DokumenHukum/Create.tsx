@@ -18,6 +18,7 @@ import {
 import {
   CorrectionDetailView,
   LegalDocumentCorrectionData,
+  generateInitialCorrectionData,
 } from '@/Components/admin/import/CorrectionDetailView';
 import { DraftNameModal } from '@/Components/admin/DraftNameModal';
 import { DuplicateConfirmModal } from '@/Components/admin/DuplicateConfirmModal';
@@ -627,7 +628,7 @@ export default function DokumenHukumCreate() {
         setIsDraftModalOpen(false);
         setDuplicateModal({
           show: true,
-          title: 'Duplikasi Draft Terdeteksi (409 Conflict)',
+          title: 'Dokumen Ini Sudah Ada',
           message: msg,
           documentTitle: namaDraft,
           existingId: errorData.existing_id,
@@ -753,7 +754,7 @@ export default function DokumenHukumCreate() {
 
         setDuplicateModal({
           show: true,
-          title: 'Duplikasi Dokumen Terdeteksi (409 Conflict)',
+          title: 'Dokumen Ini Sudah Ada',
           message: msg,
           documentTitle: errorData.existing_title || errorData.title || validatedFiles[0]?.title,
           existingId: errorData.existing_id,
@@ -1076,6 +1077,34 @@ export default function DokumenHukumCreate() {
         existingId={duplicateModal.existingId}
         onOverwrite={handleConfirmOverwrite}
         isOverwriting={isOverwriting}
+        onEdit={() => {
+          setDuplicateModal((prev) => ({ ...prev, show: false }));
+          if (validatedFiles.length > 0) {
+            setEditingFile(validatedFiles[0]);
+          }
+        }}
+        onSaveNewTitle={(newTitle) => {
+          if (validatedFiles.length > 0) {
+            const first = validatedFiles[0];
+            const baseCorrection = first.correctionData || generateInitialCorrectionData(first);
+            const updatedCorrection = {
+              ...baseCorrection,
+              judul: newTitle,
+            };
+            setValidatedFiles((prev) =>
+              prev.map((f, idx) =>
+                idx === 0
+                  ? {
+                      ...f,
+                      title: newTitle,
+                      correctionData: updatedCorrection,
+                    }
+                  : f
+              )
+            );
+            toast.success('Judul dokumen berhasil diperbarui. Silakan simpan / publikasikan ulang.');
+          }
+        }}
       />
     </AdminLayout>
   );

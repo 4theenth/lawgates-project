@@ -8,9 +8,18 @@ interface CorrectionMetadataSectionProps {
 }
 
 export function CorrectionMetadataSection({
-  metadata,
+  metadata = {
+    pemrakarsa: '',
+    tanggalDitetapkan: '',
+    tempatPenetapan: '',
+  },
   onChangeMetadata,
 }: CorrectionMetadataSectionProps) {
+  const safeMetadata = metadata || {
+    pemrakarsa: '',
+    tanggalDitetapkan: '',
+    tempatPenetapan: '',
+  };
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   // Helper konversi format teks (e.g. "23-08-1945" atau "18 Agustus 2023") ke "YYYY-MM-DD"
@@ -73,7 +82,7 @@ export function CorrectionMetadataSection({
         </label>
         <input
           type="text"
-          value={metadata.pemrakarsa || ''}
+          value={safeMetadata.pemrakarsa || ''}
           onChange={(e) => onChangeMetadata('pemrakarsa', e.target.value)}
           className="w-full px-4 py-2.5 text-[14px] rounded-[14px] border border-neu-200 bg-white text-neu-900 placeholder:text-neu-400 focus:outline-none focus:border-pr-900 focus:ring-1 focus:ring-pr-900 transition-all"
           placeholder="Pemerintah Pusat"
@@ -88,25 +97,25 @@ export function CorrectionMetadataSection({
         <div className="relative flex items-center">
           <input
             type="text"
-            value={metadata.tanggalDitetapkan || ''}
+            value={safeMetadata.tanggalDitetapkan || ''}
             onChange={(e) => onChangeMetadata('tanggalDitetapkan', e.target.value)}
+            placeholder="DD-MM-YYYY (Contoh: 18-08-2023)"
             className="w-full px-4 py-2.5 text-[14px] rounded-[14px] border border-neu-200 bg-white text-neu-900 placeholder:text-neu-400 focus:outline-none focus:border-pr-900 focus:ring-1 focus:ring-pr-900 transition-all pr-12 cursor-pointer"
-            placeholder="23-08-1945"
             onClick={openDatePicker}
           />
           <button
             type="button"
             onClick={openDatePicker}
-            title="Buka kalender"
             className="absolute right-3 p-1 text-neu-500 hover:text-pr-900 transition-colors cursor-pointer flex items-center gap-1"
+            title="Buka Kalender"
           >
-            <Calendar className="w-4 h-4 stroke-[2]" />
             <ChevronDown className="w-3.5 h-3.5 text-neu-400 stroke-[2]" />
+            <Calendar className="w-4 h-4 text-neu-500 stroke-[1.8]" />
           </button>
           <input
             ref={dateInputRef}
             type="date"
-            value={getIsoDate(metadata.tanggalDitetapkan)}
+            value={getIsoDate(safeMetadata.tanggalDitetapkan)}
             onChange={handleNativeDateChange}
             className="sr-only"
             tabIndex={-1}
@@ -122,7 +131,7 @@ export function CorrectionMetadataSection({
         </label>
         <input
           type="text"
-          value={metadata.tempatPenetapan || ''}
+          value={safeMetadata.tempatPenetapan || ''}
           onChange={(e) => onChangeMetadata('tempatPenetapan', e.target.value)}
           className="w-full px-4 py-2.5 text-[14px] rounded-[14px] border border-neu-200 bg-white text-neu-900 placeholder:text-neu-400 focus:outline-none focus:border-pr-900 focus:ring-1 focus:ring-pr-900 transition-all"
           placeholder="Jakarta"

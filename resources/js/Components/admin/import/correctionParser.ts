@@ -284,7 +284,7 @@ export function formatStandardId(rawId: string): string {
 export function generateInitialCorrectionData(
   file: ValidatedFileItem
 ): LegalDocumentCorrectionData {
-  if (file.correctionData) {
+  if (file.correctionData && file.correctionData.pembukaan && file.correctionData.babList) {
     return file.correctionData;
   }
 

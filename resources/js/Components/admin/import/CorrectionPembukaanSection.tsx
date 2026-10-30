@@ -17,17 +17,28 @@ interface CorrectionPembukaanSectionProps {
 }
 
 export function CorrectionPembukaanSection({
-  pembukaan,
-  isOpenPembukaan,
-  isOpenMenimbang,
-  isOpenMengingat,
-  isOpenMemutuskan,
+  pembukaan = {
+    judul: 'Pembukaan',
+    menimbang: '',
+    mengingat: '',
+    memutuskan: '',
+  },
+  isOpenPembukaan = true,
+  isOpenMenimbang = true,
+  isOpenMengingat = true,
+  isOpenMemutuskan = true,
   onTogglePembukaan,
   onToggleMenimbang,
   onToggleMengingat,
   onToggleMemutuskan,
   onChangePembukaan,
 }: CorrectionPembukaanSectionProps) {
+  const safePembukaan = pembukaan || {
+    judul: 'Pembukaan',
+    menimbang: '',
+    mengingat: '',
+    memutuskan: '',
+  };
   return (
     <div
       id="section-pembukaan"
@@ -55,24 +66,24 @@ export function CorrectionPembukaanSection({
           <div className="space-y-3">
             <input
               type="text"
-              value={pembukaan.judul}
+              value={safePembukaan.judul || ''}
               onChange={(e) => onChangePembukaan('judul', e.target.value)}
-              className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] font-semibold text-neu-900 focus:outline-none focus:bg-white focus:border-pr-900"
+              className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] font-semibold text-neu-900 focus:outline-none focus:bg-white focus:border-neu-200 focus:ring-2 focus:ring-pr-900/5 hover:border-neu-200 transition-all"
               placeholder="Judul Pembukaan..."
             />
-            {pembukaan.subJudul !== undefined && (
+            {safePembukaan.subJudul !== undefined && (
               <AutoResizeTextarea
                 enableAutoFormat
-                value={pembukaan.subJudul}
+                value={safePembukaan.subJudul || ''}
                 onChange={(e) => onChangePembukaan('subJudul', e.target.value)}
-                className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[60px]"
+                className="w-full p-3 rounded-[8px] bg-[#F8FAFC] border border-neu-100 text-[12px] text-neu-700 leading-relaxed focus:outline-none focus:bg-white focus:border-neu-200 focus:ring-2 focus:ring-pr-900/5 hover:border-neu-200 transition-all resize-none min-h-[60px]"
                 placeholder="Diktum pembuka / tentang..."
               />
             )}
           </div>
 
           {/* Sub-accordion: Menimbang */}
-          <div className="border-t border-neu-100 pt-3">
+          <div>
             <button
               type="button"
               onClick={onToggleMenimbang}
@@ -89,9 +100,9 @@ export function CorrectionPembukaanSection({
               <div className="mt-2">
                 <AutoResizeTextarea
                   enableAutoFormat
-                  value={pembukaan.menimbang}
+                  value={safePembukaan.menimbang || ''}
                   onChange={(e) => onChangePembukaan('menimbang', e.target.value)}
-                  className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[100px]"
+                  className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-neu-200 focus:ring-2 focus:ring-pr-900/5 hover:border-neu-200 transition-all resize-none min-h-[100px]"
                   placeholder="Isi konsiderans menimbang..."
                 />
               </div>
@@ -99,7 +110,7 @@ export function CorrectionPembukaanSection({
           </div>
 
           {/* Sub-accordion: Mengingat */}
-          <div className="border-t border-neu-100 pt-3">
+          <div>
             <button
               type="button"
               onClick={onToggleMengingat}
@@ -116,9 +127,9 @@ export function CorrectionPembukaanSection({
               <div className="mt-2">
                 <AutoResizeTextarea
                   enableAutoFormat
-                  value={pembukaan.mengingat}
+                  value={safePembukaan.mengingat || ''}
                   onChange={(e) => onChangePembukaan('mengingat', e.target.value)}
-                  className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[100px]"
+                  className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-neu-200 focus:ring-2 focus:ring-pr-900/5 hover:border-neu-200 transition-all resize-none min-h-[100px]"
                   placeholder="Dasar hukum mengingat..."
                 />
               </div>
@@ -126,7 +137,7 @@ export function CorrectionPembukaanSection({
           </div>
 
           {/* Sub-accordion: Memutuskan */}
-          <div className="border-t border-neu-100 pt-3">
+          <div>
             <button
               type="button"
               onClick={onToggleMemutuskan}
@@ -143,9 +154,9 @@ export function CorrectionPembukaanSection({
               <div className="mt-2">
                 <AutoResizeTextarea
                   enableAutoFormat
-                  value={pembukaan.memutuskan}
+                  value={safePembukaan.memutuskan || ''}
                   onChange={(e) => onChangePembukaan('memutuskan', e.target.value)}
-                  className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-pr-900 resize-none min-h-[80px]"
+                  className="w-full p-3.5 rounded-[8px] bg-[#F8FAFC] border-l-4 border-l-amber-500 border border-neu-100 text-[12px] text-neu-800 leading-relaxed focus:outline-none focus:bg-white focus:border-neu-200 focus:ring-2 focus:ring-pr-900/5 hover:border-neu-200 transition-all resize-none min-h-[80px]"
                   placeholder="Diktum memutuskan..."
                 />
               </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ValidatedFileItem } from './StepValidationCorrection';
 import {
   LegalDocumentCorrectionData,
@@ -6,6 +6,7 @@ import {
   formatStandardId,
   ChapterItem,
   ArticleItem,
+  TimelineRelationItem,
 } from './correctionParser';
 import { CorrectionTableOfContents } from './CorrectionTableOfContents';
 import { CorrectionHeaderSection } from './CorrectionHeaderSection';
@@ -32,6 +33,12 @@ export interface CorrectionDetailViewProps {
   onSave: (updatedData: LegalDocumentCorrectionData) => void | Promise<void>;
   onCancel?: () => void;
   onBack?: () => void;
+  /**
+   * Dipanggil setiap kali status "ada perubahan belum disimpan" berubah.
+   * Berguna bagi halaman induk untuk menampilkan konfirmasi saat pengguna
+   * mencoba keluar dari layar edit.
+   */
+  onDirty?: (isDirty: boolean) => void;
 }
 
 export function CorrectionDetailView({
@@ -40,11 +47,28 @@ export function CorrectionDetailView({
   onSave,
   onCancel,
   onBack,
+  onDirty,
 }: CorrectionDetailViewProps) {
   // State data utama hasil parsing berkas JSON
   const [data, setData] = useState<LegalDocumentCorrectionData>(() =>
     generateInitialCorrectionData(file)
   );
+
+  // Snapshot data awal untuk mendeteksi perubahan (dirty state)
+  const initialDataSnapshotRef = useRef<string | null>(null);
+
+  // Catat snapshot pertama kali data siap, lalu bandingkan setiap perubahan
+  useEffect(() => {
+    const serialized = JSON.stringify(data);
+
+    if (initialDataSnapshotRef.current === null) {
+      initialDataSnapshotRef.current = serialized;
+      return;
+    }
+
+    onDirty?.(serialized !== initialDataSnapshotRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const [activeSection, setActiveSection] = useState<string>('');
 
@@ -125,46 +149,102 @@ export function CorrectionDetailView({
     };
   }, [isDragging]);
 
+  // Observer daftar isi.
+  //
+  // Dibuat sekali agar tidak dibongkar-pasang setiap kali data berubah.
+  // Sebelumnya efek ini bergantung pada `data`, sehingga setiap ketikan atau
+  // penambahan pasal membuat observer lama & baru saling menimpa dan memicu
+  // kedipan (glitch) pada penanda bagian aktif.
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  const observeSections = useCallback(() => {
+    const observer = observerRef.current;
+    if (!observer) return;
+
+    document.querySelectorAll('[id^="section-"]').forEach((el) => {
+      // Observasi ganda pada elemen yang sama tidak menimbulkan duplikasi
+      // callback, namun tetap dijaga agar konsisten.
+      observer.observe(el);
+    });
+  }, []);
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        // Find the first intersecting entry
+        // Ambil elemen yang terlihat pertama, lalu perbarui hanya bila berubah.
         const visibleEntry = entries.find((entry) => entry.isIntersecting);
         if (visibleEntry) {
-          setActiveSection(visibleEntry.target.id);
+          setActiveSection((prev) => (prev === visibleEntry.target.id ? prev : visibleEntry.target.id));
         }
       },
       { rootMargin: '-10% 0px -80% 0px', threshold: 0 }
     );
 
-    // Observe all sections
-    const elements = document.querySelectorAll('[id^="section-"]');
-    elements.forEach((el) => observer.observe(el));
+    observerRef.current = observer;
+    observeSections();
 
     return () => {
-      elements.forEach((el) => observer.unobserve(el));
       observer.disconnect();
+      observerRef.current = null;
     };
-  }, [data]);
+  }, [observeSections]);
 
-  // Sinkronisasi otomatis jika berkas berubah atau file baru diunggah
+  // Daftarkan ulang elemen baru setelah struktur dokumen berubah
+  useEffect(() => {
+    observeSections();
+  }, [data.babList, observeSections]);
+
+  // Sinkronisasi otomatis jika berkas berubah atau file baru diunggah.
+  //
+  // PENTING: dependensi memakai nilai identitas berkas (bukan objek `file`),
+  // karena halaman induk dapat membuat objek `file` baru pada setiap render.
+  // Bila dependensinya objek, setiap perubahan state (mis. menambah pasal)
+  // akan memicu efek ini dan menimpa seluruh editan dengan data awal.
+  const fileSyncKey = `${file.id ?? ''}|${file.name ?? ''}|${
+    (file as any).rawFile?.name ?? ''
+  }`;
+
   useEffect(() => {
     if (file.correctionData) {
-      setData(file.correctionData);
+      const baseGenerated = generateInitialCorrectionData(file);
+      const merged: LegalDocumentCorrectionData = {
+        ...baseGenerated,
+        ...file.correctionData,
+        pembukaan: {
+          ...baseGenerated.pembukaan,
+          ...(file.correctionData.pembukaan || {}),
+        },
+        metadata: {
+          ...baseGenerated.metadata,
+          ...(file.correctionData.metadata || {}),
+        },
+        babList: file.correctionData.babList || baseGenerated.babList,
+        riwayatPerubahan: file.correctionData.riwayatPerubahan || baseGenerated.riwayatPerubahan,
+      };
+      setData(merged);
+      initialDataSnapshotRef.current = JSON.stringify(merged);
+      onDirty?.(false);
     } else if (file.parsedData) {
-      setData(generateInitialCorrectionData(file));
+      const generated = generateInitialCorrectionData(file);
+      setData(generated);
+      initialDataSnapshotRef.current = JSON.stringify(generated);
+      onDirty?.(false);
     } else if (file.rawFile) {
       file.rawFile.text().then((text) => {
         try {
           const cleanText = text.replace(/^\uFEFF/, '').trim();
           const parsed = JSON.parse(cleanText);
-          setData(generateInitialCorrectionData({ ...file, parsedData: parsed }));
+          const generated = generateInitialCorrectionData({ ...file, parsedData: parsed });
+          setData(generated);
+          initialDataSnapshotRef.current = JSON.stringify(generated);
+          onDirty?.(false);
         } catch (e) {
           console.warn('Gagal membaca JSON dari rawFile', e);
         }
       });
     }
-  }, [file]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileSyncKey]);
 
   // Accordion card states
   const [isOpenStandarId, setIsOpenStandarId] = useState(true);
@@ -453,6 +533,10 @@ export function CorrectionDetailView({
     setIsSaving(true);
     try {
       await onSave(data);
+      // Data yang baru disimpan menjadi baseline baru sehingga
+      // status "ada perubahan" kembali bersih.
+      initialDataSnapshotRef.current = JSON.stringify(data);
+      onDirty?.(false);
     } finally {
       setIsSaving(false);
     }
@@ -513,6 +597,22 @@ export function CorrectionDetailView({
       }
       id={isSplitMode ? undefined : 'editor-scroll-container'}
     >
+      {/* Toolbar sticky: aksi tambah pasal selalu terjangkau saat menggulir naskah */}
+      <div className="sticky top-0 z-20 flex items-center justify-between gap-2 flex-wrap bg-white/95 backdrop-blur rounded-[14px] border border-neu-100 px-3 py-2 shadow-2xs">
+        <span className="text-[11px] font-semibold text-neu-500 uppercase tracking-wide">
+          Aksi Naskah
+        </span>
+        <button
+          type="button"
+          onClick={addPasalToFirstBab}
+          title="Tambahkan pasal baru secara manual"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-pr-200 bg-pr-50 text-pr-900 hover:bg-pr-100 text-[12px] font-semibold transition-colors cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Tambah Pasal
+        </button>
+      </div>
+
       {/* Standar ID & Judul Peraturan */}
       <CorrectionHeaderSection
         standarId={data.standarId}
@@ -576,6 +676,86 @@ export function CorrectionDetailView({
     </div>
   );
 
+  const handleAddRelation = (newRel: { kode: string; tipe: 'mencabut' | 'mengubah' | 'dicabut' | 'diubah' }) => {
+    const kode = (newRel.kode || '').trim();
+    if (!kode) return;
+
+    // Tolak relasi ganda ke target yang sama agar daftar tidak menampilkan
+    // entri berulang ketika tombol ditekan lebih dari sekali.
+    const sudahAda = (data.riwayatPerubahan || []).some(
+      (r) => !r.isCurrent && (r.kode || '').trim().toLowerCase() === kode.toLowerCase()
+    );
+    if (sudahAda) {
+      return;
+    }
+
+    let label = 'Mengubah Peraturan ini';
+    let variant: 'diubah' | 'mengubah' | 'dicabut' = 'mengubah';
+    if (newRel.tipe === 'mencabut') {
+      label = 'Mencabut Peraturan ini';
+      variant = 'dicabut';
+    } else if (newRel.tipe === 'dicabut') {
+      label = 'Dicabut oleh peraturan ini';
+      variant = 'dicabut';
+    } else if (newRel.tipe === 'diubah') {
+      label = 'Diubah oleh peraturan ini';
+      variant = 'diubah';
+    }
+
+    const newItem: TimelineRelationItem = {
+      id: `rel-new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      kode,
+      statusBadge: {
+        label: 'Dokumen Tersedia',
+        variant: 'tersedia',
+      },
+      keteranganBadge: {
+        label,
+        variant,
+      },
+      isCurrent: false,
+    };
+
+    setData((prev) => ({
+      ...prev,
+      riwayatPerubahan: [newItem, ...(prev.riwayatPerubahan || [])],
+    }));
+  };
+
+  const handleDeleteRelation = (id: string) => {
+    setData((prev) => ({
+      ...prev,
+      riwayatPerubahan: (prev.riwayatPerubahan || []).filter((r) => r.id !== id),
+    }));
+  };
+
+  const handleChangeRelationType = (id: string, newTipe: 'mencabut' | 'mengubah' | 'dicabut' | 'diubah') => {
+    let label = 'Mengubah Peraturan ini';
+    let variant: 'diubah' | 'mengubah' | 'dicabut' = 'mengubah';
+    if (newTipe === 'mencabut') {
+      label = 'Mencabut Peraturan ini';
+      variant = 'dicabut';
+    } else if (newTipe === 'dicabut') {
+      label = 'Dicabut oleh peraturan ini';
+      variant = 'dicabut';
+    } else if (newTipe === 'diubah') {
+      label = 'Diubah oleh peraturan ini';
+      variant = 'diubah';
+    }
+
+    setData((prev) => ({
+      ...prev,
+      riwayatPerubahan: (prev.riwayatPerubahan || []).map((r) =>
+        r.id === id
+          ? {
+              ...r,
+              keteranganBadge: { label, variant },
+            }
+          : r
+      ),
+    }));
+  };
+
   const renderTimeline = () => (
     <CorrectionTimelineSection
       riwayatPerubahan={data.riwayatPerubahan || []}
@@ -587,6 +767,9 @@ export function CorrectionDetailView({
           ),
         }))
       }
+      onAddRelation={handleAddRelation}
+      onDeleteRelation={handleDeleteRelation}
+      onChangeRelationType={handleChangeRelationType}
     />
   );
 
@@ -618,17 +801,6 @@ export function CorrectionDetailView({
         </div>
 
         <div className="flex items-center gap-3 self-end sm:self-auto">
-          {/* Tombol Tambah Pasal Manual (ADM39) */}
-          <button
-            type="button"
-            onClick={addPasalToFirstBab}
-            title="Tambahkan pasal baru secara manual"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] border border-neu-200 bg-white text-pr-900 hover:bg-pr-50 text-[14px] font-medium transition-colors cursor-pointer shadow-2xs"
-          >
-            <Plus className="w-4 h-4" />
-            Tambah Pasal
-          </button>
-
           {/* Tombol Toggle PDF Sumber (Inspirasi Pasal.id) */}
           <button
             type="button"
@@ -847,7 +1019,7 @@ export function CorrectionDetailView({
                 </div>
               ) : (
                 /* TAB 2: RIWAYAT PERUBAHAN & METADATA DOKUMEN */
-                <div className="h-full overflow-y-auto pr-2 custom-scrollbar space-y-4">
+                <div id="section-relasi-hukum" className="h-full overflow-y-auto pr-2 custom-scrollbar space-y-4">
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
                     {renderTimeline()}
                     {renderMetadata()}
@@ -869,7 +1041,10 @@ export function CorrectionDetailView({
           </div>
 
           {/* KOLOM KANAN: RIWAYAT PERUBAHAN & METADATA */}
-          <div className="w-full lg:w-[260px] xl:w-[280px] shrink-0 min-w-0 space-y-4 h-[calc(100vh-140px)] min-h-[500px] overflow-y-auto custom-scrollbar pr-1">
+          <div
+            id="section-relasi-hukum"
+            className="w-full lg:w-[320px] xl:w-[350px] shrink-0 min-w-0 space-y-4 h-[calc(100vh-140px)] min-h-[500px] overflow-y-auto custom-scrollbar pr-1"
+          >
             {renderTimeline()}
             {renderMetadata()}
           </div>
