@@ -104,6 +104,7 @@ const STATUTORY_EQUIVALENTS: Record<string, string[]> = {
   pernikahan: ['perkawinan', 'kawin'],
   perkawinan: ['pernikahan', 'kawin'],
   menikah: ['kawin', 'perkawinan'],
+  nikah: ['perkawinan', 'kawin', 'pernikahan'],
   kawin: ['perkawinan', 'pernikahan', 'menikah'],
   gaji: ['upah', 'imbalan'],
   upah: ['gaji', 'imbalan'],
@@ -129,18 +130,22 @@ const STATUTORY_EQUIVALENTS: Record<string, string[]> = {
   ongkos: ['biaya', 'tarif'],
   biaya: ['tarif', 'retribusi', 'pungutan'],
   anak: ['anak di bawah umur', 'belum dewasa'],
+  waris: ['pewarisan', 'ahli waris', 'harta peninggalan', 'hubungan perdata'],
   sawit: ['kelapa sawit'],
   'kelapa sawit': ['sawit'],
   pt: ['perseroan', 'perseroan terbatas'],
-  pt_perorangan: ['perseroan', 'usaha mikro dan kecil'],
-  perorangan: ['perseroan', 'usaha mikro dan kecil'],
-  mendirikan: ['pendirian', 'pembentukan', 'perizinan berusaha'],
+  pt_perorangan: ['perseroan', 'perseroan perorangan', 'usaha mikro dan kecil'],
+  perorangan: ['perseroan', 'usaha mikro dan kecil', 'perseorangan'],
+  mendirikan: ['pendirian', 'pembentukan', 'perizinan berusaha', 'didirikan'],
   radioaktif: ['ketenaganukliran', 'radiasi pengion'],
   nuklir: ['ketenaganukliran', 'tenaga nuklir'],
-  uang: ['mata uang', 'uang kertas', 'rupiah', 'alat pembayaran'],
+  uang: ['mata uang', 'uang kertas', 'alat pembayaran'],
   memproduksi: ['membikin', 'membuat', 'mencetak', 'meniru', 'memalsu'],
   produksi: ['membikin', 'membuat', 'mencetak', 'meniru', 'memalsu'],
   palsu: ['tiruan', 'meniru', 'memalsu', 'tidak sah'],
+  hutang: ['utang', 'piutang', 'pinjaman', 'wanprestasi'],
+  utang: ['hutang', 'piutang', 'pinjaman', 'wanprestasi'],
+  pinjaman: ['utang', 'hutang', 'kredit', 'pembiayaan'],
   mencuri: ['pencurian', 'mengambil barang milik orang lain'],
   menipu: ['penipuan', 'tipu muslihat', 'rangkaian kebohongan'],
   memukul: ['penganiayaan', 'kekerasan'],
@@ -257,16 +262,30 @@ function highlightMatches(text: string, query?: string, synonyms: string[] = [])
 
   // Pola E: Jawaban Sanksi / Hukuman / Denda
   if (/\b(?:hukum\w*|pidana|sanksi|denda|penjara|kurungan)\b/i.test(lowerQ)) {
-    const sanctionPatterns = [
-      /(?:dipidana\s+dengan\s+pidana\s+(?:penjara|kurungan)[^.;\n]+)/gi,
-      /(?:dihukum\s+dengan\s+hukuman\s+(?:penjara|kurungan)[^.;\n]+)/gi,
-      /pidana\s+penjara\s+(?:paling\s+lama\s+)?[^,;.\n]*(?:tahun|bulan)/gi,
-      /(?:pidana\s+)?denda\s+(?:paling\s+banyak\s+)?[^,;.\n]*(?:rupiah|rp)/gi,
-    ];
-    for (const pat of sanctionPatterns) {
-      let m: RegExpExecArray | null;
-      while ((m = pat.exec(text)) !== null) {
-        ranges.push({ start: m.index, end: m.index + m[0].length });
+    // Pastikan tidak menandai denda/sanksi acak jika kueri menanyakan topik hukum substantif spesifik
+    const nonModalityTokens = tokens.filter(
+      (t) => t.length >= 3 && !stopwords.has(t) && !/\b(?:hukum\w*|pidana|sanksi|denda|penjara|kurungan|pasal|undang|aturan)\b/i.test(t)
+    );
+    const hasSubstantiveTopic = nonModalityTokens.length > 0;
+    const topicMatchesInText = hasSubstantiveTopic
+      ? nonModalityTokens.some((t) => {
+          const variants = [t, ...(STATUTORY_EQUIVALENTS[t] || [])];
+          return variants.some((v) => new RegExp(`\\b${v}\\b`, 'i').test(text));
+        })
+      : true;
+
+    if (topicMatchesInText) {
+      const sanctionPatterns = [
+        /(?:dipidana\s+dengan\s+pidana\s+(?:penjara|kurungan)[^.;\n]+)/gi,
+        /(?:dihukum\s+dengan\s+hukuman\s+(?:penjara|kurungan)[^.;\n]+)/gi,
+        /pidana\s+penjara\s+(?:paling\s+lama\s+)?[^,;.\n]*(?:tahun|bulan)/gi,
+        /(?:pidana\s+)?denda\s+(?:paling\s+banyak\s+)?[^,;.\n]*(?:rupiah|rp)/gi,
+      ];
+      for (const pat of sanctionPatterns) {
+        let m: RegExpExecArray | null;
+        while ((m = pat.exec(text)) !== null) {
+          ranges.push({ start: m.index, end: m.index + m[0].length });
+        }
       }
     }
   }

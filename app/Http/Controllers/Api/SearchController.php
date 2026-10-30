@@ -59,7 +59,8 @@ class SearchController extends Controller
                 if (!empty($intent['detected_category_id']) && empty($semanticFilters['kategori_ids'])) {
                     $semanticFilters['kategori_ids'] = [$intent['detected_category_id']];
                 }
-                $semanticMatches = $this->semanticService->searchRelevantPasal($semanticQueryText, 0.45, 50, $semanticFilters, $synonyms);
+                $synonymsMap = $intent['synonyms_map'] ?? [];
+                $semanticMatches = $this->semanticService->searchRelevantPasal($semanticQueryText, 0.58, 50, $semanticFilters, $synonyms, $synonymsMap);
 
                 // Jika kueri menyebutkan pasal spesifik (misal: "pasal 156 uu cipta kerja"), cari pasal langsung dari database
                 if (!empty($intent['detected_pasal']) && $intent['mode'] === 'hybrid') {

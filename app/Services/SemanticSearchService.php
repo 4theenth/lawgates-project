@@ -35,9 +35,10 @@ class SemanticSearchService
         'tidak', 'bukan', 'sudah', 'belum', 'pernah', 'akan', 'tahu', 'tau',
         'sendiri', 'pribadi', 'diri', 'orang', 'lain', 'tanpa', 'pihak', 'pihaknya',
 
-        // Label Dokumen Hukum
+        // Label Dokumen Hukum & Satuan Pengisi
         'peraturan', 'undang', 'uu', 'pasal', 'ayat', 'bab', 'hukum', 'hukumnya', 'aturan',
         'ketentuan', 'pedoman', 'kebijakan', 'nomor', 'tahun',
+        'rupiah', 'alat', 'mata',
     ];
 
     /**
@@ -51,6 +52,15 @@ class SemanticSearchService
         'akibat', 'akibatnya', 'dampak', 'dampaknya',
         'biaya', 'ongkos', 'tarif', 'retribusi',
         'izin', 'perizinan', 'ijin', 'persetujuan', 'dispensasi', 'rekomendasi',
+    ];
+
+    /**
+     * Kata kerja tindakan umum (predikat generik) yang dapat melekat pada objek hukum apapun (pajak, upah, retribusi, hutang).
+     * Kata-kata ini TIDAK BOLEH meloloskan pasal secara mandiri jika kueri pengguna memuat kata benda entitas hukum pokok.
+     */
+    protected array $genericActionVerbs = [
+        'bayar', 'beli', 'jual', 'ambil', 'kirim', 'terima', 'pakai', 'milik', 'bawa', 'buka', 'tutup',
+        'produksi', 'bikin', 'cetak', 'palsu', 'edar',
     ];
 
     public function __construct(
@@ -105,6 +115,17 @@ class SemanticSearchService
      */
     protected function matchStrictMorphology(string $term, string $haystack): bool
     {
+        $term = trim($term);
+        if ($term === '') {
+            return false;
+        }
+
+        if (str_contains($term, ' ')) {
+            $parts = preg_split('/\s+/', $term);
+            $pat = implode('[\s\-]+', array_map(fn($p) => preg_quote($p, '/'), $parts));
+            return (bool) preg_match('/\b' . $pat . '\b/i', $haystack);
+        }
+
         $quoted = preg_quote($term, '/');
         $pattern = '/\b(?:meng|meny|men|mem|me|peng|peny|pen|pem|pe|di|ter|ber|ke|se)?' . $quoted . '(?:kan|an|i|nya|lah|kah|pun)?\b/i';
         return (bool) preg_match($pattern, $haystack);
@@ -150,7 +171,7 @@ class SemanticSearchService
      * @param  array  $filters  Filter opsional (kategori_ids, tahun, status_ids)
      * @return Collection<int, array{pasal_id: int, nomor_pasal: string, cuplikan: string, highlight_snippet: string, similarity: float, secondary_pasal: array}>
      */
-    public function searchRelevantPasal(string $keyword, float $threshold = 0.45, int $limit = 50, array $filters = [], array $synonyms = []): Collection
+    public function searchRelevantPasal(string $keyword, float $threshold = 0.58, int $limit = 50, array $filters = [], array $synonyms = [], array $synonymsMap = []): Collection
     {
         $trimmed = trim($keyword);
         if ($trimmed === '') {
@@ -165,10 +186,11 @@ class SemanticSearchService
         $version = static::getCacheVersion();
         $filterKey = !empty($filters) ? '_' . md5(json_encode($filters)) : '';
         $synKey = !empty($synonyms) ? '_' . md5(json_encode($synonyms)) : '';
-        $cacheKey = "sem_res_v10_{$version}_" . md5(mb_strtolower($trimmed) . '_' . $threshold . '_' . $limit) . $filterKey . $synKey;
+        $synMapKey = !empty($synonymsMap) ? '_' . md5(json_encode($synonymsMap)) : '';
+        $cacheKey = "sem_res_v11_{$version}_" . md5(mb_strtolower($trimmed) . '_' . $threshold . '_' . $limit) . $filterKey . $synKey . $synMapKey;
 
-        $cachedData = Cache::remember($cacheKey, now()->addHours(6), function () use ($trimmed, $threshold, $limit, $filters, $synonyms) {
-            return $this->executeVectorSearch($trimmed, $threshold, $limit, $filters, $synonyms)->toArray();
+        $cachedData = Cache::remember($cacheKey, now()->addHours(6), function () use ($trimmed, $threshold, $limit, $filters, $synonyms, $synonymsMap) {
+            return $this->executeVectorSearch($trimmed, $threshold, $limit, $filters, $synonyms, $synonymsMap)->toArray();
         });
 
         return collect($cachedData);
@@ -181,7 +203,7 @@ class SemanticSearchService
      * 2. Grounded Term Verification: menyaring false positive pada kandidat skor menengah agar hanya pasal yang benar-benar
      *    membahas substansi pertanyaan yang lolos ke hasil akhir.
      */
-    protected function executeVectorSearch(string $trimmed, float $threshold, int $limit, array $filters = [], array $synonyms = []): Collection
+    protected function executeVectorSearch(string $trimmed, float $threshold, int $limit, array $filters = [], array $synonyms = [], array $synonymsMap = []): Collection
     {
         try {
             // Instruksi asimetris Qwen untuk pencarian hukum (Jalur B)
@@ -219,55 +241,62 @@ class SemanticSearchService
                 LIMIT ?
             ", $stageBindings);
 
-            // Ekstrak dan kelompokkan token query pengguna menjadi Subjek Inti vs Modalitas Hukum
+            // Ekstrak dan kelompokkan token query pengguna menjadi:
+            // 1. Entitas Objek Hukum Pokok (Domain Entity Nouns)
+            // 2. Predikat Tindakan Umum (Generic Action Verbs)
+            // 3. Modalitas / Operator Hukum (Sanctions, Procedures, Criteria)
             $cleanQuery = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', mb_strtolower($trimmed));
-            $rawTokens = array_filter(preg_split('/\s+/', $cleanQuery));
+            $rawTokens = array_values(array_filter(preg_split('/\s+/', $cleanQuery)));
 
-            $modalityStems = array_map([$this, 'extractIndonesianStem'], $this->modalityTerms);
-
-            $coreSubjectGroups = [];
-            $modalityGroups = [];
-
-            foreach ($rawTokens as $w) {
-                if (mb_strlen($w) < 3) continue;
-                if (in_array($w, $this->stopwords)) continue;
-                $stem = $this->extractIndonesianStem($w);
-                if (in_array($stem, $this->stopwords)) continue;
-
-                if (in_array($w, $this->modalityTerms) || in_array($stem, $this->modalityTerms) || in_array($stem, $modalityStems)) {
-                    $base = in_array($stem, $this->modalityTerms) ? $stem : $w;
-                    $modalityGroups[$base] = array_unique(array_filter([$w, $stem]));
-                } else {
-                    $base = $stem;
-                    $coreSubjectGroups[$base] = array_unique(array_filter([$w, $stem]));
+            if (empty($synonymsMap)) {
+                try {
+                    $synonymsMap = app(\App\Services\SearchIntentService::class)->getSynonymsMap($trimmed);
+                } catch (\Throwable $e) {
+                    $synonymsMap = [];
                 }
             }
 
-            foreach ($synonyms as $syn) {
-                $synClean = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', mb_strtolower($syn));
-                $synTokens = array_filter(preg_split('/\s+/', $synClean));
-                foreach ($synTokens as $sw) {
-                    if (mb_strlen($sw) < 3 || in_array($sw, $this->stopwords)) continue;
-                    $stemSw = $this->extractIndonesianStem($sw);
-                    if (in_array($stemSw, $this->stopwords)) continue;
+            $domainEntityGroups = [];
+            $actionVerbGroups = [];
+            $modalityGroups = [];
 
-                    if (in_array($sw, $this->modalityTerms) || in_array($stemSw, $this->modalityTerms) || in_array($stemSw, $modalityStems)) {
-                        $base = in_array($stemSw, $this->modalityTerms) ? $stemSw : $sw;
-                        $modalityGroups[$base] = array_unique(array_merge($modalityGroups[$base] ?? [], [$sw, $stemSw]));
-                    } else {
-                        // Tautkan sinonim ke grup subjek inti yang cocok jika ada, atau buat grup baru
-                        $matchedGroup = false;
-                        foreach ($coreSubjectGroups as $grpKey => $variants) {
-                            if (str_contains($grpKey, $stemSw) || str_contains($stemSw, $grpKey)) {
-                                $coreSubjectGroups[$grpKey] = array_unique(array_merge($variants, [$sw, $stemSw]));
-                                $matchedGroup = true;
-                                break;
-                            }
-                        }
-                        if (!$matchedGroup) {
-                            $coreSubjectGroups[$stemSw] = array_unique(array_merge($coreSubjectGroups[$stemSw] ?? [], [$sw, $stemSw]));
-                        }
+            // 1. Deteksi frasa majemuk hukum dari query (misal: "pt perorangan", "luar nikah", "kelapa sawit")
+            $matchedPhrases = [];
+            foreach ($synonymsMap as $phrase => $syns) {
+                if (str_contains($phrase, ' ') && preg_match('/\b' . preg_quote($phrase, '/') . '\b/i', $cleanQuery)) {
+                    $matchedPhrases[] = $phrase;
+                    $domainEntityGroups[$phrase] = array_unique(array_merge([$phrase], $syns));
+                }
+            }
+
+            // 2. Ekstrak token kata tunggal (mendukung akronim 2 huruf: pt, cv)
+            foreach ($rawTokens as $w) {
+                if (mb_strlen($w) < 2 || in_array($w, $this->stopwords)) continue;
+
+                // Lewati kata jika sudah tercakup dalam frasa majemuk yang terdeteksi
+                $inPhrase = false;
+                foreach ($matchedPhrases as $mp) {
+                    if (str_contains($mp, $w)) {
+                        $inPhrase = true;
+                        break;
                     }
+                }
+                if ($inPhrase) continue;
+
+                $stem = $this->extractIndonesianStem($w);
+                if (in_array($stem, $this->stopwords)) continue;
+
+                // Ambil sinonim spesifik untuk kata ini dari peta sinonim
+                $wordSyns = $synonymsMap[$w] ?? $synonymsMap[$stem] ?? [];
+                $variants = array_unique(array_merge([$w, $stem], $wordSyns));
+
+                if (in_array($w, $this->modalityTerms) || in_array($stem, $this->modalityTerms)) {
+                    $base = in_array($stem, $this->modalityTerms) ? $stem : $w;
+                    $modalityGroups[$base] = $variants;
+                } elseif (in_array($stem, $this->genericActionVerbs)) {
+                    $actionVerbGroups[$stem] = $variants;
+                } else {
+                    $domainEntityGroups[$stem] = $variants;
                 }
             }
 
@@ -278,18 +307,28 @@ class SemanticSearchService
                 $pasalId = (int) $row->pasal_id;
                 $sim = round((float) $row->similarity, 4);
 
-                // Grounded Term Verification (Two-Tier Subject Grounding):
-                // Prinsip Baku: Jika kueri memuat Subjek Inti (misal: 'data', 'uang', 'sawit', 'cuti', 'pesangon'),
-                // pasal/peraturan WAJIB memuat minimal 1 Subjek Inti (atau sinonim substantifnya).
-                // Kecocokan semata pada kata modalitas/sanksi (seperti 'sanksi', 'pidana', 'denda') TANPA adanya Subjek Inti
-                // AKAN DITOLAK 100% untuk mencegah jebakan pasal denda/sanksi generik.
+                // Grounded Term Verification (Domain Entity Grounding):
+                // Prinsip Baku: Jika kueri memuat Entitas Objek Hukum Pokok (misal: 'hutang'/'utang', 'data', 'sawit', 'uang', 'cuti', 'pesangon'),
+                // pasal/peraturan WAJIB memuat minimal 1 Entitas Pokok tersebut!
+                // Kecocokan semata pada kata kerja umum ('membayar') dan/atau kata modalitas sanksi ('denda'/'sanksi')
+                // TANPA adanya Entitas Pokok AKAN DITOLAK 100%!
                 $haystack = mb_strtolower($row->isi_pasal . ' ' . $row->nomor_pasal . ' ' . ($row->judul_peraturan ?? ''));
 
-                $coreMatchedTokens = [];
-                foreach ($coreSubjectGroups as $baseToken => $variants) {
+                $entityMatchedTokens = [];
+                foreach ($domainEntityGroups as $baseEntity => $variants) {
                     foreach ($variants as $variant) {
                         if ($this->matchStrictMorphology($variant, $haystack)) {
-                            $coreMatchedTokens[] = $baseToken;
+                            $entityMatchedTokens[] = $baseEntity;
+                            break;
+                        }
+                    }
+                }
+
+                $verbMatchedTokens = [];
+                foreach ($actionVerbGroups as $baseVerb => $variants) {
+                    foreach ($variants as $variant) {
+                        if ($this->matchStrictMorphology($variant, $haystack)) {
+                            $verbMatchedTokens[] = $baseVerb;
                             break;
                         }
                     }
@@ -306,39 +345,53 @@ class SemanticSearchService
                 }
 
                 $isAccepted = false;
-                $coreSubjectCount = count($coreSubjectGroups);
-                $matchedCoreCount = count($coreMatchedTokens);
+                $entityCount = count($domainEntityGroups);
+                $matchedEntityCount = count($entityMatchedTokens);
+                $verbCount = count($actionVerbGroups);
+                $matchedVerbCount = count($verbMatchedTokens);
                 $matchedModCount = count($modalityMatchedTokens);
 
-                // Cek frasa utuh subjek inti jika kueri multi-kata
-                $hasExactPhraseMatch = false;
-                if ($coreSubjectCount >= 2) {
-                    $phrasePattern = implode('[\s\-]+', array_map(fn($t) => preg_quote($t, '/'), array_slice(array_keys($coreSubjectGroups), 0, 3)));
-                    if (preg_match('/\b' . $phrasePattern . '\b/i', $haystack)) {
-                        $hasExactPhraseMatch = true;
-                    }
-                }
-
-                if ($coreSubjectCount > 0) {
-                    // Kueri memiliki Subjek Inti: Wajib minimal 1 subjek inti cocok!
-                    if ($matchedCoreCount === 0) {
-                        // Tolak 100% jika subjek inti tidak ada di pasal ini!
+                if ($entityCount > 0) {
+                    if ($matchedEntityCount === 0) {
+                        // Tolak 100% jika tidak ada entitas pokok yang cocok!
                         $isAccepted = false;
-                    } elseif ($hasExactPhraseMatch) {
+                    } elseif ($sim >= 0.74) {
+                        // Sangat yakin (AI skor tinggi) + entitas terverifikasi
                         $isAccepted = true;
-                    } elseif ($sim >= 0.72) {
-                        // Keyakinan sangat tinggi pada model 3.152-dimensi + subjek terverifikasi
-                        $isAccepted = true;
-                    } elseif ($matchedCoreCount >= 2) {
-                        $isAccepted = true;
-                    } elseif ($matchedCoreCount >= 1 && $matchedModCount >= 1 && $sim >= 0.55) {
-                        $isAccepted = true;
-                    } elseif ($coreSubjectCount === 1 && $matchedCoreCount === 1 && $sim >= $threshold) {
-                        $isAccepted = true;
+                    } elseif ($entityCount === 1) {
+                        // 1 entitas tunggal: jika ada kata kerja aksi, kata kerja ATAU modalitas harus cocok
+                        if ($verbCount > 0) {
+                            if (($matchedVerbCount >= 1 || $matchedModCount >= 1) && $sim >= 0.62) {
+                                $isAccepted = true;
+                            } elseif ($sim >= 0.68) {
+                                $isAccepted = true;
+                            }
+                        } else {
+                            if ($sim >= 0.64) {
+                                $isAccepted = true;
+                            }
+                        }
+                    } elseif ($entityCount === 2) {
+                        // 2 entitas: jika keduanya cocok (100% coverage), terima di sim >= 0.60
+                        if ($matchedEntityCount === 2 && $sim >= 0.60) {
+                            $isAccepted = true;
+                        } elseif ($matchedEntityCount === 1 && ($matchedVerbCount >= 1 || $matchedModCount >= 1) && $sim >= 0.66) {
+                            $isAccepted = true;
+                        } elseif ($sim >= 0.70) {
+                            $isAccepted = true;
+                        }
+                    } else {
+                        // 3 atau lebih entitas: coverage minimal 60% (misal 2 dari 3, atau 3 dari 4)
+                        $coverage = $matchedEntityCount / $entityCount;
+                        if ($coverage >= 0.60 && $sim >= 0.60) {
+                            $isAccepted = true;
+                        } elseif ($matchedEntityCount >= 2 && $sim >= 0.70) {
+                            $isAccepted = true;
+                        }
                     }
                 } else {
-                    // Kueri abstrak murni modalitas (tanpa objek benda konkret)
-                    if ($sim >= 0.68 && $matchedModCount >= 2) {
+                    // Kueri murni modalitas / aksi
+                    if ($sim >= 0.70 && ($matchedModCount >= 2 || ($matchedVerbCount >= 1 && $matchedModCount >= 1))) {
                         $isAccepted = true;
                     }
                 }

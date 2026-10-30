@@ -37,7 +37,9 @@ class SearchIntentService
         'umur' => ['usia', 'mencapai umur'],
         'pernikahan' => ['perkawinan', 'kawin'],
         'menikah' => ['kawin', 'perkawinan'],
+        'nikah' => ['perkawinan', 'kawin', 'pernikahan'],
         'kawin' => ['perkawinan', 'menikah'],
+        'luar nikah' => ['luar perkawinan'],
         'gaji' => ['upah', 'imbalan'],
         'upah' => ['gaji', 'imbalan'],
         'hukuman' => ['pidana', 'sanksi'],
@@ -62,15 +64,16 @@ class SearchIntentService
         'ongkos' => ['biaya', 'tarif'],
         'biaya' => ['tarif', 'retribusi', 'pungutan'],
         'anak' => ['anak di bawah umur', 'belum dewasa'],
+        'waris' => ['pewarisan', 'ahli waris', 'harta peninggalan', 'hubungan perdata'],
         'sawit' => ['kelapa sawit'],
         'kelapa sawit' => ['sawit'],
         'pt' => ['perseroan', 'perseroan terbatas'],
-        'pt perorangan' => ['perseroan', 'usaha mikro dan kecil'],
-        'perorangan' => ['perseroan', 'usaha mikro dan kecil'],
-        'mendirikan' => ['pendirian', 'pembentukan', 'perizinan berusaha'],
+        'pt perorangan' => ['perseroan', 'perseroan perorangan', 'usaha mikro dan kecil'],
+        'perorangan' => ['perseroan', 'usaha mikro dan kecil', 'perseorangan'],
+        'mendirikan' => ['pendirian', 'pembentukan', 'perizinan berusaha', 'didirikan'],
         'radioaktif' => ['ketenaganukliran', 'radiasi pengion'],
         'nuklir' => ['ketenaganukliran', 'tenaga nuklir'],
-        'uang' => ['mata uang', 'uang kertas', 'rupiah', 'alat pembayaran'],
+        'uang' => ['mata uang', 'uang kertas', 'alat pembayaran'],
         'memproduksi' => ['membikin', 'membuat', 'mencetak', 'meniru', 'memalsu'],
         'produksi' => ['membikin', 'membuat', 'mencetak', 'meniru', 'memalsu'],
         'palsu' => ['tiruan', 'meniru', 'memalsu', 'tidak sah'],
@@ -88,7 +91,9 @@ class SearchIntentService
         'menghina' => ['penghinaan', 'pencemaran nama baik', 'menista'],
         'membunuh' => ['pembunuhan', 'merampas nyawa orang lain'],
         'bunuh' => ['pembunuhan', 'merampas nyawa orang lain'],
-        'utang' => ['piutang', 'perjanjian pinjam meminjam', 'debitor', 'kreditor'],
+        'hutang' => ['utang', 'piutang', 'pinjaman', 'perjanjian pinjam meminjam', 'debitor', 'kreditor', 'wanprestasi'],
+        'utang' => ['hutang', 'piutang', 'pinjaman', 'perjanjian pinjam meminjam', 'debitor', 'kreditor', 'wanprestasi'],
+        'pinjaman' => ['utang', 'hutang', 'kredit', 'pembiayaan'],
         'bangkrut' => ['pailit', 'kepailitan', 'penundaan kewajiban pembayaran utang', 'pkpu'],
     ];
 
@@ -203,6 +208,16 @@ class SearchIntentService
         $words = array_filter(preg_split('/\s+/', $clean));
         $results = [];
 
+        // 1. Cek frasa majemuk (multi-word statutory synonyms) terlebih dahulu
+        foreach ($this->statutorySynonyms as $phrase => $synList) {
+            if (str_contains($phrase, ' ') && preg_match('/\b' . preg_quote($phrase, '/') . '\b/i', $clean)) {
+                foreach ($synList as $syn) {
+                    $results[] = $syn;
+                }
+            }
+        }
+
+        // 2. Cek kecocokan kata tunggal
         foreach ($words as $word) {
             // Cek kecocokan kata persis
             if (isset($this->statutorySynonyms[$word])) {
@@ -221,6 +236,40 @@ class SearchIntentService
         }
 
         return array_values(array_unique($results));
+    }
+
+    /**
+     * Mengembalikan peta asosiasi kata/frasa kueri ke daftar sinonim hukum resminya.
+     *
+     * @return array<string, array<string>>
+     */
+    public function getSynonymsMap(string $query): array
+    {
+        $lower = mb_strtolower($query);
+        $clean = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', $lower);
+        $words = array_filter(preg_split('/\s+/', $clean));
+        $map = [];
+
+        foreach ($this->statutorySynonyms as $phrase => $synList) {
+            if (str_contains($phrase, ' ') && preg_match('/\b' . preg_quote($phrase, '/') . '\b/i', $clean)) {
+                $map[$phrase] = array_unique(array_merge([$phrase], $synList));
+            }
+        }
+
+        foreach ($words as $word) {
+            $matched = false;
+            if (isset($this->statutorySynonyms[$word])) {
+                $map[$word] = array_unique(array_merge([$word], $this->statutorySynonyms[$word]));
+                $matched = true;
+            }
+
+            $stem = $this->extractIndonesianStem($word);
+            if (!$matched && isset($this->statutorySynonyms[$stem])) {
+                $map[$stem] = array_unique(array_merge([$word, $stem], $this->statutorySynonyms[$stem]));
+            }
+        }
+
+        return $map;
     }
 
     /**
@@ -265,6 +314,7 @@ class SearchIntentService
                 'clean_keyword' => '',
                 'statute_title' => null,
                 'synonyms' => [],
+                'synonyms_map' => [],
                 'glosarium_hint' => null,
             ];
         }
@@ -369,6 +419,7 @@ class SearchIntentService
         $isExactCitation = ($detectedType && $detectedNumber) || ($detectedNumber && $detectedYear) || $isCodexOrConstitution;
 
         $synonyms = $this->getSynonyms($query);
+        $synonymsMap = $this->getSynonymsMap($query);
         $hint = null;
 
         // ─────────────────────────────────────────────────────────────
@@ -390,6 +441,7 @@ class SearchIntentService
                 'clean_keyword' => $query,
                 'statute_title' => null,
                 'synonyms' => $synonyms,
+                'synonyms_map' => $synonymsMap,
                 'glosarium_hint' => $hint,
             ];
         }
@@ -414,6 +466,7 @@ class SearchIntentService
                 'clean_keyword' => $cleanStatuteRemainder !== '' ? $cleanStatuteRemainder : $query,
                 'statute_title' => $cleanStatuteRemainder !== '' ? $cleanStatuteRemainder : null,
                 'synonyms' => $synonyms,
+                'synonyms_map' => $synonymsMap,
                 'glosarium_hint' => $hint,
             ];
         }
@@ -439,6 +492,7 @@ class SearchIntentService
                 'clean_keyword' => $cleanStatuteRemainder,
                 'statute_title' => $cleanStatuteRemainder,
                 'synonyms' => $synonyms,
+                'synonyms_map' => $synonymsMap,
                 'glosarium_hint' => $hint,
             ];
         }
@@ -483,6 +537,7 @@ class SearchIntentService
                 'clean_keyword' => $query,
                 'statute_title' => !empty($cleanStatuteRemainder) ? $cleanStatuteRemainder : null,
                 'synonyms' => $synonyms,
+                'synonyms_map' => $synonymsMap,
                 'glosarium_hint' => $hint,
             ];
         }
@@ -516,6 +571,7 @@ class SearchIntentService
                 'clean_keyword' => $query,
                 'statute_title' => null,
                 'synonyms' => $synonyms,
+                'synonyms_map' => $synonymsMap,
                 'glosarium_hint' => $hint,
             ];
         }
@@ -551,6 +607,7 @@ class SearchIntentService
             'clean_keyword' => $query,
             'statute_title' => null,
             'synonyms' => $synonyms,
+            'synonyms_map' => $synonymsMap,
             'glosarium_hint' => $hint,
         ];
     }
