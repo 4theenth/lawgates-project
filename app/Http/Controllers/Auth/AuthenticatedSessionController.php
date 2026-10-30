@@ -94,6 +94,11 @@ class AuthenticatedSessionController extends Controller
 
     /**
      * Destroy an authenticated session.
+     *
+     * Seluruh pengguna, baik admin, superadmin, maupun pengguna biasa,
+     * diarahkan ke halaman login setelah keluar. Halaman login adalah titik
+     * masuk yang jelas untuk masuk kembali, berbeda dengan beranda yang
+     * membuat pengguna harus mencari tombol masuk sendiri.
      */
     public function destroy(Request $request): RedirectResponse
     {
@@ -105,6 +110,6 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->flash('success', 'Berhasil keluar dari akun');
 
-        return redirect('/');
+        return redirect()->route('login');
     }
 }

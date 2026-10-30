@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -138,7 +139,32 @@ class AuthenticationTest extends TestCase
         $response = $this->actingAs($user)->post('/logout');
 
         $this->assertGuest();
-        $response->assertRedirect('/');
+        $response->assertRedirect(route('login'));
+    }
+
+    /**
+     * Seluruh peran diarahkan ke halaman login setelah keluar, bukan ke
+     * beranda, agar pengguna langsung sampai di titik masuk yang jelas.
+     */
+    public static function logoutRoleProvider(): array
+    {
+        return [
+            'admin' => ['admin'],
+            'superadmin' => ['superadmin'],
+            'user biasa' => ['user'],
+        ];
+    }
+
+    #[DataProvider('logoutRoleProvider')]
+    public function test_all_roles_are_redirected_to_login_after_logout(string $role): void
+    {
+        $user = User::factory()->create(['role' => $role]);
+
+        $response = $this->actingAs($user)->post('/logout');
+
+        $this->assertGuest();
+        $response->assertRedirect(route('login'));
+        $response->assertSessionHas('success', 'Berhasil keluar dari akun');
     }
 
     public function test_login_redirects_to_internal_intended_path(): void
