@@ -27,19 +27,38 @@ class SemanticSearchService
         // Partikel & Slang Percakapan
         'sih', 'dong', 'nih', 'tuh', 'ya', 'kan', 'lah', 'pun', 'kok', 'deh',
         'yuk', 'aja', 'saja', 'cuma', 'hanya', 'banget', 'bener', 'beneran',
+        'men', 'man', 'bro', 'cuy', 'gan', 'sob', 'bos', 'gaes', 'guys', 'kak',
+        'om', 'pak', 'bu', 'bang', 'loe', 'lu', 'gue', 'gw',
 
         // Kata Kerja / Pengisi Umum
         'bikin', 'buat', 'cara', 'secara', 'ingin', 'mau', 'bisa', 'ada',
         'tidak', 'bukan', 'sudah', 'belum', 'pernah', 'akan', 'tahu', 'tau',
+        'sendiri', 'pribadi', 'diri',
 
         // Label Dokumen Hukum
-        'peraturan', 'undang', 'uu', 'pasal', 'ayat', 'bab', 'hukum', 'aturan',
+        'peraturan', 'undang', 'uu', 'pasal', 'ayat', 'bab', 'hukum', 'hukumnya', 'aturan',
         'ketentuan', 'pedoman', 'kebijakan', 'nomor', 'tahun',
     ];
 
     public function __construct(
         protected QwenEmbeddingService $embeddingService
     ) {}
+
+    /**
+     * Mengekstrak bentuk dasar kata (stemming sederhana) bahasa Indonesia
+     * dengan melucuti klitika (-nya, -lah, -kah) dan imbuhan umum (me-, di-, pe-, -kan, -an).
+     */
+    public function extractIndonesianStem(string $word): string
+    {
+        $w = mb_strtolower(trim($word));
+        // Strip partikel / klitika pronomina di akhir: -lah, -kah, -pun, -nya, -ku, -mu
+        $w = (string) preg_replace('/(lah|kah|pun|nya|ku|mu)$/i', '', $w);
+        // Strip akhiran infleksi: -kan, -an, -i
+        $w = (string) preg_replace('/(kan|an|i)$/i', '', $w);
+        // Strip awalan umum: meng-, meny-, men-, mem-, me-, peng-, peny-, pen-, pem-, pe-, di-, ter-, ber-, ke-, se-
+        $w = (string) preg_replace('/^(meng|meny|men|mem|me|peng|peny|pen|pem|pe|di|ter|ber|ke|se)/i', '', $w);
+        return $w;
+    }
 
     /**
      * Menghapus / meng-invalidate seluruh cache pencarian semantik secara instan
@@ -96,7 +115,7 @@ class SemanticSearchService
         $version = static::getCacheVersion();
         $filterKey = !empty($filters) ? '_' . md5(json_encode($filters)) : '';
         $synKey = !empty($synonyms) ? '_' . md5(json_encode($synonyms)) : '';
-        $cacheKey = "sem_res_v7_{$version}_" . md5(mb_strtolower($trimmed) . '_' . $threshold . '_' . $limit) . $filterKey . $synKey;
+        $cacheKey = "sem_res_v10_{$version}_" . md5(mb_strtolower($trimmed) . '_' . $threshold . '_' . $limit) . $filterKey . $synKey;
 
         $cachedData = Cache::remember($cacheKey, now()->addHours(6), function () use ($trimmed, $threshold, $limit, $filters, $synonyms) {
             return $this->executeVectorSearch($trimmed, $threshold, $limit, $filters, $synonyms)->toArray();
@@ -153,9 +172,18 @@ class SemanticSearchService
             // Ekstrak istilah substantif dari query pengguna dan padanan hukum (synonyms) untuk Grounded Term Verification
             $cleanQuery = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', mb_strtolower($trimmed));
             $rawTokens = array_filter(preg_split('/\s+/', $cleanQuery));
-            $significantTerms = array_values(array_filter($rawTokens, function ($w) {
-                return mb_strlen($w) >= 3 && ! in_array($w, $this->stopwords);
-            }));
+            $significantTerms = [];
+
+            foreach ($rawTokens as $w) {
+                if (mb_strlen($w) < 3) continue;
+                if (in_array($w, $this->stopwords)) continue;
+                $stem = $this->extractIndonesianStem($w);
+                if (in_array($stem, $this->stopwords)) continue;
+                $significantTerms[] = $w;
+                if ($stem !== $w && mb_strlen($stem) >= 3) {
+                    $significantTerms[] = $stem;
+                }
+            }
 
             foreach ($synonyms as $syn) {
                 $synClean = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', mb_strtolower($syn));
@@ -163,6 +191,10 @@ class SemanticSearchService
                 foreach ($synTokens as $sw) {
                     if (mb_strlen($sw) >= 3 && ! in_array($sw, $this->stopwords)) {
                         $significantTerms[] = $sw;
+                        $stemSw = $this->extractIndonesianStem($sw);
+                        if ($stemSw !== $sw && mb_strlen($stemSw) >= 3 && ! in_array($stemSw, $this->stopwords)) {
+                            $significantTerms[] = $stemSw;
+                        }
                     }
                 }
             }
@@ -175,49 +207,70 @@ class SemanticSearchService
                 $pasalId = (int) $row->pasal_id;
                 $sim = round((float) $row->similarity, 4);
 
-                // Grounded Term Verification (Multi-Tier):
-                // 1. Tier 1 (sim >= 0.60): Skor sangat tinggi / representasi semantik jawaban langsung. Lolos tanpa syarat.
-                // 2. Tier 2 (0.55 <= sim < 0.60): Relevan kuat, pastikan minimal 1 istilah substantif query atau sinonim hukum tercantum.
-                // 3. Tier 3 (threshold <= sim < 0.55): Zona ambang batas. Jika query memuat multi-istilah (>= 2), wajib mencocokkan
-                //    minimal 2 istilah atau >= 60% istilah agar kata umum (misal 'internasional') tidak meloloskan pasal yang sama sekali
-                //    tidak membahas subjek utama (misal 'sawit').
+                // Grounded Term Verification:
+                // Jika query pengguna memuat istilah substantif (misal: 'sawit', 'radioaktif', 'buruh', 'uang'):
+                // Pasal/peraturan WAJIB diverifikasi memuat istilah substantif tersebut (atau padanan hukumnya).
+                // Mencegah asosiasi liar model (seperti 'project sawit men' yang mendapat skor 0.61 padahal kata 'sawit' tidak ada).
                 $isAccepted = false;
                 $termCount = count($significantTerms);
 
-                if ($sim >= 0.60) {
-                    $isAccepted = true;
-                } elseif ($sim >= 0.55) {
-                    if ($termCount > 0) {
-                        $haystack = mb_strtolower($row->isi_pasal . ' ' . $row->nomor_pasal . ' ' . ($row->judul_peraturan ?? ''));
-                        foreach ($significantTerms as $term) {
-                            if (mb_strpos($haystack, $term) !== false) {
-                                $isAccepted = true;
-                                break;
-                            }
+                if ($termCount > 0) {
+                    $haystack = mb_strtolower($row->isi_pasal . ' ' . $row->nomor_pasal . ' ' . ($row->judul_peraturan ?? ''));
+                    $matchedCount = 0;
+                    foreach ($significantTerms as $term) {
+                        // Dukung fleksibilitas morfologi bahasa Indonesia:
+                        // 'cipta' cocok dengan 'menciptakan', 'diciptakan', 'penciptaan', 'cipta'
+                        // 'pecat' cocok dengan 'memecat', 'dipecat', 'pemecatan'
+                        // 'uang' cocok dengan 'mata uang', 'uang kertas', 'uang'
+                        $quotedTerm = preg_quote($term, '/');
+                        if (preg_match('/\b(?:men|pen|di|ter|mem|pem|ke)?' . $quotedTerm . '(?:\w*)\b/i', $haystack)) {
+                            $matchedCount++;
                         }
-                    } else {
-                        $isAccepted = true;
                     }
-                } elseif ($sim >= $threshold) {
-                    if ($termCount > 0) {
-                        $haystack = mb_strtolower($row->isi_pasal . ' ' . $row->nomor_pasal . ' ' . ($row->judul_peraturan ?? ''));
-                        $matchedCount = 0;
-                        foreach ($significantTerms as $term) {
-                            if (mb_strpos($haystack, $term) !== false) {
-                                $matchedCount++;
-                            }
-                        }
 
-                        if ($termCount >= 2) {
-                            if ($matchedCount >= 2 || ($matchedCount / $termCount) >= 0.6) {
-                                $isAccepted = true;
-                            }
+                    // Periksa apakah frasa multi-kata utuh cocok secara langsung
+                    $hasExactPhraseMatch = false;
+                    if (count($significantTerms) >= 2) {
+                        $phrasePattern = implode('[\s\-]+', array_map(fn($t) => preg_quote($t, '/'), array_slice($significantTerms, 0, 3)));
+                        if (preg_match('/\b' . $phrasePattern . '\b/i', $haystack)) {
+                            $hasExactPhraseMatch = true;
+                        }
+                    }
+
+                    // Evaluasi Grounded Term:
+                    // 1. Jika tidak ada satu pun istilah/sinonim yang cocok (matchedCount == 0),
+                    //    tolak 100% sebagai anomali/halusinasi.
+                    // 2. Pada skor keyakinan sangat tinggi (sim >= 0.72):
+                    //    Terima jika minimal 1 istilah/sinonim terkonfirmasi ada (matchedCount >= 1).
+                    //    Skor >= 0.72 pada model 3.152-dimensi menunjukkan kedekatan semantik yang luar biasa kuat
+                    //    (contoh: pertanyaan awam "apa hukumnya memproduksi uang yang dibuat sendiri" yang mendapat skor 0.795
+                    //    dan memuat kata 'uang' serta 'membikin benda semacam mata uang' di KUHP).
+                    // 3. Pada zona moderat (threshold <= sim < 0.72):
+                    //    - Jika query multi-term (termCount >= 2): wajib frasa utuh cocok ATAU minimal 2 istilah cocok (matchedCount >= 2).
+                    //      Ini mencegah kebocoran istilah tunggal acak (seperti query 'cipta kerja' yang mendapat skor 0.65 pada pasal umum
+                    //      yang hanya memuat kata 'kerja').
+                    //    - Jika query istilah tunggal (termCount == 1): wajib minimal 1 cocok.
+                    if ($matchedCount === 0) {
+                        $isAccepted = false;
+                    } elseif ($hasExactPhraseMatch) {
+                        $isAccepted = true;
+                    } elseif ($sim >= 0.72 && $matchedCount >= 1) {
+                        $isAccepted = true;
+                    } elseif ($termCount >= 2) {
+                        if ($matchedCount >= 2 && $sim >= $threshold) {
+                            $isAccepted = true;
                         } else {
-                            if ($matchedCount >= 1) {
-                                $isAccepted = true;
-                            }
+                            $isAccepted = false;
                         }
                     } else {
+                        // Query istilah tunggal
+                        if ($matchedCount >= 1 && $sim >= $threshold) {
+                            $isAccepted = true;
+                        }
+                    }
+                } else {
+                    // Jika query murni abstrak tanpa kata benda substantif (misal 'apakah sah'), terima jika skor >= 0.60
+                    if ($sim >= 0.60) {
                         $isAccepted = true;
                     }
                 }

@@ -26,7 +26,7 @@ export function AdminHeader({
   const displayHandle = user?.username
     ? (user.username.startsWith('@') ? user.username : `@${user.username}`)
     : (user?.email ? `@${user.email.split('@')[0]}` : '@super.admin');
-  const displayRole = user?.role === 'superadmin' ? 'Admin' : (user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Admin');
+  const displayRole = user?.role === 'superadmin' ? 'Super Admin' : (user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Admin');
 
   return (
     <>

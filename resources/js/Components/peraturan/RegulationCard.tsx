@@ -113,6 +113,15 @@ const STATUTORY_EQUIVALENTS: Record<string, string[]> = {
   pecat: ['pemutusan hubungan kerja', 'phk', 'pemberhentian'],
   dipecat: ['pemutusan hubungan kerja', 'phk', 'diberhentikan'],
   phk: ['pemutusan hubungan kerja', 'pemberhentian'],
+  pesangon: ['uang pesangon', 'uang penghargaan masa kerja', 'uang penggantian hak'],
+  karyawan: ['pekerja', 'buruh'],
+  pegawai: ['pekerja', 'buruh', 'aparatur sipil negara'],
+  buruh: ['pekerja', 'tenaga kerja'],
+  pekerja: ['buruh', 'tenaga kerja'],
+  hamil: ['melahirkan', 'kehamilan', 'gugur kandungan'],
+  melahirkan: ['hamil', 'kehamilan', 'persalinan'],
+  cuti: ['istirahat', 'waktu istirahat'],
+  istirahat: ['cuti', 'waktu istirahat'],
   penjara: ['kurungan', 'pidana penjara'],
   denda: ['pidana denda'],
   ijin: ['izin', 'perizinan'],
@@ -120,6 +129,23 @@ const STATUTORY_EQUIVALENTS: Record<string, string[]> = {
   ongkos: ['biaya', 'tarif'],
   biaya: ['tarif', 'retribusi', 'pungutan'],
   anak: ['anak di bawah umur', 'belum dewasa'],
+  sawit: ['kelapa sawit'],
+  'kelapa sawit': ['sawit'],
+  pt: ['perseroan', 'perseroan terbatas'],
+  pt_perorangan: ['perseroan', 'usaha mikro dan kecil'],
+  perorangan: ['perseroan', 'usaha mikro dan kecil'],
+  mendirikan: ['pendirian', 'pembentukan', 'perizinan berusaha'],
+  radioaktif: ['ketenaganukliran', 'radiasi pengion'],
+  nuklir: ['ketenaganukliran', 'tenaga nuklir'],
+  uang: ['mata uang', 'uang kertas', 'rupiah', 'alat pembayaran'],
+  memproduksi: ['membikin', 'membuat', 'mencetak', 'meniru', 'memalsu'],
+  produksi: ['membikin', 'membuat', 'mencetak', 'meniru', 'memalsu'],
+  palsu: ['tiruan', 'meniru', 'memalsu', 'tidak sah'],
+  mencuri: ['pencurian', 'mengambil barang milik orang lain'],
+  menipu: ['penipuan', 'tipu muslihat', 'rangkaian kebohongan'],
+  memukul: ['penganiayaan', 'kekerasan'],
+  korupsi: ['tindak pidana korupsi', 'memperkaya diri sendiri'],
+  suap: ['penyuapan', 'gratifikasi'],
 };
 
 function highlightMatches(text: string, query?: string, synonyms: string[] = []): React.ReactNode {
@@ -130,13 +156,18 @@ function highlightMatches(text: string, query?: string, synonyms: string[] = [])
     return text;
   }
 
-  // Filter kata hubung/stopword umum agar hanya tajuk/kata penting yang di-highlight
+  // Filter kata hubung, stopword umum, kata tanya, dan partikel gaul/slang
+  // agar TIDAK di-highlight secara terisolasi (misal 'usia', 'bagus', 'sih', 'men')
   const stopwords = new Set([
     'dan', 'atau', 'yang', 'di', 'ke', 'dari', 'pada', 'untuk', 'oleh',
     'atas', 'dengan', 'aturan', 'pedoman', 'terkait', 'mengenai', 'soal', 'hal',
     'adalah', 'yaitu', 'sebagai', 'dalam', 'ini', 'itu', 'apakah', 'bagaimana',
-    'apa', 'siapa', 'bisa', 'kah', 'ada', 'tidak', 'tentang', 'karena', 'kalau',
+    'apa', 'siapa', 'bisa', 'boleh', 'kah', 'ada', 'tidak', 'tentang', 'karena', 'kalau',
     'peraturan', 'undang', 'undang-undang', 'uu', 'pasal', 'ayat', 'bab', 'angka', 'huruf',
+    'sih', 'dong', 'deh', 'kan', 'ya', 'men', 'bro', 'cuy', 'gan', 'sob', 'bos', 'gaes',
+    'guys', 'kak', 'om', 'pak', 'bu', 'bang', 'loe', 'lu', 'gue', 'gw', 'project',
+    'bagus', 'baik', 'tepat', 'cocok', 'ideal', 'kapan', 'dimana', 'kenapa', 'mengapa',
+    'berapa', 'lama', 'usia', 'umur', 'sendiri',
   ]);
 
   const rawTokens = (query || '').toLowerCase().split(/[\s\-_,.]+/);
@@ -160,13 +191,15 @@ function highlightMatches(text: string, query?: string, synonyms: string[] = [])
   // Kumpulkan rentang highlight [start, end]
   const ranges: Array<{ start: number; end: number }> = [];
 
-  // 1. Deteksi Klausul Jawaban (Answer Clauses) berdasarkan niat pertanyaan
+  // 1. Deteksi Klausul Jawaban (Answer Clauses) berdasarkan maksud pertanyaan
   const lowerQ = (query || '').toLowerCase();
 
-  // Pola A: Jawaban Batas Usia / Umur (misal: "mencapai umur 19 (sembilan belas) tahun")
+  // Pola A: Jawaban Batas Usia / Umur Pernikahan / Pensiun
+  // Contoh: "Perkawinan hanya diizinkan jika/apabila pihak pria dan wanita sudah mencapai umur 19 (sembilan belas) tahun"
   if (/\b(usia|umur|wajar|nikah|kawin|pensiun|dewasa|anak|syarat|batas)\b/i.test(lowerQ)) {
     const agePatterns = [
-      /(?:sudah\s+)?mencapai\s+umur\s+\d+\s*(?:\([^)]+\))?\s*tahun/gi,
+      /(?:(?:perkawinan\s+)?hanya\s+diizinkan\s+(?:apabila|jika)[^.;\n]+?mencapai\s+umur\s+\d+[^.;\n]*tahun)/gi,
+      /(?:(?:sudah\s+)?mencapai\s+umur\s+\d+\s*(?:\([^)]+\))?\s*tahun)/gi,
       /\b(?:umur|usia)\s+\d+\s*(?:\([^)]+\))?\s*tahun\b/gi,
       /\b\d+\s*\([^)]+\)\s*tahun\b/gi,
     ];
@@ -178,12 +211,14 @@ function highlightMatches(text: string, query?: string, synonyms: string[] = [])
     }
   }
 
-  // Pola B: Jawaban Batas Waktu / Durasi (misal: "paling lama 3 (tiga) bulan", "14 hari")
-  if (/\b(lama|waktu|hari|bulan|tahun|kapan|batas|tenggang)\b/i.test(lowerQ)) {
+  // Pola B: Jawaban Batas Waktu / Durasi / Cuti Hamil / Melahirkan
+  // Contoh: "berhak memperoleh istirahat selama 1,5 (satu setengah) bulan sebelum saatnya melahirkan anak..."
+  if (/\b(lama|waktu|hari|bulan|tahun|kapan|batas|tenggang|cuti|hamil|melahirkan)\b/i.test(lowerQ)) {
     const timePatterns = [
-      /paling\s+(?:lama|singkat|lambat)\s+\d+\s*(?:\([^)]+\))?\s*(?:hari|bulan|tahun)/gi,
-      /selama\s+\d+\s*(?:\([^)]+\))?\s*(?:hari|bulan|tahun)/gi,
-      /\b\d+\s*(?:\([^)]+\))?\s*(?:hari|bulan|tahun)\s*(?:kerja)?\b/gi,
+      /(?:berhak\s+memperoleh\s+istirahat\s+selama\s+[^.;\n]+?(?:sebelum|sesudah)\s+melahirkan[^.;\n]*)/gi,
+      /paling\s+(?:lama|singkat|lambat)\s+\d+[.,]?\d*\s*(?:\([^)]+\))?\s*(?:hari|bulan|tahun)(?:\s*kerja)?/gi,
+      /selama\s+\d+[.,]?\d*\s*(?:\([^)]+\))?\s*(?:hari|bulan|tahun)/gi,
+      /\b\d+[.,]?\d*\s*(?:\([^)]+\))?\s*(?:hari|bulan|tahun)\s*(?:kerja)?\b/gi,
     ];
     for (const pat of timePatterns) {
       let m: RegExpExecArray | null;
@@ -193,11 +228,40 @@ function highlightMatches(text: string, query?: string, synonyms: string[] = [])
     }
   }
 
-  // Pola C: Jawaban Sanksi / Hukuman / Denda
-  if (/\b(hukum|hukuman|pidana|sanksi|denda|penjara|kurungan)\b/i.test(lowerQ)) {
+  // Pola C: Jawaban Definisi / Pengertian ("apa itu", "itu apa", dsb.)
+  if (/\b(apa|apakah|definisi|pengertian|maksud|arti)\b/i.test(lowerQ)) {
+    const definitionPatterns = [
+      /(?:(?:zat\s+radioaktif|[A-Z][a-zA-Z\s]{2,30})\s+(?:adalah|merupakan|yaitu)\s+[^.;\n]{10,130})/g,
+    ];
+    for (const pat of definitionPatterns) {
+      let m: RegExpExecArray | null;
+      while ((m = pat.exec(text)) !== null) {
+        ranges.push({ start: m.index, end: m.index + m[0].length });
+      }
+    }
+  }
+
+  // Pola D: Alasan Pemecatan / PHK / Pemutusan Hubungan Kerja
+  if (/\b(pecat|dipecat|phk|pemutusan|buruh|pekerja)\b/i.test(lowerQ)) {
+    const phkPatterns = [
+      /(?:pemutusan\s+hubungan\s+kerja\s+(?:dapat\s+terjadi\s+karena\s+alasan|karena\s+alasan)[^.;\n]*)/gi,
+      /(?:pengusaha\s+dapat\s+melakukan\s+pemutusan\s+hubungan\s+kerja[^.;\n]*)/gi,
+    ];
+    for (const pat of phkPatterns) {
+      let m: RegExpExecArray | null;
+      while ((m = pat.exec(text)) !== null) {
+        ranges.push({ start: m.index, end: m.index + m[0].length });
+      }
+    }
+  }
+
+  // Pola E: Jawaban Sanksi / Hukuman / Denda
+  if (/\b(?:hukum\w*|pidana|sanksi|denda|penjara|kurungan)\b/i.test(lowerQ)) {
     const sanctionPatterns = [
-      /pidana\s+penjara\s+(?:paling\s+lama\s+)?[^,;.]*(?:tahun|bulan)/gi,
-      /(?:pidana\s+)?denda\s+(?:paling\s+banyak\s+)?[^,;.]*(?:rupiah|rp)/gi,
+      /(?:dipidana\s+dengan\s+pidana\s+(?:penjara|kurungan)[^.;\n]+)/gi,
+      /(?:dihukum\s+dengan\s+hukuman\s+(?:penjara|kurungan)[^.;\n]+)/gi,
+      /pidana\s+penjara\s+(?:paling\s+lama\s+)?[^,;.\n]*(?:tahun|bulan)/gi,
+      /(?:pidana\s+)?denda\s+(?:paling\s+banyak\s+)?[^,;.\n]*(?:rupiah|rp)/gi,
     ];
     for (const pat of sanctionPatterns) {
       let m: RegExpExecArray | null;
@@ -207,11 +271,11 @@ function highlightMatches(text: string, query?: string, synonyms: string[] = [])
     }
   }
 
-  // Pola D: Jawaban Besaran / Nominal (misal: "sebesar 50%", "paling sedikit ...")
+  // Pola F: Jawaban Besaran / Nominal (misal: "sebesar 50%", "paling sedikit ...")
   if (/\b(berapa|gaji|upah|pesangon|biaya|tarif|nominal)\b/i.test(lowerQ)) {
     const amountPatterns = [
-      /paling\s+(?:sedikit|banyak|tinggi|rendah)\s+(?:sebesar\s+)?[^,;.]*/gi,
-      /sebesar\s+[^,;.]*/gi,
+      /paling\s+(?:sedikit|banyak|tinggi|rendah)\s+(?:sebesar\s+)?[^,;.\n]*/gi,
+      /sebesar\s+[^,;.\n]*/gi,
     ];
     for (const pat of amountPatterns) {
       let m: RegExpExecArray | null;
@@ -221,16 +285,67 @@ function highlightMatches(text: string, query?: string, synonyms: string[] = [])
     }
   }
 
-  // 2. Deteksi Kata Kunci & Padanan Sinonim
-  if (tokens.length > 0) {
-    const escapedTokens = tokens
-      .sort((a, b) => b.length - a.length)
-      .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  // 2. Deteksi Frasa Multi-Kata & Kata Kunci Substantif:
+  // JIKA KLAUSUL JAWABAN SUDAH DITEMUKAN:
+  // Kunci utama kenyamanan pengguna adalah membaca klausul jawaban yang bersih.
+  // JANGAN menambahkan token kata kunci acak jika klausul jawaban sudah ada!
+  if (ranges.length === 0) {
+    const cleanTokens = tokens.filter((t) => t.length >= 3 && !stopwords.has(t));
 
-    const tokenRegex = new RegExp(`(${escapedTokens.join('|')})`, 'gi');
-    let m: RegExpExecArray | null;
-    while ((m = tokenRegex.exec(text)) !== null) {
-      ranges.push({ start: m.index, end: m.index + m[0].length });
+    // 2A. Coba cocokkan frasa multi-kata utuh lebih dulu (contoh: "cipta kerja", "kelapa sawit", "hak cuti")
+    if (cleanTokens.length >= 2) {
+      const phraseRegex = new RegExp(
+        `\\b${cleanTokens.slice(0, 3).map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s\\-_]+')}\\b`,
+        'gi'
+      );
+      let m: RegExpExecArray | null;
+      while ((m = phraseRegex.exec(text)) !== null) {
+        ranges.push({ start: m.index, end: m.index + m[0].length });
+      }
+    }
+
+    // 2B. Jika frasa utuh tidak ditemukan, periksa token individu dengan guard kata generik:
+    if (ranges.length === 0 && cleanTokens.length > 0) {
+      const GENERIC_LEGAL_WORDS = new Set([
+        'kerja', 'pekerja', 'buruh', 'hukum', 'aturan', 'badan', 'hak', 'kewajiban',
+        'umum', 'dasar', 'nasional', 'daerah', 'ketentuan', 'pemerintah', 'orang',
+      ]);
+
+      // Jika kueri terdiri dari 2+ kata dan memuat kata spesifik (misal 'cipta') + kata generik ('kerja'),
+      // JANGAN menyorot kata generik sendirian jika kata spesifiknya tidak hadir dalam cuplikan!
+      const specificTokens = cleanTokens.filter((t) => !GENERIC_LEGAL_WORDS.has(t));
+      const hasSpecificInQuery = specificTokens.length > 0;
+      const hasSpecificInText =
+        hasSpecificInQuery &&
+        specificTokens.some((t) => {
+          const morph = new RegExp(
+            `\\b(?:men|pen|peng|pem|meny|di|ter|ke)?${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:kan|an|i|nya)?\\b`,
+            'i'
+          );
+          return morph.test(text);
+        });
+
+      const allowedTokens = cleanTokens.filter((t) => {
+        if (cleanTokens.length >= 2 && GENERIC_LEGAL_WORDS.has(t)) {
+          return hasSpecificInText;
+        }
+        return true;
+      });
+
+      if (allowedTokens.length > 0) {
+        const morphPatterns = allowedTokens.map((t) => {
+          const esc = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          return t.length > 7
+            ? `\\b${esc}\\b`
+            : `\\b(?:men|pen|peng|pem|meny|di|ter|ke)?${esc}(?:kan|an|i|nya)?\\b`;
+        });
+
+        const tokenRegex = new RegExp(`(${morphPatterns.join('|')})`, 'gi');
+        let m: RegExpExecArray | null;
+        while ((m = tokenRegex.exec(text)) !== null) {
+          ranges.push({ start: m.index, end: m.index + m[0].length });
+        }
+      }
     }
   }
 
@@ -410,7 +525,7 @@ export function RegulationCard({
           onClick={handleLinkClick}
           className="block text-[14px] sm:text-[15px] font-medium text-neu-800 group-hover:text-pr-900 transition-colors line-clamp-3 leading-snug mb-4"
         >
-          {highlightMatches(item.judul, searchQuery, synonyms)}
+          {item.judul}
         </Link>
 
         {/* ── Highlight Cuplikan Pasal Paling Relevan & Skor Relevansi AI ── */}

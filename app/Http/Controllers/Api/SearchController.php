@@ -55,7 +55,33 @@ class SearchController extends Controller
             // sehingga pertanyaan percakapan/awam terjawab akurat dan anomali/false-positive tereliminasi.
             if (($intent['mode'] === 'semantic' || $intent['mode'] === 'hybrid') && ($sort === 'relevansi' || $sort === '')) {
                 $semanticQueryText = $intent['semantic_query'] ?? $keyword;
-                $semanticMatches = $this->semanticService->searchRelevantPasal($semanticQueryText, 0.45, 50, $activeFilters, $synonyms);
+                $semanticFilters = $activeFilters;
+                if (!empty($intent['detected_category_id']) && empty($semanticFilters['kategori_ids'])) {
+                    $semanticFilters['kategori_ids'] = [$intent['detected_category_id']];
+                }
+                $semanticMatches = $this->semanticService->searchRelevantPasal($semanticQueryText, 0.45, 50, $semanticFilters, $synonyms);
+
+                // Jika kueri menyebutkan pasal spesifik (misal: "pasal 156 uu cipta kerja"), cari pasal langsung dari database
+                if (!empty($intent['detected_pasal']) && $intent['mode'] === 'hybrid') {
+                    $targetPasalNum = preg_replace('/[^0-9a-zA-Z]/', '', $intent['detected_pasal']);
+                    $directPasals = \App\Models\Pasal::where(function ($q) use ($targetPasalNum, $likeOp) {
+                        $q->where('nomor_pasal', $targetPasalNum)
+                          ->orWhere('nomor_pasal', $likeOp, 'Pasal ' . $targetPasalNum . '%')
+                          ->orWhere('nomor_pasal', $likeOp, '%' . $targetPasalNum . '%');
+                    })->limit(10)->get();
+
+                    foreach ($directPasals as $dp) {
+                        if (!$semanticMatches->has($dp->peraturan_id)) {
+                            $semanticMatches->put($dp->peraturan_id, [
+                                'pasal_id' => $dp->id,
+                                'nomor_pasal' => (string) $dp->nomor_pasal,
+                                'cuplikan' => mb_substr((string) $dp->isi_pasal, 0, 200),
+                                'similarity' => 0.95,
+                                'secondary_pasal' => [],
+                            ]);
+                        }
+                    }
+                }
             }
 
             $semanticIds = $semanticMatches->keys()->toArray();
@@ -76,43 +102,120 @@ class SearchController extends Controller
             $smartKeyword = preg_replace(array_keys($replacements), array_values($replacements), $keyword);
 
             $query->where(function ($sub) use ($keyword, $smartKeyword, $likeOp, $semanticIds, $intent, $synonyms) {
-                // 1.1 Hasil Semantic AI (jika ditemukan pasal relevan dari pencarian pintar / hybrid)
-                if (!empty($semanticIds)) {
-                    $sub->whereIn('id', $semanticIds);
-                }
+                if ($intent['mode'] === 'semantic') {
+                    // Mode Semantic murni (Tier 2): Hasil WAJIB berasal dari analisis makna vektor AI & pasal terverifikasi.
+                    // Jika AI menemukan pasal relevan, filter eksklusif pada ID peraturan tersebut.
+                    // Jika tidak ada hasil relevan (anomali / di luar korpus), kembalikan himpunan kosong dan DILARANG
+                    // fallback ke pencarian judul acak agar tidak memunculkan kartu hantu (ghost card) tanpa pasal.
+                    if (!empty($semanticIds)) {
+                        $sub->whereIn('id', $semanticIds);
+                    } else {
+                        $sub->whereRaw('1 = 0');
+                    }
+                } elseif ($intent['mode'] === 'hybrid') {
+                    // Mode Hybrid (Tier 3 - kombinasi jenis/nomor regulasi + topik atau "peraturan mengenai xx"):
+                    // Gabungkan hasil semantic AI dan pencarian dokumen leksikal yang cocok
+                    if (!empty($semanticIds)) {
+                        $sub->whereIn('id', $semanticIds);
+                    }
 
-                // 1.2 Mode Metadata: Pencarian nomor spesifik
-                if ($intent['mode'] === 'metadata' && !empty($intent['detected_number'])) {
-                    $sub->orWhere(function ($numSub) use ($intent, $likeOp) {
-                        $numSub->where('nomor', $intent['detected_number'])
-                               ->orWhere('nomor', $likeOp, '%' . $intent['detected_number'] . '%');
+                    if (!empty($intent['detected_number'])) {
+                        $sub->orWhere(function ($numSub) use ($intent, $likeOp) {
+                            if (!empty($intent['detected_category_id'])) {
+                                $numSub->where('jenis_peraturan_id', $intent['detected_category_id']);
+                            }
+                            $numSub->where(function ($inner) use ($intent, $likeOp) {
+                                $inner->where('nomor', $intent['detected_number'])
+                                       ->orWhere('nomor', $likeOp, '%' . $intent['detected_number'] . '%');
+                            });
 
-                        if (!empty($intent['detected_year'])) {
-                            $numSub->where('tahun', $intent['detected_year']);
+                            if (!empty($intent['detected_year'])) {
+                                $numSub->where('tahun', $intent['detected_year']);
+                            }
+                        });
+                    }
+
+                    $sub->orWhere(function ($textSub) use ($keyword, $smartKeyword, $likeOp, $synonyms, $intent) {
+                        $cleanTopic = $intent['semantic_query'] ?? $keyword;
+                        $statuteTitle = $intent['statute_title'] ?? null;
+
+                        if (!empty($intent['detected_category_id'])) {
+                            $textSub->where('jenis_peraturan_id', $intent['detected_category_id']);
                         }
+
+                        $textSub->where(function ($inner) use ($keyword, $cleanTopic, $statuteTitle, $smartKeyword, $likeOp, $synonyms) {
+                            $inner->where('judul', $likeOp, '%' . $keyword . '%')
+                                ->orWhere('judul', $likeOp, '%' . $cleanTopic . '%')
+                                ->orWhere('nomor', $likeOp, '%' . $keyword . '%');
+
+                            if (!empty($statuteTitle)) {
+                                $titleKeywords = array_filter(preg_split('/\s+/', preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower($statuteTitle))));
+                                if (!empty($titleKeywords)) {
+                                    $inner->orWhere('judul', $likeOp, '%' . implode('%', $titleKeywords) . '%');
+                                }
+                            }
+
+                            if ($smartKeyword !== $keyword && $smartKeyword !== '%') {
+                                $inner->orWhere('judul', $likeOp, '%' . $smartKeyword . '%')
+                                    ->orWhere('nomor', $likeOp, '%' . $smartKeyword . '%');
+                            }
+
+                            foreach (array_slice($synonyms, 0, 3) as $syn) {
+                                $inner->orWhere('judul', $likeOp, '%' . $syn . '%');
+                            }
+                        });
                     });
+                } else {
+                    // Mode Metadata (Tier 1 - Pencarian Kategori, Nomor, Tahun, atau Judul Dokumen Populer):
+                    if (!empty($intent['detected_category_id']) && empty($intent['detected_number']) && empty($intent['detected_year']) && empty($intent['statute_title'])) {
+                        // Kueri kategori tunggal murni (misal user hanya mengetik "Perpres", "POJK", "Undang-Undang")
+                        $sub->where('jenis_peraturan_id', $intent['detected_category_id']);
+                    } elseif (!empty($intent['detected_number'])) {
+                        $sub->where(function ($numSub) use ($intent, $likeOp) {
+                            if (!empty($intent['detected_category_id'])) {
+                                $numSub->where('jenis_peraturan_id', $intent['detected_category_id']);
+                            }
+                            $numSub->where(function ($inner) use ($intent, $likeOp) {
+                                $inner->where('nomor', $intent['detected_number'])
+                                       ->orWhere('nomor', $likeOp, '%' . $intent['detected_number'] . '%');
+                            });
+
+                            if (!empty($intent['detected_year'])) {
+                                $numSub->where('tahun', $intent['detected_year']);
+                            }
+                        });
+                    } else {
+                        // Pencarian Judul Regulasi Populer / Kata Kunci Metadata
+                        $targetTitle = !empty($intent['statute_title']) ? $intent['statute_title'] : (!empty($intent['clean_keyword']) ? $intent['clean_keyword'] : $keyword);
+                        $titleKeywords = array_filter(preg_split('/\s+/', preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower($targetTitle))));
+                        $titleWildcard = !empty($titleKeywords) ? '%' . implode('%', $titleKeywords) . '%' : '%' . $targetTitle . '%';
+
+                        $sub->where(function ($textSub) use ($targetTitle, $titleWildcard, $smartKeyword, $likeOp, $synonyms, $intent) {
+                            if (!empty($intent['detected_category_id'])) {
+                                $textSub->where('jenis_peraturan_id', $intent['detected_category_id']);
+                            }
+                            $textSub->where(function ($tSub) use ($targetTitle, $titleWildcard, $smartKeyword, $likeOp, $synonyms) {
+                                $tSub->where('judul', $likeOp, '%' . $targetTitle . '%')
+                                    ->orWhere('judul', $likeOp, $titleWildcard)
+                                    ->orWhere('nomor', $likeOp, '%' . $targetTitle . '%')
+                                    ->orWhere('instansi', $likeOp, '%' . $targetTitle . '%')
+                                    ->orWhere('lokasi_daerah', $likeOp, '%' . $targetTitle . '%')
+                                    ->orWhere('tempat_penetapan', $likeOp, '%' . $targetTitle . '%');
+
+                                if ($smartKeyword !== $targetTitle && $smartKeyword !== '%') {
+                                    $tSub->orWhere('judul', $likeOp, '%' . $smartKeyword . '%')
+                                        ->orWhere('nomor', $likeOp, '%' . $smartKeyword . '%')
+                                        ->orWhere('instansi', $likeOp, '%' . $smartKeyword . '%')
+                                        ->orWhere('lokasi_daerah', $likeOp, '%' . $smartKeyword . '%');
+                                }
+
+                                foreach (array_slice($synonyms, 0, 3) as $syn) {
+                                    $tSub->orWhere('judul', $likeOp, '%' . $syn . '%');
+                                }
+                            });
+                        });
+                    }
                 }
-
-                // 1.3 Pencarian leksikal pada judul, nomor, instansi, atau lokasi
-                $sub->orWhere(function ($textSub) use ($keyword, $smartKeyword, $likeOp, $synonyms) {
-                    $textSub->where('judul', $likeOp, '%' . $keyword . '%')
-                        ->orWhere('nomor', $likeOp, '%' . $keyword . '%')
-                        ->orWhere('instansi', $likeOp, '%' . $keyword . '%')
-                        ->orWhere('lokasi_daerah', $likeOp, '%' . $keyword . '%')
-                        ->orWhere('tempat_penetapan', $likeOp, '%' . $keyword . '%');
-
-                    if ($smartKeyword !== $keyword && $smartKeyword !== '%') {
-                        $textSub->orWhere('judul', $likeOp, '%' . $smartKeyword . '%')
-                            ->orWhere('nomor', $likeOp, '%' . $smartKeyword . '%')
-                            ->orWhere('instansi', $likeOp, '%' . $smartKeyword . '%')
-                            ->orWhere('lokasi_daerah', $likeOp, '%' . $smartKeyword . '%');
-                    }
-
-                    // Pencarian sinonim hukum pada judul peraturan
-                    foreach (array_slice($synonyms, 0, 3) as $syn) {
-                        $textSub->orWhere('judul', $likeOp, '%' . $syn . '%');
-                    }
-                });
             });
         }
 

@@ -20,6 +20,11 @@ const STOPWORDS = new Set([
   'pasal', 'ayat', 'huruf', 'angka', 'ketentuan', 'sebagaimana', 'dimaksud',
   'paling', 'sedikit', 'banyak', 'kurang', 'lebih', 'tentang', 'terkait',
   'peraturan', 'undang', 'undang-undang', 'uu', 'bab', 'pedoman', 'aturan',
+  'sih', 'dong', 'deh', 'kan', 'ya', 'men', 'bro', 'cuy', 'gan', 'sob', 'bos',
+  'gaes', 'guys', 'kak', 'om', 'pak', 'bu', 'bang', 'loe', 'lu', 'gue', 'gw',
+  'bagus', 'baik', 'tepat', 'cocok', 'kapan', 'dimana', 'kenapa', 'mengapa',
+  'berapa', 'lama', 'usia', 'umur', 'sendiri', 'apakah', 'bagaimana', 'apa',
+  'siapa', 'bisa', 'boleh', 'kah', 'ada', 'tidak', 'mengenai', 'soal', 'hal',
 ]);
 
 function getSignificantWords(text: string): string[] {
@@ -45,6 +50,15 @@ const STATUTORY_EQUIVALENTS: Record<string, string[]> = {
   pecat: ['pemutusan hubungan kerja', 'phk', 'pemberhentian'],
   dipecat: ['pemutusan hubungan kerja', 'phk', 'diberhentikan'],
   phk: ['pemutusan hubungan kerja', 'pemberhentian'],
+  pesangon: ['uang pesangon', 'uang penghargaan masa kerja', 'uang penggantian hak'],
+  karyawan: ['pekerja', 'buruh'],
+  pegawai: ['pekerja', 'buruh', 'aparatur sipil negara'],
+  buruh: ['pekerja', 'tenaga kerja'],
+  pekerja: ['buruh', 'tenaga kerja'],
+  hamil: ['melahirkan', 'kehamilan', 'gugur kandungan'],
+  melahirkan: ['hamil', 'kehamilan', 'persalinan'],
+  cuti: ['istirahat', 'waktu istirahat'],
+  istirahat: ['cuti', 'waktu istirahat'],
   penjara: ['kurungan', 'pidana penjara'],
   denda: ['pidana denda'],
   ijin: ['izin', 'perizinan'],
@@ -52,6 +66,23 @@ const STATUTORY_EQUIVALENTS: Record<string, string[]> = {
   ongkos: ['biaya', 'tarif'],
   biaya: ['tarif', 'retribusi', 'pungutan'],
   anak: ['anak di bawah umur', 'belum dewasa'],
+  sawit: ['kelapa sawit'],
+  'kelapa sawit': ['sawit'],
+  pt: ['perseroan', 'perseroan terbatas'],
+  pt_perorangan: ['perseroan', 'usaha mikro dan kecil'],
+  perorangan: ['perseroan', 'usaha mikro dan kecil'],
+  mendirikan: ['pendirian', 'pembentukan', 'perizinan berusaha'],
+  radioaktif: ['ketenaganukliran', 'radiasi pengion'],
+  nuklir: ['ketenaganukliran', 'tenaga nuklir'],
+  uang: ['mata uang', 'uang kertas', 'rupiah', 'alat pembayaran'],
+  memproduksi: ['membikin', 'membuat', 'mencetak', 'meniru', 'memalsu'],
+  produksi: ['membikin', 'membuat', 'mencetak', 'meniru', 'memalsu'],
+  palsu: ['tiruan', 'meniru', 'memalsu', 'tidak sah'],
+  mencuri: ['pencurian', 'mengambil barang milik orang lain'],
+  menipu: ['penipuan', 'tipu muslihat', 'rangkaian kebohongan'],
+  memukul: ['penganiayaan', 'kekerasan'],
+  korupsi: ['tindak pidana korupsi', 'memperkaya diri sendiri'],
+  suap: ['penyuapan', 'gratifikasi'],
 };
 
 export function highlightText(text: string, query?: string): React.ReactNode {
@@ -67,17 +98,67 @@ export function highlightText(text: string, query?: string): React.ReactNode {
     }
   }
 
-  const tokens = Array.from(
+  const cleanTokens = Array.from(
     new Set(rawTokens.filter((t) => t.length >= 3 && !STOPWORDS.has(t)))
   );
 
-  if (tokens.length === 0) return cleaned;
+  if (cleanTokens.length === 0) return cleaned;
 
-  const escapedTokens = tokens
-    .sort((a, b) => b.length - a.length)
-    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  // 1. Coba kecocokan frasa multi-kata utuh
+  if (cleanTokens.length >= 2) {
+    const phraseRegex = new RegExp(
+      `\\b${cleanTokens.slice(0, 3).map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s\\-_]+')}\\b`,
+      'gi'
+    );
+    if (phraseRegex.test(cleaned)) {
+      const parts = cleaned.split(phraseRegex);
+      return parts.map((part, index) =>
+        phraseRegex.test(part) ? (
+          <mark key={index} className="bg-suc-100 text-suc-900 font-semibold rounded px-1 py-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      );
+    }
+  }
 
-  const regex = new RegExp(`(${escapedTokens.join('|')})`, 'gi');
+  // 2. Token individu dengan penjagaan kata generik
+  const GENERIC_LEGAL_WORDS = new Set([
+    'kerja', 'pekerja', 'buruh', 'hukum', 'aturan', 'badan', 'hak', 'kewajiban',
+    'umum', 'dasar', 'nasional', 'daerah', 'ketentuan', 'pemerintah', 'orang',
+  ]);
+
+  const specificTokens = cleanTokens.filter((t) => !GENERIC_LEGAL_WORDS.has(t));
+  const hasSpecificInQuery = specificTokens.length > 0;
+  const hasSpecificInText =
+    hasSpecificInQuery &&
+    specificTokens.some((t) => {
+      const morph = new RegExp(
+        `\\b(?:men|pen|peng|pem|meny|di|ter|ke)?${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:kan|an|i|nya)?\\b`,
+        'i'
+      );
+      return morph.test(cleaned);
+    });
+
+  const allowedTokens = cleanTokens.filter((t) => {
+    if (cleanTokens.length >= 2 && GENERIC_LEGAL_WORDS.has(t)) {
+      return hasSpecificInText;
+    }
+    return true;
+  });
+
+  if (allowedTokens.length === 0) return cleaned;
+
+  const morphPatterns = allowedTokens.map((t) => {
+    const esc = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return t.length > 7
+      ? `\\b${esc}\\b`
+      : `\\b(?:men|pen|peng|pem|meny|di|ter|ke)?${esc}(?:kan|an|i|nya)?\\b`;
+  });
+
+  const regex = new RegExp(`(${morphPatterns.join('|')})`, 'gi');
   const parts = cleaned.split(regex);
 
   return parts.map((part, index) =>
@@ -141,11 +222,11 @@ export function renderNormaContent(
     return (
       <React.Fragment key={lineIndex}>
         {isRelevantAyat ? (
-          <mark className="bg-suc-100 text-suc-900 font-medium px-1.5 py-0.5 rounded border border-suc-300/80 my-0.5 inline-block leading-relaxed shadow-2xs">
-            {highlightText(line, searchQuery)}
+          <mark className="bg-suc-100 text-suc-900 font-medium px-2 py-1 rounded-lg border border-suc-300/80 my-1 inline-block leading-relaxed shadow-2xs">
+            {line}
           </mark>
         ) : (
-          <span>{highlightText(line, searchQuery)}</span>
+          <span>{line}</span>
         )}
         {lineIndex < lines.length - 1 && '\n'}
       </React.Fragment>

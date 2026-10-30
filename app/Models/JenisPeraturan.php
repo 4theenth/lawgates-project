@@ -15,6 +15,16 @@ class JenisPeraturan extends Model
         return $this->hasMany(Peraturan::class, 'jenis_peraturan_id');
     }
 
+    protected static function booted()
+    {
+        static::saved(function () {
+            \Illuminate\Support\Facades\Cache::forget('search_intent_category_patterns');
+        });
+        static::deleted(function () {
+            \Illuminate\Support\Facades\Cache::forget('search_intent_category_patterns');
+        });
+    }
+
     /**
      * Resoluisi universal dan normalisasi tipe peraturan dari string mentah apapun.
      * Mencegah timbulnya singkatan 1 huruf (seperti 'P') atau duplikasi kategori.
