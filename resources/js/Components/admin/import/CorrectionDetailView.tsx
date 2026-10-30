@@ -14,7 +14,7 @@ import { CorrectionBatangTubuhSection } from './CorrectionBatangTubuhSection';
 import { CorrectionTimelineSection } from './CorrectionTimelineSection';
 import { CorrectionMetadataSection } from './CorrectionMetadataSection';
 import { CorrectionPdfPanel } from './CorrectionPdfPanel';
-import { Wand2, FileText, EyeOff, GripVertical, List, RotateCcw, ChevronLeft, AlignLeft, Loader2 } from 'lucide-react';
+import { Wand2, FileText, EyeOff, GripVertical, List, RotateCcw, ChevronLeft, AlignLeft, Loader2, Plus } from 'lucide-react';
 import { cleanOcrText } from '../../../utils/ocrTextCleaner';
 
 // Re-export types and utilities for backward compatibility
@@ -58,6 +58,36 @@ export function CorrectionDetailView({
   const [isDragging, setIsDragging] = useState(false);
   const [showTocInSplit, setShowTocInSplit] = useState(true);
   const splitContainerRef = useRef<HTMLDivElement>(null);
+
+  // ID pasal yang perlu di-scroll otomatis setelah ditambahkan (ADM39)
+  const [pendingScrollPasalId, setPendingScrollPasalId] = useState<string | null>(null);
+
+  // Auto-scroll ke pasal yang baru ditambahkan begitu sudah ter-render di DOM
+  useEffect(() => {
+    if (!pendingScrollPasalId) return;
+
+    const timer = window.setTimeout(() => {
+      const el = document.getElementById(`section-${pendingScrollPasalId}`);
+      if (el) {
+        const container = document.getElementById('editor-scroll-container');
+        if (container) {
+          const elementPosition = el.getBoundingClientRect().top;
+          const containerPosition = container.getBoundingClientRect().top;
+          const offsetPosition = elementPosition - containerPosition + container.scrollTop - 24;
+          container.scrollTo({ top: Math.max(0, offsetPosition), behavior: 'smooth' });
+        } else {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Fokuskan textarea teks norma pasal agar admin bisa langsung mengetik
+        const textarea = el.querySelector('textarea') as HTMLTextAreaElement | null;
+        textarea?.focus({ preventScroll: true });
+      }
+      setPendingScrollPasalId(null);
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [pendingScrollPasalId, data]);
 
   // Endpoint URL dokumen PDF sumber
   const pdfUrl =
@@ -203,8 +233,159 @@ export function CorrectionDetailView({
     }));
   };
 
+  // ── Aksi Penambahan & Penghapusan Pasal Manual (ADM39) ─────────────────────────
+  const createPasalId = () =>
+    `pasal-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  // Helper rekursif: sisipkan pasal baru ke node tujuan (BAB / BAGIAN / PARAGRAF)
+  const addPasalToTree = (nodes: ChapterItem[], targetNodeId: string, newPasal: ArticleItem): ChapterItem[] =>
+    nodes.map((n) => {
+      if (n.id === targetNodeId) {
+        return { ...n, isExpanded: true, pasalList: [...(n.pasalList || []), newPasal] };
+      }
+      if (n.children && n.children.length > 0) {
+        return { ...n, children: addPasalToTree(n.children, targetNodeId, newPasal) };
+      }
+      return n;
+    });
+
+  // Helper rekursif: hapus pasal (termasuk sub-pasal) berdasarkan id
+  const removePasalFromList = (pasalList: ArticleItem[], targetPasalId: string): ArticleItem[] =>
+    pasalList
+      .filter((p) => p.id !== targetPasalId)
+      .map((p) =>
+        p.pasalList && p.pasalList.length > 0
+          ? { ...p, pasalList: removePasalFromList(p.pasalList, targetPasalId) }
+          : p
+      );
+
+  const removePasalFromTree = (nodes: ChapterItem[], targetPasalId: string): ChapterItem[] =>
+    nodes.map((n) => ({
+      ...n,
+      pasalList: removePasalFromList(n.pasalList || [], targetPasalId),
+      children: n.children && n.children.length > 0
+        ? removePasalFromTree(n.children, targetPasalId)
+        : n.children,
+    }));
+
+  // Tambah pasal baru (dipanggil dari toolbar maupun dari dalam kartu Bab)
+  const addPasal = (parentId: string) => {
+    const newPasal: ArticleItem = {
+      id: createPasalId(),
+      nomor: 'Pasal -',
+      isi: '',
+      penjelasan: '',
+      isExpanded: true,
+      tipe: 'PASAL',
+    };
+    setData((prev) => ({
+      ...prev,
+      babList: addPasalToTree(prev.babList, parentId, newPasal),
+    }));
+    // Picu auto-scroll ke posisi pasal baru setelah render
+    setPendingScrollPasalId(newPasal.id);
+  };
+
+  // Hapus pasal dari state dokumen draf
+  const deletePasal = (_parentId: string, pasalId: string) => {
+    setData((prev) => ({
+      ...prev,
+      babList: removePasalFromTree(prev.babList, pasalId),
+    }));
+  };
+
+  // Tambah pasal manual pada BAB pertama; bila struktur masih kosong, buatkan BAB virtual baru
+  const addPasalToFirstBab = () => {
+    const firstNode = data.babList[0];
+    if (firstNode) {
+      addPasal(firstNode.id);
+      return;
+    }
+
+    const newPasalId = createPasalId();
+    const newNodeId = `bab-manual-${Date.now()}`;
+    setData((prev) => ({
+      ...prev,
+      babList: [
+        {
+          id: newNodeId,
+          judul: '',
+          tipe: 'BAB',
+          isExpanded: true,
+          pasalList: [
+            {
+              id: newPasalId,
+              nomor: 'Pasal -',
+              isi: '',
+              penjelasan: '',
+              isExpanded: true,
+              tipe: 'PASAL',
+            },
+          ],
+        },
+      ],
+    }));
+    setPendingScrollPasalId(newPasalId);
+  };
+
+  // Helper rekursif: perbarui field tertentu (nomor / isi / penjelasan) pada pasal & sub-pasal
+  const updatePasalField = (
+    pasalList: ArticleItem[],
+    pasalId: string,
+    field: 'nomor' | 'isi' | 'penjelasan',
+    value: string
+  ): ArticleItem[] =>
+    pasalList.map((p) => {
+      if (p.id === pasalId) {
+        return { ...p, [field]: value };
+      }
+      if (p.pasalList && p.pasalList.length > 0) {
+        return { ...p, pasalList: updatePasalField(p.pasalList, pasalId, field, value) };
+      }
+      return p;
+    });
+
+  const updatePasalFieldInTree = (
+    nodes: ChapterItem[],
+    pasalId: string,
+    field: 'nomor' | 'isi' | 'penjelasan',
+    value: string
+  ): ChapterItem[] =>
+    nodes.map((n) => ({
+      ...n,
+      pasalList: updatePasalField(n.pasalList || [], pasalId, field, value),
+      children: n.children && n.children.length > 0
+        ? updatePasalFieldInTree(n.children, pasalId, field, value)
+        : n.children,
+    }));
+
+  const handleChangePasalNomor = (_babId: string, pasalId: string, value: string) => {
+    setData((prev) => ({
+      ...prev,
+      babList: updatePasalFieldInTree(prev.babList, pasalId, 'nomor', value),
+    }));
+  };
+
+  const handleChangePasalIsi = (_babId: string, pasalId: string, value: string) => {
+    setData((prev) => ({
+      ...prev,
+      babList: updatePasalFieldInTree(prev.babList, pasalId, 'isi', value),
+    }));
+  };
+
+  const handleChangePasalPenjelasan = (_babId: string, pasalId: string, value: string) => {
+    setData((prev) => ({
+      ...prev,
+      babList: updatePasalFieldInTree(prev.babList, pasalId, 'penjelasan', value),
+    }));
+  };
+
   // Expand target pasal dan seluruh parent (BAB, BAGIAN, PARAGRAF) secara otomatis saat diklik dari Daftar Isi / Relasi
   const forceExpandPasal = (_babId: string, pasalId: string) => {
+    expandPasalById(pasalId);
+  };
+
+  const expandPasalById = (pasalId: string) => {
     const expandPath = (nodes: ChapterItem[], targetPasalId: string): { updatedNodes: ChapterItem[]; found: boolean } => {
       let foundAny = false;
 
@@ -369,6 +550,9 @@ export function CorrectionDetailView({
         babList={data.babList}
         onToggleBab={toggleBab}
         onTogglePasal={togglePasal}
+        onAddPasal={addPasal}
+        onDeletePasal={deletePasal}
+        onAddPasalRoot={addPasalToFirstBab}
         onChangeBabJudul={(babId, val) =>
           setData((prev) => ({
             ...prev,
@@ -385,36 +569,9 @@ export function CorrectionDetailView({
             ),
           }))
         }
-        onChangePasalIsi={(babId, pasalId, val) =>
-          setData((prev) => ({
-            ...prev,
-            babList: prev.babList.map((b) =>
-              b.id === babId
-                ? {
-                  ...b,
-                  pasalList: b.pasalList.map((p) =>
-                    p.id === pasalId ? { ...p, isi: val } : p
-                  ),
-                }
-                : b
-            ),
-          }))
-        }
-        onChangePasalPenjelasan={(babId, pasalId, val) =>
-          setData((prev) => ({
-            ...prev,
-            babList: prev.babList.map((b) =>
-              b.id === babId
-                ? {
-                  ...b,
-                  pasalList: b.pasalList.map((p) =>
-                    p.id === pasalId ? { ...p, penjelasan: val } : p
-                  ),
-                }
-                : b
-            ),
-          }))
-        }
+        onChangePasalNomor={handleChangePasalNomor}
+        onChangePasalIsi={handleChangePasalIsi}
+        onChangePasalPenjelasan={handleChangePasalPenjelasan}
       />
     </div>
   );
@@ -461,6 +618,17 @@ export function CorrectionDetailView({
         </div>
 
         <div className="flex items-center gap-3 self-end sm:self-auto">
+          {/* Tombol Tambah Pasal Manual (ADM39) */}
+          <button
+            type="button"
+            onClick={addPasalToFirstBab}
+            title="Tambahkan pasal baru secara manual"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] border border-neu-200 bg-white text-pr-900 hover:bg-pr-50 text-[14px] font-medium transition-colors cursor-pointer shadow-2xs"
+          >
+            <Plus className="w-4 h-4" />
+            Tambah Pasal
+          </button>
+
           {/* Tombol Toggle PDF Sumber (Inspirasi Pasal.id) */}
           <button
             type="button"

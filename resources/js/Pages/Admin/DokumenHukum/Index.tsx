@@ -313,6 +313,12 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
     setEditingStatusDoc(doc);
   };
 
+  // ── Restore Keadaan Mode Edit Setelah Refresh ──
+  // Menyimpan ID dokumen yang sedang diedit agar setelah refresh (F5) pengguna
+  // tetap berada di layar CorrectionDetailView, bukan kembali ke daftar.
+  const EDITING_DOC_STORAGE_KEY = 'lawgate:admin:dokumen-hukum:editing-doc-id';
+  const hasRestoredEditingRef = useRef(false);
+
   const handleEditClick = async (doc: DokumenHukumItem) => {
     setIsDetailLoading(true);
     try {
@@ -335,6 +341,76 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
     }
     setEditingDoc(doc);
   };
+
+  // Restore dokumen yang sedang diedit setelah halaman di-refresh
+  useEffect(() => {
+    if (hasRestoredEditingRef.current) return;
+    hasRestoredEditingRef.current = true;
+
+    let savedId: string | null = null;
+    try {
+      savedId = window.localStorage.getItem(EDITING_DOC_STORAGE_KEY);
+    } catch {
+      savedId = null;
+    }
+    if (!savedId) return;
+
+    const candidates: any[] = [];
+    if (Array.isArray(peraturans?.data)) candidates.push(...peraturans.data);
+    if (Array.isArray(drafts?.data)) candidates.push(...drafts.data);
+    const found = candidates.find((d) => String(d?.id) === String(savedId));
+    if (found) {
+      handleEditClick(found);
+      return;
+    }
+
+    // Dokumen tidak ada di halaman tabel aktif → bangun objek minimal dari detail-edit
+    (async () => {
+      setIsDetailLoading(true);
+      try {
+        const response = await fetch(`/admin/dokumen-hukum/${savedId}/detail-edit`, {
+          headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) throw new Error('Gagal memuat data peraturan');
+
+        const resJson = await response.json();
+        const meta = resJson?.metadata || {};
+
+        setEditingDoc({
+          id: savedId,
+          judul: resJson?.judul || 'Dokumen Hukum',
+          kategori: String(resJson?.standarId || '').split(/[\s_]+/)[0] || 'UU',
+          tgl_ditetapkan: meta.tanggalDitetapkan || null,
+          status: resJson?.status,
+          correctionData: resJson,
+        } as any);
+      } catch (error) {
+        console.error(error);
+        // Data tidak ditemukan lagi → bersihkan penanda agar tidak mencoba berulang
+        try {
+          window.localStorage.removeItem(EDITING_DOC_STORAGE_KEY);
+        } catch {
+          /* abaikan */
+        }
+      } finally {
+        setIsDetailLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Simpan / bersihkan ID dokumen aktif setiap kali mode edit dibuka atau ditutup
+  useEffect(() => {
+    try {
+      if (editingDoc) {
+        window.localStorage.setItem(EDITING_DOC_STORAGE_KEY, String(editingDoc.id));
+      } else {
+        window.localStorage.removeItem(EDITING_DOC_STORAGE_KEY);
+      }
+    } catch {
+      /* localStorage tidak tersedia — abaikan */
+    }
+  }, [editingDoc]);
 
   // Handler simpan status dari EditStatusModal
   const handleSaveStatus = async (docId: string, newStatus: 'berlaku' | 'tidak_berlaku') => {
@@ -507,6 +583,13 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
               }
 
               toast.success('Data hukum berhasil diperbarui');
+              // Bersihkan penanda mode edit lebih dulu agar setelah reload
+              // halaman tidak kembali membuka layar koreksi.
+              try {
+                window.localStorage.removeItem(EDITING_DOC_STORAGE_KEY);
+              } catch {
+                /* abaikan */
+              }
               setEditingDoc(null);
               router.reload({ only: ['peraturans'] });
             } catch (error: any) {
