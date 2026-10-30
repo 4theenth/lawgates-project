@@ -15,7 +15,8 @@ export interface PageHeaderProps {
   description?: string;
   className?: string;
   size?: 'default' | 'lg';
-  action?: PageHeaderAction;
+  action?: PageHeaderAction | React.ReactNode;
+  actions?: React.ReactNode;
 }
 
 /**
@@ -30,8 +31,59 @@ export function PageHeader({
   className = 'mb-6',
   size = 'default',
   action,
+  actions,
 }: PageHeaderProps) {
   const isLarge = size === 'lg';
+
+  const renderActionContent = () => {
+    if (actions) {
+      return (
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          {actions}
+        </div>
+      );
+    }
+
+    if (React.isValidElement(action)) {
+      return (
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          {action}
+        </div>
+      );
+    }
+
+    if (action && typeof action === 'object' && 'label' in action) {
+      const pageAction = action as PageHeaderAction;
+      return (
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {pageAction.href ? (
+            <Link
+              href={pageAction.href}
+              className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer ${
+                pageAction.className || ''
+              }`}
+            >
+              {pageAction.icon || <Plus className="w-4 h-4" />}
+              <span>{pageAction.label}</span>
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={pageAction.onClick}
+              className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer ${
+                pageAction.className || ''
+              }`}
+            >
+              {pageAction.icon || <Plus className="w-4 h-4" />}
+              <span>{pageAction.label}</span>
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${className}`}>
@@ -50,32 +102,7 @@ export function PageHeader({
         )}
       </div>
 
-      {action && (
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          {action.href ? (
-            <Link
-              href={action.href}
-              className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer ${
-                action.className || ''
-              }`}
-            >
-              {action.icon || <Plus className="w-4 h-4" />}
-              <span>{action.label}</span>
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={action.onClick}
-              className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer ${
-                action.className || ''
-              }`}
-            >
-              {action.icon || <Plus className="w-4 h-4" />}
-              <span>{action.label}</span>
-            </button>
-          )}
-        </div>
-      )}
+      {renderActionContent()}
     </div>
   );
 }

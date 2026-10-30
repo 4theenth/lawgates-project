@@ -12,6 +12,8 @@ export interface FilterSearchBarProps {
   search: string;
   onSearchChange: (value: string) => void;
   placeholder?: string;
+  /** Elemen opsional di sisi kiri (misal: Status Filter Tabs pada halaman Kontribusi) */
+  leftElement?: React.ReactNode;
   /** Nilai kategori terpilih, bisa berupa string tunggal, comma-separated ('1,2'), atau array string */
   selectedCategory?: string | string[];
   onCategoryChange?: (value: string | string[]) => void;
@@ -58,6 +60,7 @@ export function FilterSearchBar({
   search,
   onSearchChange,
   placeholder = 'Cari di dalam bookmark...',
+  leftElement,
   selectedCategory = 'all',
   onCategoryChange,
   categoryOptions = DEFAULT_CATEGORY_OPTIONS,
@@ -167,6 +170,86 @@ export function FilterSearchBar({
   }, [categoryOptions, selectedCategoryList]);
 
   const isAllSelected = selectedCategoryList.length === 0;
+
+  // ── Render Khusus Toolbar Berisi Left Slot (Figma #3436:59224) ──
+  if (leftElement) {
+    return (
+      <div
+        className={`w-full min-h-[56px] bg-white border border-neu-50 rounded-[10px] p-2 sm:px-3.5 sm:py-2 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 shadow-2xs ${className}`}
+      >
+        {/* Sisi Kiri: Status Tabs / Filter */}
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 shrink-0">
+          {leftElement}
+        </div>
+
+        {/* Sisi Kanan: Input Pencarian & Dropdown Sort */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* Input Pencarian */}
+          <form onSubmit={handleFormSubmit} className="w-full sm:w-[195px]">
+            <div className="relative w-full h-[38px] bg-white border border-neu-50 hover:border-neu-200 rounded-[8px] flex items-center px-3 shadow-2xs focus-within:border-neu-200 focus-within:ring-2 focus-within:ring-pr-900/5 transition-all">
+              <Search className="w-4 h-4 text-neu-400 shrink-0 pointer-events-none" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder={placeholder}
+                className="w-full h-full pl-2.5 pr-1 bg-transparent font-sans text-[12px] text-neu-900 placeholder:text-neu-400 outline-none focus:outline-none"
+                style={{ outline: 'none' }}
+              />
+            </div>
+          </form>
+
+          {/* Dropdown Sort */}
+          {onSortChange && (
+            <div className="relative w-full sm:w-[177px]">
+              <Dropdown>
+                <Dropdown.Trigger>
+                  <div className="w-full h-[38px] bg-white border border-neu-50 rounded-[8px] px-3 flex items-center justify-between text-left cursor-pointer hover:border-neu-200 shadow-2xs transition-colors">
+                    <span className="font-sans text-[13px] text-neu-600 truncate mr-2">
+                      {currentSortLabel}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-neu-500 shrink-0" />
+                  </div>
+                </Dropdown.Trigger>
+
+                <Dropdown.Content
+                  align="right"
+                  width="w-full sm:w-[180px]"
+                  contentClasses="p-1.5 bg-white border border-neu-100 rounded-[12px] shadow-[0px_4px_16px_rgba(0,0,0,0.08)] max-h-64 overflow-y-auto no-scrollbar"
+                >
+                  {sortOptions.map((opt) => {
+                    const isSelected = selectedSort === opt.value;
+                    const defaultSortValue = sortOptions[0]?.value || 'terbaru';
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            onSortChange(defaultSortValue);
+                          } else {
+                            onSortChange(opt.value);
+                          }
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg font-sans text-[13px] transition-colors text-left cursor-pointer hover:bg-neutral-50/70 ${
+                          isSelected
+                            ? 'font-semibold text-neu-900'
+                            : 'font-normal text-neu-600 hover:text-neu-900'
+                        }`}
+                      >
+                        <span className="truncate">{opt.label}</span>
+                        {isSelected && <Check className="w-4 h-4 text-neu-900 shrink-0 ml-2" />}
+                      </button>
+                    );
+                  })}
+                </Dropdown.Content>
+              </Dropdown>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`w-full flex flex-col md:flex-row items-stretch md:items-center gap-2.5 ${className}`}>

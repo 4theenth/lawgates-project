@@ -2,6 +2,7 @@ import {
   LayoutGrid,
   Gavel,
   FileText,
+  ScrollText,
   Users,
   Bookmark,
 } from 'lucide-react';
@@ -97,6 +98,12 @@ export const ADMIN_SIDEBAR_MENUS: SidebarMenuItem[] = [
     label: 'Dokumen Hukum',
     href: '/admin/dokumen-hukum',
     icon: FileText,
+  },
+  {
+    id: 'antrean-koreksi',
+    label: 'Antrean Koreksi',
+    href: '/admin/antrean-koreksi',
+    icon: ScrollText,
   },
   {
     id: 'users',
