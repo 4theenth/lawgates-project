@@ -38,9 +38,14 @@ return [
         'title' => 'Terlalu Banyak Permintaan',
         'description' => 'Anda mengirim terlalu banyak permintaan dalam waktu singkat. Tunggu beberapa saat, lalu coba lagi.',
     ],
+    // Fallback untuk status 4xx yang tidak punya entri sendiri di atas
+    // (mis. 406, 410, 413, 414, 422, 451). Teksnya sengaja netral karena
+    // kode aslinya beragam; menyebut tautan atau data yang dikirim akan
+    // menyesatkan untuk sebagian besar kasus.
+    // Harus sama dengan resources/views/errors/4xx.blade.php.
     '4xx' => [
         'title' => 'Permintaan Tidak Dapat Diproses',
-        'description' => 'Permintaan Anda tidak dapat diproses saat ini. Periksa kembali tautan atau data yang digunakan, lalu coba lagi.',
+        'description' => 'Server tidak dapat memproses permintaan Anda saat ini. Silakan coba lagi beberapa saat lagi, atau kembali ke beranda.',
     ],
     500 => [
         'title' => 'Terjadi Kesalahan Server',
