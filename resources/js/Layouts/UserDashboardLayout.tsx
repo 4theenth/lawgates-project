@@ -12,6 +12,7 @@ export interface UserDashboardLayoutProps {
   breadcrumbs?: BreadcrumbItem[];
   bookmarkCount?: number;
   collectionCount?: number;
+  kontribusiCount?: number;
 }
 
 /**
@@ -19,7 +20,7 @@ export interface UserDashboardLayoutProps {
  *
  * Menggabungkan PublicLayout (Navbar & Footer), Breadcrumb navigasi dinamis,
  * serta UserProfileSidebar di kolom kiri secara seragam untuk seluruh
- * halaman profil user (Ringkasan, Bookmark, Riwayat Pencarian, Pengaturan).
+ * halaman profil user (Ringkasan, Bookmark, Kontribusi, Riwayat, Pengaturan).
  */
 export function UserDashboardLayout({
   children,
@@ -27,6 +28,7 @@ export function UserDashboardLayout({
   breadcrumbs = [{ label: 'Beranda', href: '/' }, { label: 'Ringkasan' }],
   bookmarkCount,
   collectionCount,
+  kontribusiCount,
 }: UserDashboardLayoutProps) {
   return (
     <PublicLayout>
@@ -43,6 +45,7 @@ export function UserDashboardLayout({
             activeMenu={activeMenu}
             bookmarkCount={bookmarkCount}
             collectionCount={collectionCount}
+            kontribusiCount={kontribusiCount}
           />
 
           {/* Kolom Kanan: Area Konten Halaman */}

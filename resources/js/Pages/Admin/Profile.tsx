@@ -20,21 +20,21 @@ export default function AdminProfile({
 
   return (
     <AdminLayout>
-      <Head title="Profile Saya - Admin LawGates" />
+      <Head title="Profil Saya - Admin LawGates" />
 
-      {/* 1. Breadcrumb Navigasi: Dashboard > Profile Setting */}
+      {/* 1. Breadcrumb Navigasi: Dashboard > Profil Saya */}
       <div className="mb-4">
         <Breadcrumb
           items={[
             { label: 'Dashboard', href: route('admin.dashboard') },
-            { label: 'Profile Setting' },
+            { label: 'Profil Saya' },
           ]}
         />
       </div>
 
       {/* 2. Page Header Menggunakan Reusable Component PageHeader */}
       <PageHeader
-        title="Profile Saya"
+        title="Profil Saya"
         description="Kelola informasi akun anda"
       />
 

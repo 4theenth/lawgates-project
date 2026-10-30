@@ -76,7 +76,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/bookmarks/{bookmark}/collections', [BookmarkPageController::class, 'syncCollections'])->name('user.bookmarks.collections.sync');
         Route::post('/bookmarks/bulk-destroy', [BookmarkPageController::class, 'bulkDestroy'])->name('user.bookmarks.bulk_destroy');
         Route::post('/bookmarks/bulk-collections', [BookmarkPageController::class, 'bulkSyncCollections'])->name('user.bookmarks.bulk_collections');
+
+        // Kontribusi Saya (Riwayat Usulan Koreksi User)
+        Route::get('/kontribusi', [\App\Http\Controllers\User\KontribusiController::class, 'index'])->name('user.kontribusi');
     });
+
+    // Halaman Koreksi Peraturan (USER-03)
+    Route::get('/peraturan/{unique_id}/koreksi', [\App\Http\Controllers\KoreksiPeraturanController::class, 'show'])->name('peraturan.koreksi.show');
+    Route::post('/peraturan/{unique_id}/koreksi', [\App\Http\Controllers\KoreksiPeraturanController::class, 'store'])->name('peraturan.koreksi.store');
 
     Route::get('/pencarian', function () {
         return Inertia::render('Pencarian');
@@ -112,6 +119,7 @@ use App\Http\Controllers\Admin\DokumenHukumController;
 use App\Http\Controllers\Admin\KategoriHukumController;
 use App\Http\Controllers\Admin\SubjekPeraturanController;
 use App\Http\Controllers\Admin\TeamController;
+use App\Http\Controllers\Admin\AntreanKoreksiController;
 
 
 Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(function () {
@@ -163,6 +171,10 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     Route::get('/team', [TeamController::class, 'index'])->name('admin.team');
     Route::get('/users/tim', [TeamController::class, 'index'])->name('admin.users.tim');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('admin.profile');
+
+    // Antrean Koreksi Dokumen Hukum
+    Route::get('/antrean-koreksi', [AntreanKoreksiController::class, 'index'])->name('admin.antrean-koreksi');
+    Route::get('/antrean-koreksi/{id}', [AntreanKoreksiController::class, 'show'])->name('admin.antrean-koreksi.show');
 });
 
 /*

@@ -5,31 +5,33 @@ import {
   Pencil,
   LayoutDashboard,
   Bookmark,
+  PencilLine,
   History,
-  Settings,
 } from 'lucide-react';
 import profileAvatar from '@/assets/profile-avatar.webp';
 
-export type UserMenuKey = 'ringkasan' | 'bookmark' | 'riwayat' | 'pengaturan';
+export type UserMenuKey = 'ringkasan' | 'bookmark' | 'kontribusi' | 'riwayat' | 'pengaturan';
 
 export interface UserProfileSidebarProps {
   activeMenu?: UserMenuKey;
   bookmarkCount?: number;
   collectionCount?: number;
+  kontribusiCount?: number;
   className?: string;
 }
 
 /**
  * Komponen Sidebar Profil User (Menu Profile)
- * Sesuai Figma node #3165:71396
+ * Sesuai Figma node #3165:71396 & #3406:84262
  *
  * Reusable di seluruh halaman profil user:
- * Ringkasan, Bookmark Saya, Riwayat Pencarian, dan Pengaturan Akun.
+ * Ringkasan, Bookmark Saya, Kontribusi Saya, Riwayat Pencarian, dan Pengaturan Akun.
  */
 export function UserProfileSidebar({
   activeMenu,
   bookmarkCount,
   collectionCount,
+  kontribusiCount,
   className = '',
 }: UserProfileSidebarProps) {
   const { props } = usePage<any>();
@@ -40,9 +42,11 @@ export function UserProfileSidebar({
     bookmarkCount ?? auth?.totalBookmarks ?? (user?.bookmarks_count || 0);
   const totalCollections =
     collectionCount ?? auth?.totalCollections ?? (user?.collections_count || 0);
+  const totalKontribusi =
+    kontribusiCount ?? auth?.totalKontribusi ?? 10;
 
-  const displayName = user?.name || user?.username || 'User LawGates';
-  const displayEmail = user?.email || 'user@lawgates.com';
+  const displayName = user?.name || user?.username || 'Yudis Purba';
+  const displayEmail = user?.email || 'yudis@gmail.com';
   const profileImg = user?.avatar || profileAvatar;
   const isPremium = user?.role === 'premium' || user?.is_premium;
 
@@ -64,20 +68,20 @@ export function UserProfileSidebar({
       disabled: false,
     },
     {
+      key: 'kontribusi' as const,
+      label: 'Kontribusi Saya',
+      href: route('user.kontribusi'),
+      icon: PencilLine,
+      badge: totalKontribusi,
+      disabled: false,
+    },
+    {
       key: 'riwayat' as const,
       label: 'Riwayat Pencarian',
       href: '#',
       icon: History,
       badge: null,
       disabled: true, // Dinonaktifkan sementara (tidak bisa diklik)
-    },
-    {
-      key: 'pengaturan' as const,
-      label: 'Pengaturan Akun',
-      href: route('profile.edit'),
-      icon: Settings,
-      badge: null,
-      disabled: false,
     },
   ];
 

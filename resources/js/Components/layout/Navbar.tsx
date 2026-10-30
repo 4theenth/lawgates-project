@@ -145,7 +145,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[12px] text-neu-700 hover:text-neu-900 hover:bg-gray-50 rounded-lg transition-colors text-left cursor-pointer"
                     >
                       <User className="w-3.5 h-3.5 text-neu-500" />
-                      <span>Pengaturan Profil</span>
+                      <span>Profil</span>
                     </Dropdown.Link>
 
                     <Dropdown.Link
@@ -354,7 +354,7 @@ export function Navbar({ isScrolled, menus = NAVBAR_MENUS }: NavbarProps) {
                       className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-neu-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
                     >
                       <User className="w-4 h-4 text-neu-300" />
-                      <span>Pengaturan Profil</span>
+                      <span>Profil</span>
                     </Link>
                   )}
 

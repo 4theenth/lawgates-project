@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { PublicLayout, PAGE_CONTAINER } from '@/Layouts/PublicLayout';
 import { DetailPeraturanHeader } from '@/Components/peraturan/DetailPeraturanHeader';
 import { X, AlertTriangle, AlignLeft } from 'lucide-react';
@@ -32,8 +32,49 @@ export default function DetailPeraturan({
 }: {
   peraturan: any;
 }) {
+  const { props } = usePage<any>();
   const { toast } = useToast();
   const [isDaftarIsiOpen, setIsDaftarIsiOpen] = useState(true);
+
+  // Aksi koreksi hanya aktif untuk pengguna publik (role: user/guest).
+  // Admin dan Superadmin tidak memiliki tombol usulan koreksi di halaman naskah peraturan,
+  // melainkan bertugas meninjau & memoderasi usulan di Panel Admin Antrean Koreksi.
+  const isAdmin = useMemo(() => {
+    const role = props.auth?.user?.role;
+    if (['admin', 'superadmin'].includes(role ?? '')) {
+      return true;
+    }
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('from') === 'admin_koreksi') {
+        return true;
+      }
+    }
+    return false;
+  }, [props.auth?.user?.role]);
+
+  const canKoreksi = !isAdmin;
+
+  // Deteksi query param apakah navigasi datang dari panel Admin Antrean Koreksi
+  // Contoh: /peraturan/undang-undang-11-2020?from=admin_koreksi&koreksi_id=1
+  const customBreadcrumbs = useMemo(() => {
+    if (typeof window === 'undefined') return undefined;
+    const urlParams = new URLSearchParams(window.location.search);
+    const from = urlParams.get('from');
+    const koreksiId = urlParams.get('koreksi_id');
+
+    if (from === 'admin_koreksi') {
+      return [
+        { label: 'Dashboard', href: '/admin/dashboard' },
+        { label: 'Antrean Koreksi', href: '/admin/antrean-koreksi' },
+        ...(koreksiId
+          ? [{ label: 'Detail Koreksi', href: `/admin/antrean-koreksi/${koreksiId}` }]
+          : []),
+        { label: 'Detail Peraturan' },
+      ];
+    }
+    return undefined;
+  }, []);
 
   // Deteksi apakah record peraturan merupakan dokumen placeholder (has_pasal === false atau status draft)
   const isDraft = useMemo(() => {
@@ -101,6 +142,21 @@ export default function DetailPeraturan({
   const [isMengingatOpen, setIsMengingatOpen] = useState(true);
   const [isMemutuskanOpen, setIsMemutuskanOpen] = useState(true);
   const [isMenetapkanOpen, setIsMenetapkanOpen] = useState(true);
+
+  // Navigasi ke halaman Koreksi Peraturan (Hanya untuk pengguna publik/user)
+  const handleKoreksi = useCallback((isi: string, label: string, id: string = '', type: 'bab' | 'pasal' | 'pembukaan' = 'pembukaan') => {
+    if (isAdmin) {
+      toast.info('Sebagai admin/superadmin, Anda dapat meninjau dan memproses usulan koreksi di menu Antrean Koreksi.');
+      return;
+    }
+    const params = new URLSearchParams({
+      type,
+      label,
+      id: id || '',
+      isi: isi.substring(0, 3000),
+    });
+    router.visit(`/peraturan/${peraturan?.unique_id}/koreksi?${params.toString()}`);
+  }, [isAdmin, peraturan?.unique_id, toast]);
 
   // Format dates & active status
   const tanggalPenetapan = peraturan?.tanggal_penetapan ? formatTanggal(peraturan.tanggal_penetapan) : '-';
@@ -211,11 +267,13 @@ export default function DetailPeraturan({
         <section className="w-full bg-white border-b border-neu-50 pt-24 sm:pt-28 pb-6 sm:pb-8">
           <div className={PAGE_CONTAINER}>
             <DetailPeraturanHeader
-              breadcrumbItems={[
-                { label: 'Beranda', href: '/' },
-                { label: 'Pencarian Hukum', href: '/pencarian' },
-                { label: 'Detail Sistem Hukum' }
-              ]}
+              breadcrumbItems={
+                customBreadcrumbs || [
+                  { label: 'Beranda', href: '/' },
+                  { label: 'Pencarian Hukum', href: '/pencarian' },
+                  { label: 'Detail Sistem Hukum' }
+                ]
+              }
               jenisPeraturan={peraturan?.jenis_peraturan?.nama || 'UNDANG - UNDANG DASAR'}
               instansi={peraturan?.instansi || peraturan?.entitas || (peraturan?.jenis_peraturan?.kode === 'PERDA' || (peraturan?.jenis_peraturan?.nama || '').toLowerCase().includes('daerah') ? 'Pemerintah Daerah' : 'Pemerintah Pusat')}
               judul={peraturan?.judul}
@@ -333,6 +391,7 @@ export default function DetailPeraturan({
                       onToggleMengingat={() => setIsMengingatOpen(!isMengingatOpen)}
                       onToggleMemutuskan={() => setIsMemutuskanOpen(!isMemutuskanOpen)}
                       onToggleMenetapkan={() => setIsMenetapkanOpen(!isMenetapkanOpen)}
+                      onKoreksi={canKoreksi ? (isi, label) => handleKoreksi(isi, label, '', 'pembukaan') : undefined}
                     />
 
                     <ReadonlyBatangTubuhSection
@@ -341,6 +400,7 @@ export default function DetailPeraturan({
                       onTogglePasal={handleTogglePasal}
                       searchQuery={searchQuery}
                       activeSectionId={activeSectionId}
+                      onKoreksi={canKoreksi ? (isi, label, id, type) => handleKoreksi(isi, label, id, type) : undefined}
                     />
                   </>
                 )}

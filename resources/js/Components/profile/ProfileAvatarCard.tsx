@@ -194,7 +194,7 @@ export function ProfileAvatarCard({
                 disabled={isUploadingAvatar}
                 className="inline-flex items-center justify-center px-2.5 py-1.5 rounded-[8px] bg-white border border-neu-100 hover:bg-neu-50 text-neu-900 font-sans text-[12px] font-medium leading-[16px] transition-colors cursor-pointer disabled:opacity-60 whitespace-nowrap shrink-0"
               >
-                {isUploadingAvatar ? 'Mengunggah...' : 'Ubah Foto Profile'}
+                {isUploadingAvatar ? 'Mengunggah...' : 'Ubah Foto Profil'}
               </button>
 
               {/* Tombol Hapus Foto (#2406:41348 & #2415:41570) */}
@@ -245,7 +245,7 @@ export function ProfileAvatarCard({
         show={showDeleteAvatarModal}
         onClose={() => setShowDeleteAvatarModal(false)}
         onConfirm={handleConfirmDeleteAvatar}
-        title="Hapus Foto Profile?"
+        title="Hapus Foto Profil?"
         itemName="Foto profil akun Anda akan dihapus dan dikembalikan ke avatar default."
         confirmText="Hapus Foto"
         isLoading={isDeletingAvatar}

@@ -113,7 +113,7 @@ export default function UserLayout({ children }: PropsWithChildren<UserLayoutPro
                   <span className="w-4 h-4 flex items-center justify-center shrink-0">
                     <UserIcon className="w-4 h-4 text-neu-500" />
                   </span>
-                  <span>Pengaturan Profil</span>
+                  <span>Profil</span>
                 </Dropdown.Link>
 
                 <Dropdown.Link
