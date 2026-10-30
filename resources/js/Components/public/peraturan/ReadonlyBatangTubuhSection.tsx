@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { ChevronDown, ChevronUp, Info, PencilLine } from 'lucide-react';
 import { ChapterItem, ArticleItem, detectActionType } from '../../admin/import/correctionParser';
 import { cleanOcrText } from '../../../utils/ocrTextCleaner';
 import { KetentuanPerubahanBanner, RincianPasalTargetGrid } from './KetentuanPerubahanCards';
@@ -10,6 +10,7 @@ interface ReadonlyBatangTubuhSectionProps {
   onTogglePasal: (babId: string, pasalId: string) => void;
   searchQuery?: string;
   activeSectionId?: string;
+  onKoreksi?: (isi: string, label: string, id: string, type: 'bab' | 'pasal') => void;
 }
 
 export function highlightText(text: string, query?: string): React.ReactNode {
@@ -37,12 +38,14 @@ function PasalNode({
   onTogglePasal,
   searchQuery = '',
   activeSectionId,
+  onKoreksi,
 }: {
   pasal: ArticleItem;
   babId: string;
   onTogglePasal: (babId: string, pasalId: string) => void;
   searchQuery?: string;
   activeSectionId?: string;
+  onKoreksi?: (isi: string, label: string, id: string) => void;
 }) {
   const [isPenjelasanExpanded, setIsPenjelasanExpanded] = useState(false);
   const containerAction = detectActionType(pasal.isi);
@@ -55,7 +58,7 @@ function PasalNode({
       {/* 1. Header Nomor Pasal & Kontrol Penjelasan */}
       <div 
         onClick={() => onTogglePasal(babId, pasal.id)}
-        className="flex items-center justify-between flex-wrap gap-2 cursor-pointer select-none p-1.5 -mx-1.5 rounded-lg hover:bg-neu-50/70 transition-colors"
+        className="flex items-center justify-between flex-wrap gap-2 cursor-pointer select-none p-1.5 -mx-1.5 rounded-lg transition-colors"
       >
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <span className="inline-flex items-center px-3 py-1 rounded-[6px] bg-pr-900 text-white text-[11px] font-semibold shrink-0">
@@ -69,6 +72,21 @@ function PasalNode({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+
+          {onKoreksi && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onKoreksi(pasal.isi, pasal.nomor, pasal.id);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-neu-50 bg-white text-[12px] font-normal text-neu-900 transition-colors cursor-pointer"
+              title="Koreksi teks pasal ini"
+            >
+              <PencilLine className="w-3.5 h-3.5 text-neu-900" />
+              Koreksi
+            </button>
+          )}
 
           {pasal.penjelasan && (
             <button
@@ -149,6 +167,7 @@ function BatangTubuhNode({
   depth = 0,
   searchQuery = '',
   activeSectionId,
+  onKoreksi,
 }: { 
   item: ChapterItem; 
   onToggleBab: (id: string) => void;
@@ -156,6 +175,7 @@ function BatangTubuhNode({
   depth?: number;
   searchQuery?: string;
   activeSectionId?: string;
+  onKoreksi?: (isi: string, label: string, id: string, type: 'bab' | 'pasal') => void;
 }) {
   const isRoot = depth === 0;
 
@@ -167,23 +187,48 @@ function BatangTubuhNode({
         : "bg-white rounded-[12px] border border-neu-50 p-4 space-y-3 mt-4 ml-4"
       }
     >
-      <button
-        type="button"
-        onClick={() => onToggleBab(item.id)}
-        className="w-full flex items-center justify-between cursor-pointer"
-      >
-        <div className="flex items-center gap-2">
-          {isRoot && <span className="w-2 h-2 rounded-full bg-pr-700 shrink-0" />}
-          <span className={`font-bold tracking-wide uppercase ${isRoot ? 'text-[14px] text-pr-900' : 'text-[12px] text-neu-700'}`}>
-            {item.judul}
-          </span>
+      <div className="w-full flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => onToggleBab(item.id)}
+          className="flex items-center gap-2 flex-1 cursor-pointer text-left"
+        >
+          <div className="flex items-center gap-2">
+            {isRoot && <span className="w-2 h-2 rounded-full bg-pr-700 shrink-0" />}
+            <span className={`font-bold tracking-wide uppercase ${isRoot ? 'text-[14px] text-pr-900' : 'text-[12px] text-neu-700'}`}>
+              {item.judul}
+            </span>
+          </div>
+        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {onKoreksi && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const babIsi = item.deskripsi || item.judul || '';
+                onKoreksi(babIsi, item.judul, item.id, 'bab');
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-neu-50 bg-white text-[12px] font-normal text-neu-900 transition-colors cursor-pointer"
+              title="Koreksi teks BAB ini"
+            >
+              <PencilLine className="w-3.5 h-3.5 text-neu-900" />
+              Koreksi
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onToggleBab(item.id)}
+            className="p-1 cursor-pointer"
+          >
+            {item.isExpanded ? (
+              <ChevronUp className="w-4 h-4 text-neu-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-neu-400" />
+            )}
+          </button>
         </div>
-        {item.isExpanded ? (
-          <ChevronUp className="w-4 h-4 text-neu-400" />
-        ) : (
-          <ChevronDown className="w-4 h-4 text-neu-400" />
-        )}
-      </button>
+      </div>
 
       {item.isExpanded && (
         <div className="space-y-4 pt-1">
@@ -205,6 +250,7 @@ function BatangTubuhNode({
                   depth={depth + 1}
                   searchQuery={searchQuery}
                   activeSectionId={activeSectionId}
+                  onKoreksi={onKoreksi}
                 />
               ))}
             </div>
@@ -221,6 +267,7 @@ function BatangTubuhNode({
                   onTogglePasal={onTogglePasal}
                   searchQuery={searchQuery}
                   activeSectionId={activeSectionId}
+                  onKoreksi={onKoreksi ? (isi, label, id) => onKoreksi(isi, label, id, 'pasal') : undefined}
                 />
               ))}
             </div>
@@ -237,6 +284,7 @@ export function ReadonlyBatangTubuhSection({
   onTogglePasal,
   searchQuery = '',
   activeSectionId,
+  onKoreksi,
 }: ReadonlyBatangTubuhSectionProps) {
   if (babList.length === 0) {
     return null;
@@ -253,6 +301,7 @@ export function ReadonlyBatangTubuhSection({
           depth={0} 
           searchQuery={searchQuery}
           activeSectionId={activeSectionId}
+          onKoreksi={onKoreksi}
         />
       ))}
     </div>
