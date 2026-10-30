@@ -24,21 +24,38 @@ return new class extends Migration
     public function up(): void
     {
         foreach (self::COLUMNS as $column) {
-            $this->repointColumn($column, 'users');
+            // Saat mengarahkan ke users, nilai yang hanya ada di admins memang
+            // harus dikosongkan agar FK baru bisa dipasang.
+            $this->repointColumn($column, 'users', nullOrphans: true);
         }
     }
 
     public function down(): void
     {
         foreach (self::COLUMNS as $column) {
-            $this->repointColumn($column, 'admins');
+            // Saat rollback, JANGAN menyentuh isi data sama sekali.
+            //
+            // Sebelumnya down() ikut mengosongkan nilai yang tidak ada di
+            // admins. Karena data sudah sah menunjuk users sementara tabel
+            // admins hanya berisi sebagian kecil baris, rollback justru
+            // menghapus author yang valid dan tidak bisa dikembalikan.
+            // Rollback hanya mengembalikan skema, bukan mengubah data.
+            $this->repointColumn($column, 'admins', nullOrphans: false);
         }
     }
 
-    private function repointColumn(string $column, string $targetTable): void
+    private function repointColumn(string $column, string $targetTable, bool $nullOrphans): void
     {
         $this->dropForeignKeysOn($column);
-        $this->nullOrphanReferences($column, $targetTable);
+
+        if ($nullOrphans) {
+            $this->nullOrphanReferences($column, $targetTable);
+        } else {
+            // Tetap laporkan bila ada nilai yang tidak punya pasangan, supaya
+            // masalah data terlihat tanpa dirusak diam-diam.
+            $this->reportUnpairedReferences($column, $targetTable);
+        }
+
         $this->addForeignKey($column, $targetTable);
     }
 
@@ -103,6 +120,31 @@ return new class extends Migration
                 'column' => $column,
                 'target_table' => $targetTable,
                 'affected_rows' => $affected,
+            ]);
+        }
+    }
+
+    /**
+     * Laporkan nilai yang tidak punya pasangan di tabel tujuan TANPA mengubah
+     * data. Dipakai saat rollback agar tetap terlihat di log namun isi tabel
+     * tidak dirusak.
+     */
+    private function reportUnpairedReferences(string $column, string $targetTable): void
+    {
+        $count = DB::table('peraturan')
+            ->whereNotNull($column)
+            ->whereNotExists(function ($query) use ($column, $targetTable) {
+                $query->select(DB::raw(1))
+                    ->from($targetTable)
+                    ->whereColumn($targetTable . '.id', 'peraturan.' . $column);
+            })
+            ->count();
+
+        if ($count > 0) {
+            \Log::warning('Migration repoint FK (rollback): nilai author dibiarkan, tidak diubah', [
+                'column' => $column,
+                'target_table' => $targetTable,
+                'unpaired_rows' => $count,
             ]);
         }
     }
