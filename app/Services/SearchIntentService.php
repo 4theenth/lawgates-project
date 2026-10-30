@@ -101,10 +101,33 @@ class SearchIntentService
         $w = mb_strtolower(trim($word));
         // Strip partikel / klitika pronomina di akhir: -lah, -kah, -pun, -nya, -ku, -mu
         $w = (string) preg_replace('/(lah|kah|pun|nya|ku|mu)$/i', '', $w);
-        // Strip akhiran infleksi: -kan, -an, -i
-        $w = (string) preg_replace('/(kan|an|i)$/i', '', $w);
-        // Strip awalan umum: meng-, meny-, men-, mem-, me-, peng-, peny-, pen-, pem-, pe-, di-, ter-, ber-, ke-, se-
-        $w = (string) preg_replace('/^(meng|meny|men|mem|me|peng|peny|pen|pem|pe|di|ter|ber|ke|se)/i', '', $w);
+        // Strip awalan terlebih dahulu (men-cari -> cari, mem-produksi -> produksi)
+        if (preg_match('/^meny([aiueo].*)$/i', $w, $m)) {
+            $w = 's' . $m[1];
+        } elseif (preg_match('/^meng([aiueo].*)$/i', $w, $m)) {
+            $w = $m[1];
+        } elseif (preg_match('/^mem([bpf].*)$/i', $w, $m)) {
+            $w = $m[1];
+        } elseif (preg_match('/^men([cdjz].*)$/i', $w, $m)) {
+            $w = $m[1];
+        } elseif (preg_match('/^peny([aiueo].*)$/i', $w, $m)) {
+            $w = 's' . $m[1];
+        } elseif (preg_match('/^peng([aiueo].*)$/i', $w, $m)) {
+            $w = $m[1];
+        } elseif (preg_match('/^pem([bpf].*)$/i', $w, $m)) {
+            $w = $m[1];
+        } elseif (preg_match('/^pen([cdjz].*)$/i', $w, $m)) {
+            $w = $m[1];
+        } else {
+            $w = (string) preg_replace('/^(meng|meny|men|mem|me|peng|peny|pen|pem|pe|di|ter|ber|ke|se)/i', '', $w);
+        }
+        // Strip akhiran infleksi hanya jika panjang kata dasar tersisa cukup (minimal 5 huruf)
+        if (mb_strlen($w) >= 5) {
+            $w = (string) preg_replace('/(kan|an)$/i', '', $w);
+        }
+        if (mb_strlen($w) >= 5 && preg_match('/[^aeiou]i$/i', $w)) {
+            $w = (string) preg_replace('/i$/i', '', $w);
+        }
         return $w;
     }
 
@@ -465,15 +488,18 @@ class SearchIntentService
         }
 
         // Skenario 3B: User mencari frasa umum regulasi + topik ("peraturan mengenai kelapa sawit", "aturan tentang hak cuti")
+        $modalityFilter = ['hukuman', 'pidana', 'denda', 'penjara', 'kurungan', 'sanksi', 'ijin', 'perizinan', 'izin', 'aturan', 'hukum'];
+
         if ($isGenericRegulationPrefix) {
             $semanticQuery = preg_replace('/^\s*(?:peraturan|aturan|hukum|ketentuan|pedoman|kebijakan)\s+(?:tentang|untuk|terkait|mengenai|soal|hal)\s+/i', '', $query);
             $semanticQuery = trim((string) preg_replace('/\s+/', ' ', (string) $semanticQuery));
 
             $expandedSemantic = $semanticQuery;
-            if (!empty($synonyms)) {
-                $missingSyns = array_filter($synonyms, fn($s) => !str_contains(mb_strtolower($semanticQuery), mb_strtolower($s)));
+            $substantiveSyns = array_filter($synonyms, fn($s) => !in_array(mb_strtolower(trim($s)), $modalityFilter));
+            if (!empty($substantiveSyns)) {
+                $missingSyns = array_filter($substantiveSyns, fn($s) => !str_contains(mb_strtolower($semanticQuery), mb_strtolower($s)));
                 if (!empty($missingSyns)) {
-                    $expandedSemantic .= ' ' . implode(' ', array_slice($missingSyns, 0, 3));
+                    $expandedSemantic .= ' ' . implode(' ', array_slice($missingSyns, 0, 2));
                 }
             }
 
@@ -504,10 +530,11 @@ class SearchIntentService
         $baseSemantic = (!empty($cleanTopic) && mb_strlen($cleanTopic) >= 3) ? $cleanTopic : $query;
 
         $expandedSemantic = $baseSemantic;
-        if (!empty($synonyms)) {
-            $missingSyns = array_filter($synonyms, fn($s) => !str_contains(mb_strtolower($baseSemantic), mb_strtolower($s)));
+        $substantiveSyns = array_filter($synonyms, fn($s) => !in_array(mb_strtolower(trim($s)), $modalityFilter));
+        if (!empty($substantiveSyns)) {
+            $missingSyns = array_filter($substantiveSyns, fn($s) => !str_contains(mb_strtolower($baseSemantic), mb_strtolower($s)));
             if (!empty($missingSyns)) {
-                $expandedSemantic .= ' ' . implode(' ', array_slice($missingSyns, 0, 3));
+                $expandedSemantic .= ' ' . implode(' ', array_slice($missingSyns, 0, 2));
             }
         }
 

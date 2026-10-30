@@ -55,23 +55,23 @@ function getRelevanceInfo(rawSimilarity: number): {
   badgeClass: string;
 } {
   // Kalibrasi kemiripan kosinus Qwen (dimensi 3.152) ke persentase yang akurat:
-  // - Skor >= 0.62: Memuat jawaban langsung / pasal target eksak (94% - 98%)
-  // - Skor 0.55 - 0.61: Sangat relevan secara tematik (85% - 93%)
-  // - Skor 0.50 - 0.54: Cukup relevan / konteks pendukung (72% - 84%)
-  // - Skor < 0.50: Latar belakang / noise (tidak lolos threshold filter backend)
+  // - Skor >= 0.74: Memuat jawaban langsung / pasal target eksak (92% - 98%)
+  // - Skor 0.63 - 0.73: Sangat relevan secara tematik (80% - 91%)
+  // - Skor 0.52 - 0.62: Cukup relevan / konteks pendukung (65% - 79%)
+  // - Skor < 0.52: Relevansi minimum terverifikasi (50% - 64%)
   let percent: number;
-  if (rawSimilarity >= 0.62) {
-    const ratio = Math.min(1, (rawSimilarity - 0.62) / 0.12);
-    percent = Math.round(94 + ratio * 4);
-  } else if (rawSimilarity >= 0.55) {
-    const ratio = (rawSimilarity - 0.55) / 0.07;
-    percent = Math.round(85 + ratio * 8);
-  } else if (rawSimilarity >= 0.50) {
-    const ratio = (rawSimilarity - 0.50) / 0.05;
-    percent = Math.round(72 + ratio * 12);
+  if (rawSimilarity >= 0.74) {
+    const ratio = Math.min(1, (rawSimilarity - 0.74) / 0.16);
+    percent = Math.round(92 + ratio * 6);
+  } else if (rawSimilarity >= 0.63) {
+    const ratio = (rawSimilarity - 0.63) / 0.11;
+    percent = Math.round(80 + ratio * 11);
+  } else if (rawSimilarity >= 0.52) {
+    const ratio = (rawSimilarity - 0.52) / 0.11;
+    percent = Math.round(65 + ratio * 14);
   } else {
-    const ratio = Math.max(0, (rawSimilarity - 0.35) / 0.15);
-    percent = Math.round(55 + ratio * 16);
+    const ratio = Math.max(0, (rawSimilarity - 0.40) / 0.12);
+    percent = Math.round(50 + ratio * 14);
   }
 
   percent = Math.min(99, Math.max(50, percent));
