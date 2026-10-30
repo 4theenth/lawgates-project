@@ -12,6 +12,7 @@ import { SearchInput } from '@/Components/common/SearchInput';
 import { FilterOption } from '@/types/peraturan';
 import { SearchSortBar } from '@/Components/search/SearchSortBar';
 import { SearchFilterSidebar } from '@/Components/search/filters';
+import { BookOpen } from 'lucide-react';
 
 export default function Pencarian() {
   const { requireAuth } = useAuthModal();
@@ -37,6 +38,12 @@ export default function Pencarian() {
   const [selectedLokasi, setSelectedLokasi] = useState<string[]>([]);
   const [selectedSubjek, setSelectedSubjek] = useState<string[]>([]);
   const [sort, setSort] = useState('');
+  const [detectedSynonyms, setDetectedSynonyms] = useState<string[]>([]);
+  const [glosariumHint, setGlosariumHint] = useState<{
+    istilah_populer: string;
+    istilah_hukum: string;
+    deskripsi?: string;
+  } | null>(null);
 
   // State tampilan: di mobile (< 1024px) default tertutup agar tidak menutupi hasil peraturan, di desktop (>= 1024px) default terbuka
   const [isFilterOpen, setIsFilterOpen] = useState(() => {
@@ -176,6 +183,8 @@ export default function Pencarian() {
       .then((res) => {
         const data = res.data;
         setSearchResults(data.data || []);
+        setDetectedSynonyms(data.synonyms || []);
+        setGlosariumHint(data.glosarium_hint || null);
         setTotalResult(data.total || 0);
         setCurrentPage(data.current_page || 1);
         setLastPage(data.last_page || 1);
@@ -561,6 +570,28 @@ export default function Pencarian() {
               onOpenFilter={() => setIsFilterOpen(true)}
             />
 
+            {/* ── Banner Istilah Yuridis Dinamis dari Glosarium Hukum ── */}
+            {glosariumHint && !isSearching && (
+              <div className="mb-4 p-3.5 bg-suc-50/80 border border-suc-200/90 rounded-[14px] flex items-start gap-3 text-xs text-neu-800 transition-all shadow-2xs">
+                <div className="p-1.5 bg-suc-100 rounded-lg text-suc-900 shrink-0 mt-0.5">
+                  <BookOpen className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex-1 leading-relaxed">
+                  <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                    <span className="font-semibold text-suc-900">Istilah Yuridis Terkait:</span>
+                    <span className="font-bold text-pr-900 bg-white px-2 py-0.5 rounded-md border border-suc-200/80 shadow-2xs">
+                      {glosariumHint.istilah_hukum}
+                    </span>
+                  </div>
+                  {glosariumHint.deskripsi && (
+                    <p className="text-neu-600 text-[11px] leading-normal mt-1">
+                      {glosariumHint.deskripsi}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* State Loading / Hasil / Empty State */}
             {isSearching ? (
               <div className="py-16 text-center text-gray-500 bg-white rounded-2xl border border-gray-200">
@@ -571,18 +602,37 @@ export default function Pencarian() {
               </div>
             ) : searchResults.length > 0 ? (
               <div className="space-y-4">
-                {searchResults.map((item) => (
-                  <RegulationCard
-                    key={item.id}
-                    item={item}
-                    variant="list"
-                    onClick={() => {
-                      requireAuth(() => {
-                        router.visit(`/peraturan/${item.unique_id}`);
-                      });
-                    }}
-                  />
-                ))}
+                {searchResults.map((item) => {
+                  return (
+                    <RegulationCard
+                      key={item.id}
+                      item={item}
+                      searchQuery={searchQuery}
+                      synonyms={detectedSynonyms}
+                      variant="list"
+                      onClick={() => {
+                        requireAuth(() => {
+                          if (item.relevant_pasal) {
+                            try {
+                              sessionStorage.setItem(
+                                'lawgates_target_pasal',
+                                JSON.stringify({
+                                  pasalId: String(item.relevant_pasal.pasal_id),
+                                  nomorPasal: String(item.relevant_pasal.nomor_pasal),
+                                  highlightSnippet: item.relevant_pasal.cuplikan,
+                                })
+                              );
+                            } catch (e) {
+                              // ignore storage error
+                            }
+                          }
+                          // Masuk ke URL peraturan biasa tanpa query string mengunci
+                          router.visit(`/peraturan/${item.unique_id}`);
+                        });
+                      }}
+                    />
+                  );
+                })}
 
                 {/* ── Pagination Controls ── */}
                 <Pagination

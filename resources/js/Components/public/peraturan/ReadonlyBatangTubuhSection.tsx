@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { ChevronDown, ChevronUp, Info, Sparkles } from 'lucide-react';
 import { ChapterItem, ArticleItem, detectActionType } from '../../admin/import/correctionParser';
 import { cleanOcrText } from '../../../utils/ocrTextCleaner';
 import { KetentuanPerubahanBanner, RincianPasalTargetGrid } from './KetentuanPerubahanCards';
@@ -10,19 +10,165 @@ interface ReadonlyBatangTubuhSectionProps {
   onTogglePasal: (babId: string, pasalId: string) => void;
   searchQuery?: string;
   activeSectionId?: string;
+  highlightedPasalId?: string | null;
+  relevantSnippet?: string | null;
 }
+
+const STOPWORDS = new Set([
+  'dan', 'atau', 'yang', 'di', 'ke', 'dari', 'pada', 'untuk', 'oleh',
+  'atas', 'dengan', 'adalah', 'yaitu', 'sebagai', 'dalam', 'ini', 'itu',
+  'pasal', 'ayat', 'huruf', 'angka', 'ketentuan', 'sebagaimana', 'dimaksud',
+  'paling', 'sedikit', 'banyak', 'kurang', 'lebih', 'tentang', 'terkait',
+  'peraturan', 'undang', 'undang-undang', 'uu', 'bab', 'pedoman', 'aturan',
+  'sih', 'dong', 'deh', 'kan', 'ya', 'men', 'bro', 'cuy', 'gan', 'sob', 'bos',
+  'gaes', 'guys', 'kak', 'om', 'pak', 'bu', 'bang', 'loe', 'lu', 'gue', 'gw',
+  'bagus', 'baik', 'tepat', 'cocok', 'kapan', 'dimana', 'kenapa', 'mengapa',
+  'berapa', 'lama', 'usia', 'umur', 'sendiri', 'apakah', 'bagaimana', 'apa',
+  'siapa', 'bisa', 'boleh', 'kah', 'ada', 'tidak', 'mengenai', 'soal', 'hal',
+]);
+
+function getSignificantWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !STOPWORDS.has(w));
+}
+
+const STATUTORY_EQUIVALENTS: Record<string, string[]> = {
+  usia: ['umur', 'mencapai umur'],
+  umur: ['usia', 'mencapai umur'],
+  pernikahan: ['perkawinan', 'kawin'],
+  perkawinan: ['pernikahan', 'kawin'],
+  menikah: ['kawin', 'perkawinan'],
+  kawin: ['perkawinan', 'pernikahan', 'menikah'],
+  gaji: ['upah', 'imbalan'],
+  upah: ['gaji', 'imbalan'],
+  hukuman: ['pidana', 'sanksi'],
+  pidana: ['hukuman', 'sanksi'],
+  sanksi: ['hukuman', 'pidana', 'denda'],
+  pecat: ['pemutusan hubungan kerja', 'phk', 'pemberhentian'],
+  dipecat: ['pemutusan hubungan kerja', 'phk', 'diberhentikan'],
+  phk: ['pemutusan hubungan kerja', 'pemberhentian'],
+  pesangon: ['uang pesangon', 'uang penghargaan masa kerja', 'uang penggantian hak'],
+  karyawan: ['pekerja', 'buruh'],
+  pegawai: ['pekerja', 'buruh', 'aparatur sipil negara'],
+  buruh: ['pekerja', 'tenaga kerja'],
+  pekerja: ['buruh', 'tenaga kerja'],
+  hamil: ['melahirkan', 'kehamilan', 'gugur kandungan'],
+  melahirkan: ['hamil', 'kehamilan', 'persalinan'],
+  cuti: ['istirahat', 'waktu istirahat'],
+  istirahat: ['cuti', 'waktu istirahat'],
+  penjara: ['kurungan', 'pidana penjara'],
+  denda: ['pidana denda'],
+  ijin: ['izin', 'perizinan'],
+  nikah: ['perkawinan', 'kawin', 'pernikahan'],
+  izin: ['ijin', 'perizinan'],
+  ongkos: ['biaya', 'tarif'],
+  biaya: ['tarif', 'retribusi', 'pungutan'],
+  anak: ['anak di bawah umur', 'belum dewasa'],
+  waris: ['pewarisan', 'ahli waris', 'harta peninggalan', 'hubungan perdata'],
+  sawit: ['kelapa sawit'],
+  'kelapa sawit': ['sawit'],
+  pt: ['perseroan', 'perseroan terbatas'],
+  pt_perorangan: ['perseroan', 'perseroan perorangan', 'usaha mikro dan kecil'],
+  perorangan: ['perseroan', 'usaha mikro dan kecil', 'perseorangan'],
+  mendirikan: ['pendirian', 'pembentukan', 'perizinan berusaha', 'didirikan'],
+  radioaktif: ['ketenaganukliran', 'radiasi pengion'],
+  nuklir: ['ketenaganukliran', 'tenaga nuklir'],
+  uang: ['mata uang', 'uang kertas', 'alat pembayaran'],
+  memproduksi: ['membikin', 'membuat', 'mencetak', 'meniru', 'memalsu'],
+  produksi: ['membikin', 'membuat', 'mencetak', 'meniru', 'memalsu'],
+  palsu: ['tiruan', 'meniru', 'memalsu', 'tidak sah'],
+  hutang: ['utang', 'piutang', 'pinjaman', 'wanprestasi'],
+  utang: ['hutang', 'piutang', 'pinjaman', 'wanprestasi'],
+  pinjaman: ['utang', 'hutang', 'kredit', 'pembiayaan'],
+  mencuri: ['pencurian', 'mengambil barang milik orang lain'],
+  menipu: ['penipuan', 'tipu muslihat', 'rangkaian kebohongan'],
+  memukul: ['penganiayaan', 'kekerasan'],
+  korupsi: ['tindak pidana korupsi', 'memperkaya diri sendiri'],
+  suap: ['penyuapan', 'gratifikasi'],
+};
 
 export function highlightText(text: string, query?: string): React.ReactNode {
   const cleaned = cleanOcrText(text);
   if (!query || !query.trim()) return cleaned;
-  const q = query.trim();
-  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp(`(${escaped})`, 'gi');
+
+  const rawTokens = query.toLowerCase().split(/[\s\-_,.]+/);
+  for (const token of query.toLowerCase().split(/[\s\-_,.]+/)) {
+    if (STATUTORY_EQUIVALENTS[token]) {
+      for (const eq of STATUTORY_EQUIVALENTS[token]) {
+        rawTokens.push(...eq.toLowerCase().split(/[\s\-_,.]+/));
+      }
+    }
+  }
+
+  const cleanTokens = Array.from(
+    new Set(rawTokens.filter((t) => t.length >= 3 && !STOPWORDS.has(t)))
+  );
+
+  if (cleanTokens.length === 0) return cleaned;
+
+  // 1. Coba kecocokan frasa multi-kata utuh
+  if (cleanTokens.length >= 2) {
+    const phraseRegex = new RegExp(
+      `\\b${cleanTokens.slice(0, 3).map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s\\-_]+')}\\b`,
+      'gi'
+    );
+    if (phraseRegex.test(cleaned)) {
+      const parts = cleaned.split(phraseRegex);
+      return parts.map((part, index) =>
+        phraseRegex.test(part) ? (
+          <mark key={index} className="bg-suc-100 text-suc-900 font-semibold rounded px-1 py-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      );
+    }
+  }
+
+  // 2. Token individu dengan penjagaan kata generik
+  const GENERIC_LEGAL_WORDS = new Set([
+    'kerja', 'pekerja', 'buruh', 'hukum', 'aturan', 'badan', 'hak', 'kewajiban',
+    'umum', 'dasar', 'nasional', 'daerah', 'ketentuan', 'pemerintah', 'orang',
+  ]);
+
+  const specificTokens = cleanTokens.filter((t) => !GENERIC_LEGAL_WORDS.has(t));
+  const hasSpecificInQuery = specificTokens.length > 0;
+  const hasSpecificInText =
+    hasSpecificInQuery &&
+    specificTokens.some((t) => {
+      const morph = new RegExp(
+        `\\b(?:men|pen|peng|pem|meny|di|ter|ke)?${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:kan|an|i|nya)?\\b`,
+        'i'
+      );
+      return morph.test(cleaned);
+    });
+
+  const allowedTokens = cleanTokens.filter((t) => {
+    if (cleanTokens.length >= 2 && GENERIC_LEGAL_WORDS.has(t)) {
+      return hasSpecificInText;
+    }
+    return true;
+  });
+
+  if (allowedTokens.length === 0) return cleaned;
+
+  const morphPatterns = allowedTokens.map((t) => {
+    const esc = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return t.length > 7
+      ? `\\b${esc}\\b`
+      : `\\b(?:men|pen|peng|pem|meny|di|ter|ke)?${esc}(?:kan|an|i|nya)?\\b`;
+  });
+
+  const regex = new RegExp(`(${morphPatterns.join('|')})`, 'gi');
   const parts = cleaned.split(regex);
 
   return parts.map((part, index) =>
     regex.test(part) ? (
-      <mark key={index} className="bg-sec-100 text-neu-900 font-semibold rounded px-0.5">
+      <mark key={index} className="bg-suc-100 text-suc-900 font-semibold rounded px-1 py-0.5">
         {part}
       </mark>
     ) : (
@@ -31,27 +177,108 @@ export function highlightText(text: string, query?: string): React.ReactNode {
   );
 }
 
+/**
+ * Merender isi pasal dengan menyorot (highlight hijau) ayat / kalimat spesifik
+ * yang benar-benar menjawab pertanyaan pengguna berdasarkan cuplikan relevansi AI.
+ */
+export function renderNormaContent(
+  text: string,
+  relevantSnippet?: string | null,
+  searchQuery?: string,
+  isTargetHighlighted?: boolean
+): React.ReactNode {
+  const cleaned = cleanOcrText(text);
+
+  // Jika pasal ini bukan target AI atau tidak ada snippet relevan, gunakan highlight biasa
+  if (!isTargetHighlighted || !relevantSnippet || !relevantSnippet.trim()) {
+    return highlightText(cleaned, searchQuery);
+  }
+
+  const snippetWords = getSignificantWords(relevantSnippet);
+  if (snippetWords.length === 0) {
+    return highlightText(cleaned, searchQuery);
+  }
+
+  // Pecah isi norma pasal per baris / ayat, dukung pula pemisahan ayat inline e.g. "(1)", "(2)" jika tidak ada newline
+  let lines = cleaned.split('\n');
+  if (lines.length === 1 && /\(\d+\)/.test(cleaned)) {
+    lines = cleaned.split(/(?=\(\d+\)\s+)/g);
+  }
+
+  return lines.map((line, lineIndex) => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+      return <br key={lineIndex} />;
+    }
+
+    // Periksa apakah ayat / baris ini memuat jawaban pertanyaan yang cocok dengan snippet AI
+    const lineWords = getSignificantWords(trimmedLine);
+    let matchCount = 0;
+    for (const w of snippetWords) {
+      if (lineWords.includes(w)) {
+        matchCount++;
+      }
+    }
+
+    const isRelevantAyat =
+      matchCount >= Math.min(2, snippetWords.length) &&
+      (matchCount / snippetWords.length >= 0.2 || matchCount >= 2);
+
+    return (
+      <React.Fragment key={lineIndex}>
+        {isRelevantAyat ? (
+          <mark className="bg-suc-100 text-suc-900 font-medium px-2 py-1 rounded-lg border border-suc-300/80 my-1 inline-block leading-relaxed shadow-2xs">
+            {line}
+          </mark>
+        ) : (
+          <span>{line}</span>
+        )}
+        {lineIndex < lines.length - 1 && '\n'}
+      </React.Fragment>
+    );
+  });
+}
+
 function PasalNode({
   pasal,
   babId,
   onTogglePasal,
   searchQuery = '',
   activeSectionId,
+  highlightedPasalId,
+  relevantSnippet,
 }: {
   pasal: ArticleItem;
   babId: string;
   onTogglePasal: (babId: string, pasalId: string) => void;
   searchQuery?: string;
   activeSectionId?: string;
+  highlightedPasalId?: string | null;
+  relevantSnippet?: string | null;
 }) {
   const [isPenjelasanExpanded, setIsPenjelasanExpanded] = useState(false);
   const containerAction = detectActionType(pasal.isi);
+  const isTargetHighlighted = Boolean(
+    highlightedPasalId && String(pasal.id) === String(highlightedPasalId)
+  );
 
   return (
     <div
       id={`section-${pasal.id}`}
-      className="space-y-3"
+      className={`space-y-3 transition-all duration-500 rounded-2xl ${
+        isTargetHighlighted
+          ? 'p-2 sm:p-3 border-l-4 border-l-suc-500 bg-suc-50/15'
+          : 'p-1'
+      }`}
     >
+      {/* 0. Banner Rekomendasi AI jika diarahkan dari pencarian semantik */}
+      {isTargetHighlighted && (
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-suc-900 bg-suc-100/80 border border-suc-300 px-2.5 py-0.5 rounded-full w-fit mb-1">
+          <Sparkles className="w-3 h-3 text-suc-900 shrink-0" />
+          <span>Pasal Terkait Jawaban</span>
+        </div>
+      )}
+
       {/* 1. Header Nomor Pasal & Kontrol Penjelasan */}
       <div 
         onClick={() => onTogglePasal(babId, pasal.id)}
@@ -114,9 +341,9 @@ function PasalNode({
             />
           )}
 
-          {/* 3. Teks Utama Norma Pasal */}
-          <div className="w-full p-3.5 rounded-[8px] bg-bg-900 border-l-4 border-l-sec-900 border border-neu-50  text-[12px] text-neu-800 leading-relaxed whitespace-pre-line text-justify">
-            {highlightText(pasal.isi, searchQuery)}
+          {/* 3. Teks Utama Norma Pasal (Hanya ayat/kalimat relevan yang disorot kuning) */}
+          <div className="w-full p-3.5 rounded-[8px] bg-bg-900 border-l-4 border-l-sec-900 border-neu-50 text-neu-800 text-[12px] leading-relaxed whitespace-pre-line text-justify">
+            {renderNormaContent(pasal.isi, relevantSnippet, searchQuery, isTargetHighlighted)}
           </div>
 
           {/* 4. Penjelasan Pasal (Jika ada & di-expand) */}
@@ -149,6 +376,8 @@ function BatangTubuhNode({
   depth = 0,
   searchQuery = '',
   activeSectionId,
+  highlightedPasalId,
+  relevantSnippet,
 }: { 
   item: ChapterItem; 
   onToggleBab: (id: string) => void;
@@ -156,6 +385,8 @@ function BatangTubuhNode({
   depth?: number;
   searchQuery?: string;
   activeSectionId?: string;
+  highlightedPasalId?: string | null;
+  relevantSnippet?: string | null;
 }) {
   const isRoot = depth === 0;
 
@@ -205,6 +436,8 @@ function BatangTubuhNode({
                   depth={depth + 1}
                   searchQuery={searchQuery}
                   activeSectionId={activeSectionId}
+                  highlightedPasalId={highlightedPasalId}
+                  relevantSnippet={relevantSnippet}
                 />
               ))}
             </div>
@@ -221,6 +454,8 @@ function BatangTubuhNode({
                   onTogglePasal={onTogglePasal}
                   searchQuery={searchQuery}
                   activeSectionId={activeSectionId}
+                  highlightedPasalId={highlightedPasalId}
+                  relevantSnippet={relevantSnippet}
                 />
               ))}
             </div>
@@ -237,6 +472,8 @@ export function ReadonlyBatangTubuhSection({
   onTogglePasal,
   searchQuery = '',
   activeSectionId,
+  highlightedPasalId,
+  relevantSnippet,
 }: ReadonlyBatangTubuhSectionProps) {
   if (babList.length === 0) {
     return null;
@@ -253,6 +490,8 @@ export function ReadonlyBatangTubuhSection({
           depth={0} 
           searchQuery={searchQuery}
           activeSectionId={activeSectionId}
+          highlightedPasalId={highlightedPasalId}
+          relevantSnippet={relevantSnippet}
         />
       ))}
     </div>

@@ -50,6 +50,8 @@ export default function DetailPeraturan({
 
     return !hasPasal || isDraft || isMenungguImport || isExplicitPlaceholder || (!hasStruktur && !hasPasal);
   }, [peraturan, isDraft]);
+  const [highlightedPasalId, setHighlightedPasalId] = useState<string | null>(null);
+  const [relevantSnippet, setRelevantSnippet] = useState<string | null>(null);
 
   // 1. Hook Pengolahan Pohon Dokumen & Navigasi (Bab, Pasal, Scroll)
   const {
@@ -63,6 +65,145 @@ export default function DetailPeraturan({
     handleNavigateToPasal,
     scrollToElement,
   } = useRegulationDocumentTree(peraturan);
+
+  // 1. Matikan scroll restoration otomatis bawaan browser agar saat di-refresh (F5),
+  // halaman tidak dipaksa browser kembali ke posisi tengah/pasal bawah yang lama
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
+  const handledTargetPeraturanIdRef = useRef<any>(null);
+
+  // 2. Deteksi navigasi sekali-pakai (transient jump) ke pasal vs refresh halaman
+  useEffect(() => {
+    if (typeof window === 'undefined' || !peraturan?.id) return;
+
+    // Hindari re-trigger jika peraturan ini sudah diproses target pasal-nya
+    if (handledTargetPeraturanIdRef.current === peraturan.id) return;
+    handledTargetPeraturanIdRef.current = peraturan.id;
+
+    let targetPasalId: string | null = null;
+    let targetNomorPasal: string | null = null;
+    let targetSnippet: string | null = null;
+
+    // 1. Cek dari sessionStorage (Transient - One-Time Jump)
+    try {
+      const stored = sessionStorage.getItem('lawgates_target_pasal');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.pasalId) {
+          targetPasalId = String(parsed.pasalId);
+          targetNomorPasal = parsed.nomorPasal ? String(parsed.nomorPasal) : null;
+          targetSnippet = parsed.highlightSnippet || null;
+        }
+        // HAPUS SEGERA dari sessionStorage agar saat user me-refresh (F5), sessionStorage sudah kosong!
+        sessionStorage.removeItem('lawgates_target_pasal');
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // 2. Fallback jika dibuka dari URL param (?highlight_pasal=... atau #section-...)
+    if (!targetPasalId) {
+      const urlParams = new URLSearchParams(window.location.search);
+      targetPasalId = urlParams.get('highlight_pasal');
+      targetNomorPasal = urlParams.get('nomor_pasal');
+      const hash = window.location.hash;
+      if (!targetPasalId && hash && hash.startsWith('#section-')) {
+        targetPasalId = hash.replace('#section-', '');
+      }
+    }
+
+    // 3. Bersihkan URL di address bar browser seketika agar kembali menjadi URL bersih biasa (/peraturan/slug)
+    if (
+      window.location.search.includes('highlight_pasal') ||
+      window.location.search.includes('nomor_pasal') ||
+      window.location.hash.includes('section-')
+    ) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // JIKA TIDAK ADA TARGET PASAL (misalnya: saat page di-refresh F5 atau dibuka biasa):
+    // Kembali langsung ke paling atas (Back on Top) & bersihkan highlight
+    if (!targetPasalId && !targetNomorPasal) {
+      setHighlightedPasalId(null);
+      setRelevantSnippet(null);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      });
+      return;
+    }
+
+    // JIKA ADA TARGET PASAL (misalnya: user klik 'Buka langsung ke Pasal X'):
+    let matchedPasalId: string | null = null;
+    const rawPasalList = peraturan.pasal || [];
+
+    if (targetPasalId) {
+      const found = rawPasalList.find(
+        (p: any) => String(p.id) === String(targetPasalId)
+      );
+      if (found) {
+        matchedPasalId = String(found.id);
+      }
+    }
+
+    if (!matchedPasalId && targetNomorPasal) {
+      const cleanNomor = targetNomorPasal.toLowerCase().replace(/pasal\s*/i, '').trim();
+      const found = rawPasalList.find((p: any) => {
+        const pNomor = String(p.nomor_pasal || '').toLowerCase().replace(/pasal\s*/i, '').trim();
+        return pNomor === cleanNomor;
+      });
+      if (found) {
+        matchedPasalId = String(found.id);
+      }
+    }
+
+    if (matchedPasalId) {
+      const finalId = matchedPasalId;
+      setHighlightedPasalId(finalId);
+      if (targetSnippet) {
+        setRelevantSnippet(targetSnippet);
+      }
+
+      // 1. Expand struktur BAB / parent container
+      handleNavigateToPasal(finalId);
+
+      // 2. Retry scroll polling agar tepat menuju ke ayat relevan segera setelah DOM render
+      let attempts = 0;
+      const interval = setInterval(() => {
+        attempts++;
+        const el = document.getElementById(`section-${finalId}`);
+        if (el) {
+          // Cari ayat yang di-highlight (<mark>) di dalam pasal ini
+          const markEl = el.querySelector('mark');
+          const targetEl = markEl || el;
+
+          const headerOffset = 120;
+          const elementPosition = targetEl.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+          window.scrollTo({
+            top: Math.max(0, offsetPosition),
+            behavior: attempts <= 2 ? 'instant' as ScrollBehavior : 'smooth',
+          });
+
+          if (markEl || attempts >= 10) {
+            clearInterval(interval);
+          }
+        } else if (attempts >= 25) {
+          clearInterval(interval);
+        }
+      }, 60);
+
+      return () => clearInterval(interval);
+    } else {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
+  }, [peraturan?.id, handleNavigateToPasal]);
 
   // 2. Hook Pengolahan Timeline Riwayat Perubahan & Relasi
   const { timelineData } = useRegulationTimeline(peraturan);
@@ -265,7 +406,7 @@ export default function DetailPeraturan({
                   </div>
                 ) : (
                   <div className="hidden lg:flex shrink-0 lg:sticky lg:top-28 lg:h-[calc(100vh-135px)] flex-col items-center">
-                    <button 
+                    <button
                       onClick={() => setIsDaftarIsiOpen(true)}
                       className="bg-white rounded-[20px] border border-neu-50 p-[14px_18px] shadow-2xs hover:bg-neu-50 transition-colors cursor-pointer"
                       title="Buka Daftar Isi"
@@ -341,6 +482,8 @@ export default function DetailPeraturan({
                       onTogglePasal={handleTogglePasal}
                       searchQuery={searchQuery}
                       activeSectionId={activeSectionId}
+                      highlightedPasalId={highlightedPasalId}
+                      relevantSnippet={relevantSnippet}
                     />
                   </>
                 )}

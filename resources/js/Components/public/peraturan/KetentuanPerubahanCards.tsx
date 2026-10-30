@@ -72,7 +72,7 @@ function highlightText(text: string, query?: string): React.ReactNode {
 
   return parts.map((part, index) =>
     regex.test(part) ? (
-      <mark key={index} className="bg-sec-100 text-neu-900 font-semibold rounded px-0.5">
+      <mark key={index} className="bg-suc-100 text-suc-900 font-semibold rounded px-0.5">
         {part}
       </mark>
     ) : (

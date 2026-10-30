@@ -135,6 +135,7 @@ Route::prefix('admin')->middleware(['auth', 'role:superadmin,admin'])->group(fun
     Route::get('/dokumen-hukum', [DokumenHukumController::class, 'index'])->name('admin.dokumen-hukum');
     Route::delete('/dokumen-hukum/{unique_id}', [DokumenHukumController::class, 'destroy'])->name('admin.dokumen-hukum.destroy');
     Route::post('/dokumen-hukum/import', [DokumenHukumController::class, 'importOcr'])->name('admin.dokumen-hukum.import');
+    Route::post('/dokumen-hukum/embed', [DokumenHukumController::class, 'embedRegulations'])->name('admin.dokumen-hukum.embed');
     Route::get('/dokumen-hukum/{unique_id}/detail-edit', [DokumenHukumController::class, 'getDetailForEdit'])->name('admin.dokumen-hukum.detail-edit');
     Route::put('/dokumen-hukum/{unique_id}', [DokumenHukumController::class, 'update'])->name('admin.dokumen-hukum.update');
     Route::get('/dokumen-hukum/tambah', function () {

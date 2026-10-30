@@ -21,7 +21,9 @@ import {
 } from '@/Components/admin/import/CorrectionDetailView';
 import { DraftNameModal } from '@/Components/admin/DraftNameModal';
 import { DuplicateConfirmModal } from '@/Components/admin/DuplicateConfirmModal';
-import { Plus, CircleCheckBig, FileBox } from 'lucide-react';
+import { EmbeddingProgressModal } from '@/Components/admin/EmbeddingProgressModal';
+import { useEmbeddingProgress } from '@/hooks/useEmbeddingProgress';
+import { Plus, CircleCheckBig, FileBox, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
 import { getAllKategori, KategoriHukum } from '@/services/kategoriService';
@@ -113,11 +115,28 @@ export default function DokumenHukumCreate() {
   const [publishProcessList, setPublishProcessList] = useState<ProcessedFileItem[]>([]);
 
   // State status publikasi Langkah 4
-  const [_isSavedSuccess, setIsSavedSuccess] = useState(false);
+  const [isSavedSuccess, setIsSavedSuccess] = useState(false);
   const [savedAsDraft, setSavedAsDraft] = useState(false);
   const [isDraftModalOpen, setIsDraftModalOpen] = useState(false);
   const [isDraftSaving, setIsDraftSaving] = useState(false);
   const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
+  // Hook embedding dengan live progress bar modal
+  const {
+    modalState: embeddingModal,
+    startEmbedding,
+    cancelEmbedding,
+    closeModal: closeEmbeddingModal,
+  } = useEmbeddingProgress(() => {
+    router.visit('/admin/dokumen-hukum');
+  });
+  const isEmbeddingNew = embeddingModal.isProcessing;
+
+  const handleEmbedPublishedData = () => {
+    startEmbedding({
+      all_pending: true,
+      customTitle: 'Embed Dokumen Baru Dipublikasikan',
+    });
+  };
   const [editingDraftName, setEditingDraftName] = useState<string>('');
   const [inlineError, setInlineError] = useState<string | null>(null);
 
@@ -1000,11 +1019,11 @@ export default function DokumenHukumCreate() {
                   Seluruh dokumen hasil ekstraksi telah berhasil diverifikasi dan tersimpan ke dalam database
                 </p>
 
-                <div className="flex items-center justify-center gap-3">
+                <div className="flex flex-wrap items-center justify-center gap-3">
                   <button
                     type="button"
                     onClick={handleResetForm}
-                    className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-[8px] border border-neu-800 text-neu-900 text-[13px] font-medium hover:bg-neu-50 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-[8px] border border-neu-800 text-neu-900 text-[13px] font-medium hover:bg-neu-50 transition-colors cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Tambah Data Baru</span>
@@ -1012,8 +1031,18 @@ export default function DokumenHukumCreate() {
 
                   <button
                     type="button"
+                    onClick={handleEmbedPublishedData}
+                    disabled={isEmbeddingNew}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[8px] bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-medium transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>{isEmbeddingNew ? 'Memproses Embedding...' : 'Generate Embedding AI Sekarang'}</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => router.visit('/admin/dokumen-hukum')}
-                    className="px-6 py-2.5 rounded-[8px] bg-pr-900 text-white text-[13px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer"
+                    className="px-5 py-2.5 rounded-[8px] bg-pr-900 text-white text-[13px] font-medium hover:bg-pr-800 transition-colors shadow-2xs cursor-pointer"
                   >
                     Kembali ke Daftar Hukum
                   </button>
@@ -1041,6 +1070,21 @@ export default function DokumenHukumCreate() {
         message={duplicateModal.message}
         documentTitle={duplicateModal.documentTitle}
         existingId={duplicateModal.existingId}
+      />
+
+      {/* Modal Live Progress Bar Embedding AI */}
+      <EmbeddingProgressModal
+        show={embeddingModal.show}
+        onClose={closeEmbeddingModal}
+        title={embeddingModal.title}
+        totalPasal={embeddingModal.totalPasal}
+        processedPasal={embeddingModal.processedPasal}
+        statusMessage={embeddingModal.statusMessage}
+        isProcessing={embeddingModal.isProcessing}
+        isCompleted={embeddingModal.isCompleted}
+        isError={embeddingModal.isError}
+        errorMessage={embeddingModal.errorMessage}
+        onCancel={cancelEmbedding}
       />
     </AdminLayout>
   );

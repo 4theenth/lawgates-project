@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChapterItem, ArticleItem, detectTargetPeraturan } from '@/Components/admin/import/correctionParser';
 
 export function useRegulationDocumentTree(peraturan: any) {
@@ -306,29 +306,24 @@ export function useRegulationDocumentTree(peraturan: any) {
     setBabsState((prev) => togglePasalNode(prev, pasalId));
   };
 
-  const scrollToElement = (elementId: string) => {
+  const scrollToElement = useCallback((elementId: string) => {
     setActiveSectionId(elementId);
     setTimeout(() => {
       const el = document.getElementById(elementId);
       if (!el) return;
 
-      const container = document.getElementById('scrollable-content');
-      if (container && window.innerWidth >= 1024 && container.scrollHeight > container.clientHeight + 10) {
-        const headerOffset = 16;
-        const elementPosition = el.getBoundingClientRect().top;
-        const containerPosition = container.getBoundingClientRect().top;
-        const offsetPosition = elementPosition - containerPosition + container.scrollTop - headerOffset;
-        container.scrollTo({ top: Math.max(0, offsetPosition), behavior: 'smooth' });
-      } else {
-        const headerOffset = 110;
-        const elementPosition = el.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-        window.scrollTo({ top: Math.max(0, offsetPosition), behavior: 'smooth' });
-      }
-    }, 100);
-  };
+      // Prioritaskan scroll ke ayat yang disorot (<mark>) jika ada
+      const highlightedAyat = el.querySelector('mark');
+      const targetEl = highlightedAyat || el;
 
-  const handleNavigateToStruktur = (strukturId: string) => {
+      const headerOffset = 110;
+      const elementPosition = targetEl.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+      window.scrollTo({ top: Math.max(0, offsetPosition), behavior: 'smooth' });
+    }, 100);
+  }, []);
+
+  const handleNavigateToStruktur = useCallback((strukturId: string) => {
     const expandPath = (nodes: ChapterItem[], targetId: string): { nodes: ChapterItem[]; found: boolean } => {
       let foundInList = false;
       const newNodes = nodes.map((n) => {
@@ -350,9 +345,9 @@ export function useRegulationDocumentTree(peraturan: any) {
     };
     setBabsState((prev) => expandPath(prev, strukturId).nodes);
     scrollToElement(`struktur-${strukturId}`);
-  };
+  }, [scrollToElement]);
 
-  const handleNavigateToPasal = (pasalId: string) => {
+  const handleNavigateToPasal = useCallback((pasalId: string) => {
     const expandPasalPath = (
       pasalList: ArticleItem[],
       targetId: string
@@ -399,7 +394,7 @@ export function useRegulationDocumentTree(peraturan: any) {
 
     setBabsState((prev) => expandStrukturPath(prev, pasalId).nodes);
     scrollToElement(`section-${pasalId}`);
-  };
+  }, [scrollToElement]);
 
   return {
     babsState,
