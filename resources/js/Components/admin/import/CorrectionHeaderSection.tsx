@@ -24,7 +24,7 @@ export function CorrectionHeaderSection({
   return (
     <div className="bg-white rounded-[20px] border border-neu-100 p-5 shadow-2xs space-y-4">
       {/* Visual Header Summary Banner */}
-      <div className="flex items-center justify-between border-b border-neu-100 pb-3 flex-wrap gap-2">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-pr-200 bg-pr-50 text-[11px] font-bold text-pr-900 tracking-wider uppercase">
             <FileText className="w-3.5 h-3.5" />

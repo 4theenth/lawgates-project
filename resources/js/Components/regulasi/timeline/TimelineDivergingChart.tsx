@@ -293,11 +293,10 @@ export function TimelineDivergingChart({
                   <span className="text-2xl font-bold text-pr-900 tracking-tight">
                     {currentPeriod.year1.year}
                   </span>
-                  <div className="flex items-center gap-1.5 text-sm text-neu-800">
+                  <div className="flex items-center gap-2.5 text-sm text-neu-800">
                     <span className="font-normal text-suc-900">
                       {currentPeriod.year1.berlakuCount} Berlaku
                     </span>
-                    <span className="text-neu-400">•</span>
                     <span className="font-normal text-dan-900">
                       {currentPeriod.year1.dicabutCount} Dicabut
                     </span>
@@ -309,11 +308,10 @@ export function TimelineDivergingChart({
                   <span className="text-2xl font-bold text-pr-900 tracking-tight">
                     {currentPeriod.year2.year}
                   </span>
-                  <div className="flex items-center gap-1.5 text-sm text-neu-800">
+                  <div className="flex items-center gap-2.5 text-sm text-neu-800">
                     <span className="font-normal text-suc-900">
                       {currentPeriod.year2.berlakuCount} Berlaku
                     </span>
-                    <span className="text-neu-400">•</span>
                     <span className="font-normal text-dan-900">
                       {currentPeriod.year2.dicabutCount} Dicabut
                     </span>
@@ -552,7 +550,6 @@ export function TimelineDivergingChart({
                     </span>
                     <div className="flex items-center gap-2 text-xs text-neu-700">
                       <span className="font-medium text-suc-900">{currentPeriod.year1.berlakuCount} Berlaku</span>
-                      <span className="text-neu-300">•</span>
                       <span className="font-medium text-dan-900">{currentPeriod.year1.dicabutCount} Dicabut</span>
                     </div>
                   </div>
@@ -619,7 +616,6 @@ export function TimelineDivergingChart({
                     </span>
                     <div className="flex items-center gap-2 text-xs text-neu-700">
                       <span className="font-medium text-suc-900">{currentPeriod.year2.berlakuCount} Berlaku</span>
-                      <span className="text-neu-300">•</span>
                       <span className="font-medium text-dan-900">{currentPeriod.year2.dicabutCount} Dicabut</span>
                     </div>
                   </div>
@@ -718,9 +714,8 @@ export function TimelineDivergingChart({
                 </div>
 
                 {/* Status Bulan */}
-                <div className="flex items-center gap-1.5 text-xs sm:text-sm text-neu-800 font-normal whitespace-nowrap shrink-0">
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-neu-800 font-normal whitespace-nowrap shrink-0">
                   <span className="font-normal text-suc-900">{selectedMonth.berlakuCount} Berlaku</span>
-                  <span className="text-neu-400">•</span>
                   <span className="font-normal text-dan-900">{selectedMonth.dicabutCount} Dicabut</span>
                 </div>
               </div>

@@ -50,7 +50,11 @@ class User extends Authenticatable implements MustVerifyEmail
         if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
             return $value;
         }
-        return asset('storage/' . $value);
+
+        // URL relatif agar avatar tetap tampil walau host akses berbeda dengan
+        // APP_URL (mis. diakses lewat IP/domain staging) dan terhindar dari
+        // mixed content saat aplikasi disajikan melalui HTTPS.
+        return '/storage/' . ltrim($value, '/');
     }
 
     /**

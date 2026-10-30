@@ -88,9 +88,37 @@ export function DetailPeraturanHeader({
 }: DetailPeraturanHeaderProps) {
   const [isLinkCopied, setIsLinkCopied] = useState(false);
 
-  const isBerlaku =
-    !statusPeraturan.toLowerCase().includes('tidak') &&
-    !statusPeraturan.toLowerCase().includes('cabut');
+  const normalizedStatus = (statusPeraturan || '').toLowerCase();
+  const isTidakBerlaku = normalizedStatus.includes('tidak');
+  const isCabut = normalizedStatus.includes('cabut');
+  const isUbah = normalizedStatus.includes('ubah');
+
+  const getStatusBadgeConfig = () => {
+    if (isTidakBerlaku) {
+      return {
+        containerClass: 'bg-dan-50 text-dan-900 border border-dan-200',
+        icon: <XCircle className="w-4 h-4 text-dan-700 stroke-[2]" />,
+      };
+    }
+    if (isCabut) {
+      return {
+        containerClass: 'bg-neu-100 text-neu-800 border border-neu-200',
+        icon: <XCircle className="w-4 h-4 text-neu-700 stroke-[2]" />,
+      };
+    }
+    if (isUbah) {
+      return {
+        containerClass: 'bg-sec-50 text-sec-900 border border-sec-200',
+        icon: <CheckCircle2 className="w-4 h-4 text-sec-900 stroke-[2]" />,
+      };
+    }
+    return {
+      containerClass: 'bg-suc-50 text-suc-900 border border-suc-200',
+      icon: <CheckCircle2 className="w-4 h-4 text-suc-900 stroke-[2]" />,
+    };
+  };
+
+  const statusBadgeConfig = getStatusBadgeConfig();
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -108,8 +136,7 @@ export function DetailPeraturanHeader({
         <span className="inline-flex items-center px-3.5 py-1 rounded-[15px] bg-pr-50 text-[10px] sm:text-[10px] font-semibold text-pr-900 tracking-wider uppercase">
           {jenisPeraturan}
         </span>
-        <span className="text-[12px] sm:text-[12px] text-neu-800 font-normal flex items-center gap-1.5">
-          <span className="text-neu-400">•</span>
+        <span className="text-[12px] sm:text-[12px] text-neu-800 font-normal">
           {instansi}
         </span>
       </div>
@@ -179,24 +206,16 @@ export function DetailPeraturanHeader({
         <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 min-w-0">
           {/* Status Badge */}
           <div
-            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs font-medium sm:px-3 ${
-              isBerlaku
-                ? 'bg-suc-100 text-suc-900'
-                : 'bg-dan-50 text-dan-900 border border-dan-200'
-            }`}
+            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs font-medium sm:px-3 ${statusBadgeConfig.containerClass}`}
           >
-            {isBerlaku ? (
-              <CheckCircle2 className="w-4 h-4 text-suc-900 stroke-[2]" />
-            ) : (
-              <XCircle className="w-4 h-4 text-dan-700 stroke-[2]" />
-            )}
+            {statusBadgeConfig.icon}
             <span>{statusPeraturan}</span>
           </div>
 
           {/* Tanggal Penetapan - Neu Blok */}
           <div
             aria-label={`Ditetapkan: ${tanggalPenetapan || '-'}`}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-neu-50 px-2.5 py-1.5 text-xs font-medium text-neu-800 sm:px-3.5"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-neu-50 border border-neu-200 px-2.5 py-1.5 text-xs font-medium text-neu-800 sm:px-3.5"
           >
             <Calendar className="w-4 h-4 text-neu-600" />
             <span className="sm:hidden">{tanggalPenetapan || '-'}</span>
@@ -206,7 +225,7 @@ export function DetailPeraturanHeader({
           {/* Tempat Penetapan - Neu Blok */}
           <div
             aria-label={`Tempat Penetapan: ${tempatPenetapan || '-'}`}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-neu-50 px-2.5 py-1.5 text-xs font-medium text-neu-800 sm:px-3.5"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-neu-50 border border-neu-200 px-2.5 py-1.5 text-xs font-medium text-neu-800 sm:px-3.5"
           >
             <MapPin className="w-4 h-4 text-neu-600" />
             <span className="sm:hidden">{tempatPenetapan || '-'}</span>

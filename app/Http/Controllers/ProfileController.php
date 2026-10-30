@@ -73,15 +73,28 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
-        // Hapus file avatar lama jika ada di storage public
-        $rawAvatar = $user->getRawOriginal('avatar');
-        if ($rawAvatar && Storage::disk('public')->exists($rawAvatar)) {
-            Storage::disk('public')->delete($rawAvatar);
+        try {
+            $path = $request->file('avatar')->storePublicly('avatars', 'public');
+        } catch (\Throwable $e) {
+            report($e);
+            $path = null;
         }
 
-        $path = $request->file('avatar')->store('avatars', 'public');
+        if (! $path) {
+            return $this->backToProfile($user)->withErrors([
+                'avatar' => 'Foto profil gagal disimpan. Silakan coba lagi.',
+            ]);
+        }
+
+        // Simpan path baru lebih dulu, baru hapus file lama. Urutan ini mencegah
+        // avatar lama ikut hilang saat penyimpanan file baru gagal.
+        $rawAvatar = $user->getRawOriginal('avatar');
         $user->avatar = $path;
         $user->save();
+
+        if ($this->isStoredLocally($rawAvatar)) {
+            Storage::disk('public')->delete($rawAvatar);
+        }
 
         return $this->backToProfile($user)->with('success', 'Foto profil berhasil diperbarui.');
     }
@@ -94,7 +107,7 @@ class ProfileController extends Controller
         $user = $request->user();
 
         $rawAvatar = $user->getRawOriginal('avatar');
-        if ($rawAvatar && Storage::disk('public')->exists($rawAvatar)) {
+        if ($this->isStoredLocally($rawAvatar)) {
             Storage::disk('public')->delete($rawAvatar);
         }
 
@@ -102,6 +115,16 @@ class ProfileController extends Controller
         $user->save();
 
         return $this->backToProfile($user)->with('success', 'Foto profil berhasil dihapus.');
+    }
+
+    /**
+     * Avatar eksternal (mis. Google) tidak boleh dihapus dari disk lokal.
+     */
+    private function isStoredLocally(?string $rawAvatar): bool
+    {
+        return $rawAvatar !== null
+            && ! str_starts_with($rawAvatar, 'http://')
+            && ! str_starts_with($rawAvatar, 'https://');
     }
 
     /**

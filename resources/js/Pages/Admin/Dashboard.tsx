@@ -8,7 +8,7 @@ import { RevenueTrendChart, DayRevenue } from '@/Components/admin/RevenueTrendCh
 import { SubscriptionDonutChart, SubscriptionData } from '@/Components/admin/SubscriptionDonutChart';
 import { RecentTransactionsTable, TransactionItem } from '@/Components/admin/RecentTransactionsTable';
 import { RecentDocumentsTable, DocumentItem } from '@/Components/admin/RecentDocumentsTable';
-import { Banknote, Users, Files, Gavel } from 'lucide-react';
+import { Banknote, Users, Files, Gavel, AlertCircle } from 'lucide-react';
 
 interface DashboardStats {
   totalDokumen: number;
@@ -65,52 +65,43 @@ export default function AdminDashboard({
       />
 
       {/* 3. Baris 1: 4 Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-[18px] lg:gap-[22px] w-full mb-6">
         {/* Card 1: Total Pendapatan */}
         <StatCard
           title="Total Pendapatan (Bulan Ini)"
           value={formatRupiah(stats.totalPendapatan)}
-          icon={<Banknote className="w-5 h-5 text-sec-900" />}
-          trend={{
-            value:
-              stats.totalPendapatan > 0
-                ? 'Pembayaran langganan bulan ini'
-                : 'Belum ada data pembayaran',
-            direction: 'neutral',
-          }}
+          icon={<Banknote className="w-5 h-5 text-pr-900" />}
+          note={
+            stats.totalPendapatan > 0
+              ? 'Pembayaran langganan bulan ini'
+              : 'Belum ada data pembayaran'
+          }
         />
 
         {/* Card 2: Total Pengguna Premium */}
         <StatCard
           title="Total Pengguna Premium"
           value={formatNumber(stats.totalPremiumUsers)}
-          icon={<Users className="w-5 h-5 text-sec-900" />}
-          trend={{
-            value: `${premiumPct}% dari total pengguna`,
-            direction: 'neutral',
-          }}
+          icon={<Users className="w-5 h-5 text-pr-900" />}
+          note={`${premiumPct}% dari total pengguna`}
         />
 
         {/* Card 3: Total Dokumen */}
         <StatCard
           title="Total Dokumen"
           value={formatNumber(stats.totalDokumen)}
-          icon={<Files className="w-5 h-5 text-sec-900" />}
-          trend={{
-            value: 'Diperbarui otomatis',
-            direction: 'neutral',
-          }}
+          icon={<Files className="w-5 h-5 text-pr-900" />}
+          note="Diperbarui otomatis"
         />
 
         {/* Card 4: Total Draf Dokumen */}
         <StatCard
           title="Total Draf Dokumen"
           value={formatNumber(stats.totalDraft)}
-          icon={<Gavel className="w-5 h-5 text-sec-900" />}
-          trend={{
-            value: 'Perlu ditinjau',
-            direction: 'neutral',
-          }}
+          icon={<Gavel className="w-5 h-5 text-pr-900" />}
+          note={stats.totalDraft === 0 ? 'Tidak ada draft yang perlu ditinjau' : 'Perlu ditinjau'}
+          noteIcon={<AlertCircle className="w-3.5 h-3.5" />}
+          noteColor={stats.totalDraft > 0 ? 'text-sec-900' : undefined}
         />
       </div>
 

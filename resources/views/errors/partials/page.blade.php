@@ -1,7 +1,8 @@
 {{--
-    Halaman error mandiri: beroperasi penuh tanpa layout Inertia, Vite, session,
-    atau database agar tetap dapat dirender secara konsisten saat infrastruktur gagal,
-    namun tetap setia 100% pada LawGates Design System (Header, Hero, Footer, Tokens).
+    Fallback halaman error: biasanya error page dirender lewat Inertia (lihat
+    bootstrap/app.php) agar memakai Navbar/Footer React yang sama dengan halaman
+    reguler. Tampilan ini tetap mandiri dan tidak membutuhkan Vite, session, atau
+    database agar masih bisa dirender saat infrastruktur gagal.
 --}}
 @php
     $appName = 'LawGates';
@@ -34,6 +35,28 @@
     $navUserName = $navUser ? ($navUser->name ?? $navUser->username ?? 'User') : null;
     $navUserLabel = $navIsAdmin ? 'DASHBOARD' : \Illuminate\Support\Str::limit((string) $navUserName, 16);
     $navUserUrl = $navIsAdmin ? url('/admin/dashboard') : url('/dashboard');
+
+    // Avatar mengikuti Navbar React: foto pengguna, atau avatar default dari
+    // Vite. Bila manifest Vite tidak tersedia (mis. infra gagal), halaman tetap
+    // dirender dengan ikon pengguna sebagai fallback.
+    $navAvatarUrl = null;
+    if ($navUser) {
+        try {
+            $navAvatarUrl = $navUser->avatar
+                ?: \Illuminate\Support\Facades\Vite::asset('resources/js/assets/profile-avatar.webp');
+        } catch (\Throwable $e) {
+            $navAvatarUrl = $navUser->avatar;
+        }
+    }
+
+    // Form logout butuh token CSRF. Sesi bisa saja belum tersedia saat error
+    // 500 dirender, jadi token tidak boleh menggagalkan halaman.
+    $csrfToken = null;
+    try {
+        $csrfToken = csrf_token();
+    } catch (\Throwable $e) {
+        $csrfToken = null;
+    }
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -64,6 +87,9 @@
 
             --color-sec-50:  #fbf7eb;
             --color-sec-100: #f7efd7;
+            --color-sec-200: #f2e7c3;
+            --color-sec-500: #e5cf87;
+            --color-sec-800: #d8b74b;
             --color-sec-900: #d4af37;
 
             --color-neu-50:  #e9e9e9;
@@ -88,9 +114,28 @@
             padding: 0;
         }
 
-        html,
-        body {
-            height: 100%;
+        html {
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-neu-300) transparent;
+            scrollbar-gutter: stable;
+        }
+
+        html::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        html::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        html::-webkit-scrollbar-thumb {
+            background-color: var(--color-neu-300);
+            border-radius: 9999px;
+        }
+
+        html::-webkit-scrollbar-thumb:hover {
+            background-color: var(--color-neu-400);
         }
 
         body {
@@ -99,6 +144,8 @@
             flex-direction: column;
             background-color: var(--color-bg-900);
             font-family: var(--font-sans);
+            font-size: 16px;
+            line-height: 1.5;
             color: var(--color-neu-900);
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
@@ -137,7 +184,6 @@
             width: 100%;
             height: 64px;
             background-color: #ffffff;
-            border-bottom: 1px solid var(--color-neu-50);
             position: sticky;
             top: 0;
             z-index: 50;
@@ -146,6 +192,7 @@
         }
 
         .lg-header__inner {
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -160,15 +207,29 @@
         }
 
         .lg-brand img {
-            height: 26px;
+            height: 24px;
             width: auto;
             display: block;
         }
 
+        @media (min-width: 640px) {
+            .lg-brand img {
+                height: 26px;
+            }
+        }
+
+        /* Menu tengah diposisikan absolut tepat di tengah header, sama seperti
+           Navbar React (left-1/2 -translate-x-1/2). */
         .lg-nav {
             display: none;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
             align-items: center;
-            gap: 32px;
+            gap: 20px;
+            z-index: 20;
+            user-select: none;
         }
 
         @media (min-width: 768px) {
@@ -178,36 +239,72 @@
         }
 
         .lg-nav__link {
+            position: relative;
+            padding: 4px 0;
             font-size: 14px;
-            font-weight: 400;
-            color: var(--color-neu-600);
+            font-weight: 500;
+            line-height: 20px;
+            color: var(--color-neu-700);
             text-decoration: none;
-            transition: color 0.15s ease;
+            transition: color 0.3s ease;
         }
 
         .lg-nav__link:hover {
-            color: var(--color-pr-900);
+            color: var(--color-neu-900);
         }
 
         .lg-nav__link--active {
-            font-weight: 500;
-            color: var(--color-pr-900);
+            font-weight: 600;
+            color: var(--color-sec-900);
         }
 
+        .lg-nav__link--active:hover {
+            color: var(--color-sec-900);
+        }
+
+        .lg-nav__link--active::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            border-bottom: 1px solid var(--color-sec-900);
+        }
+
+        /* Menu "Segera Hadir" tetap tampil seperti menu biasa, sama dengan
+           navbar React; bedanya hanya tidak bisa diklik. */
         .lg-nav__link--disabled {
-            color: var(--color-neu-300);
-            cursor: not-allowed;
+            color: var(--color-neu-700);
+            cursor: default;
             user-select: none;
         }
 
         .lg-nav__link--disabled:hover {
-            color: var(--color-neu-300);
+            color: var(--color-neu-700);
         }
 
         .lg-header__actions {
-            display: flex;
+            display: none;
             align-items: center;
             gap: 12px;
+        }
+
+        @media (min-width: 768px) {
+            .lg-header__actions {
+                display: flex;
+            }
+        }
+
+        .lg-header__mobile {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        @media (min-width: 768px) {
+            .lg-header__mobile {
+                display: none;
+            }
         }
 
         .lg-login-btn {
@@ -219,9 +316,10 @@
             color: #ffffff;
             padding: 6px 14px;
             border-radius: 10px;
-            font-size: 12px;
+            font-size: 10px;
+            line-height: 1.3333;
             font-weight: 400;
-            letter-spacing: 0.025em;
+            letter-spacing: 0.05em;
             text-decoration: none;
             transition: background-color 0.2s ease, border-color 0.2s ease;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -230,6 +328,330 @@
         .lg-login-btn:hover {
             background-color: var(--color-pr-800);
             border-color: var(--color-pr-800);
+        }
+
+        /* Avatar pengguna (sama dengan dropdown trigger Navbar React) */
+        .lg-avatar-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px;
+            border-radius: 999px;
+            text-decoration: none;
+            transition: background-color 0.15s ease;
+        }
+
+        .lg-avatar-btn:hover {
+            background-color: rgba(233, 233, 233, 0.4);
+        }
+
+        .lg-avatar {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            flex-shrink: 0;
+            border-radius: 999px;
+            border: 1px solid rgba(188, 188, 188, 0.6);
+            background-color: var(--color-neu-50);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            overflow: hidden;
+            color: var(--color-neu-500);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .lg-avatar--sm {
+            width: 30px;
+            height: 30px;
+        }
+
+        /* ── MOBILE MENU (hamburger + drawer) ────────────────── */
+        .lg-menu-toggle {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .lg-hamburger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            margin-right: -4px;
+            border-radius: 8px;
+            color: var(--color-neu-900);
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .lg-hamburger:hover {
+            color: var(--color-neu-900);
+        }
+
+        .lg-menu-toggle:focus-visible ~ .lg-header .lg-hamburger {
+            outline: 2px solid var(--color-neu-200);
+            outline-offset: 2px;
+        }
+
+        .lg-drawer {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            visibility: hidden;
+            transition: visibility 0.3s ease;
+        }
+
+        .lg-drawer__backdrop {
+            position: absolute;
+            inset: 0;
+            display: block;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            cursor: pointer;
+        }
+
+        .lg-drawer__panel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 80%;
+            max-width: 320px;
+            height: 100%;
+            padding: 24px;
+            background-color: var(--color-pr-900);
+            border-left: 1px solid var(--color-pr-700);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .lg-menu-toggle:checked ~ .lg-drawer {
+            visibility: visible;
+        }
+
+        .lg-menu-toggle:checked ~ .lg-drawer .lg-drawer__backdrop {
+            opacity: 1;
+        }
+
+        .lg-menu-toggle:checked ~ .lg-drawer .lg-drawer__panel {
+            transform: translateX(0);
+        }
+
+        body:has(.lg-menu-toggle:checked) {
+            overflow: hidden;
+        }
+
+        @media (min-width: 768px) {
+            .lg-drawer {
+                display: none;
+            }
+        }
+
+        .lg-drawer__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--color-pr-800);
+        }
+
+        .lg-drawer__head img {
+            height: 24px;
+            width: auto;
+            display: block;
+        }
+
+        .lg-drawer__close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+            border-radius: 8px;
+            color: var(--color-neu-300);
+            cursor: pointer;
+            transition: color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .lg-drawer__close:hover {
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .lg-drawer__nav {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 24px;
+        }
+
+        .lg-drawer__link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-radius: 14px;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 17.1429px;
+            color: var(--color-neu-200);
+            text-decoration: none;
+            transition: color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .lg-drawer__link:hover {
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .lg-drawer__link--active {
+            font-weight: 600;
+            color: var(--color-sec-900);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .lg-drawer__link--active:hover {
+            color: var(--color-sec-900);
+        }
+
+        .lg-drawer__dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 999px;
+            background-color: var(--color-sec-900);
+        }
+
+        .lg-drawer__bottom {
+            padding-top: 24px;
+            border-top: 1px solid var(--color-pr-800);
+        }
+
+        .lg-drawer__login {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 14px;
+            background-color: var(--color-sec-900);
+            color: var(--color-pr-900);
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 17.1429px;
+            letter-spacing: 0.025em;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            text-decoration: none;
+            transition: background-color 0.2s ease;
+        }
+
+        .lg-drawer__login:hover {
+            background-color: var(--color-sec-800);
+        }
+
+        .lg-drawer__account {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .lg-drawer__account-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 4px;
+            min-width: 0;
+        }
+
+        .lg-drawer__account-head .lg-avatar {
+            width: 40px;
+            height: 40px;
+            border-color: var(--color-pr-600);
+        }
+
+        .lg-drawer__account-info {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .lg-drawer__account-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .lg-drawer__account-email {
+            font-size: 10px;
+            color: var(--color-neu-300);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .lg-drawer__role {
+            display: inline-block;
+            margin-top: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .lg-drawer__account-links {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-top: 8px;
+        }
+
+        .lg-drawer__account-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--color-neu-200);
+            text-decoration: none;
+            transition: color 0.2s ease, background-color 0.2s ease;
+            width: 100%;
+            border: none;
+            background: none;
+            font-family: inherit;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .lg-drawer__account-link:hover {
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .lg-drawer__account-link--danger {
+            color: #f87171;
+        }
+
+        .lg-drawer__account-link--danger:hover {
+            color: #fca5a5;
+            background-color: rgba(239, 68, 68, 0.1);
         }
 
         /* ── MAIN CONTENT (HERO ERROR) ───────────────────────── */
@@ -765,6 +1187,7 @@
             display: flex;
             flex-direction: column;
             gap: 40px;
+            min-height: 240px;
         }
 
         @media (min-width: 768px) {
@@ -790,14 +1213,21 @@
         .lg-footer__logo-link {
             display: inline-flex;
             align-items: center;
+            color: inherit;
             text-decoration: none;
             margin-bottom: 16px;
         }
 
         .lg-footer__logo-link img {
-            height: 28px;
+            height: 26px;
             width: auto;
             display: block;
+        }
+
+        @media (min-width: 640px) {
+            .lg-footer__logo-link img {
+                height: 28px;
+            }
         }
 
         .lg-footer__desc {
@@ -806,13 +1236,14 @@
             line-height: 24px;
             color: rgba(255, 255, 255, 0.8);
             text-align: justify;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .lg-footer__socials {
             display: flex;
             align-items: center;
             gap: 12px;
+            padding-top: 8px;
         }
 
         .lg-footer__social-circle {
@@ -940,7 +1371,10 @@
     </style>
 </head>
 <body>
-    {{-- Header / Navbar Publik --}}
+    {{-- Toggle drawer mobile (CSS-only, tidak bergantung pada JavaScript) --}}
+    <input class="lg-menu-toggle" type="checkbox" id="lg-mobile-menu" tabindex="0" aria-label="Buka menu navigasi">
+
+    {{-- Header / Navbar Publik (mengikuti Navbar React di PublicLayout) --}}
     <header class="lg-header">
         <div class="page-container lg-header__inner">
             <a class="lg-brand" href="{{ $homeUrl }}" aria-label="{{ $appName }}">
@@ -954,20 +1388,35 @@
                 <span class="lg-nav__link lg-nav__link--disabled" title="Segera Hadir" aria-disabled="true">Tentang</span>
             </nav>
 
+            {{-- Desktop: admin -> pill DASHBOARD, user -> avatar dropdown trigger,
+                 tamu -> pill LOGIN. Sama dengan Navbar React. --}}
             <div class="lg-header__actions">
-                @if ($navUser)
-                    {{-- Sudah masuk: sama seperti navbar dashboard (admin -> pill DASHBOARD,
-                         user -> tombol menuju ringkasan akun), bukan "Masuk" lagi. --}}
+                @if ($navIsAdmin)
                     <a class="lg-login-btn" href="{{ $navUserUrl }}" title="{{ $navUserName }}">
-                        <span>{{ $navUserLabel }}</span>
+                        <span>DASHBOARD</span>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="12" cy="7" r="4"></circle>
+                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                            <polyline points="10 17 15 12 10 7"></polyline>
+                            <line x1="15" y1="12" x2="3" y2="12"></line>
+                        </svg>
+                    </a>
+                @elseif ($navUser)
+                    <a class="lg-avatar-btn" href="{{ url('/profile') }}" title="{{ $navUserName }}" aria-label="Pengaturan profil {{ $navUserName }}">
+                        <span class="lg-avatar" @if ($navAvatarUrl) style="background-image: url('{{ $navAvatarUrl }}')" @endif>
+                            @unless ($navAvatarUrl)
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                            @endunless
+                        </span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-neu-700)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </a>
                 @else
                     <a class="lg-login-btn" href="{{ $loginUrl }}">
-                        <span>Masuk</span>
+                        <span>LOGIN</span>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
                             <polyline points="10 17 15 12 10 7"></polyline>
@@ -976,8 +1425,133 @@
                     </a>
                 @endif
             </div>
+
+            {{-- Mobile: avatar (bila login) + hamburger, sama dengan Navbar React --}}
+            <div class="lg-header__mobile">
+                @if ($navUser)
+                    <a class="lg-avatar-btn" href="{{ url('/profile') }}" title="{{ $navUserName }}" aria-label="Pengaturan profil {{ $navUserName }}">
+                        <span class="lg-avatar lg-avatar--sm" @if ($navAvatarUrl) style="background-image: url('{{ $navAvatarUrl }}')" @endif>
+                            @unless ($navAvatarUrl)
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                            @endunless
+                        </span>
+                    </a>
+                @endif
+
+                <label class="lg-hamburger" for="lg-mobile-menu" title="Buka menu navigasi">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="4" y1="6" x2="20" y2="6"></line>
+                        <line x1="4" y1="12" x2="20" y2="12"></line>
+                        <line x1="4" y1="18" x2="20" y2="18"></line>
+                    </svg>
+                </label>
+            </div>
         </div>
     </header>
+
+    {{-- Drawer navigasi mobile --}}
+    <div class="lg-drawer">
+        <label class="lg-drawer__backdrop" for="lg-mobile-menu" aria-label="Tutup menu"></label>
+
+        <div class="lg-drawer__panel">
+            <div class="lg-drawer__top">
+                <div class="lg-drawer__head">
+                    <a class="lg-brand" href="{{ $homeUrl }}" aria-label="{{ $appName }}">
+                        <img src="{{ asset('logo-white.svg') }}" alt="{{ $appName }}" width="110" height="27">
+                    </a>
+
+                    <label class="lg-drawer__close" for="lg-mobile-menu" title="Tutup menu">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </label>
+                </div>
+
+                <nav class="lg-drawer__nav" aria-label="Menu Utama Mobile">
+                    <a class="lg-drawer__link {{ $isHomePath ? 'lg-drawer__link--active' : '' }}" href="{{ $homeUrl }}">
+                        <span>Beranda</span>
+                        @if ($isHomePath)<span class="lg-drawer__dot" aria-hidden="true"></span>@endif
+                    </a>
+                    <a class="lg-drawer__link {{ $isRegulasiPath ? 'lg-drawer__link--active' : '' }}" href="{{ $regulasiUrl }}">
+                        <span>Regulasi</span>
+                        @if ($isRegulasiPath)<span class="lg-drawer__dot" aria-hidden="true"></span>@endif
+                    </a>
+                    <span class="lg-drawer__link" aria-disabled="true">Langganan</span>
+                    <span class="lg-drawer__link" aria-disabled="true">Tentang</span>
+                </nav>
+            </div>
+
+            <div class="lg-drawer__bottom">
+                @if ($navUser)
+                    <div class="lg-drawer__account">
+                        <div class="lg-drawer__account-head">
+                            <span class="lg-avatar" @if ($navAvatarUrl) style="background-image: url('{{ $navAvatarUrl }}')" @endif>
+                                @unless ($navAvatarUrl)
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="12" cy="7" r="4"></circle>
+                                    </svg>
+                                @endunless
+                            </span>
+                            <div class="lg-drawer__account-info">
+                                <p class="lg-drawer__account-name">{{ $navUserName }}</p>
+                                <p class="lg-drawer__account-email">{{ $navUser->email }}</p>
+                                <span class="lg-drawer__role">{{ $navUser->role }}</span>
+                            </div>
+                        </div>
+
+                        <div class="lg-drawer__account-links">
+                            @if ($navIsAdmin)
+                                <a class="lg-drawer__account-link" href="{{ $navUserUrl }}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                                        <polyline points="10 17 15 12 10 7"></polyline>
+                                        <line x1="15" y1="12" x2="3" y2="12"></line>
+                                    </svg>
+                                    <span>Dashboard Admin</span>
+                                </a>
+                            @else
+                                <a class="lg-drawer__account-link" href="{{ url('/profile') }}">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="12" cy="7" r="4"></circle>
+                                    </svg>
+                                    <span>Pengaturan Profil</span>
+                                </a>
+                            @endif
+
+                            @if ($csrfToken)
+                                <form method="POST" action="{{ url('/logout') }}">
+                                    <input type="hidden" name="_token" value="{{ $csrfToken }}">
+                                    <button type="submit" class="lg-drawer__account-link lg-drawer__account-link--danger">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                            <polyline points="16 17 21 12 16 7"></polyline>
+                                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                                        </svg>
+                                        <span>Keluar (Log Out)</span>
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
+                @else
+                    <a class="lg-drawer__login" href="{{ $loginUrl }}">
+                        <span>Layanan (Login)</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                            <polyline points="10 17 15 12 10 7"></polyline>
+                            <line x1="15" y1="12" x2="3" y2="12"></line>
+                        </svg>
+                    </a>
+                @endif
+            </div>
+        </div>
+    </div>
 
     {{-- Main Area / Error Content --}}
     <main class="lg-main" role="alert" aria-labelledby="error-title">
@@ -1170,13 +1744,13 @@
                     <h4 class="lg-footer__title">JELAJAHI</h4>
                     <ul class="lg-footer__list">
                         <li>
-                            <a class="lg-footer__link lg-footer__link--active" href="{{ $homeUrl }}">
+                            <a class="lg-footer__link {{ $isHomePath ? 'lg-footer__link--active' : '' }}" href="{{ $homeUrl }}" @if ($isHomePath) aria-current="page" @endif>
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                 <span>Beranda</span>
                             </a>
                         </li>
                         <li>
-                            <a class="lg-footer__link" href="{{ $regulasiUrl }}">
+                            <a class="lg-footer__link {{ $isRegulasiPath ? 'lg-footer__link--active' : '' }}" href="{{ $regulasiUrl }}" @if ($isRegulasiPath) aria-current="page" @endif>
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                 <span>Regulasi</span>
                             </a>

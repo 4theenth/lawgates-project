@@ -294,41 +294,44 @@ export function StepUploadJson({
           {/* Kartu Daftar File Terpilih */}
           <div className="bg-white rounded-[16px] border border-neu-100 p-5 shadow-2xs w-full">
             {/* Header Status File */}
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <div className="flex items-center gap-3">
-                <span className="font-sans text-[12px] font-semibold text-neu-900">
-                  File Terpilih ({currentCount}/{maxFiles})
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 mb-3.5 border-b border-neu-100 gap-3">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="font-sans text-[13px] font-semibold text-neu-900">
+                  File Terpilih
                 </span>
-                {!isFull && (
-                  <div className="inline-flex items-center gap-1.5 text-[11px] font-medium">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-pr-900 hover:text-pr-800 underline underline-offset-2 cursor-pointer"
-                    >
-                      + File Lokal
-                    </button>
-                    <span className="text-neu-300">|</span>
-                    <button
-                      type="button"
-                      onClick={() => setViewMode('minio_categories')}
-                      className="text-pr-900 hover:text-pr-800 underline underline-offset-2 cursor-pointer"
-                    >
-                      + Dari MinIO
-                    </button>
-                  </div>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-neu-100 text-neu-700">
+                  {currentCount} / {maxFiles}
+                </span>
+                {isFull ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-suc-50 text-suc-900 border border-suc-200">
+                    Siap diimpor
+                  </span>
+                ) : (
+                  <span className="text-[12px] text-neu-500 font-normal">
+                    Sisa {remainingSlots} slot
+                  </span>
                 )}
               </div>
 
-              {isFull ? (
-                <span className="font-sans text-[12px] font-medium text-suc-900">
-                  Siap di import
-                </span>
-              ) : (
-                <div className="text-right">
-                  <span className="font-sans text-[12px] font-medium text-dan-800 block">
-                    Masih ada {remainingSlots} slot file
-                  </span>
+              {!isFull && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-neu-200 bg-white hover:bg-neu-50 text-neu-800 hover:text-pr-900 text-[12px] font-medium transition-all shadow-2xs hover:border-neu-300 cursor-pointer"
+                  >
+                    <Folder className="w-3.5 h-3.5 text-pr-900 stroke-[2]" />
+                    <span>+ File Lokal</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('minio_categories')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-neu-200 bg-white hover:bg-neu-50 text-neu-800 hover:text-pr-900 text-[12px] font-medium transition-all shadow-2xs hover:border-neu-300 cursor-pointer"
+                  >
+                    <Database className="w-3.5 h-3.5 text-pr-900 stroke-[2]" />
+                    <span>+ Dari MinIO</span>
+                  </button>
                 </div>
               )}
             </div>

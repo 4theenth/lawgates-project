@@ -62,10 +62,18 @@ export function AdminHeader({
             <Dropdown.Trigger>
               <div className="flex items-center gap-1.5 cursor-pointer p-1 rounded-full hover:bg-neu-50 transition-colors">
                 <div
-                  className="w-[32px] h-[32px] rounded-full border border-neu-100 shadow-2xs overflow-hidden bg-cover bg-center bg-no-repeat bg-neu-100 shrink-0"
-                  style={{ backgroundImage: `url("${profileImg}")` }}
+                  className="w-[32px] h-[32px] rounded-full border border-neu-100 shadow-2xs overflow-hidden bg-neu-100 shrink-0"
                   title={displayName}
-                />
+                >
+                  <img
+                    src={profileImg}
+                    alt={displayName}
+                    onError={(e) => {
+                      e.currentTarget.src = profileAvatar;
+                    }}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <ChevronDown className="w-3.5 h-3.5 text-neu-500 shrink-0 stroke-[2]" />
               </div>
             </Dropdown.Trigger>

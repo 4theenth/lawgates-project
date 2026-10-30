@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import axios from 'axios';
 import { Search, FileText } from 'lucide-react';
 import { SearchResultCard } from '@/Components/search/SearchResultCard';
-import { Pagination } from '@/Components/admin/Pagination';
+import { Pagination } from '@/Components/common/Pagination';
 import { CountUp } from '@/Components/common/CountUp';
 import { CategoryFilterPopover } from '@/Components/kategori/CategoryFilterPopover';
 import { FilterOption } from '@/types/peraturan';
@@ -348,17 +348,19 @@ export function RegulasiRecentSection({
                 ))}
               </div>
 
-              {/* Call EXISTING Pagination Component */}
+              {/* Komponen Pagination Publik */}
               <Pagination
                 currentPage={currentPage}
-                totalPages={lastPage}
-                pageSize={perPage}
-                pageSizeOptions={[5, 10, 15, 20]}
+                lastPage={lastPage}
+                perPage={perPage}
+                perPageOptions={[5, 10, 15, 20]}
                 onPageChange={(p) => setCurrentPage(p)}
-                onPageSizeChange={(size) => {
+                onPerPageChange={(size) => {
                   setPerPage(size);
                   setCurrentPage(1);
                 }}
+                variant="public"
+                className="mt-6 pt-5"
               />
             </>
           ) : (
