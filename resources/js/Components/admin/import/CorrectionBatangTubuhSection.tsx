@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ChevronDown, ChevronUp, Zap, Bookmark, Copy, Check, ArrowUp, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Zap, Bookmark, Copy, Check, ArrowUp, X, Trash2, Plus, Pencil } from 'lucide-react';
 import { ChapterItem, ArticleItem, detectActionType } from './correctionParser';
 import { AutoResizeTextarea } from './AutoResizeTextarea';
 import { cleanOcrText } from '../../../utils/ocrTextCleaner';
@@ -8,8 +8,12 @@ interface CorrectionBatangTubuhSectionProps {
   babList: ChapterItem[];
   onToggleBab: (babId: string) => void;
   onTogglePasal: (babId: string, pasalId: string) => void;
+  onAddPasal?: (parentId: string) => void;
+  onDeletePasal?: (parentId: string, pasalId: string) => void;
+  onAddPasalRoot?: () => void;
   onChangeBabDeskripsi: (babId: string, value: string) => void;
   onChangeBabJudul?: (babId: string, value: string) => void;
+  onChangePasalNomor?: (babId: string, pasalId: string, value: string) => void;
   onChangePasalIsi: (babId: string, pasalId: string, value: string) => void;
   onChangePasalPenjelasan?: (babId: string, pasalId: string, value: string) => void;
 }
@@ -32,17 +36,23 @@ function CorrectionPasalCard({
   parentId,
   isSubPasal = false,
   onTogglePasal,
+  onChangePasalNomor,
   onChangePasalIsi,
   onChangePasalPenjelasan,
+  onDeletePasal,
 }: {
   pasal: ArticleItem;
   parentId: string;
   isSubPasal?: boolean;
   onTogglePasal: (babId: string, pasalId: string) => void;
+  onChangePasalNomor?: (babId: string, pasalId: string, value: string) => void;
   onChangePasalIsi: (babId: string, pasalId: string, value: string) => void;
   onChangePasalPenjelasan?: (babId: string, pasalId: string, value: string) => void;
+  onDeletePasal?: (parentId: string, pasalId: string) => void;
 }) {
   const [isCopied, setIsCopied] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isEditingNomor, setIsEditingNomor] = useState(false);
   const [activeSubPasalId, setActiveSubPasalId] = useState<string | null>(null);
 
   const rincianGridRef = useRef<HTMLDivElement>(null);
@@ -78,6 +88,29 @@ function CorrectionPasalCard({
     setTimeout(() => scrollToElementRef(rincianGridRef.current), 50);
   };
 
+  const handleConfirmDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDeletePasal?.(parentId, pasal.id);
+    setIsConfirmingDelete(false);
+  };
+
+  // Pasal dianggap "berisi" jika ada teks norma, penjelasan, atau sub-pasal di dalamnya.
+  // Pasal kosong dihapus langsung tanpa konfirmasi.
+  const isPasalFilled =
+    cleanOcrText(pasal.isi || '').trim() !== '' ||
+    cleanOcrText(pasal.penjelasan || '').trim() !== '' ||
+    (pasal.pasalList ? pasal.pasalList.length > 0 : false);
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isPasalFilled) {
+      setIsConfirmingDelete(true);
+    } else {
+      // Isian kosong → hapus langsung tanpa konfirmasi
+      onDeletePasal?.(parentId, pasal.id);
+    }
+  };
+
   return (
     <div
       id={`section-${pasal.id}`}
@@ -88,23 +121,128 @@ function CorrectionPasalCard({
       }`}
     >
       {/* Header Nomor Pasal & Tombol Akses */}
-      {pasal.nomor && pasal.nomor.trim() !== '-' && pasal.nomor.trim() !== '' && (
+      {(pasal.nomor && pasal.nomor.trim() !== '-') || onChangePasalNomor ? (
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
-            <span
-              className={`inline-flex items-center px-3 py-1 rounded-[6px] text-[11px] font-semibold ${
-                isSubPasal
-                  ? 'bg-amber-700 text-white'
-                  : isAmendingContainer
-                  ? 'bg-amber-600 text-white'
-                  : 'bg-pr-900 text-white'
-              }`}
-            >
-              {pasal.nomor}
-            </span>
+            {onChangePasalNomor ? (
+              /* Badge nomor pasal: tampil normal, bisa diedit lewat ikon pensil */
+              isEditingNomor ? (
+                /* Lebar dikendalikan span pengukur (teks asli + ruang ikon).
+                   Input diposisikan absolut menutupi span, jadi ukuran badge
+                   identik dengan mode tampilan normal dan tidak melebar. */
+                <div
+                  className={`relative inline-flex items-center px-3 py-1 rounded-[6px] ${
+                    isSubPasal
+                      ? 'bg-amber-700'
+                      : isAmendingContainer
+                      ? 'bg-amber-600'
+                      : 'bg-pr-900'
+                  }`}
+                >
+                  {/* Span pengukur lebar (tidak terlihat) — menentukan lebar badge */}
+                  <span
+                    aria-hidden="true"
+                    className="invisible text-[11px] font-semibold whitespace-pre"
+                  >
+                    {pasal.nomor || 'Pasal -'}
+                  </span>
+                  {/* Ikon pensil ikut menentukan lebar agar tidak menutupi teks */}
+                  <Pencil className="ml-1.5 w-3 h-3 shrink-0 text-white/70 pointer-events-none" />
+                  {/* Input menutupi seluruh badge */}
+                  <input
+                    type="text"
+                    value={pasal.nomor || ''}
+                    onChange={(e) => onChangePasalNomor(parentId, pasal.id, e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={() => setIsEditingNomor(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === 'Escape') {
+                        e.currentTarget.blur();
+                      }
+                    }}
+                    autoFocus
+                    title="Ubah nomor pasal"
+                    placeholder="Pasal -"
+                    aria-label="Nomor pasal"
+                    className="absolute inset-0 w-full bg-transparent pl-3 pr-7 text-[11px] font-semibold text-center text-white placeholder:text-white/70 focus:outline-none"
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditingNomor(true);
+                  }}
+                  title="Ubah nomor pasal"
+                  aria-label="Ubah nomor pasal"
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[6px] text-[11px] font-semibold transition-all cursor-pointer ${
+                    isSubPasal
+                      ? 'bg-amber-700 text-white hover:bg-amber-800'
+                      : isAmendingContainer
+                      ? 'bg-amber-600 text-white hover:bg-amber-700'
+                      : 'bg-pr-900 text-white hover:bg-pr-800'
+                  }`}
+                >
+                  <span>{pasal.nomor || 'Pasal -'}</span>
+                  <Pencil className="w-3 h-3 shrink-0 opacity-80" />
+                </button>
+              )
+            ) : (
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-[6px] text-[11px] font-semibold ${
+                  isSubPasal
+                    ? 'bg-amber-700 text-white'
+                    : isAmendingContainer
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-pr-900 text-white'
+                }`}
+              >
+                {pasal.nomor}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Tombol Hapus Pasal dengan Konfirmasi Inline */}
+            {onDeletePasal &&
+              (isConfirmingDelete ? (
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-red-50 border border-red-300">
+                  <span className="text-[10px] font-semibold text-red-700">
+                    Hapus {pasal.nomor || 'pasal ini'}?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleConfirmDelete}
+                    title="Ya, hapus pasal"
+                    className="px-1.5 py-0.5 rounded bg-red-600 text-white text-[10px] font-bold hover:bg-red-700 transition-colors cursor-pointer"
+                  >
+                    Ya
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsConfirmingDelete(false);
+                    }}
+                    title="Batal hapus"
+                    className="px-1.5 py-0.5 rounded bg-white text-neu-600 text-[10px] font-bold border border-neu-200 hover:bg-neu-50 transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleDeleteClick}
+                  title={`Hapus ${pasal.nomor || 'pasal ini'}`}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-white text-red-600 border border-red-200 hover:bg-red-50 hover:border-red-400 transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus</span>
+                </button>
+              ))}
+
             {/* Tombol Salin Teks */}
             <button
               type="button"
@@ -142,7 +280,7 @@ function CorrectionPasalCard({
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Body Editor Teks Pasal */}
       {(pasal.isExpanded || !pasal.nomor || pasal.nomor.trim() === '-' || pasal.nomor.trim() === '') && (
@@ -313,8 +451,10 @@ function CorrectionPasalCard({
                     parentId={parentId}
                     isSubPasal={true}
                     onTogglePasal={onTogglePasal}
+                    onChangePasalNomor={onChangePasalNomor}
                     onChangePasalIsi={onChangePasalIsi}
                     onChangePasalPenjelasan={onChangePasalPenjelasan}
+                    onDeletePasal={onDeletePasal}
                   />
                 ))}
               </div>
@@ -330,13 +470,33 @@ export function CorrectionBatangTubuhSection({
   babList,
   onToggleBab,
   onTogglePasal,
+  onAddPasal,
+  onDeletePasal,
+  onAddPasalRoot,
   onChangeBabDeskripsi,
   onChangeBabJudul,
+  onChangePasalNomor,
   onChangePasalIsi,
   onChangePasalPenjelasan,
 }: CorrectionBatangTubuhSectionProps) {
   if (babList.length === 0) {
-    return null;
+    return (
+      <div className="bg-white rounded-[20px] border border-neu-100 p-5 shadow-2xs space-y-3">
+        <p className="text-[12px] text-neu-600">
+          Belum ada struktur batang tubuh terdeteksi dari hasil ekstraksi OCR.
+        </p>
+        {onAddPasalRoot && (
+          <button
+            type="button"
+            onClick={onAddPasalRoot}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[8px] border border-dashed border-pr-900/40 bg-pr-50 text-pr-900 text-[12px] font-semibold hover:bg-pr-100 transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Tambah Pasal Pertama
+          </button>
+        )}
+      </div>
+    );
   }
 
   // Helper rekursif untuk merender node Bab, Bagian, atau Paragraf
@@ -404,10 +564,25 @@ export function CorrectionBatangTubuhSection({
                   parentId={node.id}
                   isSubPasal={false}
                   onTogglePasal={onTogglePasal}
+                  onChangePasalNomor={onChangePasalNomor}
                   onChangePasalIsi={onChangePasalIsi}
                   onChangePasalPenjelasan={onChangePasalPenjelasan}
+                  onDeletePasal={onDeletePasal}
                 />
               ))}
+
+            {/* Tombol Tambah Pasal Manual pada node BAB / BAGIAN / PARAGRAF ini */}
+            {onAddPasal && (
+              <button
+                type="button"
+                onClick={() => onAddPasal(node.id)}
+                title={`Tambah pasal baru di ${node.judul || node.tipe || 'struktur ini'}`}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-[8px] border border-dashed border-pr-900/30 bg-pr-50/50 text-pr-900 text-[11px] font-semibold hover:bg-pr-50 hover:border-pr-900/60 transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Tambah Pasal
+              </button>
+            )}
           </div>
         )}
       </div>

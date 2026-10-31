@@ -22,11 +22,20 @@ export interface DokumenHukumItem {
   status: 'berlaku' | 'tidak_berlaku' | 'draft';
   tgl_ditetapkan: string;
   author?: string;
+  editor?: string;
   real_status?: string;
   has_pdf?: boolean;
+  /** Full tanggal disertai jam pembaruan terakhir dalam WIB, mis. "29 Oktober 2026, 14:33 WIB". */
+  updated_at_label?: string;
 }
 
-export type SortColumn = 'kategori' | 'judul' | 'status' | 'tgl_ditetapkan' | 'author';
+export type SortColumn =
+  | 'kategori'
+  | 'judul'
+  | 'status'
+  | 'tgl_ditetapkan'
+  | 'author'
+  | 'updated_at';
 export type SortDirection = 'asc' | 'desc';
 
 interface DocumentTableProps {
@@ -142,16 +151,17 @@ export function DocumentTable({
         <Table
           containerRef={scrollContainerRef}
           containerClassName="custom-thin-scrollbar table-scroll-indicator"
-          className="w-full min-w-[1150px] table-fixed text-left border-collapse"
+          className="w-full min-w-[1280px] table-fixed text-left border-collapse"
         >
-          {/* Colgroup untuk mengunci proporsi kolom (Kategori, Judul, Subjek, Status, Tgl Ditetapkan, Author [permintaan PM], Aksi) */}
+          {/* Colgroup untuk mengunci proporsi kolom (Kategori, Judul, Subjek, Status, Tgl Ditetapkan, Author [permintaan PM], Terakhir Diperbarui, Aksi) */}
           <colgroup>
-            <col className="w-[14%] min-w-[130px]" />
-            <col className="w-[24%] min-w-[250px]" />
-            <col className="w-[16%] min-w-[180px]" />
-            <col className="w-[12%] min-w-[120px]" />
-            <col className="w-[13%] min-w-[120px]" />
-            <col className="w-[13%] min-w-[120px]" />
+            <col className="w-[12%] min-w-[130px]" />
+            <col className="w-[18%] min-w-[220px]" />
+            <col className="w-[12%] min-w-[150px]" />
+            <col className="w-[11%] min-w-[110px]" />
+            <col className="w-[11%] min-w-[110px]" />
+            <col className="w-[11%] min-w-[110px]" />
+            <col className="w-[17%] min-w-[210px]" />
             <col className="w-[8%] min-w-[70px]" />
           </colgroup>
 
@@ -172,9 +182,14 @@ export function DocumentTable({
             <TableHead className="py-3 px-5 whitespace-nowrap">
               <div
                 onClick={() => onSort?.('judul')}
-                className="group inline-flex items-center gap-1.5 cursor-pointer text-neu-700"
+                className="group inline-flex items-center gap-1.5 cursor-pointer select-none text-neu-700"
               >
                 <span className={sortColumn === 'judul' ? 'text-pr-900 font-semibold' : ''}>Judul</span>
+                {sortColumn === 'judul' && (
+                  <span className="text-[10px] font-bold text-pr-900 leading-none tracking-tight">
+                    {sortDirection === 'asc' ? 'A-Z' : 'Z-A'}
+                  </span>
+                )}
                 <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
                   {renderSortIcon('judul')}
                 </div>
@@ -219,6 +234,19 @@ export function DocumentTable({
                 </div>
               </div>
             </TableHead>
+            <TableHead className="py-3 px-5 whitespace-nowrap">
+              <div
+                onClick={() => onSort?.('updated_at')}
+                className="group inline-flex items-center gap-1.5 cursor-pointer text-neu-700"
+              >
+                <span className={sortColumn === 'updated_at' ? 'text-pr-900 font-semibold' : ''}>
+                  Terakhir Diperbarui
+                </span>
+                <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
+                  {renderSortIcon('updated_at')}
+                </div>
+              </div>
+            </TableHead>
             <TableHead className={`py-3 px-5 text-right whitespace-nowrap rounded-tr-xl sticky right-0 bg-neu-50 z-10 ${
               scrollShadows.right ? 'sticky-aksi-shadow' : ''
             }`}>
@@ -235,7 +263,7 @@ export function DocumentTable({
 
         {/* Table Body (Tinggi dinamis sesuai panjang data tanpa dipaksa min-h) */}
         <TableBody>
-          {documents.map((doc, index) => {
+          {documents.map((doc) => {
             const authorName = doc.author || 'Sistem';
 
             return (
@@ -285,9 +313,23 @@ export function DocumentTable({
                   {doc.tgl_ditetapkan}
                 </TableCell>
 
-                {/* Author (Kolom Tambahan PM) */}
+                {/* Author (Pembuat / Pengimpor Dokumen) */}
                 <TableCell className="py-3.5 px-5 text-neu-700 whitespace-nowrap" title={authorName}>
                   {authorName}
+                </TableCell>
+
+                {/* Terakhir Diperbarui: Full tanggal + jam WIB dan editor pengubah terakhir */}
+                <TableCell className="py-3.5 px-5 whitespace-nowrap" title={doc.updated_at_label}>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-neu-700 font-normal">
+                      {doc.updated_at_label || '-'}
+                    </span>
+                    {doc.updated_at_label && doc.updated_at_label !== '-' && (
+                      <span className="text-[11px] text-neu-500">
+                        oleh {doc.editor || authorName}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
 
                 {/* Aksi: Tinjauan Ringkas + Menu Tiga Titik */}

@@ -3,17 +3,20 @@ import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 export interface StatTrend {
   value: string;
-  direction?: 'up' | 'down' | 'neutral';
+  direction?: 'up' | 'down' | 'neutral' | 'warning';
   isPositive?: boolean;
   icon?: React.ReactNode;
+  showIcon?: boolean;
 }
 
 export interface StatCardProps {
   title: string;
   value: string | number;
   icon?: React.ReactNode;
+  iconColor?: string;
   note?: string;
   noteIcon?: React.ReactNode;
+  noteColor?: string;
   trend?: StatTrend;
   isActive?: boolean;
   onClick?: () => void;
@@ -25,8 +28,10 @@ export interface StatGroupItem {
   title: string;
   value: string | number;
   icon?: React.ReactNode;
+  iconColor?: string;
   note?: string;
   noteIcon?: React.ReactNode;
+  noteColor?: string;
   trend?: StatTrend;
   isActive?: boolean;
   onClick?: () => void;
@@ -41,8 +46,10 @@ export function StatCard({
   title,
   value,
   icon,
+  iconColor,
   note,
   noteIcon,
+  noteColor,
   trend,
   isActive = false,
   onClick,
@@ -83,7 +90,7 @@ export function StatCard({
           {title}
         </span>
         {icon && (
-          <div className="w-5 h-5 flex items-center justify-center text-sec-900 shrink-0">
+          <div className={`w-5 h-5 flex items-center justify-center shrink-0 ${iconColor || 'text-pr-900'}`}>
             {icon}
           </div>
         )}
@@ -101,25 +108,29 @@ export function StatCard({
         {trend ? (
           <div
             className={`flex items-center gap-1 font-semibold leading-[16px] ${
-              trend.direction === 'down' || trend.isPositive === false
+              trend.direction === 'warning'
+                ? 'text-sec-900'
+                : trend.direction === 'down' || trend.isPositive === false
                 ? 'text-dan-600'
                 : trend.direction === 'neutral'
                 ? 'text-neu-500'
                 : 'text-suc-900'
             }`}
           >
-            {trend.icon ?? (
-              trend.direction === 'up' || trend.isPositive === true ? (
-                <ArrowUpRight className="w-4 h-4 shrink-0" />
-              ) : trend.direction === 'down' || trend.isPositive === false ? (
-                <ArrowDownRight className="w-4 h-4 shrink-0" />
-              ) : null
+            {trend.showIcon !== false && (
+              trend.icon !== undefined ? trend.icon : (
+                trend.direction === 'up' || trend.isPositive === true ? (
+                  <ArrowUpRight className="w-4 h-4 shrink-0" />
+                ) : trend.direction === 'down' || trend.isPositive === false ? (
+                  <ArrowDownRight className="w-4 h-4 shrink-0" />
+                ) : null
+              )
             )}
             <span>{trend.value}</span>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 text-neu-500 font-medium leading-[18px]">
-            {noteIcon && <span className="text-neu-400 shrink-0">{noteIcon}</span>}
+          <div className={`flex items-center gap-1.5 font-medium leading-[18px] ${noteColor || 'text-neu-500'}`}>
+            {noteIcon && <span className={`shrink-0 ${noteColor ? 'text-inherit' : 'text-neu-400'}`}>{noteIcon}</span>}
             {note && <span>{note}</span>}
           </div>
         )}
@@ -139,8 +150,10 @@ export function StatCardsGroup({ items, className = '' }: StatCardsGroupProps) {
           title={item.title}
           value={item.value}
           icon={item.icon}
+          iconColor={item.iconColor}
           note={item.note}
           noteIcon={item.noteIcon}
+          noteColor={item.noteColor}
           trend={item.trend}
           isActive={item.isActive}
           onClick={item.onClick}

@@ -15,12 +15,14 @@ class Peraturan extends Model
 
     protected static function booted(): void
     {
-        static::saved(function () {
+        static::saved(function (Peraturan $peraturan) {
             \App\Http\Controllers\Api\RegionController::clearCache();
+            \Illuminate\Support\Facades\Cache::forget("peraturan_has_pdf_{$peraturan->id}");
         });
 
-        static::deleted(function () {
+        static::deleted(function (Peraturan $peraturan) {
             \App\Http\Controllers\Api\RegionController::clearCache();
+            \Illuminate\Support\Facades\Cache::forget("peraturan_has_pdf_{$peraturan->id}");
         });
 
         // Skema bookmark bersifat polimorfik, jadi tidak bisa memakai foreign key

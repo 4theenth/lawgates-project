@@ -345,7 +345,7 @@ export function Pagination({
   // 2. PUBLIC VARIANT RENDER (100% Identik dengan semula di Pencarian & Bookmark)
   // ─────────────────────────────────────────────────────────────
   return (
-    <div className={`w-full mt-10 pt-6 border-t border-gray-100 ${className}`}>
+    <div className={`w-full mt-6 pt-5 border-t border-neu-100 ${className}`}>
       {/* Mobile View */}
       <div className="flex sm:hidden flex-col items-center gap-3 w-full">
         {handlePageSizeChange && (
@@ -376,8 +376,8 @@ export function Pagination({
                     }}
                     className={`w-full py-1 text-center text-xs transition-colors cursor-pointer ${
                       effectivePageSize === num
-                        ? 'bg-blue-50 text-pr-900 font-semibold'
-                        : 'text-neu-700 hover:bg-gray-50'
+                        ? 'bg-pr-50 text-pr-900 font-semibold'
+                        : 'text-neu-700 hover:bg-neu-50'
                     }`}
                   >
                     {num}
@@ -421,8 +421,8 @@ export function Pagination({
                 onClick={() => onPageChange && onPageChange(pageNum)}
                 className={`w-8 h-8 rounded-[8px] flex items-center justify-center font-medium text-xs transition-colors cursor-pointer select-none shrink-0 ${
                   isActive
-                    ? 'bg-[#0B1A3A] text-white font-bold shadow-2xs'
-                    : 'text-neu-700 hover:bg-gray-100 bg-white border border-neu-50'
+                    ? 'bg-pr-900 text-white font-bold shadow-2xs'
+                    : 'text-neu-700 hover:bg-neu-50 bg-white border border-neu-100'
                 }`}
               >
                 {pageNum}
@@ -443,36 +443,36 @@ export function Pagination({
       </div>
 
       {/* Desktop View */}
-      <div className="hidden sm:flex items-center justify-between gap-4 w-full">
+      <div className="hidden sm:flex flex-wrap items-center justify-between gap-3 w-full">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={handlePrev}
             disabled={currentPage <= 1}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 bg-white hover:bg-gray-50 transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-neu-200 rounded-xl text-xs font-semibold text-neu-700 bg-white hover:bg-neu-50 hover:text-neu-900 transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 text-neu-600" />
             <span>Sebelumnya</span>
           </button>
 
           {handlePageSizeChange && (
-            <div ref={dropdownRef} className="relative flex items-center gap-1.5 text-xs text-gray-500">
+            <div ref={dropdownRef} className="relative flex items-center gap-1.5 text-xs text-neu-500">
               <span>Lihat</span>
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen((prev) => !prev)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-neu-200 rounded-lg text-xs font-semibold text-neu-700 hover:bg-neu-50 shadow-2xs transition-colors cursor-pointer"
               >
                 <span>{effectivePageSize}</span>
                 <ChevronDown
-                  className={`w-3.5 h-3.5 text-gray-400 transition-transform ${
+                  className={`w-3.5 h-3.5 text-neu-500 transition-transform ${
                     isDropdownOpen ? 'rotate-180' : ''
                   }`}
                 />
               </button>
 
               {isDropdownOpen && (
-                <div className="absolute left-10 bottom-[calc(100%+6px)] w-16 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50">
+                <div className="absolute left-10 bottom-[calc(100%+6px)] w-16 bg-white border border-neu-200 rounded-xl shadow-lg py-1 z-50">
                   {effectivePageSizeOptions.map((num) => (
                     <button
                       key={num}
@@ -483,8 +483,8 @@ export function Pagination({
                       }}
                       className={`w-full py-1 text-center text-xs transition-colors cursor-pointer ${
                         effectivePageSize === num
-                          ? 'bg-blue-50 text-pr-900 font-semibold'
-                          : 'text-gray-700 hover:bg-gray-50'
+                          ? 'bg-pr-50 text-pr-900 font-semibold'
+                          : 'text-neu-700 hover:bg-neu-50'
                       }`}
                     >
                       {num}
@@ -506,10 +506,10 @@ export function Pagination({
                 disabled={page === '...'}
                 className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                   page === currentPage
-                    ? 'bg-[#0B1A3A] text-white shadow-sm'
+                    ? 'bg-pr-900 text-white shadow-2xs'
                     : page === '...'
-                    ? 'text-gray-400 cursor-default'
-                    : 'text-gray-600 hover:bg-gray-100 bg-white'
+                    ? 'text-neu-400 cursor-default'
+                    : 'text-neu-700 hover:bg-neu-100 hover:text-neu-900 bg-white'
                 }`}
               >
                 {page}
@@ -521,10 +521,10 @@ export function Pagination({
             type="button"
             onClick={handleNext}
             disabled={currentPage >= effectiveTotalPages || effectiveTotalPages === 0}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 bg-white hover:bg-gray-50 transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-neu-200 rounded-xl text-xs font-semibold text-neu-700 bg-white hover:bg-neu-50 hover:text-neu-900 transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             <span>Selanjutnya</span>
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 text-neu-600" />
           </button>
         </div>
       </div>

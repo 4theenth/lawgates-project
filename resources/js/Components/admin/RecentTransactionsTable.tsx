@@ -40,9 +40,9 @@ export function RecentTransactionsTable({
   const [sortColumn, setSortColumn] = useState<'userName' | 'date' | 'status' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  // State pagination (4 baris per halaman, menghasilkan 3 halaman untuk 12 dummy data)
+  // State pagination (5 baris per halaman agar selaras dengan tabel dokumen terbaru)
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 4;
+  const pageSize = 5;
 
   const handleSort = (column: 'userName' | 'date' | 'status') => {
     if (sortColumn === column) {

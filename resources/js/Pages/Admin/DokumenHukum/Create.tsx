@@ -18,6 +18,7 @@ import {
 import {
   CorrectionDetailView,
   LegalDocumentCorrectionData,
+  generateInitialCorrectionData,
 } from '@/Components/admin/import/CorrectionDetailView';
 import { DraftNameModal } from '@/Components/admin/DraftNameModal';
 import { DuplicateConfirmModal } from '@/Components/admin/DuplicateConfirmModal';
@@ -110,6 +111,7 @@ export default function DokumenHukumCreate() {
 
   // State status publikasi & progress bar saat Publish
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isOverwriting, setIsOverwriting] = useState(false);
   const [publishProcessList, setPublishProcessList] = useState<ProcessedFileItem[]>([]);
 
   // State status publikasi Langkah 4
@@ -626,7 +628,7 @@ export default function DokumenHukumCreate() {
         setIsDraftModalOpen(false);
         setDuplicateModal({
           show: true,
-          title: 'Duplikasi Draft Terdeteksi (409 Conflict)',
+          title: 'Dokumen Ini Sudah Ada',
           message: msg,
           documentTitle: namaDraft,
           existingId: errorData.existing_id,
@@ -653,8 +655,17 @@ export default function DokumenHukumCreate() {
   };
 
   // Handler publikasi seluruh berkas ke database dengan visual progress bar
-  const handlePublishToDatabase = async () => {
-    if (isPublishing || validatedFiles.length === 0) return;
+  const handlePublishToDatabase = async (options: { allowOverwrite?: boolean } = {}) => {
+    const allowOverwrite = options.allowOverwrite === true;
+
+    if (allowOverwrite) {
+      setIsOverwriting(true);
+    }
+
+    // Saat menimpa, isPublishing sudah direset ke false oleh handler modal,
+    // jadi guard ini tidak boleh memblokir percobaan penimpaan.
+    if (!allowOverwrite && (isPublishing || validatedFiles.length === 0)) return;
+    if (validatedFiles.length === 0) return;
 
     // 1. Inisialisasi daftar progress file untuk visual loading bar
     const initialPublish: ProcessedFileItem[] = validatedFiles.map((file) => ({
@@ -682,6 +693,11 @@ export default function DokumenHukumCreate() {
 
     try {
       const payload = new FormData();
+
+      if (allowOverwrite) {
+        payload.append('allow_overwrite', '1');
+      }
+
       validatedFiles.forEach((file, index) => {
         const parsed = typeof file.parsedData === 'object' && file.parsedData !== null
           ? { ...file.parsedData }
@@ -726,9 +742,19 @@ export default function DokumenHukumCreate() {
         const errorData = await response.json().catch(() => ({}));
         const msg = errorData.message || 'Dokumen sudah ada di sistem (Duplikasi terdeteksi).';
         setIsPublishing(false);
+        setIsOverwriting(false);
+
+        // Saat mode timpa, 409 berarti masih ada konflik lain (mis. duplikat
+        // di dalam batch). Jangan buka modal lagi supaya tidak terjadi loop.
+        if (allowOverwrite) {
+          toast.error(msg);
+          setInlineError(msg);
+          return;
+        }
+
         setDuplicateModal({
           show: true,
-          title: 'Duplikasi Dokumen Terdeteksi (409 Conflict)',
+          title: 'Dokumen Ini Sudah Ada',
           message: msg,
           documentTitle: errorData.existing_title || errorData.title || validatedFiles[0]?.title,
           existingId: errorData.existing_id,
@@ -755,18 +781,26 @@ export default function DokumenHukumCreate() {
       // Jeda 800ms agar animasi progress bar 100% dan pesan sukses terbaca oleh user
       setTimeout(() => {
         setIsPublishing(false);
+        setIsOverwriting(false);
         setSavedAsDraft(false);
         setCurrentStep(4);
         setIsSavedSuccess(true);
-        toast.success('Data hukum berhasil dipublikasikan!');
+        setDuplicateModal((prev) => ({ ...prev, show: false }));
+        toast.success(allowOverwrite ? 'Dokumen berhasil ditimpa!' : 'Data hukum berhasil dipublikasikan!');
       }, 800);
 
     } catch (error: any) {
       clearInterval(progressInterval);
       setIsPublishing(false);
+      setIsOverwriting(false);
       console.error(error);
       toast.error(error.message || 'Data gagal dipublikasikan');
     }
+  };
+
+  // Eksekusi penimpaan setelah admin menyetujui peringatan di modal duplikasi
+  const handleConfirmOverwrite = () => {
+    handlePublishToDatabase({ allowOverwrite: true });
   };
 
   // Handler shortcut reset untuk tambah data baru lagi secara cepat
@@ -921,19 +955,19 @@ export default function DokumenHukumCreate() {
             />
           ) : (
             <div className="flex-1 min-w-0 flex flex-col w-full">
-              {/* Tombol Simpan & Publish di Kanan Atas Di Atas Kartu */}
+              {/* Tombol Draft/Simpan & Publish di Kanan Atas Di Atas Kartu */}
               <div className="flex items-center justify-end gap-3 mb-4">
                 <button
                   type="button"
                   onClick={() => setIsDraftModalOpen(true)}
                   className="inline-flex items-center justify-center px-6 py-2 rounded-[10px] border border-neu-800 text-neu-900 text-[14px] font-medium hover:bg-neu-50 transition-colors shadow-2xs cursor-pointer"
                 >
-                  <span>Simpan</span>
+                  <span>Draft/Simpan</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={handlePublishToDatabase}
+                  onClick={() => handlePublishToDatabase()}
                   disabled={isPublishing}
                   className={`inline-flex items-center justify-center px-6 py-2 rounded-[10px] bg-pr-900 text-white text-[14px] font-medium hover:bg-pr-800 transition-colors shadow-2xs ${
                     isPublishing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
@@ -1041,6 +1075,36 @@ export default function DokumenHukumCreate() {
         message={duplicateModal.message}
         documentTitle={duplicateModal.documentTitle}
         existingId={duplicateModal.existingId}
+        onOverwrite={handleConfirmOverwrite}
+        isOverwriting={isOverwriting}
+        onEdit={() => {
+          setDuplicateModal((prev) => ({ ...prev, show: false }));
+          if (validatedFiles.length > 0) {
+            setEditingFile(validatedFiles[0]);
+          }
+        }}
+        onSaveNewTitle={(newTitle) => {
+          if (validatedFiles.length > 0) {
+            const first = validatedFiles[0];
+            const baseCorrection = first.correctionData || generateInitialCorrectionData(first);
+            const updatedCorrection = {
+              ...baseCorrection,
+              judul: newTitle,
+            };
+            setValidatedFiles((prev) =>
+              prev.map((f, idx) =>
+                idx === 0
+                  ? {
+                      ...f,
+                      title: newTitle,
+                      correctionData: updatedCorrection,
+                    }
+                  : f
+              )
+            );
+            toast.success('Judul dokumen berhasil diperbarui. Silakan simpan / publikasikan ulang.');
+          }
+        }}
       />
     </AdminLayout>
   );

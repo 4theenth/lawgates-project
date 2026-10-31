@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
-import { router } from '@inertiajs/react';
-import { Calendar, Mail, Camera, Trash2, Loader2 } from 'lucide-react';
-import { User } from '@/types';
+import { router, usePage } from '@inertiajs/react';
+import { Calendar, Mail, Camera, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { PageProps, User } from '@/types';
 import { useToast } from '@/hooks/useToast';
 import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
 import profileAvatar from '@/assets/profile-avatar.webp';
@@ -49,39 +49,52 @@ export function ProfileAvatarCard({
   defaultAvatar,
 }: ProfileAvatarCardProps) {
   const { toast } = useToast();
+  const { errors } = usePage<PageProps>().props;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [showDeleteAvatarModal, setShowDeleteAvatarModal] = useState(false);
   const [isDeletingAvatar, setIsDeletingAvatar] = useState(false);
+  const [isAvatarBroken, setIsAvatarBroken] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
+
+  const resetFileInput = () => {
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!['image/jpeg', 'image/png', 'image/jpg', 'image/webp'].includes(file.type)) {
-      toast.error('Format foto harus berupa JPG, PNG, atau WEBP.');
+      setClientError('Format foto harus berupa JPG, PNG, atau WEBP.');
+      resetFileInput();
       return;
     }
 
+    // Batas ini harus sama dengan aturan validasi `avatar.max:2048` di server.
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('Ukuran foto profil maksimal 2MB.');
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      setClientError(`Ukuran foto ${sizeMb}MB melebihi batas 2MB.`);
+      resetFileInput();
       return;
     }
 
     const formData = new FormData();
     formData.append('avatar', file);
 
+    setClientError(null);
     setIsUploadingAvatar(true);
+    setIsAvatarBroken(false);
     router.post(route('profile.avatar.update'), formData, {
       preserveScroll: true,
       onSuccess: () => {
         setIsUploadingAvatar(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        resetFileInput();
       },
-      onError: () => {
+      onError: (serverErrors) => {
         setIsUploadingAvatar(false);
-        toast.error('Gagal mengunggah foto profil.');
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        setClientError(serverErrors.avatar || 'Gagal mengunggah foto profil.');
+        resetFileInput();
       },
     });
   };
@@ -109,7 +122,7 @@ export function ProfileAvatarCard({
   const fallbackAvatar =
     defaultAvatar ||
     (user.role === 'admin' || user.role === 'superadmin' ? adminAvatar : profileAvatar);
-  const displayAvatar = user.avatar || fallbackAvatar;
+  const displayAvatar = (!isAvatarBroken && user.avatar) || fallbackAvatar;
   const displayName =
     user.name && user.name.toLowerCase() !== 'superadmin'
       ? user.name
@@ -135,7 +148,7 @@ export function ProfileAvatarCard({
         className={`w-full min-h-[250px] bg-white border border-neu-50 rounded-[12px] p-5 lg:p-6 shadow-2xs flex flex-col justify-between ${className}`}
       >
         {/* Bagian Atas: Avatar + User Info (Node #2406:41356) */}
-        <div className="flex items-start gap-[16px] pb-[40px] border-b border-neu-50">
+        <div className="flex items-start gap-[16px] pb-4">
           {/* Group Avatar 80x80px (#2403:41324) */}
           <div className="relative w-20 h-20 shrink-0">
             <div className="w-20 h-20 rounded-full border border-neu-50 overflow-hidden bg-white flex items-center justify-center">
@@ -143,8 +156,10 @@ export function ProfileAvatarCard({
                 <Loader2 className="w-6 h-6 text-pr-900 animate-spin" />
               ) : (
                 <img
+                  key={displayAvatar}
                   src={displayAvatar}
                   alt={displayName}
+                  onError={() => setIsAvatarBroken(true)}
                   className="w-full h-full object-cover"
                 />
               )}
@@ -208,11 +223,22 @@ export function ProfileAvatarCard({
                 <span>Hapus</span>
               </button>
             </div>
+
+            {/* Pesan gagal unggah: tampil permanen agar tidak terlewat seperti toast */}
+            {(clientError || errors.avatar) && (
+              <p
+                role="alert"
+                className="flex items-start gap-1.5 mt-2.5 font-sans text-[12px] leading-[18px] text-dan-900"
+              >
+                <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 stroke-[2]" />
+                <span>{clientError || errors.avatar}</span>
+              </p>
+            )}
           </div>
         </div>
 
         {/* Bagian Bawah: Box Info Terakhir Diperbarui & Verifikasi Email */}
-        <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Terakhir Diperbarui */}
           <div className="h-10 px-3.5 rounded-[10px] bg-white border border-neu-50 flex items-center justify-between">
             <div className="flex items-center gap-2.5 font-sans text-[12px] font-medium leading-[18px] text-neu-900">

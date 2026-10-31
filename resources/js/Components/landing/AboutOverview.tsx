@@ -46,36 +46,18 @@ export function AboutOverview() {
             {/* Badge */}
             <div
               className="
-                flex
-                px-[8px]
-                py-[2px]
+                inline-flex
+                px-2.5
+                py-0.5
                 justify-center
                 items-center
-                gap-[8px]
                 rounded-[20px]
                 border
-                border-[#E7E8EC]
+                border-pr-50
                 bg-white
                 text-pr-900
               "
             >
-              {/* Ellipse 3 */}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="6"
-                height="6"
-                viewBox="0 0 6 6"
-                fill="none"
-                className="shrink-0"
-              >
-                <circle
-                  cx="3"
-                  cy="3"
-                  r="3"
-                  fill="#0A1C3E"
-                />
-              </svg>
-
               <span
                 className="
                   text-pr-900

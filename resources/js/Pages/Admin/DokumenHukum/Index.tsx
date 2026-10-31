@@ -15,12 +15,7 @@ import { DeleteConfirmModal } from '@/Components/admin/DeleteConfirmModal';
 import { DuplicateConfirmModal } from '@/Components/admin/DuplicateConfirmModal';
 import { PageHeader } from '@/Components/common/PageHeader';
 import { StatCardsGroup } from '@/Components/admin/StatCard';
-import {
-  CorrectionDetailView,
-  LegalDocumentCorrectionData,
-  formatStandardId,
-} from '@/Components/admin/import/CorrectionDetailView';
-import { Plus, Search, X, Files, CheckCircle2, XCircle, FilePenLine, AlertCircle } from 'lucide-react';
+import { Search, X, Files, CheckCircle2, XCircle, FilePenLine, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
 export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, referensi }: any) {
@@ -127,8 +122,6 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
 
   // In-place Modal Overlay states (Nimpa bukan buka halaman baru)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingDoc, setEditingDoc] = useState<DokumenHukumItem | null>(null);
-  const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [editingStatusDoc, setEditingStatusDoc] = useState<DokumenHukumItem | null>(null);
   const [deletingDoc, setDeletingDoc] = useState<DokumenHukumItem | null>(null);
   const [previewDoc, setPreviewDoc] = useState<DokumenHukumItem | null>(null);
@@ -158,20 +151,16 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
   // ── Penanganan Tombol Back Bawaan Browser (Chrome/Edge/Firefox) ──
   // Menjaga agar tombol back browser saat edit data kembali ke daftar /admin/dokumen-hukum
   // bukannya mundur ke /admin/dashboard
-  const editStateRef = useRef({ editingDoc, isAddModalOpen, editingStatusDoc, deletingDoc });
+  const editStateRef = useRef({ isAddModalOpen, editingStatusDoc, deletingDoc });
 
   useEffect(() => {
-    editStateRef.current = { editingDoc, isAddModalOpen, editingStatusDoc, deletingDoc };
-  }, [editingDoc, isAddModalOpen, editingStatusDoc, deletingDoc]);
+    editStateRef.current = { isAddModalOpen, editingStatusDoc, deletingDoc };
+  }, [isAddModalOpen, editingStatusDoc, deletingDoc]);
 
   useEffect(() => {
     const handlePopState = () => {
-      const { editingDoc: curEditingDoc, isAddModalOpen: curAdd, editingStatusDoc: curStatus, deletingDoc: curDelete } = editStateRef.current;
+      const { isAddModalOpen: curAdd, editingStatusDoc: curStatus, deletingDoc: curDelete } = editStateRef.current;
 
-      if (curEditingDoc !== null) {
-        setEditingDoc(null);
-        return;
-      }
       if (curAdd) {
         setIsAddModalOpen(false);
         return;
@@ -192,12 +181,12 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
     };
   }, []);
 
-  // Sync state dengan history browser saat masuk mode edit atau membuka modal
+  // Sync state dengan history browser saat membuka modal
   useEffect(() => {
-    if (editingDoc !== null || isAddModalOpen || editingStatusDoc !== null || deletingDoc !== null) {
+    if (isAddModalOpen || editingStatusDoc !== null || deletingDoc !== null) {
       window.history.pushState({ activeOverlay: true }, '');
     }
-  }, [editingDoc, isAddModalOpen, editingStatusDoc, deletingDoc]);
+  }, [isAddModalOpen, editingStatusDoc, deletingDoc]);
 
   const breadcrumbs = [
     { label: 'Dashboard', href: '/admin/dashboard' },
@@ -313,27 +302,11 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
     setEditingStatusDoc(doc);
   };
 
-  const handleEditClick = async (doc: DokumenHukumItem) => {
-    setIsDetailLoading(true);
-    try {
-      const response = await fetch(`/admin/dokumen-hukum/${doc.id}/detail-edit`, {
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) throw new Error('Gagal memuat data peraturan');
-      
-      const resJson = await response.json();
-      
-      doc = { 
-        ...doc, 
-        correctionData: resJson
-      } as any;
-    } catch (error) {
-      console.error(error);
-      toast.error('Gagal mengambil detail peraturan');
-    } finally {
-      setIsDetailLoading(false);
-    }
-    setEditingDoc(doc);
+  // ── Navigasi ke Halaman Edit dengan URL Permanen ──
+  // Layar koreksi kini punya route sendiri (/admin/dokumen-hukum/{id}/edit)
+  // sehingga refresh maupun bookmark tetap berada di halaman edit.
+  const handleEditClick = (doc: DokumenHukumItem) => {
+    router.visit(`/admin/dokumen-hukum/${doc.id}/edit`);
   };
 
   // Handler simpan status dari EditStatusModal
@@ -450,76 +423,6 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
   const totalPages = activePaginator?.last_page || 1;
   const hasData = isDraftTab ? paginatedDrafts.length > 0 : paginatedDocuments.length > 0;
 
-  // JIKA SEDANG EDIT DATA DOKUMEN: Tampilkan Layar Penuh Edit Data Hukum Sesuai Tangkapan Layar
-  if (editingDoc) {
-    return (
-      <AdminLayout>
-        <Head title={`Edit Data Hukum - ${editingDoc.judul}`} />
-
-        {/* 1. Breadcrumb Navigasi Edit */}
-        <div className="mb-4">
-          <Breadcrumb
-            items={[
-              { label: 'Dashboard', href: '/admin/dashboard' },
-              {
-                label: 'Dokumen Hukum',
-                onClick: () => setEditingDoc(null),
-              },
-              { label: 'Edit Data Hukum' },
-            ]}
-          />
-        </div>
-
-        <CorrectionDetailView
-          mode="edit"
-          file={{
-            id: editingDoc.id,
-            name: `${editingDoc.kategori}_${editingDoc.id}.json`,
-            category: editingDoc.kategori,
-            title: editingDoc.judul,
-            correctionData: (editingDoc as any).correctionData,
-            parsedData: (editingDoc as any).parsedData || {
-              metadata: {
-                standard_id: formatStandardId(`${editingDoc.kategori} ${editingDoc.judul}`),
-                judul: editingDoc.judul,
-                pemrakarsa: (editingDoc as any).pemrakarsa || 'Pemerintah Pusat',
-                tanggal_penetapan: editingDoc.tgl_ditetapkan,
-                tempat_penetapan: (editingDoc as any).tempat_penetapan || 'Jakarta',
-              },
-            },
-          }}
-          onSave={async (updatedCorrection: LegalDocumentCorrectionData) => {
-            try {
-              const response = await fetch(`/admin/dokumen-hukum/${editingDoc.id}`, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                  'X-CSRF-TOKEN': (document.head.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
-                },
-                body: JSON.stringify(updatedCorrection)
-              });
-
-              const json = await response.json();
-
-              if (!response.ok || !json.success) {
-                throw new Error(json.message || 'Gagal menyimpan data');
-              }
-
-              toast.success('Data hukum berhasil diperbarui');
-              setEditingDoc(null);
-              router.reload({ only: ['peraturans'] });
-            } catch (error: any) {
-              console.error(error);
-              toast.error(error.message || 'Gagal menyimpan data hukum');
-            }
-          }}
-          onCancel={() => setEditingDoc(null)}
-          onBack={() => setEditingDoc(null)}
-        />
-      </AdminLayout>
-    );
-  }
 
   return (
     <AdminLayout>
@@ -743,7 +646,6 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
             onEdit={handleEditClick}
             onToggleStatus={handleOpenEditStatus}
             onDelete={(doc) => setDeletingDoc(doc)}
-            isDetailLoading={isDetailLoading}
           />
         ) : (
           <EmptyState
@@ -818,7 +720,7 @@ export default function DokumenHukumIndex({ peraturans, drafts, stats, filters, 
       <DuplicateConfirmModal
         show={duplicateModal.show}
         onClose={() => setDuplicateModal((prev) => ({ ...prev, show: false }))}
-        title={duplicateModal.title}
+        title={duplicateModal.title || 'Dokumen Ini Sudah Ada'}
         message={duplicateModal.message}
         documentTitle={duplicateModal.documentTitle}
         existingId={duplicateModal.existingId}

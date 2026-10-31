@@ -93,7 +93,7 @@ export function BookmarkButton({
     shape === 'circle'
       ? isBookmarked
         ? 'bg-pr-100 text-pr-900 border border-pr-200'
-        : 'bg-neu-50 hover:bg-neu-100 text-neu-700 hover:text-pr-900 border border-neu-100/80'
+        : 'bg-neu-50 hover:bg-neu-100 text-neu-700 hover:text-pr-900 border border-neu-200'
       : isBookmarked
         ? 'text-pr-900 fill-pr-900 bg-pr-50'
         : 'text-neu-400 hover:text-neu-700 hover:bg-neu-50';

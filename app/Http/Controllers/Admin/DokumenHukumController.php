@@ -14,6 +14,7 @@ use App\Models\Pasal;
 use App\Models\PenjelasanPasal;
 use App\Models\LawRelation;
 use App\Models\DraftDokumen;
+use App\Models\PeraturanOverwriteLog;
 use Illuminate\Support\Facades\DB;
 
 class DokumenHukumController extends Controller
@@ -102,10 +103,12 @@ class DokumenHukumController extends Controller
                       ->orderBy('peraturan.updated_at', 'desc');
             } else if ($request->sortColumn === 'author') {
                 $query->leftJoin('users as creator', 'peraturan.created_by', '=', 'creator.id')
-                      ->leftJoin('users as updater', 'peraturan.updated_by', '=', 'updater.id')
-                      ->orderByRaw("COALESCE(updater.username, creator.username, 'Sistem') {$direction}")
+                      ->orderByRaw("COALESCE(creator.username, 'Sistem') {$direction}")
                       ->orderBy('peraturan.updated_at', 'desc')
                       ->select('peraturan.*');
+            } else if ($request->sortColumn === 'updated_at') {
+                $query->orderBy('peraturan.updated_at', $direction)
+                      ->orderBy('peraturan.id', $direction);
             } else {
                 $query->orderBy($request->sortColumn, $direction);
             }
@@ -118,7 +121,10 @@ class DokumenHukumController extends Controller
         $paginator = $query->paginate($pageSize)->withQueryString();
 
         // Format data to match React component expectations
-        $formattedData = $paginator->getCollection()->map(function ($item) {
+        $displayTimezone = config('app.display_timezone', 'Asia/Jakarta');
+        $disk = \Illuminate\Support\Facades\Storage::disk('minio');
+
+        $formattedData = $paginator->getCollection()->map(function ($item) use ($displayTimezone, $disk) {
             $namaStatus = strtolower($item->statusPeraturan ? $item->statusPeraturan->nama_status : '');
             $status = 'berlaku';
             if (str_contains($namaStatus, 'draft')) {
@@ -126,6 +132,38 @@ class DokumenHukumController extends Controller
             } else if (str_contains($namaStatus, 'tidak berlaku')) {
                 $status = 'tidak_berlaku';
             }
+
+            // Tampilkan waktu pembaruan dalam zona waktu lokal admin (WIB).
+            $updatedAt = $item->updated_at?->copy()->timezone($displayTimezone);
+
+            $author = $item->creator ? $item->creator->username : 'Sistem';
+            $editor = $item->updater ? $item->updater->username : $author;
+
+            // Selalu periksa ketersediaan berkas PDF nyata saat data dipanggil di list ini
+            $hasPdf = \Illuminate\Support\Facades\Cache::remember("peraturan_has_pdf_{$item->id}", 60, function () use ($item, $disk) {
+                if (\App\Services\DocumentStorageService::hasLocalCache($item->unique_id, $item->file_pdf_path)) {
+                    return true;
+                }
+
+                if (!empty($item->file_pdf_path)) {
+                    try {
+                        $exists = $disk->exists($item->file_pdf_path);
+                        if (!$exists) {
+                            $item->update(['file_pdf_path' => null]);
+                        }
+                        return $exists;
+                    } catch (\Throwable $e) {
+                        return false;
+                    }
+                }
+
+                try {
+                    $resolved = \App\Services\DocumentStorageService::resolveValidMinioPath($item);
+                    return !empty($resolved);
+                } catch (\Throwable $e) {
+                    return false;
+                }
+            });
 
             return [
                 'id' => (string) $item->unique_id, // unique_id used for URL and deletion
@@ -138,11 +176,14 @@ class DokumenHukumController extends Controller
                 'instansi' => $item->instansi,
                 'status' => $status,
                 'tgl_ditetapkan' => $item->tanggal_penetapan ? $item->tanggal_penetapan->isoFormat('D MMMM YYYY') : '-',
-                'author' => $item->updater ? $item->updater->username : ($item->creator ? $item->creator->username : 'Sistem'),
+                'author' => $author,
+                'editor' => $editor,
+                // Full tanggal disertai jam dalam format Indonesia dan WIB
+                'updated_at_label' => $updatedAt
+                    ? $updatedAt->locale('id')->isoFormat('D MMMM YYYY, HH:mm') . ' WIB'
+                    : '-',
                 'real_status' => $item->statusPeraturan ? $item->statusPeraturan->nama_status : '-',
-                // file_pdf_path adalah sumber kebenaran; url_pdf hanya metadata
-                // sumber dan tidak menjamin berkas PDF benar-benar tersimpan.
-                'has_pdf' => !empty($item->file_pdf_path),
+                'has_pdf' => (bool) $hasPdf,
             ];
         });
 
@@ -243,6 +284,34 @@ class DokumenHukumController extends Controller
         ]);
     }
 
+    /**
+     * Halaman edit dokumen hukum dengan URL permanen.
+     *
+     * Memakai slug `unique_id` sehingga refresh maupun bookmark tetap membuka
+     * layar koreksi, tidak dilempar kembali ke daftar dokumen.
+     */
+    public function edit($unique_id)
+    {
+        $peraturan = Peraturan::with(['jenisPeraturan'])->where('unique_id', $unique_id)->firstOrFail();
+
+        $detail = $this->buildDetailCorrectionData($peraturan);
+
+        return Inertia::render('Admin/DokumenHukum/Edit', [
+            'uniqueId' => (string) $peraturan->unique_id,
+            'correctionData' => $detail,
+            'dokumen' => [
+                'id' => (string) $peraturan->unique_id,
+                'judul' => $peraturan->judul,
+                'kategori' => $peraturan->jenisPeraturan ? $peraturan->jenisPeraturan->nama : '-',
+                'tgl_ditetapkan' => $peraturan->tanggal_penetapan
+                    ? $peraturan->tanggal_penetapan->isoFormat('D MMMM YYYY')
+                    : null,
+                'status' => $peraturan->statusPeraturan ? $peraturan->statusPeraturan->nama_status : null,
+                'instansi' => $peraturan->instansi,
+            ],
+        ]);
+    }
+
     public function storeDraft(Request $request)
     {
         $request->validate([
@@ -290,7 +359,7 @@ class DokumenHukumController extends Controller
                     return response()->json([
                         'success' => false,
                         'conflict' => true,
-                        'message' => "Peraturan dengan judul \"{$fileTitle}\" sudah ada di database sistem (Duplikasi terdeteksi).",
+                        'message' => "Dokumen berjudul '{$fileTitle}' sudah ada di database sistem (Duplikasi terdeteksi).",
                         'existing_id' => $duplicatePeraturan->unique_id,
                         'existing_title' => $duplicatePeraturan->judul
                     ], 409);
@@ -372,6 +441,37 @@ class DokumenHukumController extends Controller
         return response()->json(['exists' => false]);
     }
 
+    public function searchPeraturan(Request $request)
+    {
+        $q = trim((string) ($request->input('q') ?? $request->input('search') ?? ''));
+        if (strlen($q) < 2) {
+            return response()->json(['data' => []]);
+        }
+
+        $likeOp = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
+        $peraturans = Peraturan::query()
+            ->where(function ($sub) use ($q, $likeOp) {
+                $sub->where('unique_id', $likeOp, "%{$q}%")
+                    ->orWhere('judul', $likeOp, "%{$q}%")
+                    ->orWhere('nomor', $likeOp, "%{$q}%");
+            })
+            ->whereRaw("LOWER(COALESCE(judul, '')) NOT LIKE '%menunggu import%'")
+            ->orderBy('updated_at', 'desc')
+            ->limit(15)
+            ->get(['id', 'unique_id', 'judul', 'nomor', 'tahun']);
+
+        return response()->json([
+            'data' => $peraturans->map(fn ($p) => [
+                'id' => $p->id,
+                'unique_id' => $p->unique_id,
+                'judul' => $p->judul,
+                'nomor' => $p->nomor,
+                'tahun' => $p->tahun,
+            ]),
+        ]);
+    }
+
     public function checkDuplicate(Request $request)
     {
         $filename = $request->query('filename');
@@ -398,13 +498,13 @@ class DokumenHukumController extends Controller
                 });
             }
         } elseif ($judul) {
-            $query->whereRaw('LOWER(judul) LIKE ?', ['%' . strtolower($judul) . '%']);
+            $query->whereRaw('LOWER(judul) = ?', [strtolower(trim($judul))]);
         } elseif ($filename) {
             $cleanName = pathinfo($filename, PATHINFO_FILENAME);
             $cleanNameWithSpaces = str_replace('_', ' ', $cleanName);
             $query->where(function($q) use ($cleanName, $cleanNameWithSpaces) {
                 $q->where('unique_id', $cleanName)
-                  ->orWhereRaw('LOWER(judul) LIKE ?', ['%' . strtolower($cleanNameWithSpaces) . '%']);
+                  ->orWhereRaw('LOWER(judul) = ?', [strtolower(trim($cleanNameWithSpaces))]);
             });
         }
 
@@ -429,15 +529,33 @@ class DokumenHukumController extends Controller
                 $draftQuery->where('files_data', 'like', '%' . $nomor . '%')
                            ->where('files_data', 'like', '%' . $tahun . '%');
             }
-            $draft = $draftQuery->first();
-            if ($draft) {
-                return response()->json([
-                    'exists' => true,
-                    'conflict' => true,
-                    'source' => 'draft',
-                    'draft_name' => $draft->nama_draft,
-                    'message' => "Dokumen sudah terdaftar di draft '{$draft->nama_draft}'."
-                ], 409);
+            $drafts = $draftQuery->get();
+            foreach ($drafts as $draft) {
+                $filesData = $draft->files_data ?: [];
+                foreach ($filesData as $f) {
+                    if ($filename && ($f['name'] ?? '') === $filename) {
+                        return response()->json([
+                            'exists' => true,
+                            'conflict' => true,
+                            'source' => 'draft',
+                            'draft_name' => $draft->nama_draft,
+                            'message' => "Dokumen sudah terdaftar di draft '{$draft->nama_draft}'."
+                        ], 409);
+                    }
+                    if ($nomor && $tahun) {
+                        $dNomor = $f['nomor'] ?? ($f['correctionData']['nomorPeraturan'] ?? ($f['parsedData']['metadata']['nomor'] ?? null));
+                        $dTahun = $f['tahun'] ?? ($f['correctionData']['tahun'] ?? ($f['parsedData']['metadata']['tahun'] ?? null));
+                        if ($dNomor && $dTahun && (string)$dNomor === (string)$nomor && (string)$dTahun === (string)$tahun) {
+                            return response()->json([
+                                'exists' => true,
+                                'conflict' => true,
+                                'source' => 'draft',
+                                'draft_name' => $draft->nama_draft,
+                                'message' => "Dokumen dengan Nomor {$nomor} Tahun {$tahun} sudah terdaftar di draft '{$draft->nama_draft}'."
+                            ], 409);
+                        }
+                    }
+                }
             }
         }
 
@@ -461,6 +579,12 @@ class DokumenHukumController extends Controller
                         $parsed = is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData'];
                         $peraturan = $importService->import($parsed);
                         
+                        $creatorId = $draft->user_id ?: \Illuminate\Support\Facades\Auth::id();
+                        if ($creatorId && !$peraturan->created_by) {
+                            $peraturan->created_by = $creatorId;
+                            $peraturan->save();
+                        }
+
                         if (isset($fileData['correctionData'])) {
                             $correctionData = is_string($fileData['correctionData']) ? json_decode($fileData['correctionData'], true) : $fileData['correctionData'];
                             $this->performUpdate($peraturan, $correctionData, true);
@@ -533,33 +657,184 @@ class DokumenHukumController extends Controller
 
     public function importOcr(Request $request, DocumentImportService $importService)
     {
-        $request->validate([
-            'files' => 'required|array',
-        ]);
+        $files = $this->normalizeImportFiles($request);
 
+        if (empty($files)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Berkas atau data dokumen wajib diunggah.',
+                'errors' => ['files' => ['Berkas atau data dokumen wajib diunggah.']]
+            ], 422);
+        }
+
+        // 0. Tolak duplikat di dalam batch yang sama.
+        // Pre-validation di bawah hanya membandingkan terhadap isi database,
+        // sehingga dua berkas kembar dalam satu kiriman sama-sama lolos,
+        // dokumen kedua menimpa yang pertama, dan respons tetap melaporkan
+        // "Berhasil mengimpor 2 dokumen" padahal hanya 1 baris tersimpan.
+        $seenInBatch = [];
+        foreach ($files as $index => $fileData) {
+            $batchKey = $this->batchIdentityKey($fileData);
+
+            if ($batchKey === null) {
+                continue;
+            }
+
+            if (isset($seenInBatch[$batchKey])) {
+                $firstLine = $seenInBatch[$batchKey] + 1;
+                $thisLine = $index + 1;
+
+                return response()->json([
+                    'success' => false,
+                    'conflict' => true,
+                    'message' => "Berkas pada baris {$thisLine} adalah duplikat dari baris {$firstLine} dalam unggahan yang sama. Hapus salah satunya lalu coba lagi.",
+                    'errors' => ["Duplikat di dalam batch: baris {$thisLine} sama dengan baris {$firstLine}."]
+                ], 409);
+            }
+
+            $seenInBatch[$batchKey] = is_int($index) ? $index : count($seenInBatch);
+        }
+
+        // 1. Pre-validation: Periksa duplikasi ke seluruh berkas sebelum melakukan perubahan data ke database
+        if (!$request->boolean('allow_overwrite')) {
+            foreach ($files as $index => $fileData) {
+                if (!isset($fileData['parsedData'])) {
+                    continue;
+                }
+
+                $parsed = is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData'];
+                if (!is_array($parsed)) {
+                    continue;
+                }
+
+                $meta = $parsed['metadata'] ?? $parsed;
+                $correction = isset($fileData['correctionData'])
+                    ? (is_string($fileData['correctionData']) ? json_decode($fileData['correctionData'], true) : $fileData['correctionData'])
+                    : [];
+                if (!is_array($correction)) {
+                    $correction = [];
+                }
+
+                $nomor = $fileData['nomor'] ?? ($correction['nomorPeraturan'] ?? ($meta['nomor'] ?? null));
+                $tahun = $fileData['tahun'] ?? ($correction['tahun'] ?? ($meta['tahun'] ?? null));
+                $judul = $fileData['title'] ?? ($correction['judul'] ?? ($meta['judul'] ?? null));
+                $uniqueId = $fileData['unique_id'] ?? ($meta['id_dokumen'] ?? ($meta['standard_id'] ?? null));
+                $kategori = $fileData['category'] ?? ($meta['tipe_peraturan'] ?? ($meta['kategori'] ?? null));
+                $instansi = $correction['instansi'] ?? ($meta['pemrakarsa'] ?? ($meta['instansi'] ?? null));
+
+                $duplicate = null;
+
+                if ($uniqueId) {
+                    $duplicate = Peraturan::where('unique_id', $uniqueId)
+                        ->whereHas('statusPeraturan', fn($q) => $q->whereRaw('LOWER(nama_status) NOT LIKE ?', ['%draft%']))
+                        ->first();
+                }
+
+                if (!$duplicate && !empty($nomor) && !empty($tahun)) {
+                    $qNomor = Peraturan::where('nomor', $nomor)
+                        ->where('tahun', $tahun)
+                        ->whereHas('statusPeraturan', fn($q) => $q->whereRaw('LOWER(nama_status) NOT LIKE ?', ['%draft%']));
+
+                    if ($kategori) {
+                        $qNomor->whereHas('jenisPeraturan', function($q) use ($kategori) {
+                            $q->whereRaw('LOWER(nama) = ?', [strtolower(trim($kategori))])
+                              ->orWhereRaw('LOWER(kode) = ?', [strtolower(trim($kategori))]);
+                        });
+                    }
+
+                    $isRegional = $kategori && (
+                        in_array(strtoupper(trim($kategori)), ['PERDA', 'PERBUP', 'PERWAKO', 'PERWALI', 'PERGUB', 'PB', 'PW', 'PWK', 'PG', 'PERDAPROV'], true)
+                        || str_contains(strtolower($kategori), 'daerah')
+                        || str_contains(strtolower($kategori), 'bupati')
+                        || str_contains(strtolower($kategori), 'wali')
+                        || str_contains(strtolower($kategori), 'gubernur')
+                    );
+
+                    if ($isRegional) {
+                        if ($instansi) {
+                            $qNomor->where('instansi', trim($instansi));
+                            $duplicate = $qNomor->first();
+                        }
+                    } else {
+                        $duplicate = $qNomor->first();
+                    }
+                }
+
+                if (!$duplicate && !empty($judul)) {
+                    $duplicate = Peraturan::whereRaw('LOWER(judul) = ?', [strtolower(trim($judul))])
+                        ->whereHas('statusPeraturan', fn($q) => $q->whereRaw('LOWER(nama_status) NOT LIKE ?', ['%draft%']))
+                        ->first();
+                }
+
+                if ($duplicate && !str_contains(strtolower($duplicate->judul), 'menunggu import')) {
+                    return response()->json([
+                        'success' => false,
+                        'conflict' => true,
+                        'message' => "Dokumen berjudul '{$duplicate->judul}' sudah ada di database sistem (Duplikasi terdeteksi).",
+                        'existing_id' => $duplicate->unique_id,
+                        'existing_title' => $duplicate->judul,
+                        'errors' => ["Dokumen berjudul '{$duplicate->judul}' sudah terdaftar di database."]
+                    ], 409);
+                }
+            }
+        }
+
+        // 2. Eksekusi import berkas
         $successCount = 0;
         $errors = [];
 
-        $duplicateFound = false;
-        $duplicateMessage = '';
-        $duplicateTitle = null;
+        foreach (array_values($files) as $position => $fileData) {
+            // Nomor baris untuk pesan ke pengguna harus dari posisi numerik.
+            // Pada jalur unggah berkas, kunci array berasal dari nama key
+            // ('file'), sehingga ($index + 1) menghasilkan 1 terus atau 0.
+            $lineNumber = $position + 1;
 
-        foreach ($request->input('files') as $index => $fileData) {
             try {
                 if (isset($fileData['parsedData'])) {
                     $parsed = is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData'];
+                    if (!is_array($parsed)) {
+                        $errors[] = 'Gagal memproses file pada baris ' . $lineNumber . '. Format data tidak sesuai.';
+                        continue;
+                    }
+
+                    // Snapshot kondisi lama SEBELUM import menimpa pasal/struktur,
+                    // supaya penimpaan bisa diaudit dan dikembalikan.
+                    $preOverwrite = $this->capturePreOverwriteState($parsed);
+
                     $peraturan = $importService->import($parsed);
+
+                    if ($preOverwrite) {
+                        // Catat juga user yang melakukan penimpaan, bukan hanya pembuat awal.
+                        $peraturan->updated_by = $request->user()?->id;
+                        $peraturan->save();
+
+                        $this->logOverwrite($preOverwrite, $peraturan, $request);
+                    }
+
+                    $user = \Illuminate\Support\Facades\Auth::user();
+                    if ($user && in_array($user->role, ['admin', 'superadmin'], true) && !$peraturan->created_by) {
+                        $peraturan->created_by = $user->id;
+                        $peraturan->save();
+                    }
                     
                     if (isset($fileData['correctionData'])) {
                         $correctionData = is_string($fileData['correctionData']) ? json_decode($fileData['correctionData'], true) : $fileData['correctionData'];
-                        $this->performUpdate($peraturan, $correctionData, true);
-
+                        if (is_array($correctionData)) {
+                            $this->performUpdate($peraturan, $correctionData, true);
+                        }
                     }
 
-                    // Cek jika ada file PDF yang disertakan
-                    if ($request->hasFile("files.{$index}.rawFile")) {
-                        $pdfFile = $request->file("files.{$index}.rawFile");
-                        // Pastikan file yang diunggah benar-benar PDF sebelum disimpan
+                    // Cek jika ada file PDF yang disertakan.
+                    // Laravel mengindeks field bersarang berdasarkan posisi
+                    // numerik (files.0.rawFile), bukan kunci asli array.
+                    $pdfFile = null;
+                    if ($request->hasFile("files.{$position}.rawFile")) {
+                        $pdfFile = $request->file("files.{$position}.rawFile");
+                    } elseif (isset($fileData['rawFile']) && $fileData['rawFile'] instanceof \Illuminate\Http\UploadedFile) {
+                        $pdfFile = $fileData['rawFile'];
+                    }
+
+                    if ($pdfFile instanceof \Illuminate\Http\UploadedFile) {
                         $mime = $pdfFile->getMimeType();
                         $ext = strtolower($pdfFile->getClientOriginalExtension());
                         if (str_contains($mime, 'pdf') || $ext === 'pdf') {
@@ -572,33 +847,19 @@ class DokumenHukumController extends Controller
 
                     $successCount++;
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 \Log::error("Import OCR Error: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-                if (str_contains(strtolower($e->getMessage()), 'sudah ada')) {
-                    $duplicateFound = true;
-                    $duplicateMessage = $e->getMessage();
-                    $parsed = isset($fileData['parsedData']) 
-                        ? (is_string($fileData['parsedData']) ? json_decode($fileData['parsedData'], true) : $fileData['parsedData']) 
-                        : null;
-                    $duplicateTitle = $fileData['title'] ?? ($parsed['metadata']['judul'] ?? ($parsed['judul'] ?? null));
-                    $errors[] = $e->getMessage();
-                } else {
-                    $errors[] = 'Gagal memproses file pada baris ' . ($index + 1) . '. Format data tidak sesuai.';
-                }
+                $errors[] = 'Gagal memproses file pada baris ' . $lineNumber . '. ' . $this->describeImportFailure($e);
             }
         }
 
         if (count($errors) > 0) {
-            $status = $duplicateFound ? 409 : 400;
             return response()->json([
                 'success' => false,
-                'conflict' => $duplicateFound,
-                'message' => $duplicateFound 
-                    ? ($duplicateMessage ?: 'Dokumen sudah ada di database (Duplikasi terdeteksi).')
-                    : ("Berhasil mengimpor {$successCount} dokumen. Gagal: " . count($errors)),
-                'existing_title' => $duplicateTitle,
+                'conflict' => false,
+                'message' => "Berhasil mengimpor {$successCount} dokumen. Gagal: " . count($errors),
                 'errors' => $errors
-            ], $status);
+            ], 400);
         }
 
         return response()->json([
@@ -607,12 +868,288 @@ class DokumenHukumController extends Controller
         ]);
     }
 
+    /**
+     * Mengambil kondisi dokumen sebelum ditimpa untuk keperluan audit.
+     *
+     * Dipanggil SEBELUM importService->import() karena method tersebut
+     * menghapus dan menimpa data pasal/struktur lama.
+     */
+    private function capturePreOverwriteState(array $parsed): ?array
+    {
+        $meta = $parsed['metadata'] ?? $parsed;
+
+        $uniqueId = $meta['id_dokumen']
+            ?? ($meta['standard_id'] ?? ($meta['unique_id'] ?? null));
+
+        $judul = $meta['judul'] ?? ($parsed['judul'] ?? null);
+
+        $peraturan = null;
+
+        if ($uniqueId) {
+            $peraturan = Peraturan::withTrashed()->where('unique_id', $uniqueId)->first();
+        }
+
+        if (!$peraturan && $judul) {
+            $peraturan = Peraturan::withTrashed()
+                ->whereRaw('LOWER(judul) = ?', [strtolower(trim((string) $judul))])
+                ->first();
+        }
+
+        if (!$peraturan) {
+            return null;
+        }
+
+        $snapshot = [];
+
+        foreach (PeraturanOverwriteLog::snapshotColumns() as $column) {
+            $snapshot[$column] = $peraturan->getAttribute($column);
+        }
+
+        return [
+            'peraturan_id' => $peraturan->id,
+            'unique_id' => $peraturan->unique_id,
+            'snapshot' => $snapshot,
+            'chunks_before' => Pasal::where('peraturan_id', $peraturan->id)->count(),
+        ];
+    }
+
+    /**
+     * Mencatat penimpaan dokumen beserta selisihnya.
+     */
+    private function logOverwrite(array $before, Peraturan $after, Request $request): void
+    {
+        $afterState = [];
+
+        foreach (PeraturanOverwriteLog::snapshotColumns() as $column) {
+            $afterState[$column] = $after->getAttribute($column);
+        }
+
+        $diff = PeraturanOverwriteLog::diffFields($before['snapshot'], $afterState);
+
+        $chunksAfter = Pasal::where('peraturan_id', $after->id)->count();
+
+        PeraturanOverwriteLog::create([
+            'peraturan_id' => $before['peraturan_id'],
+            'unique_id' => $before['unique_id'],
+            'user_id' => $request->user()?->id,
+            'source' => $request->boolean('from_api') ? 'api' : 'ui',
+            'snapshot' => $before['snapshot'],
+            'changes' => $diff,
+            'chunks_before' => $before['chunks_before'],
+            'chunks_after' => $chunksAfter,
+        ]);
+
+        if (!empty($diff['dropped_fields'])) {
+            \Log::warning('Import menimpa dokumen dan mengosongkan field', [
+                'unique_id' => $before['unique_id'],
+                'dropped_fields' => $diff['dropped_fields'],
+                'user_id' => $request->user()?->id,
+            ]);
+        }
+    }
+
+    /**
+     * Menyusun pesan kegagalan import yang berguna bagi admin.
+     *
+     * Sebelumnya SEMUA kegagalan dilaporkan sebagai "Format data tidak sesuai",
+     * sehingga typo tipe peraturan atau data referensi hilang tidak bisa
+     * dibedakan dari JSON yang rusak.
+     */
+    private function describeImportFailure(\Throwable $e): string
+    {
+        // Validasi yang kita lempar sendiri (mis. tipe peraturan tak dikenal)
+        // aman ditampilkan apa adanya karena tidak membocorkan detail internal.
+        // DocumentImportService membungkus ulang semua error sebagai
+        // RuntimeException, jadi rantai cause harus ditelusuri.
+        for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+            if ($cause instanceof \InvalidArgumentException) {
+                return $cause->getMessage();
+            }
+        }
+
+        // Pelanggaran unique constraint = dokumen sudah ada.
+        for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+            if ($cause instanceof \Illuminate\Database\UniqueConstraintViolationException) {
+                return 'Dokumen sudah terdaftar (melanggar aturan unik jenis/nomor/tahun).';
+            }
+        }
+
+        return 'Format data tidak sesuai.';
+    }
+
+    /**
+     * Membersihkan path objek MinIO yang berasal dari input pengguna.
+     *
+     * Mengembalikan null bila path mengandung indikasi traversal atau
+     * karakter yang tidak masuk akal untuk nama objek di bucket.
+     */
+    private function sanitizeStoragePath(?string $path): ?string
+    {
+        if ($path === null) {
+            return null;
+        }
+
+        $path = trim($path);
+
+        if ($path === '') {
+            return null;
+        }
+
+        // Backslash dinormalkan agar "..\..\x" tidak lolos di Windows.
+        $path = str_replace('\\', '/', $path);
+
+        // Tolak karakter kontrol dan null byte.
+        if (preg_match('/[\x00-\x1F]/', $path)) {
+            return null;
+        }
+
+        // Tolak segmen '..' (traversal) di posisi mana pun.
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '..') {
+                return null;
+            }
+        }
+
+        // Tolak skema/protokol (mis. file://, php://) yang bisa disalahgunakan.
+        if (preg_match('#^[a-zA-Z][a-zA-Z0-9+.-]*://#', $path)) {
+            return null;
+        }
+
+        return ltrim($path, '/');
+    }
+
+    /**
+     * Kunci identitas dokumen dalam satu batch.
+     *
+     * Dipakai hanya untuk mendeteksi dua berkas yang menunjuk dokumen yang
+     * sama di dalam satu unggahan (hal yang tidak terlihat oleh pengecekan
+     * terhadap database). Prioritas: unique_id, lalu nomor+tahun (+instansi
+     * untuk peraturan daerah), lalu judul.
+     *
+     * @return string|null Null bila dokumen tidak punya identitas yang cukup.
+     */
+    private function batchIdentityKey(array $fileData): ?string
+    {
+        $parsed = $fileData['parsedData'] ?? null;
+
+        if (is_string($parsed)) {
+            $parsed = json_decode($parsed, true);
+        }
+
+        if (!is_array($parsed)) {
+            return null;
+        }
+
+        $meta = $parsed['metadata'] ?? $parsed;
+
+        $correction = $fileData['correctionData'] ?? [];
+        if (is_string($correction)) {
+            $correction = json_decode($correction, true);
+        }
+        if (!is_array($correction)) {
+            $correction = [];
+        }
+
+        $uniqueId = $fileData['unique_id']
+            ?? ($meta['id_dokumen'] ?? ($meta['standard_id'] ?? ($meta['unique_id'] ?? null)));
+
+        if (!empty($uniqueId)) {
+            return 'id:' . strtolower(trim((string) $uniqueId));
+        }
+
+        $nomor = $fileData['nomor'] ?? ($correction['nomorPeraturan'] ?? ($meta['nomor'] ?? null));
+        $tahun = $fileData['tahun'] ?? ($correction['tahun'] ?? ($meta['tahun'] ?? null));
+
+        if (!empty($nomor) && !empty($tahun)) {
+            $instansi = $correction['instansi'] ?? ($meta['pemrakarsa'] ?? ($meta['instansi'] ?? null));
+
+            return 'nomor:' . strtolower(trim((string) $nomor))
+                . '|' . strtolower(trim((string) $tahun))
+                . '|' . strtolower(trim((string) ($instansi ?? '')));
+        }
+
+        $judul = $fileData['title'] ?? ($correction['judul'] ?? ($meta['judul'] ?? null));
+
+        if (!empty($judul)) {
+            return 'judul:' . strtolower(trim((string) $judul));
+        }
+
+        return null;
+    }
+
+    /**
+     * Menormalisasi input data import dari berbagai kemungkinan bentuk request:
+     * 1. FormData / JSON dengan key 'files' (array of items)
+     * 2. Berkas fisik JSON yang diunggah via multipart/form-data
+     * 3. Objek JSON regulasi mentah langsung
+     */
+    private function normalizeImportFiles(Request $request): array
+    {
+        // 1. Jika dikirim via FormData/JSON dengan key 'files' berupa array
+        if ($request->has('files') && is_array($request->input('files'))) {
+            $files = $request->input('files');
+            return array_map(function ($item, $idx) {
+                if (is_array($item) && !isset($item['parsedData']) && (isset($item['metadata']) || isset($item['judul']) || isset($item['chunks']))) {
+                    $item['name'] = $item['name'] ?? "dokumen_{$idx}.json";
+                    $item['parsedData'] = $item;
+                }
+                return $item;
+            }, $files, array_keys($files));
+        }
+
+        // 2. Jika dikirim berkas fisik tunggal atau ganda (multipart/form-data)
+        if ($request->hasFile('file') || $request->hasFile('files')) {
+            $uploaded = $request->file('files') ?? [$request->file('file')];
+            if (!is_array($uploaded)) {
+                $uploaded = [$uploaded];
+            }
+            $result = [];
+            foreach ($uploaded as $f) {
+                if ($f instanceof \Illuminate\Http\UploadedFile) {
+                    $content = json_decode($f->get(), true);
+                    if ($content) {
+                        $result[] = [
+                            'name' => $f->getClientOriginalName(),
+                            'parsedData' => $content,
+                        ];
+                    }
+                }
+            }
+            if (!empty($result)) {
+                return $result;
+            }
+        }
+
+        // 3. Jika dikirim JSON mentah langsung (tanpa wrapper 'files')
+        $all = $request->all();
+        if (isset($all['metadata']) || isset($all['chunks']) || isset($all['judul'])) {
+            return [
+                [
+                    'name' => 'dokumen.json',
+                    'parsedData' => $all,
+                ]
+            ];
+        }
+
+        return [];
+    }
+
     public function getDetailForEdit($unique_id)
     {
         $peraturan = Peraturan::where('unique_id', $unique_id)
             ->with(['jenisPeraturan'])
             ->firstOrFail();
 
+        return response()->json($this->buildDetailCorrectionData($peraturan));
+    }
+
+    /**
+     * Menyusun struktur data koreksi (pembukaan, batang tubuh, relasi, metadata)
+     * untuk satu peraturan. Dipakai bersama oleh endpoint JSON detail-edit dan
+     * halaman edit dengan URL permanen.
+     */
+    protected function buildDetailCorrectionData(Peraturan $peraturan): array
+    {
         // Ambil pembukaan (Struktur: PEMBUKAAN)
         $pembukaan = StrukturDokumen::where('peraturan_id', $peraturan->id)
             ->where('tipe_struktur', 'PEMBUKAAN')
@@ -827,7 +1364,7 @@ class DokumenHukumController extends Controller
             ];
         }
 
-        return response()->json([
+        return [
             'standarId' => $peraturan->unique_id,
             'judul' => $peraturan->judul,
             'pembukaan' => [
@@ -843,7 +1380,7 @@ class DokumenHukumController extends Controller
                 'tanggalDitetapkan' => $peraturan->tanggal_penetapan ? $peraturan->tanggal_penetapan->format('Y-m-d') : '',
                 'tempatPenetapan' => $peraturan->tempat_penetapan ?? '',
             ]
-        ]);
+        ];
     }
 
     public function update(Request $request, $unique_id)
@@ -894,13 +1431,20 @@ class DokumenHukumController extends Controller
     private function performUpdate(Peraturan $peraturan, array $data, bool $isImport = false)
     {
         // 1. Update Peraturan Utama
-        $userId = \Illuminate\Support\Facades\Auth::id();
-        $isAdminUser = $userId && \App\Models\Admin::where('id', $userId)->exists();
-        if (!$peraturan->created_by && $isAdminUser) {
-            $peraturan->created_by = $userId;
+        // Admin panel memakai guard web dengan model User, jadi sumber identitas
+        // editor adalah user yang sedang login (bukan tabel admins).
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $isAdminUser = $user && in_array($user->role, ['admin', 'superadmin'], true);
+
+        // created_by HANYA boleh diinisialisasi saat import dokumen baru ($isImport = true).
+        // Jangan pernah mengubah created_by saat sekadar mengedit data peraturan!
+        if ($isImport && !$peraturan->created_by && $isAdminUser) {
+            $peraturan->created_by = $user->id;
         }
-        if ($isAdminUser) {
-            $peraturan->updated_by = $userId;
+
+        // updated_by hanya dicatat saat dilakukan pengeditan manual oleh admin
+        if ($isAdminUser && !$isImport) {
+            $peraturan->updated_by = $user->id;
         }
 
         if (isset($data['judul'])) {
@@ -1109,20 +1653,81 @@ class DokumenHukumController extends Controller
             }
         }
 
-        // 4. Update Riwayat Perubahan (LawRelation)
+        // 4. Update & Sinkronisasi Riwayat Perubahan (LawRelation)
             $riwayatPerubahan = $data['riwayatPerubahan'] ?? [];
+            $processedRelationIds = [];
+
             foreach ($riwayatPerubahan as $riwayatData) {
+                // Lewati dokumen aktif (isCurrent)
+                if (!empty($riwayatData['isCurrent'])) {
+                    continue;
+                }
+
+                $kode = trim($riwayatData['kode'] ?? '');
+                if (!$kode) {
+                    continue;
+                }
+
+                $targetPeraturan = Peraturan::where('unique_id', $kode)->first();
+                if (!$targetPeraturan) {
+                    // Buat placeholder target peraturan jika belum ada di database
+                    $targetPeraturan = Peraturan::create([
+                        'unique_id' => $kode,
+                        'judul' => 'Menunggu import dokumen: ' . $kode,
+                        'tahun' => (int) (preg_match('/(\d{4})$/', $kode, $m) ? $m[1] : date('Y')),
+                        'nomor' => preg_match('/No[_\s]?(\d+)/i', $kode, $m) ? $m[1] : '0',
+                    ]);
+                }
+
+                // Tentukan nama relasi dari keteranganBadge atau default 'mengubah'
+                $relName = strtolower(
+                    $riwayatData['keteranganBadge']['label'] ??
+                    $riwayatData['keteranganBadge']['variant'] ??
+                    $riwayatData['keterangan'] ??
+                    'mengubah'
+                );
+
+                if (str_contains($relName, 'mencabut')) {
+                    $canonicalRel = 'mencabut';
+                } elseif (str_contains($relName, 'dicabut')) {
+                    $canonicalRel = 'dicabut_oleh';
+                } elseif (str_contains($relName, 'diubah')) {
+                    $canonicalRel = 'diubah_oleh';
+                } else {
+                    $canonicalRel = 'mengubah';
+                }
+
+                $relationType = \App\Models\RelationType::firstOrCreate(['nama_relasi' => $canonicalRel]);
+
                 if (isset($riwayatData['id']) && is_numeric($riwayatData['id'])) {
                     $relation = LawRelation::find($riwayatData['id']);
                     if ($relation) {
-                        $kode = $riwayatData['kode'] ?? '';
-                        $targetPeraturan = Peraturan::where('unique_id', $kode)->first();
-                        if ($targetPeraturan) {
-                            $relation->to_peraturan_id = $targetPeraturan->id;
-                            $relation->save();
-                        }
+                        $relation->to_peraturan_id = $targetPeraturan->id;
+                        $relation->relation_type_id = $relationType->id;
+                        $relation->save();
+                        $processedRelationIds[] = $relation->id;
+                        continue;
                     }
                 }
+
+                // Jika baru atau ID tidak ditemukan, buat LawRelation baru
+                $newRel = LawRelation::updateOrCreate(
+                    [
+                        'from_peraturan_id' => $peraturan->id,
+                        'to_peraturan_id' => $targetPeraturan->id,
+                    ],
+                    [
+                        'relation_type_id' => $relationType->id,
+                    ]
+                );
+                $processedRelationIds[] = $newRel->id;
+            }
+
+            // Hapus relasi lama yang telah dibuang oleh admin
+            if (!empty($processedRelationIds)) {
+                LawRelation::where('from_peraturan_id', $peraturan->id)
+                    ->whereNotIn('id', $processedRelationIds)
+                    ->delete();
             }
     }
     public function scanMinio()
@@ -1432,6 +2037,10 @@ class DokumenHukumController extends Controller
             // Karena DocumentImportService melakukan hardcode path 'documents/...',
             // kita override berdasarkan lokasi folder sebenarnya di MinIO
             if ($peraturan) {
+                $user = \Illuminate\Support\Facades\Auth::user();
+                if ($user && in_array($user->role, ['admin', 'superadmin'], true) && !$peraturan->created_by) {
+                    $peraturan->created_by = $user->id;
+                }
                 $peraturan->update([
                     'file_pdf_path' => $folderPath . '/document.pdf'
                 ]);
@@ -1472,9 +2081,25 @@ class DokumenHukumController extends Controller
             ], 400);
         }
 
+        // Cegah path traversal: nilai ini berasal dari URL/query string dan
+        // diteruskan langsung ke disk MinIO. Tanpa guard, "../" bisa dipakai
+        // keluar dari folder documents/ dan membaca objek lain di bucket.
+        $cleanPath = $this->sanitizeStoragePath($targetFile);
+
+        if ($cleanPath === null) {
+            \Log::warning('MinIO Get File Content: path tidak valid ditolak', [
+                'user_id' => $request->user()?->id,
+                'path' => $targetFile,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Path berkas tidak valid.'
+            ], 422);
+        }
+
         try {
             $disk = \Illuminate\Support\Facades\Storage::disk('minio');
-            $cleanPath = ltrim($targetFile, '/');
 
             if ($disk->exists($cleanPath)) {
                 $content = $disk->get($cleanPath);

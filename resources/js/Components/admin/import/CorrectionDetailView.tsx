@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ValidatedFileItem } from './StepValidationCorrection';
 import {
   LegalDocumentCorrectionData,
@@ -6,6 +6,7 @@ import {
   formatStandardId,
   ChapterItem,
   ArticleItem,
+  TimelineRelationItem,
 } from './correctionParser';
 import { CorrectionTableOfContents } from './CorrectionTableOfContents';
 import { CorrectionHeaderSection } from './CorrectionHeaderSection';
@@ -14,7 +15,7 @@ import { CorrectionBatangTubuhSection } from './CorrectionBatangTubuhSection';
 import { CorrectionTimelineSection } from './CorrectionTimelineSection';
 import { CorrectionMetadataSection } from './CorrectionMetadataSection';
 import { CorrectionPdfPanel } from './CorrectionPdfPanel';
-import { Wand2, FileText, EyeOff, GripVertical, List, RotateCcw, ChevronLeft, AlignLeft, Loader2 } from 'lucide-react';
+import { Wand2, FileText, EyeOff, GripVertical, List, RotateCcw, ChevronLeft, AlignLeft, Loader2, Plus } from 'lucide-react';
 import { cleanOcrText } from '../../../utils/ocrTextCleaner';
 
 // Re-export types and utilities for backward compatibility
@@ -32,6 +33,12 @@ export interface CorrectionDetailViewProps {
   onSave: (updatedData: LegalDocumentCorrectionData) => void | Promise<void>;
   onCancel?: () => void;
   onBack?: () => void;
+  /**
+   * Dipanggil setiap kali status "ada perubahan belum disimpan" berubah.
+   * Berguna bagi halaman induk untuk menampilkan konfirmasi saat pengguna
+   * mencoba keluar dari layar edit.
+   */
+  onDirty?: (isDirty: boolean) => void;
 }
 
 export function CorrectionDetailView({
@@ -40,11 +47,28 @@ export function CorrectionDetailView({
   onSave,
   onCancel,
   onBack,
+  onDirty,
 }: CorrectionDetailViewProps) {
   // State data utama hasil parsing berkas JSON
   const [data, setData] = useState<LegalDocumentCorrectionData>(() =>
     generateInitialCorrectionData(file)
   );
+
+  // Snapshot data awal untuk mendeteksi perubahan (dirty state)
+  const initialDataSnapshotRef = useRef<string | null>(null);
+
+  // Catat snapshot pertama kali data siap, lalu bandingkan setiap perubahan
+  useEffect(() => {
+    const serialized = JSON.stringify(data);
+
+    if (initialDataSnapshotRef.current === null) {
+      initialDataSnapshotRef.current = serialized;
+      return;
+    }
+
+    onDirty?.(serialized !== initialDataSnapshotRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const [activeSection, setActiveSection] = useState<string>('');
 
@@ -58,6 +82,36 @@ export function CorrectionDetailView({
   const [isDragging, setIsDragging] = useState(false);
   const [showTocInSplit, setShowTocInSplit] = useState(true);
   const splitContainerRef = useRef<HTMLDivElement>(null);
+
+  // ID pasal yang perlu di-scroll otomatis setelah ditambahkan (ADM39)
+  const [pendingScrollPasalId, setPendingScrollPasalId] = useState<string | null>(null);
+
+  // Auto-scroll ke pasal yang baru ditambahkan begitu sudah ter-render di DOM
+  useEffect(() => {
+    if (!pendingScrollPasalId) return;
+
+    const timer = window.setTimeout(() => {
+      const el = document.getElementById(`section-${pendingScrollPasalId}`);
+      if (el) {
+        const container = document.getElementById('editor-scroll-container');
+        if (container) {
+          const elementPosition = el.getBoundingClientRect().top;
+          const containerPosition = container.getBoundingClientRect().top;
+          const offsetPosition = elementPosition - containerPosition + container.scrollTop - 24;
+          container.scrollTo({ top: Math.max(0, offsetPosition), behavior: 'smooth' });
+        } else {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Fokuskan textarea teks norma pasal agar admin bisa langsung mengetik
+        const textarea = el.querySelector('textarea') as HTMLTextAreaElement | null;
+        textarea?.focus({ preventScroll: true });
+      }
+      setPendingScrollPasalId(null);
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [pendingScrollPasalId, data]);
 
   // Endpoint URL dokumen PDF sumber
   const pdfUrl =
@@ -95,46 +149,102 @@ export function CorrectionDetailView({
     };
   }, [isDragging]);
 
+  // Observer daftar isi.
+  //
+  // Dibuat sekali agar tidak dibongkar-pasang setiap kali data berubah.
+  // Sebelumnya efek ini bergantung pada `data`, sehingga setiap ketikan atau
+  // penambahan pasal membuat observer lama & baru saling menimpa dan memicu
+  // kedipan (glitch) pada penanda bagian aktif.
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  const observeSections = useCallback(() => {
+    const observer = observerRef.current;
+    if (!observer) return;
+
+    document.querySelectorAll('[id^="section-"]').forEach((el) => {
+      // Observasi ganda pada elemen yang sama tidak menimbulkan duplikasi
+      // callback, namun tetap dijaga agar konsisten.
+      observer.observe(el);
+    });
+  }, []);
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        // Find the first intersecting entry
+        // Ambil elemen yang terlihat pertama, lalu perbarui hanya bila berubah.
         const visibleEntry = entries.find((entry) => entry.isIntersecting);
         if (visibleEntry) {
-          setActiveSection(visibleEntry.target.id);
+          setActiveSection((prev) => (prev === visibleEntry.target.id ? prev : visibleEntry.target.id));
         }
       },
       { rootMargin: '-10% 0px -80% 0px', threshold: 0 }
     );
 
-    // Observe all sections
-    const elements = document.querySelectorAll('[id^="section-"]');
-    elements.forEach((el) => observer.observe(el));
+    observerRef.current = observer;
+    observeSections();
 
     return () => {
-      elements.forEach((el) => observer.unobserve(el));
       observer.disconnect();
+      observerRef.current = null;
     };
-  }, [data]);
+  }, [observeSections]);
 
-  // Sinkronisasi otomatis jika berkas berubah atau file baru diunggah
+  // Daftarkan ulang elemen baru setelah struktur dokumen berubah
+  useEffect(() => {
+    observeSections();
+  }, [data.babList, observeSections]);
+
+  // Sinkronisasi otomatis jika berkas berubah atau file baru diunggah.
+  //
+  // PENTING: dependensi memakai nilai identitas berkas (bukan objek `file`),
+  // karena halaman induk dapat membuat objek `file` baru pada setiap render.
+  // Bila dependensinya objek, setiap perubahan state (mis. menambah pasal)
+  // akan memicu efek ini dan menimpa seluruh editan dengan data awal.
+  const fileSyncKey = `${file.id ?? ''}|${file.name ?? ''}|${
+    (file as any).rawFile?.name ?? ''
+  }`;
+
   useEffect(() => {
     if (file.correctionData) {
-      setData(file.correctionData);
+      const baseGenerated = generateInitialCorrectionData(file);
+      const merged: LegalDocumentCorrectionData = {
+        ...baseGenerated,
+        ...file.correctionData,
+        pembukaan: {
+          ...baseGenerated.pembukaan,
+          ...(file.correctionData.pembukaan || {}),
+        },
+        metadata: {
+          ...baseGenerated.metadata,
+          ...(file.correctionData.metadata || {}),
+        },
+        babList: file.correctionData.babList || baseGenerated.babList,
+        riwayatPerubahan: file.correctionData.riwayatPerubahan || baseGenerated.riwayatPerubahan,
+      };
+      setData(merged);
+      initialDataSnapshotRef.current = JSON.stringify(merged);
+      onDirty?.(false);
     } else if (file.parsedData) {
-      setData(generateInitialCorrectionData(file));
+      const generated = generateInitialCorrectionData(file);
+      setData(generated);
+      initialDataSnapshotRef.current = JSON.stringify(generated);
+      onDirty?.(false);
     } else if (file.rawFile) {
       file.rawFile.text().then((text) => {
         try {
           const cleanText = text.replace(/^\uFEFF/, '').trim();
           const parsed = JSON.parse(cleanText);
-          setData(generateInitialCorrectionData({ ...file, parsedData: parsed }));
+          const generated = generateInitialCorrectionData({ ...file, parsedData: parsed });
+          setData(generated);
+          initialDataSnapshotRef.current = JSON.stringify(generated);
+          onDirty?.(false);
         } catch (e) {
           console.warn('Gagal membaca JSON dari rawFile', e);
         }
       });
     }
-  }, [file]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileSyncKey]);
 
   // Accordion card states
   const [isOpenStandarId, setIsOpenStandarId] = useState(true);
@@ -203,8 +313,159 @@ export function CorrectionDetailView({
     }));
   };
 
+  // ── Aksi Penambahan & Penghapusan Pasal Manual (ADM39) ─────────────────────────
+  const createPasalId = () =>
+    `pasal-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  // Helper rekursif: sisipkan pasal baru ke node tujuan (BAB / BAGIAN / PARAGRAF)
+  const addPasalToTree = (nodes: ChapterItem[], targetNodeId: string, newPasal: ArticleItem): ChapterItem[] =>
+    nodes.map((n) => {
+      if (n.id === targetNodeId) {
+        return { ...n, isExpanded: true, pasalList: [...(n.pasalList || []), newPasal] };
+      }
+      if (n.children && n.children.length > 0) {
+        return { ...n, children: addPasalToTree(n.children, targetNodeId, newPasal) };
+      }
+      return n;
+    });
+
+  // Helper rekursif: hapus pasal (termasuk sub-pasal) berdasarkan id
+  const removePasalFromList = (pasalList: ArticleItem[], targetPasalId: string): ArticleItem[] =>
+    pasalList
+      .filter((p) => p.id !== targetPasalId)
+      .map((p) =>
+        p.pasalList && p.pasalList.length > 0
+          ? { ...p, pasalList: removePasalFromList(p.pasalList, targetPasalId) }
+          : p
+      );
+
+  const removePasalFromTree = (nodes: ChapterItem[], targetPasalId: string): ChapterItem[] =>
+    nodes.map((n) => ({
+      ...n,
+      pasalList: removePasalFromList(n.pasalList || [], targetPasalId),
+      children: n.children && n.children.length > 0
+        ? removePasalFromTree(n.children, targetPasalId)
+        : n.children,
+    }));
+
+  // Tambah pasal baru (dipanggil dari toolbar maupun dari dalam kartu Bab)
+  const addPasal = (parentId: string) => {
+    const newPasal: ArticleItem = {
+      id: createPasalId(),
+      nomor: 'Pasal -',
+      isi: '',
+      penjelasan: '',
+      isExpanded: true,
+      tipe: 'PASAL',
+    };
+    setData((prev) => ({
+      ...prev,
+      babList: addPasalToTree(prev.babList, parentId, newPasal),
+    }));
+    // Picu auto-scroll ke posisi pasal baru setelah render
+    setPendingScrollPasalId(newPasal.id);
+  };
+
+  // Hapus pasal dari state dokumen draf
+  const deletePasal = (_parentId: string, pasalId: string) => {
+    setData((prev) => ({
+      ...prev,
+      babList: removePasalFromTree(prev.babList, pasalId),
+    }));
+  };
+
+  // Tambah pasal manual pada BAB pertama; bila struktur masih kosong, buatkan BAB virtual baru
+  const addPasalToFirstBab = () => {
+    const firstNode = data.babList[0];
+    if (firstNode) {
+      addPasal(firstNode.id);
+      return;
+    }
+
+    const newPasalId = createPasalId();
+    const newNodeId = `bab-manual-${Date.now()}`;
+    setData((prev) => ({
+      ...prev,
+      babList: [
+        {
+          id: newNodeId,
+          judul: '',
+          tipe: 'BAB',
+          isExpanded: true,
+          pasalList: [
+            {
+              id: newPasalId,
+              nomor: 'Pasal -',
+              isi: '',
+              penjelasan: '',
+              isExpanded: true,
+              tipe: 'PASAL',
+            },
+          ],
+        },
+      ],
+    }));
+    setPendingScrollPasalId(newPasalId);
+  };
+
+  // Helper rekursif: perbarui field tertentu (nomor / isi / penjelasan) pada pasal & sub-pasal
+  const updatePasalField = (
+    pasalList: ArticleItem[],
+    pasalId: string,
+    field: 'nomor' | 'isi' | 'penjelasan',
+    value: string
+  ): ArticleItem[] =>
+    pasalList.map((p) => {
+      if (p.id === pasalId) {
+        return { ...p, [field]: value };
+      }
+      if (p.pasalList && p.pasalList.length > 0) {
+        return { ...p, pasalList: updatePasalField(p.pasalList, pasalId, field, value) };
+      }
+      return p;
+    });
+
+  const updatePasalFieldInTree = (
+    nodes: ChapterItem[],
+    pasalId: string,
+    field: 'nomor' | 'isi' | 'penjelasan',
+    value: string
+  ): ChapterItem[] =>
+    nodes.map((n) => ({
+      ...n,
+      pasalList: updatePasalField(n.pasalList || [], pasalId, field, value),
+      children: n.children && n.children.length > 0
+        ? updatePasalFieldInTree(n.children, pasalId, field, value)
+        : n.children,
+    }));
+
+  const handleChangePasalNomor = (_babId: string, pasalId: string, value: string) => {
+    setData((prev) => ({
+      ...prev,
+      babList: updatePasalFieldInTree(prev.babList, pasalId, 'nomor', value),
+    }));
+  };
+
+  const handleChangePasalIsi = (_babId: string, pasalId: string, value: string) => {
+    setData((prev) => ({
+      ...prev,
+      babList: updatePasalFieldInTree(prev.babList, pasalId, 'isi', value),
+    }));
+  };
+
+  const handleChangePasalPenjelasan = (_babId: string, pasalId: string, value: string) => {
+    setData((prev) => ({
+      ...prev,
+      babList: updatePasalFieldInTree(prev.babList, pasalId, 'penjelasan', value),
+    }));
+  };
+
   // Expand target pasal dan seluruh parent (BAB, BAGIAN, PARAGRAF) secara otomatis saat diklik dari Daftar Isi / Relasi
   const forceExpandPasal = (_babId: string, pasalId: string) => {
+    expandPasalById(pasalId);
+  };
+
+  const expandPasalById = (pasalId: string) => {
     const expandPath = (nodes: ChapterItem[], targetPasalId: string): { updatedNodes: ChapterItem[]; found: boolean } => {
       let foundAny = false;
 
@@ -272,6 +533,10 @@ export function CorrectionDetailView({
     setIsSaving(true);
     try {
       await onSave(data);
+      // Data yang baru disimpan menjadi baseline baru sehingga
+      // status "ada perubahan" kembali bersih.
+      initialDataSnapshotRef.current = JSON.stringify(data);
+      onDirty?.(false);
     } finally {
       setIsSaving(false);
     }
@@ -332,6 +597,22 @@ export function CorrectionDetailView({
       }
       id={isSplitMode ? undefined : 'editor-scroll-container'}
     >
+      {/* Toolbar sticky: aksi tambah pasal selalu terjangkau saat menggulir naskah */}
+      <div className="sticky top-0 z-20 flex items-center justify-between gap-2 flex-wrap bg-white/95 backdrop-blur rounded-[14px] border border-neu-100 px-3 py-2 shadow-2xs">
+        <span className="text-[11px] font-semibold text-neu-500 uppercase tracking-wide">
+          Aksi Naskah
+        </span>
+        <button
+          type="button"
+          onClick={addPasalToFirstBab}
+          title="Tambahkan pasal baru secara manual"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-pr-200 bg-pr-50 text-pr-900 hover:bg-pr-100 text-[12px] font-semibold transition-colors cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Tambah Pasal
+        </button>
+      </div>
+
       {/* Standar ID & Judul Peraturan */}
       <CorrectionHeaderSection
         standarId={data.standarId}
@@ -369,6 +650,9 @@ export function CorrectionDetailView({
         babList={data.babList}
         onToggleBab={toggleBab}
         onTogglePasal={togglePasal}
+        onAddPasal={addPasal}
+        onDeletePasal={deletePasal}
+        onAddPasalRoot={addPasalToFirstBab}
         onChangeBabJudul={(babId, val) =>
           setData((prev) => ({
             ...prev,
@@ -385,39 +669,92 @@ export function CorrectionDetailView({
             ),
           }))
         }
-        onChangePasalIsi={(babId, pasalId, val) =>
-          setData((prev) => ({
-            ...prev,
-            babList: prev.babList.map((b) =>
-              b.id === babId
-                ? {
-                  ...b,
-                  pasalList: b.pasalList.map((p) =>
-                    p.id === pasalId ? { ...p, isi: val } : p
-                  ),
-                }
-                : b
-            ),
-          }))
-        }
-        onChangePasalPenjelasan={(babId, pasalId, val) =>
-          setData((prev) => ({
-            ...prev,
-            babList: prev.babList.map((b) =>
-              b.id === babId
-                ? {
-                  ...b,
-                  pasalList: b.pasalList.map((p) =>
-                    p.id === pasalId ? { ...p, penjelasan: val } : p
-                  ),
-                }
-                : b
-            ),
-          }))
-        }
+        onChangePasalNomor={handleChangePasalNomor}
+        onChangePasalIsi={handleChangePasalIsi}
+        onChangePasalPenjelasan={handleChangePasalPenjelasan}
       />
     </div>
   );
+
+  const handleAddRelation = (newRel: { kode: string; tipe: 'mencabut' | 'mengubah' | 'dicabut' | 'diubah' }) => {
+    const kode = (newRel.kode || '').trim();
+    if (!kode) return;
+
+    // Tolak relasi ganda ke target yang sama agar daftar tidak menampilkan
+    // entri berulang ketika tombol ditekan lebih dari sekali.
+    const sudahAda = (data.riwayatPerubahan || []).some(
+      (r) => !r.isCurrent && (r.kode || '').trim().toLowerCase() === kode.toLowerCase()
+    );
+    if (sudahAda) {
+      return;
+    }
+
+    let label = 'Mengubah Peraturan ini';
+    let variant: 'diubah' | 'mengubah' | 'dicabut' = 'mengubah';
+    if (newRel.tipe === 'mencabut') {
+      label = 'Mencabut Peraturan ini';
+      variant = 'dicabut';
+    } else if (newRel.tipe === 'dicabut') {
+      label = 'Dicabut oleh peraturan ini';
+      variant = 'dicabut';
+    } else if (newRel.tipe === 'diubah') {
+      label = 'Diubah oleh peraturan ini';
+      variant = 'diubah';
+    }
+
+    const newItem: TimelineRelationItem = {
+      id: `rel-new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      kode,
+      statusBadge: {
+        label: 'Dokumen Tersedia',
+        variant: 'tersedia',
+      },
+      keteranganBadge: {
+        label,
+        variant,
+      },
+      isCurrent: false,
+    };
+
+    setData((prev) => ({
+      ...prev,
+      riwayatPerubahan: [newItem, ...(prev.riwayatPerubahan || [])],
+    }));
+  };
+
+  const handleDeleteRelation = (id: string) => {
+    setData((prev) => ({
+      ...prev,
+      riwayatPerubahan: (prev.riwayatPerubahan || []).filter((r) => r.id !== id),
+    }));
+  };
+
+  const handleChangeRelationType = (id: string, newTipe: 'mencabut' | 'mengubah' | 'dicabut' | 'diubah') => {
+    let label = 'Mengubah Peraturan ini';
+    let variant: 'diubah' | 'mengubah' | 'dicabut' = 'mengubah';
+    if (newTipe === 'mencabut') {
+      label = 'Mencabut Peraturan ini';
+      variant = 'dicabut';
+    } else if (newTipe === 'dicabut') {
+      label = 'Dicabut oleh peraturan ini';
+      variant = 'dicabut';
+    } else if (newTipe === 'diubah') {
+      label = 'Diubah oleh peraturan ini';
+      variant = 'diubah';
+    }
+
+    setData((prev) => ({
+      ...prev,
+      riwayatPerubahan: (prev.riwayatPerubahan || []).map((r) =>
+        r.id === id
+          ? {
+              ...r,
+              keteranganBadge: { label, variant },
+            }
+          : r
+      ),
+    }));
+  };
 
   const renderTimeline = () => (
     <CorrectionTimelineSection
@@ -430,6 +767,9 @@ export function CorrectionDetailView({
           ),
         }))
       }
+      onAddRelation={handleAddRelation}
+      onDeleteRelation={handleDeleteRelation}
+      onChangeRelationType={handleChangeRelationType}
     />
   );
 
@@ -679,7 +1019,7 @@ export function CorrectionDetailView({
                 </div>
               ) : (
                 /* TAB 2: RIWAYAT PERUBAHAN & METADATA DOKUMEN */
-                <div className="h-full overflow-y-auto pr-2 custom-scrollbar space-y-4">
+                <div id="section-relasi-hukum" className="h-full overflow-y-auto pr-2 custom-scrollbar space-y-4">
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
                     {renderTimeline()}
                     {renderMetadata()}
@@ -701,7 +1041,10 @@ export function CorrectionDetailView({
           </div>
 
           {/* KOLOM KANAN: RIWAYAT PERUBAHAN & METADATA */}
-          <div className="w-full lg:w-[260px] xl:w-[280px] shrink-0 min-w-0 space-y-4 h-[calc(100vh-140px)] min-h-[500px] overflow-y-auto custom-scrollbar pr-1">
+          <div
+            id="section-relasi-hukum"
+            className="w-full lg:w-[320px] xl:w-[350px] shrink-0 min-w-0 space-y-4 h-[calc(100vh-140px)] min-h-[500px] overflow-y-auto custom-scrollbar pr-1"
+          >
             {renderTimeline()}
             {renderMetadata()}
           </div>
